@@ -32,12 +32,6 @@ public class RetryUtil {
     public static <T> void retryAsynchronously(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                                ScheduledExecutorService scheduledExecutorService,
                                                CompletableFuture<T> callback) {
-        if (backoff.getMax() <= 0) {
-            throw new IllegalArgumentException("Illegal max retry time");
-        }
-        if (backoff.getInitial() <= 0) {
-            throw new IllegalArgumentException("Illegal initial time");
-        }
         scheduledExecutorService.execute(() ->
                 executeWithRetry(supplier, backoff, scheduledExecutorService, callback));
     }

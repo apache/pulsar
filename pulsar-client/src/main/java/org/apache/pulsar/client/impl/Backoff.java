@@ -22,29 +22,59 @@ import com.google.common.annotations.VisibleForTesting;
 import java.time.Clock;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import lombok.Data;
+import lombok.Getter;
 
-// All variables are in TimeUnit millis by default
-@Data
+/**
+ * Thread-safe utility to provide an exponential backoff.
+ *
+ * All variables are in {@link TimeUnit#MILLISECONDS}, by default.
+ */
 public class Backoff {
     public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
     public static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
     private final long initial;
+    @Getter
     private final long max;
     private final Clock clock;
-    private long next;
-    private long mandatoryStop;
+    private final long mandatoryStop;
 
-    private long firstBackoffTimeInMillis;
+    // Mutable state for this class. Only updated in synchronized blocks on this class, so they don't need to be
+    // marked as volatile.
+    private long next = 0;
+    private long firstBackoffTimeInMillis = 0;
     private boolean mandatoryStopMade = false;
 
     private static final Random random = new Random();
 
+    /**
+     * Backoff constructor.
+     *
+     * We do not set {@link #next} or any of this class's other mutable fields in the constructor to ensure safe
+     * initialization.
+     *
+     * @param initial - the starting delay that will be returned for the first call of {@link #next()} as well as the
+     *                first call to {@link #next()} after {@link #reset()}. Must be positive.
+     * @param unitInitial - the {@link TimeUnit} for the initial argument.
+     * @param max - the maximum delay that will be returned by {@link #next()}. Must be positive.
+     * @param unitMax - the {@link TimeUnit} for the max argument.
+     * @param mandatoryStop - a time, from now, that this class will make sure to "retry", even though it likely will
+     *                      result in a break from the exponential backoff sequence. If the value is less than
+     *                      the argument for initial, this mandatoryStop will be ignored. This value essentially
+     *                      triggers an early result of the {@link #next()} method. It will not add an extra call in the
+     *                      exponential backoff.
+     * @param unitMandatoryStop - the {@link TimeUnit} for the mandatoryStop argument.
+     * @param clock - the {@link Clock} to use for determining the current millis.
+     */
     Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
             TimeUnit unitMandatoryStop, Clock clock) {
+        if (initial <= 0) {
+            throw new IllegalArgumentException("Illegal initial time");
+        }
+        if (max <= 0) {
+            throw new IllegalArgumentException("Illegal max retry time");
+        }
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
-        this.next = this.initial;
         this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
         this.clock = clock;
     }
@@ -54,7 +84,14 @@ public class Backoff {
         this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone());
     }
 
-    public long next() {
+    /**
+     * Get the next length of time to back off based on the current state of this {@link Backoff}.
+     * @return the next delay, in milliseconds
+     */
+    public synchronized long next() {
+        if (this.next == 0) {
+            this.next = this.initial;
+        }
         long current = this.next;
         if (current < max) {
             this.next = Math.min(this.next * 2, this.max);
@@ -84,19 +121,30 @@ public class Backoff {
         return Math.max(initial, current);
     }
 
-    public void reduceToHalf() {
+    /**
+     * Reduce the next backoff to half of its current value. If the result is less than {@link #initial}, set
+     * {@link #next} to {@link #initial}.
+     */
+    public synchronized void reduceToHalf() {
         if (next > initial) {
             this.next = Math.max(this.next / 2, this.initial);
         }
     }
 
-    public void reset() {
+    /**
+     * Reset this {@link Backoff} instance to its initial state.
+     */
+    public synchronized void reset() {
         this.next = this.initial;
         this.mandatoryStopMade = false;
     }
 
+    public synchronized boolean isMandatoryStopMade() {
+        return mandatoryStopMade;
+    }
+
     @VisibleForTesting
-    long getFirstBackoffTimeInMillis() {
+    synchronized long getFirstBackoffTimeInMillis() {
         return firstBackoffTimeInMillis;
     }
 

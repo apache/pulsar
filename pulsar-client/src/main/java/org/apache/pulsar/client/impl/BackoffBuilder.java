@@ -21,6 +21,9 @@ package org.apache.pulsar.client.impl;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Builder for the {@link Backoff} class. This builder is not thread-safe.
+ */
 public class BackoffBuilder {
     private long initial;
     private TimeUnit unitInitial;
@@ -54,7 +57,6 @@ public class BackoffBuilder {
         this.unitMandatoryStop = unitMandatoryStop;
         return this;
     }
-
 
     public Backoff create() {
         return new Backoff(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock);
