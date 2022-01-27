@@ -39,7 +39,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -1105,6 +1108,76 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         assertFalse(dispatcher.isAllowOutOfOrderDelivery());
         consumer.close();
     }
+
+    @Test(timeOut = 30_000)
+    public void testCheckConsumersWithSameName() throws Exception {
+        final String topicName = "persistent://public/default/same-name-" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final String consumerName = "name";
+
+        ConsumerBuilder<String> cb = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .consumerName(consumerName)
+                .subscriptionType(SubscriptionType.Key_Shared);
+
+        // Create 3 consumers with same name
+        Consumer<String> c1 = cb.subscribe();
+
+        @Cleanup
+        Consumer<String> c2 = cb.subscribe();
+        @Cleanup
+        Consumer<String> c3 = cb.subscribe();
+
+        Producer<String> p = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            p.newMessage()
+                    .key(Integer.toString(i))
+                    .value("msg-" + i)
+                    .send();
+        }
+
+        // C1 receives some messages and won't ack
+        for (int i = 0; i < 5; i++) {
+            c1.receive();
+        }
+
+        // Close C1, now all messages should go to c2 & c3
+        c1.close();
+
+        CountDownLatch l = new CountDownLatch(100);
+
+        @Cleanup("shutdownNow")
+        ExecutorService e = Executors.newCachedThreadPool();
+        e.submit(() -> {
+            while (l.getCount() > 0) {
+                try {
+                    Message<String> msg = c2.receive(1, TimeUnit.SECONDS);
+                    c2.acknowledge(msg);
+                    l.countDown();
+                } catch (PulsarClientException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        e.submit(() -> {
+            while (l.getCount() > 0) {
+                try {
+                    Message<String> msg = c3.receive(1, TimeUnit.SECONDS);
+                    c3.acknowledge(msg);
+                    l.countDown();
+                } catch (PulsarClientException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        l.await();
+    }
+
 
     private KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {
         if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.persistent)) {
