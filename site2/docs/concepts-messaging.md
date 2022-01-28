@@ -302,7 +302,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 
 ```
 
-When creating a DLQ topic, there is no subscription by default, so if you don't subscribe to this topic in time, you may lose some messages in the DLQ. You can specify the `initSubscriptionName` to make it automatically create the initial subscription on the DLQ.
+By default, there is no subscription during a DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create the initial subscription for the DLQ, you can specify the initSubscriptionName parameter.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
