@@ -302,6 +302,22 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 
 ```
 
+When creating a DLQ topic, there is no subscription by default, so if you don't subscribe to this topic in time, you may lose some messages in the DLQ. You can specify the `initSubscriptionName` to make it automatically create the initial subscription on the DLQ.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                      .maxRedeliverCount(maxRedeliveryCount)
+                      .deadLetterTopic("your-topic-name")
+                      .initSubscriptionName("init-sub")
+                      .build())
+                .subscribe();
+                
+```
+
 Dead letter topic depends on message redelivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > **Note**    
