@@ -1076,7 +1076,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("Loading all topics on bundle: {}", bundle);
 
             NamespaceName nsName = bundle.getNamespaceObject();
-            List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
+            List<CompletableFuture<Optional<Topic>>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)
@@ -1084,7 +1084,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
-                        CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic);
+                        CompletableFuture<Optional<Topic>> future = brokerService.getTopicIfExists(topic);
                         if (future != null) {
                             persistentTopics.add(future);
                         }
@@ -1098,7 +1098,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 FutureUtil.waitForAll(persistentTopics).thenRun(() -> {
                     double topicLoadTimeSeconds = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - topicLoadStart)
                             / 1000.0;
-                    LOG.info("Loaded {} topics on {} -- time taken: {} seconds", persistentTopics.size(), bundle,
+                    long numTopicsLoaded = persistentTopics.stream()
+                            .filter(optionalTopicFuture -> optionalTopicFuture.getNow(Optional.empty()).isPresent())
+                            .count();
+                    LOG.info("Loaded {} topics on {} -- time taken: {} seconds", numTopicsLoaded, bundle,
                             topicLoadTimeSeconds);
                 });
             }

@@ -1259,26 +1259,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             (BrokerServiceException.TopicBacklogQuotaExceededException) cause;
                     IllegalStateException illegalStateException = new IllegalStateException(tbqe);
                     BacklogQuota.RetentionPolicy retentionPolicy = tbqe.getRetentionPolicy();
-                    if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                        commandSender.sendErrorResponse(requestId,
-                                ServerError.ProducerBlockedQuotaExceededError,
-                                illegalStateException.getMessage());
-                    } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                        commandSender.sendErrorResponse(requestId,
-                                ServerError.ProducerBlockedQuotaExceededException,
-                                illegalStateException.getMessage());
+                    if (producerFuture.completeExceptionally(illegalStateException)) {
+                        if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededError,
+                                    illegalStateException.getMessage());
+                        } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededException,
+                                    illegalStateException.getMessage());
+                        }
                     }
-                    producerFuture.completeExceptionally(illegalStateException);
                     producers.remove(producerId, producerFuture);
                     return null;
                 }
 
+                // Do not print stack traces for expected exceptions
                 if (cause instanceof NoSuchElementException) {
                     cause = new TopicNotFoundException("Topic Not Found.");
-                }
-                if (!Exceptions.areExceptionsPresentInChain(cause,
+                    log.info("[{}] Failed to load topic {}, producerId={}: Topic not found", remoteAddress, topicName,
+                            producerId);
+                } else if (!Exceptions.areExceptionsPresentInChain(cause,
                         ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
-                    // Do not print stack traces for expected exceptions
                     log.error("[{}] Failed to create topic {}, producerId={}",
                             remoteAddress, topicName, producerId, exception);
                 }
@@ -2503,6 +2505,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
+            recordRateLimitMetrics(producers);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
             throttledConnections.inc();
         }
@@ -2522,6 +2525,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             getBrokerService().pausedConnections(pausedConnections.intValue());
         }
+    }
+
+    private void recordRateLimitMetrics(ConcurrentLongHashMap<CompletableFuture<Producer>> producers) {
+        producers.forEach((key, producerFuture) -> {
+            if (producerFuture != null && producerFuture.isDone()) {
+                Producer p = producerFuture.getNow(null);
+                if (p != null && p.getTopic() != null) {
+                    p.getTopic().increasePublishLimitedTimes();
+                }
+            }
+        });
     }
 
     @Override
@@ -2568,6 +2582,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void disableCnxAutoRead() {
         if (ctx != null && ctx.channel().config().isAutoRead()) {
             ctx.channel().config().setAutoRead(false);
+            recordRateLimitMetrics(producers);
         }
     }
 

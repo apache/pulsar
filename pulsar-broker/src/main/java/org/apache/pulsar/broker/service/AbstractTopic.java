@@ -111,8 +111,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
-    protected volatile int maxUnackedMessagesOnConsumerAppilied = 0;
-
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
@@ -124,6 +122,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
+
+    private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "publishRateLimitedTimes");
+    protected volatile long publishRateLimitedTimes = 0;
 
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
@@ -160,6 +162,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
         topicPolicies.getRetentionPolicies().updateTopicValue(data.getRetentionPolicies());
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
+        topicPolicies.getMaxUnackedMessagesOnConsumer().updateTopicValue(data.getMaxUnackedMessagesOnConsumer());
         topicPolicies.getMaxProducersPerTopic().updateTopicValue(data.getMaxProducerPerTopic());
         topicPolicies.getMaxConsumerPerTopic().updateTopicValue(data.getMaxConsumerPerTopic());
         topicPolicies.getMaxConsumersPerSubscription().updateTopicValue(data.getMaxConsumersPerSubscription());
@@ -191,6 +194,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getCompactionThreshold().updateNamespaceValue(namespacePolicies.compaction_threshold);
         topicPolicies.getReplicationClusters().updateNamespaceValue(
                 Lists.newArrayList(CollectionUtils.emptyIfNull(namespacePolicies.replication_clusters)));
+        topicPolicies.getMaxUnackedMessagesOnConsumer()
+                .updateNamespaceValue(namespacePolicies.max_unacked_messages_per_consumer);
         topicPolicies.getMessageTTLInSeconds().updateNamespaceValue(namespacePolicies.message_ttl_in_seconds);
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
@@ -231,6 +236,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 config.getDefaultRetentionTimeInMinutes(), config.getDefaultRetentionSizeInMB()));
         topicPolicies.getDeduplicationSnapshotIntervalSeconds().updateBrokerValue(
                 config.getBrokerDeduplicationSnapshotIntervalSeconds());
+        topicPolicies.getMaxUnackedMessagesOnConsumer()
+                .updateBrokerValue(config.getMaxUnackedMessagesPerConsumer());
         //init backlogQuota
         topicPolicies.getBackLogQuotaMap()
                 .get(BacklogQuota.BacklogQuotaType.destination_storage)
@@ -647,6 +654,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         PUBLISH_LATENCY.observe(latency, unit);
     }
 
+    @Override
+    public long increasePublishLimitedTimes() {
+        return RATE_LIMITED_UPDATER.incrementAndGet(this);
+    }
+
     protected void setSchemaCompatibilityStrategy(Policies policies) {
         if (SystemTopicClient.isSystemTopic(TopicName.get(this.topic))) {
             schemaCompatibilityStrategy =
@@ -1060,6 +1072,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
+    @Override
     public HierarchyTopicPolicies getHierarchyTopicPolicies() {
         return topicPolicies;
     }

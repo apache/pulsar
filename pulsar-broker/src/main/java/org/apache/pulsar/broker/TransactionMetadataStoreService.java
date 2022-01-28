@@ -321,6 +321,11 @@ public class TransactionMetadataStoreService {
 
     public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        return endTransaction(txnID, txnAction, isTimeout, completableFuture);
+    }
+
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout,
+                                                  CompletableFuture<Void> completableFuture) {
         TxnStatus newStatus;
         switch (txnAction) {
             case TxnAction.COMMIT_VALUE:
@@ -352,8 +357,9 @@ public class TransactionMetadataStoreService {
                                             + "TxnAction : {}", txnID, txnAction, e);
                                 }
                                 transactionOpRetryTimer.newTimeout(timeout ->
-                                        endTransaction(txnID, txnAction, isTimeout),
+                                        endTransaction(txnID, txnAction, isTimeout, completableFuture),
                                         endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                                return null;
 
                             }
                             completableFuture.completeExceptionally(e.getCause());
@@ -367,8 +373,9 @@ public class TransactionMetadataStoreService {
                             LOG.debug("EndTransaction UpdateTxnStatus op retry! TxnId : {}, "
                                     + "TxnAction : {}", txnID, txnAction, e);
                         }
-                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
-                                endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction,
+                                isTimeout, completableFuture), endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                        return null;
 
                     }
                     completableFuture.completeExceptionally(e.getCause());
@@ -385,8 +392,9 @@ public class TransactionMetadataStoreService {
                                         + "TxnAction : {}", txnID, txnAction, e);
                             }
                             transactionOpRetryTimer.newTimeout(timeout ->
-                                            endTransaction(txnID, txnAction, isTimeout),
+                                            endTransaction(txnID, txnAction, isTimeout, completableFuture),
                                     endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                            return null;
                         } else {
                             LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
                                     + "TxnAction : {}", txnID, txnAction, e);
@@ -406,8 +414,9 @@ public class TransactionMetadataStoreService {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                 }
-                transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
-                        endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout,
+                        completableFuture), endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                return null;
             }
             completableFuture.completeExceptionally(e.getCause());
             return null;

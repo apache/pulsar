@@ -311,7 +311,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (!optPolicies.isPresent()) {
                         isEncryptionRequired = false;
                         updateUnackedMessagesAppliedOnSubscription(null);
-                        updateUnackedMessagesExceededOnConsumer(null);
                         return;
                     }
 
@@ -327,13 +326,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     schemaValidationEnforced = policies.schema_validation_enforced;
 
                     updateUnackedMessagesAppliedOnSubscription(policies);
-                    updateUnackedMessagesExceededOnConsumer(policies);
                 }).exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
                     isEncryptionRequired = false;
                     updateUnackedMessagesAppliedOnSubscription(null);
-                    updateUnackedMessagesExceededOnConsumer(null);
                     return null;
                 }));
     }
@@ -755,13 +752,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted);
 
-            int maxUnackedMessages = isDurable
-                    ? getMaxUnackedMessagesOnConsumer()
-                    : 0;
-
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
-                        consumerName, maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
+                        consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
                         readCompacted, initialPosition, keySharedMeta, startMessageId);
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
@@ -844,24 +837,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 ? policies.max_unacked_messages_per_subscription
                                 : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription()
                 );
-    }
-
-    private void updateUnackedMessagesExceededOnConsumer(Policies data) {
-        maxUnackedMessagesOnConsumerAppilied = getTopicPolicies()
-                .map(TopicPolicies::getMaxUnackedMessagesOnConsumer)
-                .orElseGet(() -> data != null && data.max_unacked_messages_per_consumer != null
-                        ? data.max_unacked_messages_per_consumer
-                        : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer());
-        getSubscriptions().forEach((name, sub) -> {
-            if (sub != null) {
-                sub.getConsumers().forEach(consumer -> {
-                    if (consumer.getMaxUnackedMessages() != maxUnackedMessagesOnConsumerAppilied) {
-                        consumer.setMaxUnackedMessages(maxUnackedMessagesOnConsumerAppilied);
-                    }
-                });
-            }
-        });
-
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -1651,7 +1626,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats,
                             StatsOutputStream topicStatsStream,
                             ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
-
+        this.publishRateLimitedTimes = 0;
         TopicStatsHelper topicStatsHelper = threadLocalTopicStats.get();
         topicStatsHelper.reset();
 
@@ -1913,6 +1888,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.waitingPublishers = getWaitingProducersCount();
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
+        stats.publishRateLimitedTimes = publishRateLimitedTimes;
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =
@@ -2413,7 +2389,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         schemaValidationEnforced = data.schema_validation_enforced;
         updateUnackedMessagesAppliedOnSubscription(data);
-        updateUnackedMessagesExceededOnConsumer(data);
 
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
@@ -3033,10 +3008,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return topicPolicies.getDelayedDeliveryTickTimeMillis().get();
     }
 
-    public int getMaxUnackedMessagesOnConsumer() {
-        return maxUnackedMessagesOnConsumerAppilied;
-    }
-
     public boolean isDelayedDeliveryEnabled() {
         return topicPolicies.getDelayedDeliveryEnabled().get();
     }
@@ -3091,7 +3062,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
             replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                     .ifPresent(DispatchRateLimiter::updateDispatchRate));
-            updateUnackedMessagesExceededOnConsumer(namespacePolicies.orElse(null));
 
             checkDeduplicationStatus();
 
