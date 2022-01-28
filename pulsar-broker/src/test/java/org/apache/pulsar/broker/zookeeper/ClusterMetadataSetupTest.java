@@ -106,6 +106,9 @@ public class ClusterMetadataSetupTest {
                 .build()) {
             assertNotNull(zk.exists("/", false));
             assertEquals(new HashSet<>(zk.getChildren("/", false)), firstLevelNodes);
+            assertEquals(new HashSet<>(zk.getChildren("/ledgers", false)),
+                    new HashSet<>(Arrays.asList("available", "INSTANCEID")));
+
         }
     }
 
