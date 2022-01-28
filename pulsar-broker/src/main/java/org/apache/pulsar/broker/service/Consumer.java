@@ -403,7 +403,7 @@ public class Consumer {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
+                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets, subType);
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
                     if (Subscription.isIndividualAckMode(subType)) {
@@ -413,7 +413,7 @@ public class Consumer {
                 }
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+                if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
                     long[] cursorAckSet = getCursorAckSet(position);
                     if (cursorAckSet != null) {
                         ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
@@ -519,9 +519,10 @@ public class Consumer {
         return batchSize;
     }
 
-    private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
+    private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize,
+                                                        long[] ackSets, SubType subType) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+        if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
