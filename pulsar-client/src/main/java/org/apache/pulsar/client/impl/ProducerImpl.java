@@ -77,6 +77,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.util.MathUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
@@ -470,9 +471,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         // send in chunks
-        int totalChunks = canAddToBatch(msg) ? 1
-                : Math.max(1, compressedPayload.readableBytes()) / ClientCnx.getMaxMessageSize()
-                        + (Math.max(1, compressedPayload.readableBytes()) % ClientCnx.getMaxMessageSize() == 0 ? 0 : 1);
+        int totalChunks;
+        int payloadChunkSize;
+        if (canAddToBatch(msg) || !conf.isChunkingEnabled()) {
+            totalChunks = 1;
+            payloadChunkSize = ClientCnx.getMaxMessageSize();
+        } else {
+            // Reserve current metadata size for chunk size to avoid message size overflow.
+            // NOTE: this is not strictly bounded, as metadata will be updated after chunking.
+            // So there is a small chance that the final message size is larger than ClientCnx.getMaxMessageSize().
+            // But it won't cause produce failure as broker have 10 KB padding space for these cases.
+            payloadChunkSize = ClientCnx.getMaxMessageSize() - msgMetadata.getSerializedSize();
+            totalChunks = MathUtils.ceilDiv(Math.max(1, compressedPayload.readableBytes()), payloadChunkSize);
+        }
+
         // chunked message also sent individually so, try to acquire send-permits
         for (int i = 0; i < (totalChunks - 1); i++) {
             if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
@@ -512,9 +524,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         }
                     }
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
-                            readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
+                            readStartIndex, payloadChunkSize, compressedPayload, compressed,
                             compressedPayload.readableBytes(), uncompressedSize, callback, chunkedMessageCtx);
-                    readStartIndex = ((chunkId + 1) * ClientCnx.getMaxMessageSize());
+                    readStartIndex = ((chunkId + 1) * payloadChunkSize);
                 }
             }
         } catch (PulsarClientException e) {
@@ -1400,6 +1412,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
 
+        public int getMessageHeaderAndPayloadSize() {
+            if (cmd == null) {
+                return 0;
+            }
+            ByteBuf cmdHeader = cmd.getFirst();
+            cmdHeader.markReaderIndex();
+            int totalSize = cmdHeader.readInt();
+            int cmdSize = cmdHeader.readInt();
+            int msgHeadersAndPayloadSize = totalSize - cmdSize - 4;
+            cmdHeader.resetReaderIndex();
+            return msgHeadersAndPayloadSize;
+        }
+
         private OpSendMsg(Handle<OpSendMsg> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
@@ -1982,6 +2007,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (op.msg != null && isBatchMessagingEnabled()) {
                 batchMessageAndSend();
             }
+            if (checkMaxMessageSize(op)) {
+                return;
+            }
             pendingMessages.add(op);
             if (op.msg != null) {
                 LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
@@ -2049,6 +2077,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (op.cmd == null) {
                 checkState(op.rePopulate != null);
                 op.rePopulate.run();
+                if (checkMaxMessageSize(op)) {
+                    continue;
+                }
             }
             if (stripChecksum) {
                 stripChecksum(op);
@@ -2072,6 +2103,24 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (pendingRegisteringOp != null) {
             tryRegisterSchema(cnx, pendingRegisteringOp.msg, pendingRegisteringOp.callback, expectedEpoch);
         }
+    }
+
+    /**
+     *  Check final message size for non-batch and non-chunked messages only.
+     */
+    public boolean checkMaxMessageSize(OpSendMsg op) {
+        if (op.msg != null && op.totalChunks <= 1) {
+            int messageSize = op.getMessageHeaderAndPayloadSize();
+            if (messageSize > ClientCnx.getMaxMessageSize()) {
+                releaseSemaphoreForSendOp(op);
+                op.sendComplete(new PulsarClientException.InvalidMessageException(
+                        format("The producer %s of the topic %s sends a message with %d bytes that exceeds %d bytes",
+                                producerName, topic, messageSize, ClientCnx.getMaxMessageSize()),
+                        op.sequenceId));
+                return true;
+            }
+        }
+        return false;
     }
 
     public long getDelayInMillis() {
