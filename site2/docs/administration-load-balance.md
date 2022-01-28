@@ -159,6 +159,8 @@ This strategy will attempt to shed exactly one bundle on brokers which are overl
 This strategy tends to distribute load uniformly across all brokers. This strategy checks laod difference between broker with highest load and broker with lowest load. If the difference is higher than configured thresholds `loadBalancerMsgRateDifferenceShedderThreshold` and `loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold` then it finds out bundles which can be unloaded to distribute traffic evenly across all brokers. Configure broker with below value to use this strategy.
 `loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`
 
+![Shedding strategy - UniformLoadShedder](assets/UniformLoadShedder.png)
+
 #### Broker overload thresholds
 
 The determinations of when a broker is overloaded is based on threshold of CPU, network and memory usage. Whenever either of those metrics reaches the threshold, the system triggers the shedding (if enabled).
