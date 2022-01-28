@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
@@ -40,53 +41,67 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 /**
  * Pulsar client authentication provider based on OAuth 2.0.
  *
- * The class has an option to preemptively refresh the token by configuring the {@link #expiryAdjustment}. This value
- * must be greater than 0. When it is less than 1, it is treated as a percentage and is multiplied by the most recent
- * token's `expires_in` value to determine how early this class should start attempting to retrieve another token. When
- * it is greater than or equal to 1, this feature is turned off, and the client will only refresh the token when the
- * client attempts to use an already expired token.
+ * The first call to {@link #getAuthData()} will result in a blocking network call to retrieve the OAuth2.0 token from
+ * the Identity Provider. After that, there are two behaviors, depending on {@link #earlyTokenRefreshPercent}:
+ *
+ * 1. If {@link #earlyTokenRefreshPercent} is less than 1, this authentication class will schedule a runnable to refresh
+ * the token in n seconds where n is the result of multiplying {@link #earlyTokenRefreshPercent} and the `expires_in`
+ * value returned by the Identity Provider. If the call to the Identity Provider fails, this class will retry attempting
+ * to refresh the token using an exponential backoff. If the token is not refreshed before it expires, the Pulsar client
+ * will make one final blocking call to the Identity Provider. If that call fails, this class will pass the failure to
+ * the Pulsar client. This proactive approach to token management is good for use cases that want to avoid latency
+ * spikes from calls to the Identity Provider and that want to be able to withstand short Identity Provider outages. The
+ * tradeoff is that this class consumes slightly more resources.
+ *
+ * 2. If {@link #earlyTokenRefreshPercent} is greater than or equal to 1, this class will not retrieve a new token until
+ * the {@link #getAuthData()} method is called while the cached token is expired. If the call to the Identity Provider
+ * fails, this class will pass the failure to the Pulsar client. This lazy approach is good for use cases that are not
+ * latency sensitive and that will not use the token frequently.
+ *
+ * {@link #earlyTokenRefreshPercent} must be greater than 0. It defaults to 1, which means that early token refresh is
+ * disabled by default.
  *
  * The current implementation of this class can block the calling thread.
  *
- * This class is intended to be called from multiple threads, and is therefore designed to be threadsafe.
+ * This class is intended to be called from multiple threads, and is therefore designed to be thread-safe.
  */
 @Slf4j
 public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticationParameterSupport {
 
     public static final String CONFIG_PARAM_TYPE = "type";
     public static final String TYPE_CLIENT_CREDENTIALS = "client_credentials";
+    public static final String EARLY_TOKEN_REFRESH_PERCENT = "early_token_refresh_percent";
+    public static final int EARLY_TOKEN_REFRESH_PERCENT_DEFAULT = 1; // feature disabled by default
     public static final String AUTH_METHOD_NAME = "token";
     private static final long serialVersionUID = 1L;
+    private static final transient ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1);
 
-    private final transient ScheduledThreadPoolExecutor scheduler;
-    private final transient Backoff backoff;
-    private final double expiryAdjustment;
+    private volatile double earlyTokenRefreshPercent;
     final Clock clock;
     volatile Flow flow;
-    transient volatile CachedToken cachedToken;
+    private transient volatile CachedToken cachedToken;
 
-    private AuthenticationOAuth2(Clock clock, double expiryAdjustment) {
-        if (expiryAdjustment <= 0) {
-            throw new IllegalArgumentException("ExpiryAdjustment must be greater than 0.");
-        }
-        this.clock = clock;
-        this.expiryAdjustment = expiryAdjustment;
-        boolean isPreemptiveTokenRefresh = expiryAdjustment < 1;
-        this.backoff = isPreemptiveTokenRefresh ? new BackoffBuilder()
-                .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMax(5, TimeUnit.MINUTES)
-                .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                .create() : null;
-        this.scheduler =  isPreemptiveTokenRefresh ? new ScheduledThreadPoolExecutor(1) : null;
-    }
+    // Only ever updated on the single scheduler thread. Does not need to be volatile.
+    private transient Backoff backoff;
+    private transient ScheduledFuture<?> nextRefreshAttempt;
 
+    // No args constructor used when creating class with reflection
     public AuthenticationOAuth2() {
-        this(Clock.systemDefaultZone(), 0.9);
+        this(null, Clock.systemDefaultZone());
     }
 
-    AuthenticationOAuth2(Flow flow, Clock clock, double expiryAdjustment) {
-        this(clock, expiryAdjustment);
+    AuthenticationOAuth2(Flow flow, Clock clock) {
+        this(flow, clock, EARLY_TOKEN_REFRESH_PERCENT_DEFAULT);
+    }
+
+    AuthenticationOAuth2(Flow flow, Clock clock, double earlyTokenRefreshPercent) {
+        this(clock, earlyTokenRefreshPercent);
         this.flow = flow;
+    }
+
+    private AuthenticationOAuth2(Clock clock, double earlyRefreshPercent) {
+        this.clock = clock;
+        setEarlyTokenRefreshPercent(earlyRefreshPercent);
     }
 
     @Override
@@ -105,6 +120,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         } catch (IOException e) {
             throw new IllegalArgumentException("Malformed authentication parameters", e);
         }
+
+        setEarlyTokenRefreshPercent(Double.parseDouble(params.getOrDefault(EARLY_TOKEN_REFRESH_PERCENT,
+                Integer.toString(EARLY_TOKEN_REFRESH_PERCENT_DEFAULT))));
 
         String type = params.getOrDefault(CONFIG_PARAM_TYPE, TYPE_CLIENT_CREDENTIALS);
         switch(type) {
@@ -155,31 +173,71 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         handleSuccessfulTokenRefresh();
     }
 
+    /**
+     * When we successfully get a token, we need to schedule the next attempt to refresh it.
+     * This is done completely based on the "expires_in" value returned by the identity provider.
+     * The code is run on the single scheduler thread in order to ensure that the backoff is updated correctly.
+     */
     private void handleSuccessfulTokenRefresh() {
-        if (scheduler != null) {
-            backoff.reset();
-            long expiresInMillis = TimeUnit.SECONDS.toMillis(cachedToken.latest.getExpiresIn());
-            scheduleRefresh((long) (expiresInMillis * expiryAdjustment));
-        }
+        scheduler.execute(() -> {
+            if (earlyTokenRefreshPercent < 1) {
+                backoff = buildBackoff(cachedToken.latest.getExpiresIn());
+                long expiresInMillis = TimeUnit.SECONDS.toMillis(cachedToken.latest.getExpiresIn());
+                scheduleRefresh((long) (expiresInMillis * earlyTokenRefreshPercent));
+            }
+        });
     }
 
     /**
      * Attempt to refresh the token. If successful, schedule the next refresh task according to the
-     * {@link #expiryAdjustment}. If failed, schedule another attempt to refresh the token according to the
+     * {@link #earlyTokenRefreshPercent}. If failed, schedule another attempt to refresh the token according to the
      * {@link #backoff} policy.
      */
     private void refreshToken() {
         try {
             this.authenticate();
-        } catch (Throwable e) {
+        } catch (PulsarClientException | RuntimeException e) {
             long delayMillis = backoff.next();
             log.error("Error refreshing token. Will retry in {} millis.", delayMillis, e);
             scheduleRefresh(delayMillis);
         }
     }
 
+    /**
+     * Schedule the task to refresh the token.
+     * NOTE: this method must be run on the {@link #scheduler} thread in order to ensure {@link #nextRefreshAttempt}
+     * is accessed and updated safely.
+     * @param delayMillis the time, in milliseconds, to wait before starting to attempt to refresh the token.
+     */
     private void scheduleRefresh(long delayMillis) {
-        scheduler.schedule(this::refreshToken, delayMillis, TimeUnit.MILLISECONDS);
+        nextRefreshAttempt = scheduler.schedule(this::refreshToken, delayMillis, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Cancel the all subsequent refresh attempts by canceling the next token refresh attempt. By running this command
+     * on the single {@link #scheduler} thread, we remove the chance for a race condition that could allow a currently
+     * executing refresh attempt to schedule another refresh attempt.
+     */
+    private void cancelTokenRefresh() {
+        scheduler.execute(() -> {
+            nextRefreshAttempt.cancel(false);
+        });
+    }
+
+    private void setEarlyTokenRefreshPercent(double earlyRefreshPercent) {
+        if (earlyRefreshPercent <= 0) {
+            throw new IllegalArgumentException("ExpiryAdjustment must be greater than 0.");
+        }
+        this.earlyTokenRefreshPercent = earlyRefreshPercent;
+    }
+
+    private Backoff buildBackoff(int expiresInSeconds) {
+        return new BackoffBuilder()
+                .setInitialTime(1, TimeUnit.SECONDS)
+                .setMax(10, TimeUnit.MINUTES)
+                // Attempt a final token refresh attempt 2 seconds before the token actually expires, if necessary.
+                .setMandatoryStop(expiresInSeconds - 2, TimeUnit.SECONDS)
+                .create();
     }
 
     @Override
@@ -189,9 +247,7 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         } catch (Exception e) {
             throw new IOException(e);
         } finally {
-            if (scheduler != null) {
-                scheduler.shutdownNow();
-            }
+            cancelTokenRefresh();
         }
     }
 

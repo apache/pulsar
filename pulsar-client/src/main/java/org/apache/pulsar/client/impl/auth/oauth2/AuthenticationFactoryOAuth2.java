@@ -54,13 +54,8 @@ public final class AuthenticationFactoryOAuth2 {
      * @return an Authentication object
      */
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
-        ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
-                .issuerUrl(issuerUrl)
-                .privateKey(credentialsUrl.toExternalForm())
-                .audience(audience)
-                .scope(scope)
-                .build();
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), 0.9);
+        ClientCredentialsFlow flow = buildFlow(issuerUrl, credentialsUrl, audience, scope);
+        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
     }
 
     /**
@@ -75,20 +70,24 @@ public final class AuthenticationFactoryOAuth2 {
      *              and each string adds an additional access range to the requested scope.
      *              From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
      * @param expiryAdjustment A field that represents how early to start attempting to refresh the access token.
-     *                         The value must be greater than 0. A value greater than or equal to 1 will turn off
-     *                         preemptive token retrieval. When less than 1, the value represents the percentage
-     *                         of the `expires_in` seconds field from the Access Token Response, and the resulting value
-     *                         will be used to schedule a refresh token task in the client. It defaults to 0.9.
+     *                         See {@link AuthenticationOAuth2} for details.
      * @return an Authentication object
      */
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope,
                                                    double expiryAdjustment) {
-        ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
+        ClientCredentialsFlow flow = buildFlow(issuerUrl, credentialsUrl, audience, scope);
+        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), expiryAdjustment);
+    }
+
+    /**
+     * Internal method to build a {@link ClientCredentialsFlow}.
+     */
+    private static ClientCredentialsFlow buildFlow(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
+        return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .privateKey(credentialsUrl.toExternalForm())
                 .audience(audience)
                 .scope(scope)
                 .build();
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), expiryAdjustment);
     }
 }
