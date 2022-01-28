@@ -68,10 +68,10 @@ public class Backoff {
     Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
             TimeUnit unitMandatoryStop, Clock clock) {
         if (initial <= 0) {
-            throw new IllegalArgumentException("Illegal initial time");
+            throw new IllegalArgumentException("Illegal initial time: " + initial);
         }
         if (max <= 0) {
-            throw new IllegalArgumentException("Illegal max retry time");
+            throw new IllegalArgumentException("Illegal max retry time: " + max);
         }
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
