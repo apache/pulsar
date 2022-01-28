@@ -4822,14 +4822,14 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
-        validateTopicOperation(topicName, TopicOperation.SET_SCHEMA_COMPATIBILITY_STRATEGY);
-
-        return getTopicPoliciesAsyncWithRetry(topicName)
-                .thenCompose(op -> {
-                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.setSchemaCompatibilityStrategy(
-                            strategy == SchemaCompatibilityStrategy.UNDEFINED ? null : strategy);
-                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
-                });
+        return validateTopicOperationAsync(topicName, TopicOperation.SET_SCHEMA_COMPATIBILITY_STRATEGY)
+                .thenCompose((__) -> getTopicPoliciesAsyncWithRetry(topicName)
+                        .thenCompose(op -> {
+                            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                            topicPolicies.setSchemaCompatibilityStrategy(
+                                    strategy == SchemaCompatibilityStrategy.UNDEFINED ? null : strategy);
+                            return pulsar().getTopicPoliciesService()
+                                    .updateTopicPoliciesAsync(topicName, topicPolicies);
+                        }));
     }
 }
