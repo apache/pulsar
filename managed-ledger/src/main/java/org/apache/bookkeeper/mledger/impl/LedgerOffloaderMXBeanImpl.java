@@ -236,7 +236,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
         adder.add(1L);
     }
 
-    public void recordReadOffloadBytes(String topicName, int size) {
+    public void recordReadOffloadBytes(String topicName, long size) {
         if (topicName == null) {
             return;
         }

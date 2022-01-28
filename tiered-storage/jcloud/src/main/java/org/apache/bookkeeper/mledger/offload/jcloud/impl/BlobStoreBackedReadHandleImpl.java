@@ -55,8 +55,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
-    private final LedgerOffloaderMXBeanImpl mxBean;
-    private final String managedLedgerName;
 
     enum State {
         Opened,
@@ -66,16 +64,13 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private State state = null;
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
-                                          BackedInputStream inputStream, ExecutorService executor,
-                                          LedgerOffloaderMXBeanImpl mxBean, String managedLedgerName) {
+                                          BackedInputStream inputStream, ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
         state = State.Opened;
-        this.mxBean = mxBean;
-        this.managedLedgerName = managedLedgerName;
     }
 
     @Override
@@ -151,7 +146,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         }
                         entriesToRead--;
                         nextExpectedId++;
-                        this.mxBean.recordReadOffloadBytes(managedLedgerName, length);
                     } else if (entryId > nextExpectedId && entryId < lastEntry) {
                         log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
                             + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
@@ -180,7 +174,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
-                this.mxBean.recordReadOffloadError(managedLedgerName);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
@@ -269,7 +262,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 index.getDataObjectLength(),
                 readBufferSize, mxBean, managedLedgerName);
 
-        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor,  mxBean, managedLedgerName);
+        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
     }
 
     // for testing

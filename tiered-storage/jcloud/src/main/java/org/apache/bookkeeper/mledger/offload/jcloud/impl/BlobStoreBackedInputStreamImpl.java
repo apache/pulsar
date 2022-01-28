@@ -92,6 +92,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                 if (this.mxBean != null) {
                     this.mxBean.recordReadOffloadDataLatency(managedLedgerName,
                             System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    this.mxBean.recordReadOffloadBytes(managedLedgerName, endRange - startRange + 1);
                 }
                 versionCheck.check(key, blob);
 
@@ -107,6 +108,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                     cursor += buffer.readableBytes();
                 }
             } catch (Throwable e) {
+                if (null != this.mxBean) {
+                    this.mxBean.recordReadOffloadError(this.managedLedgerName);
+                }
                 throw new IOException("Error reading from BlobStore", e);
             }
         }
