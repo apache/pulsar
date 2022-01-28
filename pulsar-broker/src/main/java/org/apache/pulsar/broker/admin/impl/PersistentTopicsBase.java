@@ -175,22 +175,26 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected List<String> internalGetPartitionedTopicList() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
-        // Validate that namespace exists, throws 404 if it doesn't exist
-        try {
-            if (!namespaceResources().namespaceExists(namespaceName)) {
-                log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist", clientAppId(),
-                        namespaceName);
-                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-            }
-        } catch (RestException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
-        return getPartitionedTopicList(TopicDomain.getEnum(domain()));
+    protected void internalGetPartitionedTopicList(AsyncResponse asyncResponse) {
+        validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
+                .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
+                .thenCompose(namespaceExists -> {
+                    if (!namespaceExists) {
+                        log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist", clientAppId(),
+                                namespaceName);
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    } else {
+                        return namespaceResources().getPartitionedTopicResources()
+                                .listPartitionedTopicsAsync(namespaceName, TopicDomain.getEnum(domain()))
+                                .thenAccept(asyncResponse::resume);
+                    }
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to get partitioned topic list {}: {}", clientAppId(),
+                            namespaceName, realCause.getMessage());
+                    resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                    return null;
+                });
     }
 
     protected Map<String, Set<AuthAction>> internalGetPermissionsOnTopic() {

@@ -551,18 +551,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {
-        try {
-            return namespaceResources().getPartitionedTopicResources()
-                    .listPartitionedTopicsAsync(namespaceName, topicDomain)
-                    .join();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(),
-                    namespaceName.toString(), e);
-            throw new RestException(e);
-        }
-    }
-
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
         try {
             return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
