@@ -52,7 +52,6 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.asynchttpclient.uri.Uri;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
