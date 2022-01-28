@@ -70,12 +70,10 @@ public class MLTransactionMetadataStore
     private final LongAdder transactionTimeoutCount;
     private final LongAdder appendLogCount;
     private final MLTransactionSequenceIdGenerator sequenceIdGenerator;
-    private final TransactionRecoverTracker recoverTracker;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
                                       TransactionTimeoutTracker timeoutTracker,
-                                      TransactionRecoverTracker recoverTracker,
                                       MLTransactionSequenceIdGenerator sequenceIdGenerator) {
         super(State.None);
         this.sequenceIdGenerator = sequenceIdGenerator;
@@ -89,10 +87,9 @@ public class MLTransactionMetadataStore
         this.abortedTransactionCount = new LongAdder();
         this.transactionTimeoutCount = new LongAdder();
         this.appendLogCount = new LongAdder();
-        this.recoverTracker = recoverTracker;
     }
 
-    public CompletableFuture<TransactionMetadataStore> init() {
+    public CompletableFuture<TransactionMetadataStore> init(TransactionRecoverTracker recoverTracker) {
         CompletableFuture<TransactionMetadataStore> completableFuture = new CompletableFuture<>();
         if (!changeToInitializingState()) {
             log.error("Managed ledger transaction metadata store change state error when init it");

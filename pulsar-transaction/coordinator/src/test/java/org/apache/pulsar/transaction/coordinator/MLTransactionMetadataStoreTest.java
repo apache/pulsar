@@ -74,9 +74,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        new TransactionTimeoutTrackerImpl(),
                         mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
         int checkReplayRetryCount = 0;
         while (true) {
             checkReplayRetryCount++;
@@ -150,9 +150,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
@@ -177,9 +176,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog.initialize().join();
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         txnID = transactionMetadataStore.newTransaction(100000).get();
@@ -204,9 +202,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -249,9 +246,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
                 MLTransactionMetadataStore transactionMetadataStoreTest =
                         new MLTransactionMetadataStore(transactionCoordinatorID,
-                                txnLog2, new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                                mlTransactionSequenceIdGenerator);
-                transactionMetadataStoreTest.init().get();
+                                txnLog2, new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+                transactionMetadataStoreTest.init(new TransactionRecoverTrackerImpl()).get();
 
                 while (true) {
                     if (checkReplayRetryCount > 6) {
@@ -319,9 +315,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -387,9 +382,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
 
@@ -406,9 +400,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog.initialize().join();
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
     }
@@ -429,9 +422,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
-                        mlTransactionSequenceIdGenerator);
-        transactionMetadataStore.init().get();
+                        new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         transactionMetadataStore.newTransaction(5000).get();
