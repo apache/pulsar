@@ -75,9 +75,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
         doc = "The ZooKeeper quorum connection string (as a comma-separated list)"
     )
+    @Deprecated
     private String zookeeperServers;
+
     @FieldContext(
             category = CATEGORY_BROKER_DISCOVERY,
             required = false,
@@ -89,17 +92,23 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)\n"
     )
     private String metadataStoreUrl;
+
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
         doc = "Configuration store connection string (as a comma-separated list)"
     )
+    @Deprecated
     private String configurationStoreServers;
+
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
         doc = "Global ZooKeeper quorum connection string (as a comma-separated list)"
     )
     @Deprecated
     private String globalZookeeperServers;
+
     @FieldContext(
             category = CATEGORY_BROKER_DISCOVERY,
             required = false,
