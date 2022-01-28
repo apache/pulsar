@@ -402,8 +402,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         producer.close();
         consumer.unsubscribe();
         consumer.close();
-        admin.topics().deletePartitionedTopic(topicName.toString());
-
         loadManager2 = null;
 
         log.info("-- Exiting {} test --", methodName);
