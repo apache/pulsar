@@ -230,7 +230,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     public ServerCnx(PulsarService pulsar, String listenerName) {
-        super(pulsar.getBrokerService().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+        // pulsar.getBrokerService() can sometimes be null in unit tests when using mocks
+        // the null check is a workaround for #13620
+        super(pulsar.getBrokerService() != null ? pulsar.getBrokerService().getKeepAliveIntervalSeconds() : 0,
+                TimeUnit.SECONDS);
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
