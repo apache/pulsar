@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.DELETE;
@@ -36,6 +35,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
@@ -85,16 +85,21 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 401, message = "Authentication required"),
             @ApiResponse(code = 403, message = "This operation requires super-user access"),
             @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
-    public Set<String> getActiveBrokers(@PathParam("cluster") String cluster) throws Exception {
-        validateSuperUserAccess();
-        validateClusterOwnership(cluster);
-
-        try {
-            return pulsar().getLoadManager().get().getAvailableBrokers();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+    public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse,
+                                 @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
+                .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof WebApplicationException) {
+                        asyncResponse.resume(realCause);
+                    } else {
+                        asyncResponse.resume(new RestException(realCause));
+                    }
+                    return null;
+                });
     }
 
     @GET
@@ -107,17 +112,23 @@ public class BrokersBase extends PulsarWebResource {
                     @ApiResponse(code = 401, message = "Authentication required"),
                     @ApiResponse(code = 403, message = "This operation requires super-user access"),
                     @ApiResponse(code = 404, message = "Leader broker not found") })
-    public BrokerInfo getLeaderBroker() throws Exception {
-        validateSuperUserAccess();
-
-        try {
-            LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-            return BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), e);
-            throw new RestException(e);
-        }
+    public void getLeaderBroker(@Suspended final AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync().thenAccept(__ -> {
+                    LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
+                            .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
+                    BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    asyncResponse.resume(brokerInfo);
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), realCause);
+                    if (realCause instanceof WebApplicationException) {
+                        asyncResponse.resume(realCause);
+                    } else {
+                        asyncResponse.resume(new RestException(realCause));
+                    }
+                    return null;
+                });
     }
 
     @GET
