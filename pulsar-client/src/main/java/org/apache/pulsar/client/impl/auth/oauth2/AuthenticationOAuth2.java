@@ -226,7 +226,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
      */
     private void cancelTokenRefresh() {
         scheduler.execute(() -> {
-            nextRefreshAttempt.cancel(false);
+            if (nextRefreshAttempt != null) {
+                nextRefreshAttempt.cancel(false);
+            }
         });
     }
 
