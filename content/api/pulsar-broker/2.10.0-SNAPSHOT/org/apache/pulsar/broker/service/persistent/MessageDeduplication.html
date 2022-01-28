@@ -156,6 +156,11 @@ extends java.lang.Object</pre>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>static class&nbsp;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="MessageDeduplication.MessageDupStatus.html" title="enum in org.apache.pulsar.broker.service.persistent">MessageDeduplication.MessageDupStatus</a></span></code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static class&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="MessageDeduplication.MessageDupUnknownException.html" title="class in org.apache.pulsar.broker.service.persistent">MessageDeduplication.MessageDupUnknownException</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -218,7 +223,7 @@ extends java.lang.Object</pre>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code>org.apache.pulsar.broker.service.persistent.MessageDeduplication.MessageDupStatus</code></td>
+<td class="colFirst"><code><a href="MessageDeduplication.MessageDupStatus.html" title="enum in org.apache.pulsar.broker.service.persistent">MessageDeduplication.MessageDupStatus</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isDuplicate(org.apache.pulsar.broker.service.Topic.PublishContext,io.netty.buffer.ByteBuf)">isDuplicate</a></span>&#8203;(<a href="../Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext,
            io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</code></th>
 <td class="colLast">
@@ -349,8 +354,8 @@ extends java.lang.Object</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>isDuplicate</h4>
-<pre class="methodSignature">public&nbsp;org.apache.pulsar.broker.service.persistent.MessageDeduplication.MessageDupStatus&nbsp;isDuplicate&#8203;(<a href="../Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext,
-                                                                                                     io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</pre>
+<pre class="methodSignature">public&nbsp;<a href="MessageDeduplication.MessageDupStatus.html" title="enum in org.apache.pulsar.broker.service.persistent">MessageDeduplication.MessageDupStatus</a>&nbsp;isDuplicate&#8203;(<a href="../Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext,
+                                                         io.netty.buffer.ByteBuf&nbsp;headersAndPayload)</pre>
 <div class="block">Assess whether the message was already stored in the topic.</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
