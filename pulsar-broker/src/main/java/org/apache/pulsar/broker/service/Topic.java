@@ -288,4 +288,9 @@ public interface Topic {
      */
     CompletableFuture<Void> truncate();
 
+    /**
+     * Get BrokerService.
+     * @return
+     */
+    BrokerService getBrokerService();
 }
