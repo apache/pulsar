@@ -27,7 +27,10 @@ import static org.mockito.Mockito.verify;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
+
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -41,6 +44,7 @@ public class PulsarDecoderTest {
     @BeforeMethod
     public void setup() {
         this.decoder = mock(PulsarDecoder.class, CALLS_REAL_METHODS);
+        Whitebox.setInternalState(decoder, "cmd", new BaseCommand());
     }
 
     @Test

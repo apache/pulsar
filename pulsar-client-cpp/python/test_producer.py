@@ -31,7 +31,8 @@ producer = client.create_producer(
                     properties={
                         "producer-name": "test-producer-name",
                         "producer-id": "test-producer-id"
-                    }
+                    },
+                    batching_type=BatchingType.KeyBased
                 )
 
 for i in range(10):

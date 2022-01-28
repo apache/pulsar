@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.BitSet;
 
-class BatchMessageAcker {
+public class BatchMessageAcker {
 
     private BatchMessageAcker() {
         this.bitSet = new BitSet();
@@ -34,17 +33,21 @@ class BatchMessageAcker {
         return new BatchMessageAcker(bitSet, batchSize);
     }
 
+    // Use the param bitSet as the BatchMessageAcker's bitSet, don't care about the batchSize.
+    static BatchMessageAcker newAcker(BitSet bitSet) {
+        return new BatchMessageAcker(bitSet, -1);
+    }
+
     // bitset shared across messages in the same batch.
     private final int batchSize;
     private final BitSet bitSet;
-    private boolean prevBatchCumulativelyAcked = false;
+    private volatile boolean prevBatchCumulativelyAcked = false;
 
     BatchMessageAcker(BitSet bitSet, int batchSize) {
         this.bitSet = bitSet;
         this.batchSize = batchSize;
     }
 
-    @VisibleForTesting
     BitSet getBitSet() {
         return bitSet;
     }
@@ -56,6 +59,10 @@ class BatchMessageAcker {
     public synchronized boolean ackIndividual(int batchIndex) {
         bitSet.clear(batchIndex);
         return bitSet.isEmpty();
+    }
+
+    public synchronized int getBitSetSize() {
+        return bitSet.size();
     }
 
     public synchronized boolean ackCumulative(int batchIndex) {
@@ -77,4 +84,12 @@ class BatchMessageAcker {
         return prevBatchCumulativelyAcked;
     }
 
+    @Override
+    public String toString() {
+        return "BatchMessageAcker{"
+                + "batchSize=" + batchSize
+                + ", bitSet=" + bitSet
+                + ", prevBatchCumulativelyAcked=" + prevBatchCumulativelyAcked
+                + '}';
+    }
 }

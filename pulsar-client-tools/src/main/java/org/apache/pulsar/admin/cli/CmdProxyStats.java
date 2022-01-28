@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import java.io.IOException;
-
-import org.apache.pulsar.client.admin.PulsarAdmin;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
@@ -29,6 +25,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.util.function.Supplier;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 
 @Parameters(commandDescription = "Operations to collect Proxy statistics")
 public class CmdProxyStats extends CmdBase {
@@ -40,7 +39,8 @@ public class CmdProxyStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonArray stats = admin.proxyStats().getConnections();
+            String json = getAdmin().proxyStats().getConnections();
+            JsonArray stats = new Gson().fromJson(json, JsonArray.class);
             printStats(stats, indent);
         }
     }
@@ -52,7 +52,8 @@ public class CmdProxyStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonObject stats = admin.proxyStats().getTopics();
+            String json = getAdmin().proxyStats().getTopics();
+            JsonObject stats = new Gson().fromJson(json, JsonObject.class);
             printStats(stats, indent);
         }
     }
@@ -63,7 +64,7 @@ public class CmdProxyStats extends CmdBase {
         System.out.println(gson.toJson(json));
     }
 
-    public CmdProxyStats(PulsarAdmin admin) {
+    public CmdProxyStats(Supplier<PulsarAdmin> admin) {
         super("proxy-stats", admin);
         jcommander.addCommand("connections", new CmdConnectionMetrics());
         jcommander.addCommand("topics", new CmdTopicsMetrics());

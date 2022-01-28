@@ -51,9 +51,8 @@ import org.apache.pulsar.admin.cli.CmdFunctions.StopFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -81,12 +80,20 @@ public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";
     private static final String JAR_NAME = CmdFunctionsTest.class.getClassLoader().getResource("dummyexamples.jar").getFile();
-    private static final String URL ="file:" + JAR_NAME;
+    private static final String GO_EXEC_FILE_NAME = "test-go-function-with-url";
+    private static final String PYTHON_FILE_NAME = "test-go-function-with-url";
+    private static final String URL = "file:" + JAR_NAME;
+    private static final String URL_WITH_GO = "file:" + GO_EXEC_FILE_NAME;
+    private static final String URL_WITH_PY = "file:" + PYTHON_FILE_NAME;
     private static final String FN_NAME = TEST_NAME + "-function";
     private static final String INPUT_TOPIC_NAME = TEST_NAME + "-input-topic";
     private static final String OUTPUT_TOPIC_NAME = TEST_NAME + "-output-topic";
     private static final String TENANT = TEST_NAME + "-tenant";
     private static final String NAMESPACE = TEST_NAME + "-namespace";
+    private static final String PACKAGE_URL = "function://sample/ns1/jardummyexamples@1";
+    private static final String PACKAGE_GO_URL = "function://sample/ns1/godummyexamples@1";
+    private static final String PACKAGE_PY_URL = "function://sample/ns1/pydummyexamples@1";
+    private static final String PACKAGE_INVALID_URL = "functionsample.jar";
 
     private PulsarAdmin admin;
     private Functions functions;
@@ -112,10 +119,9 @@ public class CmdFunctionsTest {
         this.functions = mock(Functions.class);
         when(admin.functions()).thenReturn(functions);
         when(admin.getServiceUrl()).thenReturn("http://localhost:1234");
-        when(admin.getClientConfigData()).thenReturn(new ClientConfigurationData());
-        this.cmd = new CmdFunctions(admin);
-        this.cmdSinks = new CmdSinks(admin);
-        this.cmdSources = new CmdSources(admin);
+        this.cmd = new CmdFunctions(() -> admin);
+        this.cmdSinks = new CmdSinks(() -> admin);
+        this.cmdSources = new CmdSources(() -> admin);
 
         // mock reflections
         mockStatic(Reflections.class);
@@ -319,6 +325,130 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateGoFunctionWithFileUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-go-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--go", URL_WITH_GO,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-go-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreatePyFunctionWithFileUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-py-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--py", URL_WITH_PY,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", "process_python_function",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-py-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", PACKAGE_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(FN_NAME, creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateGoFunctionWithPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-go-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--go", PACKAGE_GO_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-go-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreatePyFunctionWithPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-py-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--py", PACKAGE_PY_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", "process_python_function",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-py-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithInvalidPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", PACKAGE_INVALID_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(FN_NAME, creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(0)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
     public void testCreateFunctionWithoutBasicArguments() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -476,7 +606,7 @@ public class CmdFunctionsTest {
         assertEquals(INPUT_TOPIC_NAME, updater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, updater.getOutput());
 
-        verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
+        verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
     @Test
@@ -554,7 +684,7 @@ public class CmdFunctionsTest {
         assertEquals(FN_NAME, creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
-        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 5.0);
+        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 5.0, 0);
         // Disk/Ram should be default
         assertEquals(creater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
         assertEquals(creater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
@@ -582,7 +712,7 @@ public class CmdFunctionsTest {
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
         assertEquals(creater.getFunctionConfig().getResources().getRam(), Long.valueOf(5656565656L));
         // cpu/disk should be default
-        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0, 0);
         assertEquals(creater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
@@ -609,7 +739,7 @@ public class CmdFunctionsTest {
         assertEquals(creater.getFunctionConfig().getResources().getDisk(), Long.valueOf(8080808080808080L));
         // cpu/Ram should be default
         assertEquals(creater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
-        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(creater.getFunctionConfig().getResources().getCpu(), 1.0, 0);
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
@@ -633,11 +763,11 @@ public class CmdFunctionsTest {
         assertEquals(FN_NAME, updater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, updater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, updater.getOutput());
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 5.0);
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 5.0, 0);
         // Disk/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
     @Test
@@ -661,9 +791,9 @@ public class CmdFunctionsTest {
         assertEquals(OUTPUT_TOPIC_NAME, updater.getOutput());
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(5656565656L));
         // cpu/disk should be default
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0, 0);
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
     @Test
@@ -688,8 +818,8 @@ public class CmdFunctionsTest {
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(8080808080808080L));
         // cpu/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptions()));
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0, 0);
+        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
     @Test
@@ -715,8 +845,8 @@ public class CmdFunctionsTest {
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(8080808080808080L));
         // cpu/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
-        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0);
-        UpdateOptions updateOptions = new UpdateOptions();
+        assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0, 0);
+        UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
         updateOptions.setUpdateAuthData(true);
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(updateOptions));
     }

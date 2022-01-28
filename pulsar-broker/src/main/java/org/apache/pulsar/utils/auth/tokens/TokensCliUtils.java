@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.utils.auth.tokens;
 
+import com.beust.jcommander.DefaultUsageFormatter;
+import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.common.base.Charsets;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
@@ -30,7 +32,6 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -41,33 +42,31 @@ import java.security.KeyPair;
 import java.util.Date;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import javax.crypto.SecretKey;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 public class TokensCliUtils {
 
     public static class Arguments {
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
     }
 
     @Parameters(commandDescription = "Create a new secret key")
     public static class CommandCreateSecretKey {
-        @Parameter(names = { "-a",
-                "--signature-algorithm" }, description = "The signature algorithm for the new secret key.")
+        @Parameter(names = {"-a",
+                "--signature-algorithm"}, description = "The signature algorithm for the new secret key.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.HS256;
 
-        @Parameter(names = { "-o",
-                "--output" }, description = "Write the secret key to a file instead of stdout")
+        @Parameter(names = {"-o",
+                "--output"}, description = "Write the secret key to a file instead of stdout")
         String outputFile;
 
         @Parameter(names = {
-                "-b", "--base64" }, description = "Encode the key in base64")
+                "-b", "--base64"}, description = "Encode the key in base64")
         boolean base64 = false;
 
         public void run() throws IOException {
@@ -88,15 +87,15 @@ public class TokensCliUtils {
 
     @Parameters(commandDescription = "Create a new or pair of keys public/private")
     public static class CommandCreateKeyPair {
-        @Parameter(names = { "-a",
-                "--signature-algorithm" }, description = "The signature algorithm for the new key pair.")
+        @Parameter(names = {"-a",
+                "--signature-algorithm"}, description = "The signature algorithm for the new key pair.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
         @Parameter(names = {
-                "--output-private-key" }, description = "File where to write the private key", required = true)
+                "--output-private-key"}, description = "File where to write the private key", required = true)
         String privateKeyFile;
         @Parameter(names = {
-                "--output-public-key" }, description = "File where to write the public key", required = true)
+                "--output-public-key"}, description = "File where to write the public key", required = true)
         String publicKeyFile;
 
         public void run() throws IOException {
@@ -109,24 +108,29 @@ public class TokensCliUtils {
 
     @Parameters(commandDescription = "Create a new token")
     public static class CommandCreateToken {
-        @Parameter(names = { "-a",
-                "--signature-algorithm" }, description = "The signature algorithm for the new key pair.")
+        @Parameter(names = {"-a",
+                "--signature-algorithm"}, description = "The signature algorithm for the new key pair.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
-        @Parameter(names = { "-s",
-                "--subject" }, description = "Specify the 'subject' or 'principal' associate with this token", required = true)
+        @Parameter(names = {"-s",
+                "--subject"},
+                description = "Specify the 'subject' or 'principal' associate with this token", required = true)
         private String subject;
 
-        @Parameter(names = { "-e",
-                "--expiry-time" }, description = "Relative expiry time for the token (eg: 1h, 3d, 10y). (m=minutes) Default: no expiration")
+        @Parameter(names = {"-e",
+                "--expiry-time"},
+                description = "Relative expiry time for the token (eg: 1h, 3d, 10y)."
+                        + " (m=minutes) Default: no expiration")
         private String expiryTime;
 
-        @Parameter(names = { "-sk",
-                "--secret-key" }, description = "Pass the secret key for signing the token. This can either be: data:, file:, etc..")
+        @Parameter(names = {"-sk",
+                "--secret-key"},
+                description = "Pass the secret key for signing the token. This can either be: data:, file:, etc..")
         private String secretKey;
 
-        @Parameter(names = { "-pk",
-                "--private-key" }, description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
+        @Parameter(names = {"-pk",
+                "--private-key"},
+                description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
         private String privateKey;
 
         public void run() throws Exception {
@@ -152,8 +156,13 @@ public class TokensCliUtils {
 
             Optional<Date> optExpiryTime = Optional.empty();
             if (expiryTime != null) {
-                long relativeTimeMillis = TimeUnit.SECONDS
-                        .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
+                long relativeTimeMillis;
+                try {
+                    relativeTimeMillis = TimeUnit.SECONDS.toMillis(
+                            RelativeTimeUtil.parseRelativeTimeInSeconds(expiryTime));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
                 optExpiryTime = Optional.of(new Date(System.currentTimeMillis() + relativeTimeMillis));
             }
 
@@ -168,12 +177,12 @@ public class TokensCliUtils {
         @Parameter(description = "The token string", arity = 1)
         private java.util.List<String> args;
 
-        @Parameter(names = { "-i",
-                "--stdin" }, description = "Read token from standard input")
+        @Parameter(names = {"-i",
+                "--stdin"}, description = "Read token from standard input")
         private Boolean stdin = false;
 
-        @Parameter(names = { "-f",
-                "--token-file" }, description = "Read token from a file")
+        @Parameter(names = {"-f",
+                "--token-file"}, description = "Read token from a file")
         private String tokenFile;
 
         public void run() throws Exception {
@@ -190,7 +199,8 @@ public class TokensCliUtils {
                 token = System.getenv("TOKEN");
             } else {
                 System.err.println(
-                        "Token needs to be either passed as an argument or through `--stdin`, `--token-file` or by the `TOKEN` environment variable");
+                        "Token needs to be either passed as an argument or through `--stdin`,"
+                                + " `--token-file` or by the `TOKEN` environment variable");
                 System.exit(1);
                 return;
             }
@@ -205,27 +215,29 @@ public class TokensCliUtils {
     @Parameters(commandDescription = "Validate a token against a key")
     public static class CommandValidateToken {
 
-        @Parameter(names = { "-a",
-                "--signature-algorithm" }, description = "The signature algorithm for the key pair if using public key.")
+        @Parameter(names = {"-a",
+                "--signature-algorithm"}, description = "The signature algorithm for the key pair if using public key.")
         SignatureAlgorithm algorithm = SignatureAlgorithm.RS256;
 
         @Parameter(description = "The token string", arity = 1)
         private java.util.List<String> args;
 
-        @Parameter(names = { "-i",
-                "--stdin" }, description = "Read token from standard input")
+        @Parameter(names = {"-i",
+                "--stdin"}, description = "Read token from standard input")
         private Boolean stdin = false;
 
-        @Parameter(names = { "-f",
-                "--token-file" }, description = "Read token from a file")
+        @Parameter(names = {"-f",
+                "--token-file"}, description = "Read token from a file")
         private String tokenFile;
 
-        @Parameter(names = { "-sk",
-                "--secret-key" }, description = "Pass the secret key for validating the token. This can either be: data:, file:, etc..")
+        @Parameter(names = {"-sk",
+                "--secret-key"},
+                description = "Pass the secret key for validating the token. This can either be: data:, file:, etc..")
         private String secretKey;
 
-        @Parameter(names = { "-pk",
-                "--public-key" }, description = "Pass the public key for validating the token. This can either be: data:, file:, etc..")
+        @Parameter(names = {"-pk",
+                "--public-key"},
+                description = "Pass the public key for validating the token. This can either be: data:, file:, etc..")
         private String publicKey;
 
         public void run() throws Exception {
@@ -252,7 +264,8 @@ public class TokensCliUtils {
                 token = System.getenv("TOKEN");
             } else {
                 System.err.println(
-                        "Token needs to be either passed as an argument or through `--stdin`, `--token-file` or by the `TOKEN` environment variable");
+                        "Token needs to be either passed as an argument or through `--stdin`,"
+                                + " `--token-file` or by the `TOKEN` environment variable");
                 System.exit(1);
                 return;
             }
@@ -269,8 +282,9 @@ public class TokensCliUtils {
 
             // Validate the token
             @SuppressWarnings("unchecked")
-            Jwt<?, Claims> jwt = Jwts.parser()
+            Jwt<?, Claims> jwt = Jwts.parserBuilder()
                     .setSigningKey(validationKey)
+                    .build()
                     .parse(token);
 
             System.out.println(jwt.getBody());
@@ -280,6 +294,7 @@ public class TokensCliUtils {
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander(arguments);
+        IUsageFormatter usageFormatter = new DefaultUsageFormatter(jcommander);
 
         CommandCreateSecretKey commandCreateSecretKey = new CommandCreateSecretKey();
         jcommander.addCommand("create-secret-key", commandCreateSecretKey);
@@ -296,6 +311,8 @@ public class TokensCliUtils {
         CommandValidateToken commandValidateToken = new CommandValidateToken();
         jcommander.addCommand("validate", commandValidateToken);
 
+        jcommander.addCommand("gen-doc", new Object());
+
         try {
             jcommander.parse(args);
 
@@ -306,7 +323,7 @@ public class TokensCliUtils {
         } catch (Exception e) {
             System.err.println(e);
             String chosenCommand = jcommander.getParsedCommand();
-            jcommander.usage(chosenCommand);
+            usageFormatter.usage(chosenCommand);
             System.exit(1);
         }
 
@@ -322,6 +339,10 @@ public class TokensCliUtils {
             commandShowToken.run();
         } else if (cmd.equals("validate")) {
             commandValidateToken.run();
+        } else if (cmd.equals("gen-doc")) {
+            CmdGenerateDocs genDocCmd = new CmdGenerateDocs("pulsar");
+            genDocCmd.addCommand("tokens", jcommander);
+            genDocCmd.run(null);
         } else {
             System.err.println("Invalid command: " + cmd);
             System.exit(1);

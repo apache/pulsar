@@ -234,6 +234,8 @@ PULSAR_PUBLIC void pulsar_consumer_seek_async(pulsar_consumer_t *consumer, pulsa
 
 PULSAR_PUBLIC pulsar_result pulsar_consumer_seek(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId);
 
+PULSAR_PUBLIC int pulsar_consumer_is_connected(pulsar_consumer_t *consumer);
+
 #ifdef __cplusplus
 }
 #endif

@@ -22,18 +22,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.api.Authentication;
@@ -55,16 +51,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public List<WorkerFunctionInstanceStats> getFunctionsStats() throws PulsarAdminException {
-        try {
-            return getFunctionsStatsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getFunctionsStatsAsync());
     }
 
     @Override
@@ -75,7 +62,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             List<WorkerFunctionInstanceStats> metricsList =
@@ -94,16 +81,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public Collection<Metrics> getMetrics() throws PulsarAdminException {
-        try {
-            return getMetricsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMetricsAsync());
     }
 
     @Override
@@ -114,7 +92,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -132,16 +110,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
-        try {
-            return getClusterAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getClusterAsync());
     }
 
     @Override
@@ -153,7 +122,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<List<WorkerInfo>>() {}));
@@ -170,16 +139,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public WorkerInfo getClusterLeader() throws PulsarAdminException {
-        try {
-            return getClusterLeaderAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getClusterLeaderAsync());
     }
 
     @Override
@@ -190,7 +150,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<WorkerInfo>(){}));
@@ -207,16 +167,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
     @Override
     public Map<String, Collection<String>> getAssignments() throws PulsarAdminException {
-        try {
-            return getAssignmentsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getAssignmentsAsync());
     }
 
     @Override
@@ -227,7 +178,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -241,5 +192,16 @@ public class WorkerImpl extends BaseResource implements Worker {
                     }
                 });
         return future;
+    }
+
+    @Override
+    public void rebalance() throws PulsarAdminException {
+        sync(this::rebalanceAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> rebalanceAsync() {
+        final WebTarget path = worker.path("rebalance");
+        return asyncPutRequest(path,  Entity.entity("", MediaType.APPLICATION_JSON));
     }
 }

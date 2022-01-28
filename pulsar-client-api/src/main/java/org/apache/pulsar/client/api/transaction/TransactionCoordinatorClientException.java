@@ -20,10 +20,14 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Exceptions for transaction coordinator client.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Evolving
 public class TransactionCoordinatorClientException extends IOException {
 
     public TransactionCoordinatorClientException(Throwable t) {
@@ -64,6 +68,20 @@ public class TransactionCoordinatorClientException extends IOException {
         public InvalidTxnStatusException(String message) {
             super(message);
         }
+
+        public InvalidTxnStatusException(String txnId, String actualState, String expectState) {
+            super("[" + txnId + "] with unexpected state : "
+                    + actualState + ", expect " + expectState + " state!");
+        }
+    }
+
+    /**
+     * Thrown when transaction not found in transaction coordinator.
+     */
+    public static class TransactionNotFoundException extends TransactionCoordinatorClientException {
+        public TransactionNotFoundException(String message) {
+            super(message);
+        }
     }
 
     /**
@@ -77,6 +95,21 @@ public class TransactionCoordinatorClientException extends IOException {
 
         public MetaStoreHandlerNotExistsException(String message) {
             super(message);
+        }
+    }
+
+
+    /**
+     * Thrown when transaction meta was timeout.
+     */
+    public static class TransactionTimeotException extends TransactionCoordinatorClientException {
+
+        public TransactionTimeotException(Throwable t) {
+            super(t);
+        }
+
+        public TransactionTimeotException(String transactionId) {
+            super("The transaction " +  transactionId + " is timeout.");
         }
     }
 

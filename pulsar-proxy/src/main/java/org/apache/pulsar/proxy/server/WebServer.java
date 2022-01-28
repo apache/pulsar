@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import com.google.common.collect.Lists;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -28,12 +27,13 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 import javax.servlet.DispatcherType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -43,7 +43,6 @@ import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -68,8 +67,8 @@ public class WebServer {
     private final Server server;
     private final WebExecutorThreadPool webServiceExecutor;
     private final AuthenticationService authenticationService;
-    private final List<String> servletPaths = Lists.newArrayList();
-    private final List<Handler> handlers = Lists.newArrayList();
+    private final List<String> servletPaths = new ArrayList<>();
+    private final List<Handler> handlers = new ArrayList<>();
     private final ProxyConfiguration config;
     protected int externalServicePort;
     private URI serviceURI = null;
@@ -83,14 +82,14 @@ public class WebServer {
         this.authenticationService = authenticationService;
         this.config = config;
 
-        List<ServerConnector> connectors = Lists.newArrayList();
+        List<ServerConnector> connectors = new ArrayList<>();
 
-        HttpConfiguration http_config = new HttpConfiguration();
-        http_config.setOutputBufferSize(config.getHttpOutputBufferSize());
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
-            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(httpConfig));
             connector.setHost(config.getBindAddress());
             connector.setPort(externalServicePort);
             connectors.add(connector);
@@ -109,6 +108,8 @@ public class WebServer {
                             config.getTlsTrustStore(),
                             config.getTlsTrustStorePassword(),
                             config.isTlsRequireTrustedClientCertOnConnect(),
+                            config.getWebServiceTlsCiphers(),
+                            config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec()
                     );
                 } else {
@@ -147,7 +148,8 @@ public class WebServer {
         addServlet(basePath, servletHolder, attributes, true);
     }
 
-    public void addServlet(String basePath, ServletHolder servletHolder, List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+    public void addServlet(String basePath, ServletHolder servletHolder,
+                           List<Pair<String, Object>> attributes, boolean requireAuthentication) {
         Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
         if (existingPath.isPresent()) {
             throw new IllegalArgumentException(
@@ -164,6 +166,11 @@ public class WebServer {
         if (config.isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
+        if (config.isHttpRequestsLimitEnabled()) {
+            context.addFilter(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())), MATCH_ALL,
+                    EnumSet.allOf(DispatcherType.class));
         }
 
         handlers.add(context);
@@ -188,11 +195,7 @@ public class WebServer {
 
     public void start() throws Exception {
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        Slf4jRequestLog requestLog = new Slf4jRequestLog();
-        requestLog.setExtended(true);
-        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
-        requestLog.setLogLatency(true);
-        requestLogHandler.setRequestLog(requestLog);
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 

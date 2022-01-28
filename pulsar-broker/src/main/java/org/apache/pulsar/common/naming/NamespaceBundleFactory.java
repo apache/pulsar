@@ -20,34 +20,8 @@ package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.lang.String.format;
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
-
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.SortedSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.stats.CacheMetricsCollector;
-import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
-import org.apache.zookeeper.data.Stat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.base.Charsets;
@@ -56,8 +30,37 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.SortedSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BundleData;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.stats.CacheMetricsCollector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolicies> {
+public class NamespaceBundleFactory {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceBundleFactory.class);
 
     private final HashFunction hashFunc;
@@ -65,87 +68,128 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
 
     private final PulsarService pulsar;
+    private final MetadataCache<Policies> policiesCache;
+    private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
 
         this.bundlesCache = Caffeine.newBuilder()
                 .recordStats()
-                .buildAsync((NamespaceName namespace, Executor executor) -> {
-            String path = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Loading cache with bundles for {}", namespace);
-            }
-
-            if (pulsar == null || pulsar.getConfigurationCache() == null) {
-                return CompletableFuture.completedFuture(getBundles(namespace, null));
-            }
-
-            CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
-            // Read the static bundle data from the policies
-            pulsar.getLocalZkCacheService().policiesCache().getWithStatAsync(path).thenAccept(result -> {
-                // If no policies defined for namespace, assume 1 single bundle
-                BundlesData bundlesData = result.map(Entry::getKey).map(p -> p.bundles).orElse(null);
-                NamespaceBundles namespaceBundles = getBundles(
-                    namespace, bundlesData, result.map(Entry::getValue).map(s -> s.getVersion()).orElse(-1));
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Get bundles from getLocalZkCacheService: path: {},  bundles: {}, version: {}",
-                        namespace, path,
-                        (bundlesData != null && bundlesData.boundaries != null) ? bundlesData.toString() : "null",
-                        namespaceBundles.getVersion());
-                }
-
-                future.complete(namespaceBundles);
-            }).exceptionally(ex -> {
-                future.completeExceptionally(ex);
-                return null;
-            });
-            return future;
-        });
+                .buildAsync(this::loadBundles);
 
         CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
-        // local-policies have been changed which has contains namespace bundles
-        pulsar.getLocalZkCacheService().policiesCache()
-                .registerListener((String path, LocalPolicies data, Stat stat) -> {
-                    String[] paths = path.split(LOCAL_POLICIES_ROOT + "/");
-                    if (paths.length == 2) {
-                        invalidateBundleCache(NamespaceName.get(paths[1]));
-                    }
-                });
-
-        if (pulsar != null && pulsar.getConfigurationCache() != null) {
-            pulsar.getLocalZkCacheService().policiesCache().registerListener(this);
-        }
+        pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
+        this.policiesCache = pulsar.getConfigurationMetadataStore().getMetadataCache(Policies.class);
     }
 
-    @Override
-    public void onUpdate(String path, LocalPolicies data, Stat stat) {
-        final NamespaceName namespace = NamespaceName.get(getNamespaceFromPoliciesPath(path));
+    private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Loading cache with bundles for {}", namespace);
+        }
 
-        try {
-            LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
-            // invalidate the bundle cache to fetch new bundle data from the policies
-            bundlesCache.synchronous().invalidate(namespace);
-        } catch (Exception e) {
-            LOG.error("Failed to update the policy change for ns {}", namespace, e);
+        if (pulsar == null) {
+            return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
+        }
+
+        CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
+        doLoadBundles(namespace, future, createBackoff(), System.nanoTime() + maxRetryDuration.toNanos());
+        return future;
+    }
+
+    private void doLoadBundles(NamespaceName namespace, CompletableFuture<NamespaceBundles> future,
+                               Backoff backoff, long retryDeadline) {
+        // Read the static bundle data from the policies
+        pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesWithVersion(namespace).thenAccept(result -> {
+            if (result.isPresent()) {
+                try {
+                    future.complete(readBundles(namespace,
+                            result.get().getValue(), result.get().getStat().getVersion()));
+                } catch (IOException e) {
+                    handleLoadBundlesRetry(namespace, future, backoff, retryDeadline, e);
+                }
+            } else {
+                // If no local policies defined for namespace, copy from global config
+                copyToLocalPolicies(namespace)
+                        .thenAccept(b -> future.complete(b))
+                        .exceptionally(ex -> {
+                            handleLoadBundlesRetry(namespace, future, backoff, retryDeadline, ex);
+                            return null;
+                        });
+            }
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
+        });
+    }
+
+    private void handleLoadBundlesRetry(NamespaceName namespace,
+                                        CompletableFuture<NamespaceBundles> future,
+                                        Backoff backoff, long retryDeadline, Throwable e) {
+        if (e instanceof Error || System.nanoTime() > retryDeadline) {
+            future.completeExceptionally(e);
+        } else {
+            LOG.warn("Error loading bundle for {}. Retrying exception", namespace, e);
+            long retryDelay = backoff.next();
+            pulsar.getExecutor().schedule(() ->
+                    doLoadBundles(namespace, future, backoff, retryDeadline), retryDelay, TimeUnit.MILLISECONDS);
         }
     }
 
-    /**
-     * checks if the local broker is the owner of the namespace bundle
-     *
-     * @param nsBundle
-     * @return
-     */
-    private boolean isOwner(NamespaceBundle nsBundle) {
-        if (pulsar != null) {
-            return pulsar.getNamespaceService().getOwnershipCache().getOwnedBundle(nsBundle) != null;
+    private static Backoff createBackoff() {
+        return new Backoff(100, TimeUnit.MILLISECONDS, 5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
+    }
+
+    private NamespaceBundles readBundles(NamespaceName namespace, LocalPolicies localPolicies, long version)
+            throws IOException {
+        NamespaceBundles namespaceBundles = getBundles(namespace,
+                Optional.of(Pair.of(localPolicies, version)));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("[{}] Get bundles from getLocalZkCacheService: bundles: {}, version: {}",
+                    namespace,
+                    (localPolicies.bundles.getBoundaries() != null) ? localPolicies.bundles : "null",
+                    namespaceBundles.getVersion());
         }
-        return false;
+        return namespaceBundles;
+    }
+
+    private CompletableFuture<NamespaceBundles> copyToLocalPolicies(NamespaceName namespace) {
+
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
+                .thenCompose(optPolicies -> {
+                    if (!optPolicies.isPresent()) {
+                        return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
+                    }
+
+                    Policies policies = optPolicies.get();
+                    LocalPolicies localPolicies = new LocalPolicies(policies.bundles,
+                            null,
+                            null);
+
+                    return pulsar.getPulsarResources().getLocalPolicies()
+                            .createLocalPoliciesAsync(namespace, localPolicies)
+                            .thenApply(stat -> getBundles(namespace,
+                                    Optional.of(Pair.of(localPolicies, 0L))));
+                });
+    }
+
+    private void handleMetadataStoreNotification(Notification n) {
+        if (LocalPoliciesResources.isLocalPoliciesPath(n.getPath())) {
+            try {
+                final Optional<NamespaceName> namespace = NamespaceName.getIfValid(
+                        getNamespaceFromPoliciesPath(n.getPath()));
+                if (namespace.isPresent()) {
+                    LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
+                    // Trigger a background refresh to fetch new bundle data from the policies
+                    bundlesCache.synchronous().invalidate(namespace.get());
+                }
+            } catch (Exception e) {
+                LOG.error("Failed to update the policy change for path {}", n.getPath(), e);
+            }
+        }
     }
 
     public void invalidateBundleCache(NamespaceName namespace) {
@@ -156,11 +200,61 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return bundlesCache.get(nsname);
     }
 
-    public NamespaceBundles getBundles(NamespaceName nsname) throws Exception {
+    public NamespaceBundle getBundleWithHighestTopics(NamespaceName nsname) {
+        try {
+            return getBundleWithHighestTopicsAsync(nsname).get(PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC,
+                    TimeUnit.SECONDS);
+        } catch (Exception e) {
+            LOG.info("failed to derive bundle for {}", nsname, e);
+            throw new IllegalStateException(e instanceof ExecutionException ? e.getCause() : e);
+        }
+    }
+
+    public CompletableFuture<NamespaceBundle> getBundleWithHighestTopicsAsync(NamespaceName nsname) {
+        return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(nsname).thenCompose(topics -> {
+            return bundlesCache.get(nsname).handle((bundles, e) -> {
+                Map<String, Integer> countMap = new HashMap<>();
+                NamespaceBundle resultBundle = null;
+                int maxCount = 0;
+                for (String topic : topics) {
+                    NamespaceBundle bundle = bundles.findBundle(TopicName.get(topic));
+                    String bundleRange = bundles.findBundle(TopicName.get(topic)).getBundleRange();
+                    int count = countMap.getOrDefault(bundleRange, 0) + 1;
+                    countMap.put(bundleRange, count);
+                    if (count > maxCount) {
+                        maxCount = count;
+                        resultBundle = bundle;
+                    }
+                }
+                return resultBundle;
+            });
+        });
+    }
+
+    public NamespaceBundle getBundleWithHighestThroughput(NamespaceName nsName) {
+        LoadManager loadManager = pulsar.getLoadManager().get();
+        if (loadManager instanceof ModularLoadManagerWrapper) {
+            NamespaceBundles bundles = getBundles(nsName);
+            double maxMsgThroughput = -1;
+            NamespaceBundle bundleWithHighestThroughpit = null;
+            for (NamespaceBundle bundle : bundles.getBundles()) {
+                BundleData budnleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                        .getBundleDataOrDefault(bundle.getBundleRange());
+                if (budnleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
+                    maxMsgThroughput = budnleData.getLongTermData().totalMsgThroughput();
+                    bundleWithHighestThroughpit = bundle;
+                }
+            }
+            return bundleWithHighestThroughpit;
+        }
+        return getBundleWithHighestTopics(nsName);
+    }
+
+    public NamespaceBundles getBundles(NamespaceName nsname) {
         return bundlesCache.synchronous().get(nsname);
     }
 
-    public Optional<NamespaceBundles> getBundlesIfPresent(NamespaceName nsname) throws Exception {
+    public Optional<NamespaceBundles> getBundlesIfPresent(NamespaceName nsname) {
         return Optional.ofNullable(bundlesCache.synchronous().getIfPresent(nsname));
     }
 
@@ -182,35 +276,20 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return bundlesCache.synchronous().get(fqnn).getFullBundle();
     }
 
+    public CompletableFuture<NamespaceBundle> getFullBundleAsync(NamespaceName fqnn) {
+        return bundlesCache.get(fqnn).thenApply(NamespaceBundles::getFullBundle);
+    }
+
     public long getLongHashCode(String name) {
         return this.hashFunc.hashString(name, Charsets.UTF_8).padToLong();
     }
 
     public NamespaceBundles getBundles(NamespaceName nsname, BundlesData bundleData) {
-        return getBundles(nsname, bundleData, -1);
+        return new NamespaceBundles(nsname, this, Optional.empty(), NamespaceBundles.getPartitions(bundleData));
     }
 
-    public NamespaceBundles getBundles(NamespaceName nsname, BundlesData bundleData, long version) {
-        long[] partitions;
-        if (bundleData == null) {
-            partitions = new long[] { Long.decode(FIRST_BOUNDARY), Long.decode(LAST_BOUNDARY) };
-        } else {
-            partitions = new long[bundleData.boundaries.size()];
-            for (int i = 0; i < bundleData.boundaries.size(); i++) {
-                partitions[i] = Long.decode(bundleData.boundaries.get(i));
-            }
-        }
-        return new NamespaceBundles(nsname, partitions, this, version);
-    }
-
-    public static BundlesData getBundlesData(NamespaceBundles bundles) throws Exception {
-        if (bundles == null) {
-            return new BundlesData();
-        } else {
-            List<String> boundaries = Arrays.stream(bundles.partitions).boxed().map(p -> format("0x%08x", p))
-                    .collect(Collectors.toList());
-            return new BundlesData(boundaries);
-        }
+    private NamespaceBundles getBundles(NamespaceName nsname, Optional<Pair<LocalPolicies, Long>> localPolicies) {
+        return new NamespaceBundles(nsname, this, localPolicies);
     }
 
     /**
@@ -219,7 +298,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      *
      * @param targetBundle
      *            {@link NamespaceBundle} needs to be split
-     * @param numBundles
+     * @param argNumBundles
      *            split into numBundles
      * @param splitBoundary
      *            split into 2 numBundles by the given split key. The given split key must between the key range of the
@@ -227,50 +306,57 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */
-    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundle targetBundle, int numBundles, Long splitBoundary) {
+    public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> splitBundles(
+            NamespaceBundle targetBundle, int argNumBundles, Long splitBoundary) {
         checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
         if (splitBoundary != null) {
-            checkArgument(splitBoundary > targetBundle.getLowerEndpoint() && splitBoundary < targetBundle.getUpperEndpoint(),
-                "The given fixed key must between the key range of the %s bundle", targetBundle);
-            numBundles = 2;
+            checkArgument(splitBoundary > targetBundle.getLowerEndpoint()
+                            && splitBoundary < targetBundle.getUpperEndpoint(),
+                    "The given fixed key must between the key range of the %s bundle", targetBundle);
+            argNumBundles = 2;
         }
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
-        NamespaceBundles sourceBundle = bundlesCache.synchronous().get(nsname);
 
-        final int lastIndex = sourceBundle.partitions.length - 1;
+        final int numBundles = argNumBundles;
 
-        final long[] partitions = new long[sourceBundle.partitions.length + (numBundles - 1)];
-        int pos = 0;
-        int splitPartition = -1;
-        final Range<Long> range = targetBundle.getKeyRange();
-        for (int i = 0; i < lastIndex; i++) {
-            if (sourceBundle.partitions[i] == range.lowerEndpoint()
-                    && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
-                splitPartition = i;
-                Long maxVal = sourceBundle.partitions[i + 1];
-                Long minVal = sourceBundle.partitions[i];
-                Long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
-                partitions[pos++] = minVal;
-                Long curPartition = minVal + segSize;
-                for (int j = 0; j < numBundles - 1; j++) {
-                    partitions[pos++] = curPartition;
-                    curPartition += segSize;
+        return bundlesCache.get(nsname).thenApply(sourceBundle -> {
+            final int lastIndex = sourceBundle.partitions.length - 1;
+
+            final long[] partitions = new long[sourceBundle.partitions.length + (numBundles - 1)];
+            int pos = 0;
+            int splitPartition = -1;
+            final Range<Long> range = targetBundle.getKeyRange();
+            for (int i = 0; i < lastIndex; i++) {
+                if (sourceBundle.partitions[i] == range.lowerEndpoint()
+                        && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
+                    splitPartition = i;
+                    long maxVal = sourceBundle.partitions[i + 1];
+                    long minVal = sourceBundle.partitions[i];
+                    long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
+                    partitions[pos++] = minVal;
+                    long curPartition = minVal + segSize;
+                    for (int j = 0; j < numBundles - 1; j++) {
+                        partitions[pos++] = curPartition;
+                        curPartition += segSize;
+                    }
+                } else {
+                    partitions[pos++] = sourceBundle.partitions[i];
                 }
-            } else {
-                partitions[pos++] = sourceBundle.partitions[i];
             }
-        }
-        partitions[pos] = sourceBundle.partitions[lastIndex];
-        if (splitPartition != -1) {
-            // keep version of sourceBundle
-            NamespaceBundles splittedNsBundles = new NamespaceBundles(nsname, partitions, this, sourceBundle.getVersion());
-            List<NamespaceBundle> splittedBundles = splittedNsBundles.getBundles().subList(splitPartition,
-                    (splitPartition + numBundles));
-            return new ImmutablePair<NamespaceBundles, List<NamespaceBundle>>(splittedNsBundles, splittedBundles);
-        }
-        return null;
+            partitions[pos] = sourceBundle.partitions[lastIndex];
+            if (splitPartition != -1) {
+                // keep version of sourceBundle
+                NamespaceBundles splitNsBundles =
+                        new NamespaceBundles(nsname, this, sourceBundle.getLocalPolicies(), partitions);
+                List<NamespaceBundle> splitBundles = splitNsBundles.getBundles().subList(splitPartition,
+                        (splitPartition + numBundles));
+                return new ImmutablePair<>(splitNsBundles, splitBundles);
+            }
+
+            return null;
+        });
     }
 
     public boolean canSplitBundle(NamespaceBundle bundle) {

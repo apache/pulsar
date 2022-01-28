@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.api.raw;
 
 import io.netty.buffer.ByteBuf;
-
 import java.util.Map;
 import java.util.Optional;
 
@@ -122,4 +121,33 @@ public interface RawMessage {
      * @return true if the key is base64 encoded, false otherwise
      */
     boolean hasBase64EncodedKey();
+
+    /**
+     * Get uuid of chunked message.
+     *
+     * @return uuid
+     */
+    String getUUID();
+
+    /**
+     * Get chunkId of chunked message.
+     *
+     * @return chunkId
+     */
+    int getChunkId();
+
+    /**
+     * Get chunk num of chunked message.
+     *
+     * @return chunk num
+     */
+    int getNumChunksFromMsg();
+
+    /**
+     * Get chunk message total size in bytes.
+     *
+     * @return chunked message total size in bytes
+     */
+    int getTotalChunkMsgSize();
+
 }

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.testclient;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -35,7 +39,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -52,17 +55,13 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
  */
 public class LoadSimulationController {
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
-    private final static String QUOTA_ROOT = "/loadbalance/resource-quota/namespace";
-    private final static String BUNDLE_DATA_ROOT = "/loadbalance/bundle-data";
+    private static final String QUOTA_ROOT = "/loadbalance/resource-quota/namespace";
+    private static final String BUNDLE_DATA_ROOT = "/loadbalance/bundle-data";
 
     // Input streams for each client to send commands through.
     private final DataInputStream[] inputStreams;
@@ -84,6 +83,8 @@ public class LoadSimulationController {
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     // JCommander arguments for starting a controller via main.
+    @Parameters(commandDescription = "Provides a shell for the user to dictate how simulation clients should "
+            + "incur load.")
     private static class MainArguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
@@ -440,7 +441,8 @@ public class LoadSimulationController {
                         // Put the bundle data in the new ZooKeeper.
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, newAPITargetPath,
-                                    bundleData.getJsonBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
+                                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
                         } catch (Exception e) {
@@ -489,11 +491,13 @@ public class LoadSimulationController {
                     final BundleData bundleData = initializeBundleData(quota, arguments);
                     // Put the bundle data in the new ZooKeeper.
                     try {
-                        ZkUtils.createFullPathOptimistic(zkClient, newAPIPath, bundleData.getJsonBytes(),
+                        ZkUtils.createFullPathOptimistic(zkClient, newAPIPath,
+                                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData),
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException e) {
                         try {
-                            zkClient.setData(newAPIPath, bundleData.getJsonBytes(), -1);
+                            zkClient.setData(newAPIPath,
+                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData), -1);
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }
@@ -542,8 +546,7 @@ public class LoadSimulationController {
             // This controller will now stream rate changes from the given ZK.
             // Users wishing to stop this should Ctrl + C and use another
             // Controller to send new commands.
-            while (true)
-                ;
+            while (true) {}
         }
     }
 
@@ -678,7 +681,7 @@ public class LoadSimulationController {
                     break;
                 case "quit":
                 case "exit":
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                     break;
                 default:
                     log.info("ERROR: Unknown command \"{}\"", command);
@@ -720,7 +723,7 @@ public class LoadSimulationController {
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
         (new LoadSimulationController(arguments)).run();
     }

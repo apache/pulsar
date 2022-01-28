@@ -18,9 +18,9 @@
     under the License.
 
 -->
-<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0"
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
     <id>bin</id>
     <formats>
         <format>tar.gz</format>
@@ -32,6 +32,12 @@
             <source>${basedir}/LICENSE</source>
             <destName>LICENSE</destName>
             <outputDirectory>.</outputDirectory>
+            <fileMode>644</fileMode>
+        </file>
+        <file>
+            <source>${basedir}/src/main/resources/launcher.properties</source>
+            <destName>launcher.properties</destName>
+            <outputDirectory>bin/</outputDirectory>
             <fileMode>644</fileMode>
         </file>
     </files>
@@ -49,12 +55,20 @@
             <excludes>
                 <exclude>io.airlift:launcher:tar.gz:bin:${airlift.version}</exclude>
                 <exclude>io.airlift:launcher:tar.gz:properties:${airlift.version}</exclude>
+                <exclude>*:tar.gz</exclude>
             </excludes>
         </dependencySet>
         <dependencySet>
             <outputDirectory></outputDirectory>
             <includes>
                 <include>io.airlift:launcher:tar.gz:bin:${airlift.version}</include>
+            </includes>
+            <unpack>true</unpack>
+            <fileMode>755</fileMode>
+        </dependencySet>
+        <dependencySet>
+            <outputDirectory></outputDirectory>
+            <includes>
                 <include>io.airlift:launcher:tar.gz:properties:${airlift.version}</include>
             </includes>
             <unpack>true</unpack>

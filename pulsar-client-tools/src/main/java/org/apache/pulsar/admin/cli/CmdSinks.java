@@ -22,26 +22,31 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -50,10 +55,11 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
@@ -71,7 +77,7 @@ public class CmdSinks extends CmdBase {
     private final RestartSink restartSink;
     private final LocalSinkRunner localSinkRunner;
 
-    public CmdSinks(PulsarAdmin admin) {
+    public CmdSinks(Supplier<PulsarAdmin> admin) {
         super("sinks", admin);
         createSink = new CreateSink();
         updateSink = new UpdateSink();
@@ -100,7 +106,7 @@ public class CmdSinks extends CmdBase {
     }
 
     /**
-     * Base command
+     * Base command.
      */
     @Getter
     abstract class BaseCommand extends CliCommand {
@@ -112,7 +118,7 @@ public class CmdSinks extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                jcommander.usage(chosenCommand);
+                getUsageFormatter().usage(chosenCommand);
                 return;
             }
             runCmd();
@@ -124,52 +130,81 @@ public class CmdSinks extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "Run a Pulsar IO sink connector locally (rather than deploying it to the Pulsar cluster)")
+    @Parameters(commandDescription = "Run a Pulsar IO sink connector locally "
+            + "(rather than deploying it to the Pulsar cluster)")
     protected class LocalSinkRunner extends CreateSink {
 
+        @Parameter(names = "--state-storage-service-url",
+                description = "The URL for the state storage service (the default is Apache BookKeeper)")
+        protected String stateStorageServiceUrl;
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
-        protected String DEPRECATED_brokerServiceUrl;
+        protected String deprecatedBrokerServiceUrl;
         @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
-        protected String DEPRECATED_clientAuthPlugin;
-        @Parameter(names = "--client-auth-plugin", description = "Client authentication plugin using which function-process can connect to broker")
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using "
+                + "which function-process can connect to broker", hidden = true)
+        protected String deprecatedClientAuthPlugin;
+        @Parameter(names = "--client-auth-plugin",
+                description = "Client authentication plugin using which function-process can connect to broker")
         protected String clientAuthPlugin;
 
         @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
-        protected String DEPRECATED_clientAuthParams;
+        protected String deprecatedClientAuthParams;
         @Parameter(names = "--client-auth-params", description = "Client authentication param")
         protected String clientAuthParams;
 
         @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
-        protected Boolean DEPRECATED_useTls;
+        protected Boolean deprecatedUseTls;
         @Parameter(names = "--use-tls", description = "Use tls connection")
         protected boolean useTls;
 
         @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
-        protected Boolean DEPRECATED_tlsAllowInsecureConnection;
+        protected Boolean deprecatedTlsAllowInsecureConnection;
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
         protected boolean tlsAllowInsecureConnection;
 
-        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
-        protected Boolean DEPRECATED_tlsHostNameVerificationEnabled;
+        @Parameter(names = "--hostname_verification_enabled",
+                description = "Enable hostname verification", hidden = true)
+        protected Boolean deprecatedTlsHostNameVerificationEnabled;
         @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification")
         protected boolean tlsHostNameVerificationEnabled;
 
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
-        protected String DEPRECATED_tlsTrustCertFilePath;
+        protected String deprecatedTlsTrustCertFilePath;
         @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
 
+        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        protected String secretsProviderClassName;
+        @Parameter(names = "--secrets-provider-config",
+                description = "Config that needs to be passed to secrets provider")
+        protected String secretsProviderConfig;
+        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        protected String metricsPortStart;
+
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
-            if (DEPRECATED_useTls != null) useTls = DEPRECATED_useTls;
-            if (DEPRECATED_tlsAllowInsecureConnection != null) tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
-            if (DEPRECATED_tlsHostNameVerificationEnabled != null) tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
-            if (!StringUtils.isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            if (isBlank(brokerServiceUrl) && !isBlank(deprecatedBrokerServiceUrl)) {
+                brokerServiceUrl = deprecatedBrokerServiceUrl;
+            }
+            if (isBlank(clientAuthPlugin) && !isBlank(deprecatedClientAuthPlugin)) {
+                clientAuthPlugin = deprecatedClientAuthPlugin;
+            }
+            if (isBlank(clientAuthParams) && !isBlank(deprecatedClientAuthParams)) {
+                clientAuthParams = deprecatedClientAuthParams;
+            }
+            if (!useTls && deprecatedUseTls != null) {
+                useTls = deprecatedUseTls;
+            }
+            if (!tlsAllowInsecureConnection && deprecatedTlsAllowInsecureConnection != null) {
+                tlsAllowInsecureConnection = deprecatedTlsAllowInsecureConnection;
+            }
+            if (!tlsHostNameVerificationEnabled && deprecatedTlsHostNameVerificationEnabled != null) {
+                tlsHostNameVerificationEnabled = deprecatedTlsHostNameVerificationEnabled;
+            }
+            if (isBlank(tlsTrustCertFilePath) && !isBlank(deprecatedTlsTrustCertFilePath)) {
+                tlsTrustCertFilePath = deprecatedTlsTrustCertFilePath;
+            }
         }
 
         @Override
@@ -181,8 +216,12 @@ public class CmdSinks extends CmdBase {
             localRunArgs.add("--sinkConfig");
             localRunArgs.add(new Gson().toJson(sinkConfig));
             for (Field field : this.getClass().getDeclaredFields()) {
-                if (field.getName().startsWith("DEPRECATED")) continue;
-                if(field.getName().contains("$")) continue;
+                if (field.getName().startsWith("DEPRECATED")) {
+                    continue;
+                }
+                if (field.getName().contains("$")) {
+                    continue;
+                }
                 Object value = field.get(this);
                 if (value != null) {
                     localRunArgs.add("--" + field.getName());
@@ -205,9 +244,9 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.sinks().createSinkWithUrl(sinkConfig, sinkConfig.getArchive());
+                getAdmin().sinks().createSinkWithUrl(sinkConfig, sinkConfig.getArchive());
             } else {
-                admin.sinks().createSink(sinkConfig, sinkConfig.getArchive());
+                getAdmin().sinks().createSink(sinkConfig, sinkConfig.getArchive());
             }
             print("Created successfully");
         }
@@ -221,12 +260,12 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            UpdateOptions updateOptions = new UpdateOptions();
+            UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(archive)) {
-                admin.sinks().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateOptions);
+                getAdmin().sinks().updateSinkWithUrl(sinkConfig, sinkConfig.getArchive(), updateOptions);
             } else {
-                admin.sinks().updateSink(sinkConfig, sinkConfig.getArchive(), updateOptions);
+                getAdmin().sinks().updateSink(sinkConfig, sinkConfig.getArchive(), updateOptions);
             }
             print("Updated successfully");
         }
@@ -253,91 +292,137 @@ public class CmdSinks extends CmdBase {
         protected String sinkType;
 
         @Parameter(names = { "-i",
-                "--inputs" }, description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
+                "--inputs" }, description = "The sink's input topic or topics "
+                + "(multiple topics can be specified as a comma-separated list)")
         protected String inputs;
 
-        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)", hidden = true)
-        protected String DEPRECATED_topicsPattern;
-        @Parameter(names = "--topics-pattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics "
+                + "under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. "
+                + "Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)",
+                hidden = true)
+        protected String deprecatedTopicsPattern;
+        @Parameter(names = "--topics-pattern", description = "TopicsPattern to consume from list of topics "
+                + "under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. "
+                + "Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
         protected String topicsPattern;
 
-        @Parameter(names = "--subsName", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer", hidden = true)
-        protected String DEPRECATED_subsName;
-        @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
+        @Parameter(names = "--subsName", description = "Pulsar source subscription name "
+                + "if user wants a specific subscription-name for input-topic consumer", hidden = true)
+        protected String deprecatedSubsName;
+        @Parameter(names = "--subs-name", description = "Pulsar source subscription name "
+                + "if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
 
-        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to consume messages from the specified location")
+        @Parameter(names = "--subs-position", description = "Pulsar source subscription position "
+                + "if user wants to consume messages from the specified location")
         protected SubscriptionInitialPosition subsPosition;
 
-        @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
-        protected String DEPRECATED_customSerdeInputString;
-        @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
+        @Parameter(names = "--customSerdeInputs",
+                description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
+        protected String deprecatedCustomSerdeInputString;
+        @Parameter(names = "--custom-serde-inputs",
+                description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
 
-        @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema types or class names (as a JSON string)")
+        @Parameter(names = "--custom-schema-inputs",
+                description = "The map of input topics to Schema types or class names (as a JSON string)")
         protected String customSchemaInputString;
 
-        @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
+        @Parameter(names = "--input-specs",
+                description = "The map of inputs to custom configuration (as a JSON string)")
         protected String inputSpecs;
 
-        @Parameter(names = "--max-redeliver-count", description = "Maximum number of times that a message will be redelivered before being sent to the dead letter queue")
+        @Parameter(names = "--max-redeliver-count", description = "Maximum number of times that a message "
+                + "will be redelivered before being sent to the dead letter queue")
         protected Integer maxMessageRetries;
-        @Parameter(names = "--dead-letter-topic", description = "Name of the dead topic where the failing messages will be sent.")
+        @Parameter(names = "--dead-letter-topic",
+                description = "Name of the dead topic where the failing messages will be sent.")
         protected String deadLetterTopic;
 
-        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the sink", hidden = true)
-        protected FunctionConfig.ProcessingGuarantees DEPRECATED_processingGuarantees;
-        @Parameter(names = "--processing-guarantees", description = "The processing guarantees (aka delivery semantics) applied to the sink")
+        @Parameter(names = "--processingGuarantees",
+                description = "The processing guarantees (aka delivery semantics) applied to the sink", hidden = true)
+        protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
+        @Parameter(names = "--processing-guarantees",
+                description = "The processing guarantees (aka delivery semantics) applied to the sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--retainOrdering", description = "Sink consumes and sinks messages in order", hidden = true)
-        protected Boolean DEPRECATED_retainOrdering;
+        protected Boolean deprecatedRetainOrdering;
         @Parameter(names = "--retain-ordering", description = "Sink consumes and sinks messages in order")
         protected Boolean retainOrdering;
-        @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
+        @Parameter(names = "--parallelism",
+                description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected Integer parallelism;
-        @Parameter(names = {"-a", "--archive"}, description = "Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = {"-a", "--archive"}, description = "Path to the archive file for the sink. It also supports "
+                + "url-path [http/https/file (file protocol assumes that file already exists on worker host)] from "
+                + "which worker can download the package.", listConverter = StringConverter.class)
         protected String archive;
-        @Parameter(names = "--className", description = "The sink's class name if archive is file-url-path (file://)", hidden = true)
-        protected String DEPRECATED_className;
+        @Parameter(names = "--className",
+                description = "The sink's class name if archive is file-url-path (file://)", hidden = true)
+        protected String deprecatedClassName;
         @Parameter(names = "--classname", description = "The sink's class name if archive is file-url-path (file://)")
         protected String className;
 
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration", hidden = true)
-        protected String DEPRECATED_sinkConfigFile;
+        protected String deprecatedSinkConfigFile;
         @Parameter(names = "--sink-config-file", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
-        @Parameter(names = "--cpu", description = "The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime)")
+        @Parameter(names = "--cpu", description = "The CPU (in cores) that needs to be allocated "
+                + "per sink instance (applicable only to Docker runtime)")
         protected Double cpu;
-        @Parameter(names = "--ram", description = "The RAM (in bytes) that need to be allocated per sink instance (applicable only to the process and Docker runtimes)")
+        @Parameter(names = "--ram", description = "The RAM (in bytes) that need to be allocated "
+                + "per sink instance (applicable only to the process and Docker runtimes)")
         protected Long ram;
-        @Parameter(names = "--disk", description = "The disk (in bytes) that need to be allocated per sink instance (applicable only to Docker runtime)")
+        @Parameter(names = "--disk", description = "The disk (in bytes) that need to be allocated "
+                + "per sink instance (applicable only to Docker runtime)")
         protected Long disk;
         @Parameter(names = "--sinkConfig", description = "User defined configs key/values", hidden = true)
-        protected String DEPRECATED_sinkConfigString;
+        protected String deprecatedSinkConfigString;
         @Parameter(names = "--sink-config", description = "User defined configs key/values")
         protected String sinkConfigString;
-        @Parameter(names = "--auto-ack", description = "Whether or not the framework will automatically acknowledge messages", arity = 1)
+        @Parameter(names = "--auto-ack",
+                description = "Whether or not the framework will automatically acknowledge messages", arity = 1)
         protected Boolean autoAck;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
-        @Parameter(names = "--negative-ack-redelivery-delay-ms", description = "The negative ack message redelivery delay in milliseconds")
+        @Parameter(names = "--negative-ack-redelivery-delay-ms",
+                description = "The negative ack message redelivery delay in milliseconds")
         protected Long negativeAckRedeliveryDelayMs;
-        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
+        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to "
+                + "customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
+        @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
+                + "how the secret is fetched by the underlying secrets provider")
+        protected String secretsString;
 
         protected SinkConfig sinkConfig;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_subsName)) subsName = DEPRECATED_subsName;
-            if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) topicsPattern = DEPRECATED_topicsPattern;
-            if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
-            if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
-            if (DEPRECATED_retainOrdering != null) retainOrdering = DEPRECATED_retainOrdering;
-            if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
-            if (!StringUtils.isBlank(DEPRECATED_sinkConfigFile)) sinkConfigFile = DEPRECATED_sinkConfigFile;
-            if (!StringUtils.isBlank(DEPRECATED_sinkConfigString)) sinkConfigString = DEPRECATED_sinkConfigString;
+            if (isBlank(subsName) && !isBlank(deprecatedSubsName)) {
+                subsName = deprecatedSubsName;
+            }
+            if (isBlank(topicsPattern) && !isBlank(deprecatedTopicsPattern)) {
+                topicsPattern = deprecatedTopicsPattern;
+            }
+            if (isBlank(customSerdeInputString) && !isBlank(deprecatedCustomSerdeInputString)) {
+                customSerdeInputString = deprecatedCustomSerdeInputString;
+            }
+            if (processingGuarantees == null && deprecatedProcessingGuarantees != null) {
+                processingGuarantees = deprecatedProcessingGuarantees;
+            }
+            if (retainOrdering == null && deprecatedRetainOrdering != null) {
+                retainOrdering = deprecatedRetainOrdering;
+            }
+            if (isBlank(className) && !isBlank(deprecatedClassName)) {
+                className = deprecatedClassName;
+            }
+            if (isBlank(sinkConfigFile) && !isBlank(deprecatedSinkConfigFile)) {
+                sinkConfigFile = deprecatedSinkConfigFile;
+            }
+            if (isBlank(sinkConfigString) && !isBlank(deprecatedSinkConfigString)) {
+                sinkConfigString = deprecatedSinkConfigString;
+            }
         }
 
         @Override
@@ -390,7 +475,7 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setTopicToSchemaType(customSchemaInputMap);
             }
 
-            if(null != inputSpecs){
+            if (null != inputSpecs) {
                 Type type = new TypeToken<Map<String, ConsumerConfig>>(){}.getType();
                 sinkConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
@@ -453,8 +538,12 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setResources(resources);
             }
 
-            if (null != sinkConfigString) {
-                sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            try {
+                if (null != sinkConfigString) {
+                    sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+                }
+            } catch (Exception ex) {
+                throw new ParameterException("Cannot parse sink-config", ex);
             }
 
             if (autoAck != null) {
@@ -471,13 +560,24 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setCustomRuntimeOptions(customRuntimeOptions);
             }
 
+            if (secretsString != null) {
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
+                Map<String, Object> secretsMap = new Gson().fromJson(secretsString, type);
+                if (secretsMap == null) {
+                    secretsMap = Collections.emptyMap();
+                }
+                sinkConfig.setSecrets(secretsMap);
+            }
+
             // check if configs are valid
             validateSinkConfigs(sinkConfig);
         }
 
-        protected Map<String, Object> parseConfigs(String str) {
-            Type type = new TypeToken<Map<String, Object>>(){}.getType();
-            return new Gson().fromJson(str, type);
+        protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
+            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
+
+            return mapper.readValue(str, typeRef);
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
@@ -488,10 +588,11 @@ public class CmdSinks extends CmdBase {
 
             org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
 
-            if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive()) &&
-                    !sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
+            if (!Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive())
+                    && !sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 if (!new File(sinkConfig.getArchive()).exists()) {
-                    throw new IllegalArgumentException(String.format("Sink Archive file %s does not exist", sinkConfig.getArchive()));
+                    throw new IllegalArgumentException(String.format("Sink Archive file %s does not exist",
+                            sinkConfig.getArchive()));
                 }
             }
         }
@@ -499,7 +600,8 @@ public class CmdSinks extends CmdBase {
         protected String validateSinkType(String sinkType) throws IOException {
             Set<String> availableSinks;
             try {
-                availableSinks = admin.sinks().getBuiltInSinks().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
+                availableSinks = getAdmin().sinks().getBuiltInSinks().stream()
+                        .map(ConnectorDefinition::getName).collect(Collectors.toSet());
             } catch (PulsarAdminException e) {
                 throw new IOException(e);
             }
@@ -515,7 +617,7 @@ public class CmdSinks extends CmdBase {
     }
 
     /**
-     * Sink level command
+     * Sink level command.
      */
     @Getter
     abstract class SinkCommand extends BaseCommand {
@@ -549,7 +651,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.sinks().deleteSink(tenant, namespace, sinkName);
+            getAdmin().sinks().deleteSink(tenant, namespace, sinkName);
             print("Deleted successfully");
         }
     }
@@ -559,14 +661,14 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            SinkConfig sinkConfig = admin.sinks().getSink(tenant, namespace, sinkName);
+            SinkConfig sinkConfig = getAdmin().sinks().getSink(tenant, namespace, sinkName);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sinkConfig));
         }
     }
 
     /**
-     * List Sources command
+     * List Sources command.
      */
     @Parameters(commandDescription = "List all running Pulsar IO sink connectors")
     protected class ListSinks extends BaseCommand {
@@ -588,7 +690,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            List<String> sinks = admin.sinks().listSinks(tenant, namespace);
+            List<String> sinks = getAdmin().sinks().listSinks(tenant, namespace);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sinks));
         }
@@ -597,15 +699,16 @@ public class CmdSinks extends CmdBase {
     @Parameters(commandDescription = "Check the current status of a Pulsar Sink")
     class GetSinkStatus extends SinkCommand {
 
-        @Parameter(names = "--instance-id", description = "The sink instanceId (Get-status of all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id",
+                description = "The sink instanceId (Get-status of all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
         void runCmd() throws Exception {
             if (isBlank(instanceId)) {
-                print(admin.sinks().getSinkStatus(tenant, namespace, sinkName));
+                print(getAdmin().sinks().getSinkStatus(tenant, namespace, sinkName));
             } else {
-                print(admin.sinks().getSinkStatus(tenant, namespace, sinkName, Integer.parseInt(instanceId)));
+                print(getAdmin().sinks().getSinkStatus(tenant, namespace, sinkName, Integer.parseInt(instanceId)));
             }
         }
     }
@@ -613,19 +716,20 @@ public class CmdSinks extends CmdBase {
     @Parameters(commandDescription = "Restart sink instance")
     class RestartSink extends SinkCommand {
 
-        @Parameter(names = "--instance-id", description = "The sink instanceId (restart all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id",
+                description = "The sink instanceId (restart all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sinks().restartSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                    getAdmin().sinks().restartSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sinks().restartSink(tenant, namespace, sinkName);
+                getAdmin().sinks().restartSink(tenant, namespace, sinkName);
             }
             System.out.println("Restarted successfully");
         }
@@ -634,19 +738,20 @@ public class CmdSinks extends CmdBase {
     @Parameters(commandDescription = "Stops sink instance")
     class StopSink extends SinkCommand {
 
-        @Parameter(names = "--instance-id", description = "The sink instanceId (stop all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id",
+                description = "The sink instanceId (stop all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sinks().stopSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                    getAdmin().sinks().stopSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sinks().stopSink(tenant, namespace, sinkName);
+                getAdmin().sinks().stopSink(tenant, namespace, sinkName);
             }
             System.out.println("Stopped successfully");
         }
@@ -655,19 +760,20 @@ public class CmdSinks extends CmdBase {
     @Parameters(commandDescription = "Starts sink instance")
     class StartSink extends SinkCommand {
 
-        @Parameter(names = "--instance-id", description = "The sink instanceId (start all instances if instance-id is not provided")
+        @Parameter(names = "--instance-id",
+                description = "The sink instanceId (start all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sinks().startSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
+                    getAdmin().sinks().startSink(tenant, namespace, sinkName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sinks().startSink(tenant, namespace, sinkName);
+                getAdmin().sinks().startSink(tenant, namespace, sinkName);
             }
             System.out.println("Started successfully");
         }
@@ -677,7 +783,7 @@ public class CmdSinks extends CmdBase {
     public class ListBuiltInSinks extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            admin.sinks().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
+            getAdmin().sinks().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
                     .forEach(connector -> {
                         System.out.println(connector.getName());
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
@@ -691,7 +797,7 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.sinks().reloadBuiltInSinks();
+            getAdmin().sinks().reloadBuiltInSinks();
         }
     }
 }

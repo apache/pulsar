@@ -18,12 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -41,10 +42,10 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.testng.annotations.Test;
 
 public class ManagedCursorContainerTest {
@@ -67,6 +68,16 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public boolean putProperty(String key, Long value) {
+            return false;
+        }
+
+        @Override
+        public boolean removeProperty(String key) {
+            return false;
+        }
+
+        @Override
         public boolean isDurable() {
             return true;
         }
@@ -77,7 +88,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
+        public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                     PositionImpl maxPosition) {
+            callback.readEntriesComplete(null, ctx);
+        }
+
+        @Override
+        public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                     Object ctx, PositionImpl maxPosition) {
             callback.readEntriesComplete(null, ctx);
         }
 
@@ -124,6 +142,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Position getPersistentMarkDeletedPosition() {
+            return position;
+        }
+
+        @Override
         public String getName() {
             return name;
         }
@@ -152,7 +175,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void seek(Position newReadPosition) {
+        public void seek(Position newReadPosition, boolean force) {
         }
 
         @Override
@@ -255,7 +278,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
+        public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                           PositionImpl maxPosition) {
+        }
+
+        @Override
+        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                           Object ctx, PositionImpl maxPosition) {
+
         }
 
         @Override
@@ -298,6 +328,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public int getNonContiguousDeletedMessagesRangeSerializedSize() {
+            return 0;
+        }
+
+        @Override
         public long getEstimatedSizeSinceMarkDeletePosition() {
             return 0L;
         }
@@ -331,6 +366,11 @@ public class ManagedCursorContainerTest {
             return new long[0];
         }
 
+        @Override
+        public ManagedCursorMXBean getStats() {
+            return null;
+        }
+
         public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
                 Object ctx) {
         }
@@ -340,6 +380,55 @@ public class ManagedCursorContainerTest {
                 throws InterruptedException, ManagedLedgerException {
             return null;
         }
+
+        @Override
+        public boolean checkAndUpdateReadPositionChanged() {
+            return false;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return false;
+        }
+    }
+
+    @Test
+    public void testSlowestReadPositionForActiveCursors() throws Exception {
+        ManagedCursorContainer container =
+                new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
+        assertNull(container.getSlowestReadPositionForActiveCursors());
+
+        // Add no durable cursor
+        PositionImpl position = PositionImpl.get(5,5);
+        ManagedCursor cursor1 = spy(new MockManagedCursor(container, "test1", position));
+        doReturn(false).when(cursor1).isDurable();
+        doReturn(position).when(cursor1).getReadPosition();
+        container.add(cursor1);
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
+
+        // Add no durable cursor
+        position = PositionImpl.get(1,1);
+        ManagedCursor cursor2 = spy(new MockManagedCursor(container, "test2", position));
+        doReturn(false).when(cursor2).isDurable();
+        doReturn(position).when(cursor2).getReadPosition();
+        container.add(cursor2);
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(1, 1));
+
+        // Move forward cursor, cursor1 = 5:5, cursor2 = 5:6, slowest is 5:5
+        position = PositionImpl.get(5,6);
+        container.cursorUpdated(cursor2, position);
+        doReturn(position).when(cursor2).getReadPosition();
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
+
+        // Move forward cursor, cursor1 = 5:8, cursor2 = 5:6, slowest is 5:6
+        position = PositionImpl.get(5,8);
+        doReturn(position).when(cursor1).getReadPosition();
+        container.cursorUpdated(cursor1, position);
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 6));
+
+        // Remove cursor, only cursor1 left, cursor1 = 5:8
+        container.removeCursor(cursor2.getName());
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 8));
     }
 
     @Test

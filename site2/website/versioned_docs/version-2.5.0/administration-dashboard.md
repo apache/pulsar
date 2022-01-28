@@ -52,7 +52,7 @@ If the Pulsar service runs in standalone mode in `localhost`, the `SERVICE_URL` 
 be the IP of the machine.
 
 Similarly, given the Pulsar standalone advertises itself with localhost by default, you need to
-explicitely set the advertise address to the host IP. For example:
+explicitly set the advertise address to the host IP. For example:
 
 ```shell
 $ bin/pulsar standalone --advertised-address 1.2.3.4

@@ -23,20 +23,22 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.config.SslConfigs;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
 /**
- * A Simple abstract class for Kafka sink
+ * A Simple abstract class for Kafka sink.
  * Users need to implement extractKeyValue function to use this sink
  */
 @Slf4j
@@ -49,7 +51,8 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> sourceRecord) {
         KeyValue<K, V> keyValue = extractKeyValue(sourceRecord);
-        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(), keyValue.getValue());
+        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(),
+                keyValue.getValue());
         if (log.isDebugEnabled()) {
             log.debug("Record sending to kafka, record={}.", record);
         }
@@ -94,6 +97,28 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
         }
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaSinkConfig.getBootstrapServers());
+        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSecurityProtocol())) {
+            props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, kafkaSinkConfig.getSecurityProtocol());
+        }
+        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSaslMechanism())) {
+            props.put(SaslConfigs.SASL_MECHANISM, kafkaSinkConfig.getSaslMechanism());
+        }
+        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSaslJaasConfig())) {
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, kafkaSinkConfig.getSaslJaasConfig());
+        }
+        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslEnabledProtocols())) {
+            props.put(SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, kafkaSinkConfig.getSslEnabledProtocols());
+        }
+        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslEndpointIdentificationAlgorithm())) {
+            props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG,
+                    kafkaSinkConfig.getSslEndpointIdentificationAlgorithm());
+        }
+        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslTruststoreLocation())) {
+            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, kafkaSinkConfig.getSslTruststoreLocation());
+        }
+        if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslTruststorePassword())) {
+            props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kafkaSinkConfig.getSslTruststorePassword());
+        }
         props.put(ProducerConfig.ACKS_CONFIG, kafkaSinkConfig.getAcks());
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, String.valueOf(kafkaSinkConfig.getBatchSize()));
         props.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, String.valueOf(kafkaSinkConfig.getMaxRequestSize()));

@@ -18,20 +18,21 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -44,6 +45,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
+@Test(groups = "quarantine")
 public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -55,14 +57,14 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    @AfterClass(alwaysRun = true, timeOut = 300000)
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     enum DispatchRateType {
@@ -72,6 +74,83 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @DataProvider(name = "dispatchRateType")
     public Object[][] dispatchRateProvider() {
         return new Object[][] { { DispatchRateType.messageRate }, { DispatchRateType.byteRate } };
+    }
+
+    @Test
+    public void testReplicatorRatePriority() throws Exception {
+        cleanup();
+        config1.setSystemTopicEnabled(true);
+        config1.setTopicLevelPoliciesEnabled(true);
+        config1.setDispatchThrottlingRatePerReplicatorInMsg(100);
+        config1.setDispatchThrottlingRatePerReplicatorInByte(200L);
+        setup();
+
+        final String namespace = "pulsar/replicatorchange-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/ratechange";
+
+        admin1.namespaces().createNamespace(namespace);
+        // set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+        client1.newProducer().topic(topicName).create().close();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
+
+        //use broker-level by default
+        assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 100);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), 200L);
+
+        //set namespace-level policy, which should take effect
+        DispatchRate nsDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(50)
+                .dispatchThrottlingRateInByte(60)
+                .ratePeriodInSecond(60)
+                .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, nsDispatchRate);
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin1.namespaces().getReplicatorDispatchRate(namespace), nsDispatchRate));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 50);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), 60L);
+
+        //set topic-level policy, which should take effect
+        DispatchRate topicRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(20)
+                .ratePeriodInSecond(30)
+                .build();
+        admin1.topics().setReplicatorDispatchRate(topicName, topicRate);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin1.topics().getReplicatorDispatchRate(topicName), topicRate));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 10);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), 20L);
+
+        //Set the namespace-level policy, which should not take effect
+        DispatchRate nsDispatchRate2 = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(500)
+                .dispatchThrottlingRateInByte(600)
+                .ratePeriodInSecond(700)
+                .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, nsDispatchRate2);
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin1.namespaces().getReplicatorDispatchRate(namespace), nsDispatchRate2));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), 20L);
+
+        //remove topic-level policy, namespace-level should take effect
+        admin1.topics().removeReplicatorDispatchRate(topicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin1.topics().getReplicatorDispatchRate(topicName)));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 500);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
+                600L);
+
+        //remove namespace-level policy, broker-level should take effect
+        admin1.namespaces().setReplicatorDispatchRate(namespace, null);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 100));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
+                200L);
     }
 
     /**
@@ -103,7 +182,6 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         producer.close();
-
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
 
         // 1. default replicator throttling not configured
@@ -111,7 +189,11 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         // 2. change namespace setting of replicator dispatchRateMsg, verify topic changed.
         int messageRate = 100;
-        DispatchRate dispatchRateMsg = new DispatchRate(messageRate, -1, 360);
+        DispatchRate dispatchRateMsg = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(360)
+                .build();
         admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRateMsg);
 
         boolean replicatorUpdated = false;
@@ -131,7 +213,11 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         // 3. change namespace setting of replicator dispatchRateByte, verify topic changed.
         messageRate = 500;
-        DispatchRate dispatchRateByte = new DispatchRate(-1, messageRate, 360);
+        DispatchRate dispatchRateByte = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(messageRate)
+                .ratePeriodInSecond(360)
+                .build();
         admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRateByte);
         replicatorUpdated = false;
         for (int i = 0; i < retry; i++) {
@@ -170,9 +256,17 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         final int messageRate = 100;
         DispatchRate dispatchRate;
         if (DispatchRateType.messageRate.equals(dispatchRateType)) {
-            dispatchRate = new DispatchRate(messageRate, -1, 360);
+            dispatchRate = DispatchRate.builder()
+                    .dispatchThrottlingRateInMsg(messageRate)
+                    .dispatchThrottlingRateInByte(-1)
+                    .ratePeriodInSecond(360)
+                    .build();
         } else {
-            dispatchRate = new DispatchRate(-1, messageRate, 360);
+            dispatchRate = DispatchRate.builder()
+                    .dispatchThrottlingRateInMsg(-1)
+                    .dispatchThrottlingRateInByte(messageRate)
+                    .ratePeriodInSecond(360)
+                    .build();
         }
         admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
 
@@ -254,7 +348,11 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
 
         final int messageRate = 100;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(360)
+                .build();
         admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
 
         @Cleanup

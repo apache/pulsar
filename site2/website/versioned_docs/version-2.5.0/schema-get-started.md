@@ -66,7 +66,7 @@ If you construct a producer without specifying a schema, then the producer can o
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .create();
-User user = new User(“Tom”, 28);
+User user = new User("Tom", 28);
 byte[] message = … // serialize the `user` by yourself;
 producer.send(message);
 ```
@@ -82,7 +82,7 @@ This example constructs a producer with the _JSONSchema_, and you can send the _
 Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();
-User user = new User(“Tom”, 28);
+User user = new User("Tom", 28);
 producer.send(User);
 ```
 

@@ -20,8 +20,12 @@
 package pf
 
 import (
+	"fmt"
+	"io/ioutil"
 	"math"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
@@ -183,4 +187,30 @@ func TestExampleSummaryVec_Pulsar(t *testing.T) {
 	sum := matchingMetric.GetSummary().SampleSum
 	assert.Equal(t, 61925, int(*sum))
 	assert.Equal(t, 2000, int(*count))
+}
+
+func TestMetricsServer(t *testing.T) {
+	gi := newGoInstance()
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+	gi.stats.incrTotalReceived()
+	time.Sleep(time.Second * 1)
+
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.NotEmpty(t, body)
+	resp.Body.Close()
+
+	resp, err = http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err = ioutil.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.NotEmpty(t, body)
+	resp.Body.Close()
 }

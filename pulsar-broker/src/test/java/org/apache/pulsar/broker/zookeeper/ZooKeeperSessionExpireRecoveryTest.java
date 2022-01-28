@@ -32,15 +32,16 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -51,11 +52,11 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
      */
     @Test
     public void testSessionExpired() throws Exception {
-        admin.clusters().createCluster("my-cluster", new ClusterData("test-url"));
+        admin.clusters().createCluster("my-cluster", ClusterData.builder().serviceUrl("test-url").build());
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.CREATE
                     && path.equals("/admin/clusters/my-cluster-2");
             });
@@ -63,12 +64,12 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
         try {
-            admin.clusters().createCluster("my-cluster-2", new ClusterData("test-url"));
+            admin.clusters().createCluster("my-cluster-2", ClusterData.builder().serviceUrl("test-url").build());
             fail("Should have failed, because global zk is down");
         } catch (PulsarAdminException e) {
             // Ok
         }
 
-        admin.clusters().createCluster("cluster-2", new ClusterData("test-url"));
+        admin.clusters().createCluster("cluster-2", ClusterData.builder().serviceUrl("test-url").build());
     }
 }

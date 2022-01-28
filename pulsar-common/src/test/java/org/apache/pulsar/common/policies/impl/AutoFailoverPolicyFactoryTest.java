@@ -19,10 +19,10 @@
 package org.apache.pulsar.common.policies.impl;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -31,17 +31,20 @@ public class AutoFailoverPolicyFactoryTest {
     @Test
     public void testAutoFailoverPolicyFactory() {
         try {
-            AutoFailoverPolicyFactory.create(new AutoFailoverPolicyData());
+            AutoFailoverPolicyFactory.create(AutoFailoverPolicyData.builder().build());
             Assert.fail("");
         } catch (IllegalArgumentException e) {
             // Pass
         }
         try {
-            AutoFailoverPolicyData afopd = new AutoFailoverPolicyData();
-            afopd.policy_type = AutoFailoverPolicyType.min_available;
-            afopd.parameters = new HashMap<>();
-            afopd.parameters.put("min_limit", "3");
-            afopd.parameters.put("usage_threshold", "10");
+            Map<String, String> parameters = new HashMap<>();
+            parameters.put("min_limit", "3");
+            parameters.put("usage_threshold", "10");
+
+            AutoFailoverPolicyData afopd = AutoFailoverPolicyData.builder()
+                    .policyType(AutoFailoverPolicyType.min_available)
+                    .parameters(parameters)
+                    .build();
             AutoFailoverPolicyFactory.create(afopd);
             // Pass
         } catch (IllegalArgumentException e) {

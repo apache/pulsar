@@ -22,9 +22,7 @@ import com.yahoo.sketches.quantiles.DoublesSketch;
 import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
-
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -46,7 +44,7 @@ public class DataSketchesSummaryLogger {
     private final LongAdder countAdder = new LongAdder();
     private final LongAdder sumAdder = new LongAdder();
 
-    DataSketchesSummaryLogger() {
+    public DataSketchesSummaryLogger() {
         this.current = new ThreadLocalAccessor();
         this.replacement = new ThreadLocalAccessor();
     }

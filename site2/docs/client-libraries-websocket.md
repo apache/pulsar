@@ -1,13 +1,13 @@
 ---
 id: client-libraries-websocket
-title: Pulsar's WebSocket API
+title: Pulsar WebSocket API
 sidebar_label: WebSocket
 ---
 
-Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSockets you can publish and consume messages and use all the features available in the [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp.md) client libraries.
+Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSocket, you can publish and consume messages and use features available on the [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
 
 
-> You can use Pulsar's WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples).
+> You can use Pulsar WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples).
 
 ## Running the WebSocket service
 
@@ -42,6 +42,17 @@ webServicePort=8080
 clusterName=my-cluster
 ```
 
+### Security settings
+
+To enable TLS encryption on WebSocket service:
+```properties
+tlsEnabled=true
+tlsAllowInsecureConnection=false
+tlsCertificateFilePath=/path/to/client-websocket.cert.pem
+tlsKeyFilePath=/path/to/client-websocket.key-pk8.pem
+tlsTrustCertsFilePath=/path/to/ca.cert.pem
+```
+
 ### Starting the broker
 
 When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) tool:
@@ -55,6 +66,16 @@ $ bin/pulsar-daemon start websocket
 Pulsar's WebSocket API offers three endpoints for [producing](#producer-endpoint) messages, [consuming](#consumer-endpoint) messages and [reading](#reader-endpoint) messages.
 
 All exchanges via the WebSocket API use JSON.
+
+### Authentication
+
+#### Browser javascript WebSocket client
+
+Use the query param `token` transport the authentication token.
+
+```http
+ws://broker-service-url:8080/path?token=token
+```
 
 ### Producer endpoint
 
@@ -78,6 +99,7 @@ Key | Type | Required? | Explanation
 `producerName` | string | no | Specify the name for the producer. Pulsar will enforce only one producer with same name can be publishing on a topic
 `initialSequenceId` | long | no | Set the baseline for the sequence ids for messages published by the producer.
 `hashingScheme` | string | no | [Hashing function](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html) to use when publishing on a partitioned topic: `JavaStringHash`, `Murmur3_32Hash`
+`token` | string | no | Authentication token, this is used for the browser javascript client
 
 
 #### Publishing a message
@@ -138,13 +160,15 @@ ws://broker-service-url:8080/ws/v2/consumer/persistent/:tenant/:namespace/:topic
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `ackTimeoutMillis` | long | no | Set the timeout for unacked messages (default: 0)
-`subscriptionType` | string | no | [Subscription type](https://pulsar.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): `Exclusive`, `Failover`, `Shared`
+`subscriptionType` | string | no | [Subscription type](https://pulsar.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): `Exclusive`, `Failover`, `Shared`, `Key_Shared`
 `receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 `consumerName` | string | no | Consumer name
 `priorityLevel` | int | no | Define a [priority](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-) for the consumer
 `maxRedeliverCount` | int | no | Define a [maxRedeliverCount](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-) for the consumer (default: 0). Activates [Dead Letter Topic](https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic) feature.
 `deadLetterTopic` | string | no | Define a [deadLetterTopic](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-) for the consumer (default: {topic}-{subscription}-DLQ). Activates [Dead Letter Topic](https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic) feature.
 `pullMode` | boolean | no | Enable pull mode (default: false). See "Flow Control" below.
+`negativeAckRedeliveryDelay` | int | no | When a message is negatively acknowledged, the delay time before the message is redelivered (in milliseconds). The default value is 60000.
+`token` | string | no | Authentication token, this is used for the browser javascript client
 
 NB: these parameter (except `pullMode`) apply to the internal consumer of the WebSocket service.
 So messages will be subject to the redelivery settings as soon as the get into the receive queue,
@@ -156,20 +180,59 @@ Server will push messages on the WebSocket session:
 
 ```json
 {
-  "messageId": "CAAQAw==",
-  "payload": "SGVsbG8gV29ybGQ=",
-  "properties": {"key1": "value1", "key2": "value2"},
-  "publishTime": "2016-08-30 16:45:57.785"
+  "messageId": "CAMQADAA",
+  "payload": "hvXcJvHW7kOSrUn17P2q71RA5SdiXwZBqw==",
+  "properties": {},
+  "publishTime": "2021-10-29T16:01:38.967-07:00",
+  "redeliveryCount": 0,
+  "encryptionContext": {
+    "keys": {
+      "client-rsa.pem": {
+        "keyValue": "jEuwS+PeUzmCo7IfLNxqoj4h7txbLjCQjkwpaw5AWJfZ2xoIdMkOuWDkOsqgFmWwxiecakS6GOZHs94x3sxzKHQx9Oe1jpwBg2e7L4fd26pp+WmAiLm/ArZJo6JotTeFSvKO3u/yQtGTZojDDQxiqFOQ1ZbMdtMZA8DpSMuq+Zx7PqLo43UdW1+krjQfE5WD+y+qE3LJQfwyVDnXxoRtqWLpVsAROlN2LxaMbaftv5HckoejJoB4xpf/dPOUqhnRstwQHf6klKT5iNhjsY4usACt78uILT0pEPd14h8wEBidBz/vAlC/zVMEqiDVzgNS7dqEYS4iHbf7cnWVCn3Hxw==",
+        "metadata": {}
+      }
+    },
+    "param": "Tfu1PxVm6S9D3+Hk",
+    "compressionType": "NONE",
+    "uncompressedMessageSize": 0,
+    "batchSize": {
+      "empty": false,
+      "present": true
+    }
+  }
 }
 ```
 
-Key | Type | Required? | Explanation
-:---|:-----|:----------|:-----------
-`messageId` | string | yes | Message ID
-`payload` | string | yes | Base-64 encoded payload
-`publishTime` | string | yes | Publish timestamp
-`properties` | key-value pairs | no | Application-defined properties
-`key` | string | no |  Original routing key set by producer
+Below are the parameters in the WebSocket consumer response.
+
+- General parameters
+
+    Key | Type | Required? | Explanation
+    :---|:-----|:----------|:-----------
+    `messageId` | string | yes | Message ID
+    `payload` | string | yes | Base-64 encoded payload
+    `publishTime` | string | yes | Publish timestamp
+    `redeliveryCount` | number | yes | Number of times this message was already delivered
+    `properties` | key-value pairs | no | Application-defined properties
+    `key` | string | no |  Original routing key set by producer
+    `encryptionContext` | EncryptionContext | no | Encryption context that consumers can use to decrypt received messages
+    `param` | string | no | Initialization vector for cipher (Base64 encoding)
+    `batchSize` | string | no | Number of entries in a message (if it is a batch message)
+    `uncompressedMessageSize` | string | no | Message size before compression
+    `compressionType` | string | no | Algorithm used to compress the message payload
+
+- `encryptionContext` related parameter
+
+    Key | Type | Required? | Explanation
+    :---|:-----|:----------|:-----------
+    `keys` |key-EncryptionKey pairs | yes | Key in `key-EncryptionKey` pairs is an encryption key name. Value in `key-EncryptionKey` pairs is an encryption key object.
+
+- `encryptionKey` related parameters
+
+    Key | Type | Required? | Explanation
+    :---|:-----|:----------|:-----------
+    `keyValue` | string | yes | Encryption key (Base64 encoding)
+    `metadata` | key-value pairs | no | Application-defined metadata
 
 #### Acknowledging the message
 
@@ -178,6 +241,18 @@ have the Pulsar broker delete it.
 
 ```json
 {
+  "messageId": "CAAQAw=="
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`messageId`| string | yes | Message ID of the processed message
+
+#### Negatively acknowledging messages
+```json
+{
+  "type": "negativeAcknowledge",
   "messageId": "CAAQAw=="
 }
 ```
@@ -214,6 +289,28 @@ Key | Type | Required? | Explanation
 
 NB: in this mode it's possible to acknowledge messages in a different connection.
 
+#### Check if reach end of topic
+
+Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+
+**Request**
+```json
+{
+  "type": "isEndOfTopic"
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`type`| string | yes | Type of command. Must be `isEndOfTopic`
+
+**Response**
+```json
+{
+   "endOfTopic": "true/false"
+ }
+```
+
 ### Reader endpoint
 
 The reader endpoint requires you to specify a tenant, namespace, and topic in the URL:
@@ -229,6 +326,7 @@ Key | Type | Required? | Explanation
 `readerName` | string | no | Reader name
 `receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 `messageId` | int or enum | no | Message ID to start from, `earliest` or `latest` (default: `latest`)
+`token` | string | no | Authentication token, this is used for the browser javascript client
 
 ##### Receiving messages
 
@@ -239,7 +337,8 @@ Server will push messages on the WebSocket session:
   "messageId": "CAAQAw==",
   "payload": "SGVsbG8gV29ybGQ=",
   "properties": {"key1": "value1", "key2": "value2"},
-  "publishTime": "2016-08-30 16:45:57.785"
+  "publishTime": "2016-08-30 16:45:57.785",
+  "redeliveryCount": 4
 }
 ```
 
@@ -248,6 +347,7 @@ Key | Type | Required? | Explanation
 `messageId` | string | yes | Message ID
 `payload` | string | yes | Base-64 encoded payload
 `publishTime` | string | yes | Publish timestamp
+`redeliveryCount` | number | yes | Number of times this message was already delivered
 `properties` | key-value pairs | no | Application-defined properties
 `key` | string | no |  Original routing key set by producer
 
@@ -266,6 +366,29 @@ If you don't send acknowledgements, Pulsar WebSocket service will stop sending m
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
+
+#### Check if reach end of topic
+
+Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+
+**Request**
+```json
+{
+  "type": "isEndOfTopic"
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`type`| string | yes | Type of command. Must be `isEndOfTopic`
+
+**Response**
+```json
+{
+   "endOfTopic": "true/false"
+ }
+```
+
 
 
 ### Error codes
@@ -307,13 +430,25 @@ Here's an example Python producer that sends a simple message to a Pulsar [topic
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'
+# If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+enable_TLS = False
+scheme = 'ws'
+if enable_TLS:
+    scheme = 'wss'
+
+TOPIC = scheme + '://localhost:8080/ws/v2/producer/persistent/public/default/my-topic'
 
 ws = websocket.create_connection(TOPIC)
 
+# encode message
+s = "Hello World"
+firstEncoded = s.encode("UTF-8")
+binaryEncoded = base64.b64encode(firstEncoded)
+payloadString = binaryEncoded.decode('UTF-8')
+
 # Send one message as JSON
 ws.send(json.dumps({
-    'payload' : base64.b64encode('Hello World'),
+    'payload' : payloadString,
     'properties': {
         'key1' : 'value1',
         'key2' : 'value2'
@@ -323,9 +458,9 @@ ws.send(json.dumps({
 
 response =  json.loads(ws.recv())
 if response['result'] == 'ok':
-    print 'Message published successfully'
+    print( 'Message published successfully')
 else:
-    print 'Failed to publish message:', response
+    print('Failed to publish message:', response)
 ws.close()
 ```
 
@@ -336,7 +471,13 @@ Here's an example Python consumer that listens on a Pulsar topic and prints the 
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'
+# If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+enable_TLS = False
+scheme = 'ws'
+if enable_TLS:
+    scheme = 'wss'
+
+TOPIC = scheme + '://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -344,7 +485,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
+    print( "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
@@ -359,15 +500,20 @@ Here's an example Python reader that listens on a Pulsar topic and prints the me
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'
+# If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+enable_TLS = False
+scheme = 'ws'
+if enable_TLS:
+    scheme = 'wss'
 
+TOPIC = scheme + '://localhost:8080/ws/v2/reader/persistent/public/default/my-topic'
 ws = websocket.create_connection(TOPIC)
 
 while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
+    print ( "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
@@ -388,9 +534,12 @@ $ npm install ws
 Here's an example Node.js producer that sends a simple message to a Pulsar topic:
 
 ```javascript
-var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/producer/persistent/public/default/my-topic",
-    ws = new WebSocket(topic);
+const WebSocket = require('ws');
+
+// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+const enableTLS = false;
+const topic = `${enableTLS ? 'wss' : 'ws'}://localhost:8080/ws/v2/producer/persistent/public/default/my-topic`;
+const ws = new WebSocket(topic);
 
 var message = {
   "payload" : new Buffer("Hello World").toString('base64'),
@@ -416,9 +565,12 @@ ws.on('message', function(message) {
 Here's an example Node.js consumer that listens on the same topic used by the producer above:
 
 ```javascript
-var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub",
-    ws = new WebSocket(topic);
+const WebSocket = require('ws');
+
+// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+const enableTLS = false;
+const topic = `${enableTLS ? 'wss' : 'ws'}://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub`;
+const ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
     var receiveMsg = JSON.parse(message);
@@ -430,9 +582,12 @@ ws.on('message', function(message) {
 
 #### NodeJS reader
 ```javascript
-var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/v2/reader/persistent/public/default/my-topic",
-    ws = new WebSocket(topic);
+const WebSocket = require('ws');
+
+// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.
+const enableTLS = false;
+const topic = `${enableTLS ? 'wss' : 'ws'}://localhost:8080/ws/v2/reader/persistent/public/default/my-topic`;
+const ws = new WebSocket(topic);
 
 ws.on('message', function(message) {
     var receiveMsg = JSON.parse(message);

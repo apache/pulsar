@@ -207,7 +207,7 @@ $ bin/pulsar-admin functions delete \
   --name exclamation
 ```
 
-If you see `Deleted successfully` in the output, then you've succesfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.
+If you see `Deleted successfully` in the output, then you've successfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.
 
 ## Writing and running a new function
 

@@ -20,13 +20,13 @@ package org.apache.pulsar.functions.instance;
 
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 
@@ -63,6 +63,11 @@ public class SinkRecord<T> implements Record<T> {
     }
 
     @Override
+    public Optional<Integer> getPartitionIndex() {
+        return sourceRecord.getPartitionIndex();
+    }
+
+    @Override
     public Optional<Long> getRecordSequence() {
         return sourceRecord.getRecordSequence();
     }
@@ -94,16 +99,40 @@ public class SinkRecord<T> implements Record<T> {
         }
 
         if (sourceRecord.getSchema() != null) {
-            return sourceRecord.getSchema();
+            // unwrap actual schema
+            Schema<T> schema =  sourceRecord.getSchema();
+            // AutoConsumeSchema is a special schema, that comes into play
+            // when the Sink is going to handle any Schema
+            // usually you see Sink<GenericObject> or Sink<GenericRecord> in this case
+            if (schema instanceof AutoConsumeSchema) {
+                // extract the Schema from the message, this is the most accurate schema we have
+                // see PIP-85
+                if (sourceRecord.getMessage().isPresent()
+                        && sourceRecord.getMessage().get().getReaderSchema().isPresent()) {
+                    schema = (Schema<T>) sourceRecord.getMessage().get().getReaderSchema().get();
+                } else {
+                    schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
+                }
+            }
+            return schema;
         }
 
         if (sourceRecord instanceof KVRecord) {
             KVRecord kvRecord = (KVRecord) sourceRecord;
-            return KeyValueSchema.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
+            return KeyValueSchemaImpl.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
                     kvRecord.getKeyValueEncodingType());
         }
 
         return null;
     }
 
+    @Override
+    public Optional<Long> getEventTime() {
+        return sourceRecord.getEventTime();
+    }
+
+    @Override
+    public Optional<Message<T>> getMessage() {
+        return sourceRecord.getMessage();
+    }
 }

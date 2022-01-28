@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.io.flume.source;
 
-import org.apache.flume.sink.AbstractSink;
-
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import org.apache.flume.sink.AbstractSink;
 
 public abstract class AbstractSinkOfFlume extends AbstractSink {
 

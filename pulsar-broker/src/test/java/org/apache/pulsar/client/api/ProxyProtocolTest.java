@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 
 import lombok.Cleanup;
 
+@Test(groups = "broker-api")
 public class ProxyProtocolTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyProtocolTest.class);
 
@@ -40,7 +41,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
 
         // Client should try to connect to proxy and pass broker-url as SNI header
         String proxyUrl = pulsar.getBrokerServiceUrlTls();
-        String brokerServiceUrl = "pulsar+ssl://1.1.1.1:6651";
+        String brokerServiceUrl = "pulsar+ssl://unresolvable-address:6651";
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
@@ -53,7 +54,6 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
 
         @Cleanup
         PulsarClient pulsarClient = clientBuilder.build();
-
         // should be able to create producer successfully
         pulsarClient.newProducer().topic(topicName).create();
     }

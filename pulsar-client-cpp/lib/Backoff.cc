@@ -18,16 +18,13 @@
  */
 #include "Backoff.h"
 #include <boost/random/uniform_int_distribution.hpp>
+#include <algorithm>
+#include <time.h> /* time */
 
 namespace pulsar {
 
 Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max, const TimeDuration& mandatoryStop)
-    : initial_(initial),
-      max_(max),
-      next_(initial),
-      mandatoryStopMade_(false),
-      mandatoryStop_(mandatoryStop),
-      rng_(time(NULL)) {}
+    : initial_(initial), max_(max), next_(initial), mandatoryStop_(mandatoryStop), rng_(time(NULL)) {}
 
 TimeDuration Backoff::next() {
     TimeDuration current = next_;

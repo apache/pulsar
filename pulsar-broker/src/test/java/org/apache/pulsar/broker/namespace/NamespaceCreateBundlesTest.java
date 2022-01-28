@@ -19,15 +19,21 @@
 package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespaceCreateBundlesTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -37,7 +43,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -50,8 +56,29 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         admin.namespaces().createNamespace(namespaceName);
 
         Policies policies = admin.namespaces().getPolicies(namespaceName);
-        assertEquals(policies.bundles.numBundles, 16);
-        assertEquals(policies.bundles.boundaries.size(), 17);
+        assertEquals(policies.bundles.getNumBundles(), 16);
+        assertEquals(policies.bundles.getBoundaries().size(), 17);
     }
 
+    @Test
+    public void testSplitBundleUpdatesLocalPoliciesWithoutOverwriting() throws Exception {
+        String namespaceName = "prop/" + UUID.randomUUID().toString();
+        String topicName = "persistent://" + namespaceName + "/my-topic5";
+
+        admin.namespaces().createNamespace(namespaceName);
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(1,
+                TimeUnit.SECONDS);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        String bundle = admin.lookups().getBundleRange(topicName);
+        BookieAffinityGroupData bookieAffinityGroup = BookieAffinityGroupData.builder()
+                .bookkeeperAffinityGroupPrimary("test")
+                .build();
+        admin.namespaces().setBookieAffinityGroup(namespaceName, bookieAffinityGroup);
+        admin.namespaces().splitNamespaceBundle(namespaceName, bundle, false, null);
+        assertNotNull(admin.namespaces().getBookieAffinityGroup(namespaceName));
+        producer.close();
+    }
 }

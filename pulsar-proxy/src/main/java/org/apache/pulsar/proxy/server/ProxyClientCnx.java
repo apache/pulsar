@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
-
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -48,13 +47,13 @@ public class ProxyClientCnx extends ClientCnx {
     @Override
     protected ByteBuf newConnectCommand() throws Exception {
         if (log.isDebugEnabled()) {
-            log.debug("New Connection opened via ProxyClientCnx with params clientAuthRole = {}," +
-                    " clientAuthData = {}, clientAuthMethod = {}",
+            log.debug("New Connection opened via ProxyClientCnx with params clientAuthRole = {},"
+                            + " clientAuthData = {}, clientAuthMethod = {}",
                     clientAuthRole, clientAuthData, clientAuthMethod);
         }
 
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
-        AuthData authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
             PulsarVersion.getVersion(), proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
             clientAuthMethod);

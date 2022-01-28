@@ -33,14 +33,32 @@ public final class AuthenticationFactoryOAuth2 {
      *
      * @param issuerUrl the issuer URL
      * @param credentialsUrl the credentials URL
-     * @param audience the audience identifier
+     * @param audience An optional field. The audience identifier used by some Identity Providers, like Auth0.
      * @return an Authentication object
      */
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience) {
+        return clientCredentials(issuerUrl, credentialsUrl, audience, null);
+    }
+
+    /**
+     * Authenticate with client credentials.
+     *
+     * @param issuerUrl the issuer URL
+     * @param credentialsUrl the credentials URL
+     * @param audience An optional field. The audience identifier used by some Identity Providers, like Auth0.
+     * @param scope An optional field. The value of the scope parameter is expressed as a list of space-delimited,
+     *              case-sensitive strings. The strings are defined by the authorization server.
+     *              If the value contains multiple space-delimited strings, their order does not matter,
+     *              and each string adds an additional access range to the requested scope.
+     *              From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
+     * @return an Authentication object
+     */
+    public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
         ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .privateKey(credentialsUrl.toExternalForm())
                 .audience(audience)
+                .scope(scope)
                 .build();
         return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
     }

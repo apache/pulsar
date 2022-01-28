@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.broker;
 
-import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
  * Data class comprising the short term and long term historical data for this bundle.
  */
-public class BundleData extends JSONWritable {
+public class BundleData {
     // Short term data for this bundle. The time frame of this data is
     // determined by the number of short term samples
     // and the bundle update period.
@@ -34,7 +33,7 @@ public class BundleData extends JSONWritable {
     // by the number of long term samples
     // and the bundle update period.
     private TimeAverageMessageData longTermData;
-    
+
     // number of topics present under this bundle
     private int topics;
 
@@ -44,7 +43,7 @@ public class BundleData extends JSONWritable {
 
     /**
      * Initialize the bundle data.
-     * 
+     *
      * @param numShortSamples
      *            Number of short term samples to use.
      * @param numLongSamples
@@ -58,7 +57,7 @@ public class BundleData extends JSONWritable {
     /**
      * Initialize this bundle data and have its histories default to the given stats before the first sample is
      * received.
-     * 
+     *
      * @param numShortSamples
      *            Number of short term samples to use.
      * @param numLongSamples
@@ -73,7 +72,7 @@ public class BundleData extends JSONWritable {
 
     /**
      * Update the historical data for this bundle.
-     * 
+     *
      * @param newSample
      *            The bundle stats to update this data with.
      */

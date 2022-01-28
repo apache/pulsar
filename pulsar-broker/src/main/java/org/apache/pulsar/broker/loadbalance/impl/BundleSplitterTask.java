@@ -21,10 +21,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-//import org.apache.pulsar.broker.MessageData;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
@@ -33,6 +29,8 @@ import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Determines which bundles should be split based on various thresholds.
@@ -43,22 +41,18 @@ public class BundleSplitterTask implements BundleSplitStrategy {
 
     /**
      * Construct a BundleSplitterTask.
-     * 
-     * @param pulsar
-     *            Service to construct from.
+     *
      */
-    public BundleSplitterTask(final PulsarService pulsar) {
+    public BundleSplitterTask() {
         bundleCache = new HashSet<>();
     }
 
     /**
      * Determines which bundles should be split based on various thresholds.
-     * 
+     *
      * @param loadData
      *            Load data to base decisions on (does not have benefit of preallocated data since this may not be the
      *            leader broker).
-     * @param localData
-     *            Local data for the broker we are splitting on.
      * @param pulsar
      *            Service to use.
      * @return All bundles who have exceeded configured thresholds in number of topics, number of sessions, total
@@ -78,6 +72,10 @@ public class BundleSplitterTask implements BundleSplitStrategy {
             for (final Map.Entry<String, NamespaceBundleStats> entry : localData.getLastStats().entrySet()) {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
+                if (stats.topics < 2) {
+                    log.info("The count of topics on the bundle {} is less than 2，skip split!", bundle);
+                    continue;
+                }
                 double totalMessageRate = 0;
                 double totalMessageThroughput = 0;
                 // Attempt to consider long-term message data, otherwise effectively ignore.
@@ -86,7 +84,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                     totalMessageRate = longTermData.totalMsgRate();
                     totalMessageThroughput = longTermData.totalMsgThroughput();
                 }
-                if (stats.topics > maxBundleTopics || stats.consumerCount + stats.producerCount > maxBundleSessions
+                if (stats.topics > maxBundleTopics || (maxBundleSessions > 0 && (stats.consumerCount
+                        + stats.producerCount > maxBundleSessions))
                         || totalMessageRate > maxBundleMsgRate || totalMessageThroughput > maxBundleBandwidth) {
                     final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     try {

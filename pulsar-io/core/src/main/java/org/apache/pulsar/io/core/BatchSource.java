@@ -19,10 +19,11 @@
 package org.apache.pulsar.io.core;
 
 
-import org.apache.pulsar.functions.api.Record;
-
 import java.util.Map;
 import java.util.function.Consumer;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.Record;
 
 /**
  * Interface for writing Batch sources
@@ -47,7 +48,8 @@ import java.util.function.Consumer;
  * 5. close is called when the source is stopped/deleted. This is analogous to the streaming Source api.
  *
  */
-
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
 public interface BatchSource<T> extends AutoCloseable {
 
     /**
@@ -57,7 +59,7 @@ public interface BatchSource<T> extends AutoCloseable {
      * @param context environment where the source connector is running
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config, SourceContext context) throws Exception;
+    void open(Map<String, Object> config, SourceContext context) throws Exception;
 
     /**
      * Discovery phase of a connector.  This phase will only be run on one instance, i.e. instance 0, of the connector.
@@ -76,7 +78,7 @@ public interface BatchSource<T> extends AutoCloseable {
     void prepare(byte[] task) throws Exception;
 
     /**
-     * Read data and return a record
+     * Read data and return a record.
      * Return null if no more records are present for this task
      * @return a record
      */

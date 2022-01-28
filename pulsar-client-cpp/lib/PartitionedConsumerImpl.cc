@@ -31,14 +31,10 @@ PartitionedConsumerImpl::PartitionedConsumerImpl(ClientImplPtr client, const std
       subscriptionName_(subscriptionName),
       topicName_(topicName),
       numPartitions_(numPartitions),
-      numConsumersCreated_(0),
       conf_(conf),
-      state_(Pending),
-      unsubscribedSoFar_(0),
       messages_(1000),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
-      pendingReceives_(),
       topic_(topicName->toString()) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[Partitioned Consumer: " << topic_ << "," << subscriptionName << ","
@@ -229,7 +225,8 @@ ConsumerConfiguration PartitionedConsumerImpl::getSinglePartitionConsumerConfig(
     config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
 
     const auto shared_this = const_cast<PartitionedConsumerImpl*>(this)->shared_from_this();
-    config.setMessageListener(std::bind(&PartitionedConsumerImpl::messageReceived, shared_this, _1, _2));
+    config.setMessageListener(std::bind(&PartitionedConsumerImpl::messageReceived, shared_this,
+                                        std::placeholders::_1, std::placeholders::_2));
 
     // Apply total limit of receiver queue size across partitions
     // NOTE: if it's called by handleGetPartitions(), the queue size of new internal consumers may be smaller
@@ -247,11 +244,12 @@ ConsumerImplPtr PartitionedConsumerImpl::newInternalConsumer(unsigned int partit
 
     std::string topicPartitionName = topicName_->getTopicPartitionName(partition);
     auto consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                   internalListenerExecutor_, Partitioned);
+                                                   internalListenerExecutor_, true, Partitioned);
 
     const auto shared_this = const_cast<PartitionedConsumerImpl*>(this)->shared_from_this();
-    consumer->getConsumerCreatedFuture().addListener(std::bind(
-        &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_this, _1, _2, partition));
+    consumer->getConsumerCreatedFuture().addListener(
+        std::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_this,
+                  std::placeholders::_1, std::placeholders::_2, partition));
     consumer->setPartitionIndex(partition);
 
     LOG_DEBUG("Creating Consumer for single Partition - " << topicPartitionName << "SubName - "
@@ -452,7 +450,7 @@ void PartitionedConsumerImpl::internalListener(Consumer consumer) {
 void PartitionedConsumerImpl::receiveMessages() {
     for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
         ConsumerImplPtr consumer = *i;
-        consumer->receiveMessages(consumer->getCnx().lock(), conf_.getReceiverQueueSize());
+        consumer->sendFlowPermitsToBroker(consumer->getCnx().lock(), conf_.getReceiverQueueSize());
         LOG_DEBUG("Sending FLOW command for consumer - " << consumer->getConsumerId());
     }
 }
@@ -573,7 +571,8 @@ void PartitionedConsumerImpl::runPartitionUpdateTask() {
 void PartitionedConsumerImpl::getPartitionMetadata() {
     using namespace std::placeholders;
     lookupServicePtr_->getPartitionMetadataAsync(topicName_)
-        .addListener(std::bind(&PartitionedConsumerImpl::handleGetPartitions, shared_from_this(), _1, _2));
+        .addListener(std::bind(&PartitionedConsumerImpl::handleGetPartitions, shared_from_this(),
+                               std::placeholders::_1, std::placeholders::_2));
 }
 
 void PartitionedConsumerImpl::handleGetPartitions(Result result,
@@ -612,6 +611,37 @@ void PartitionedConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
     for (auto&& c : consumers_) {
         c->setNegativeAcknowledgeEnabledForTesting(enabled);
     }
+}
+
+bool PartitionedConsumerImpl::isConnected() const {
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        return false;
+    }
+    stateLock.unlock();
+
+    Lock consumersLock(consumersMutex_);
+    const auto consumers = consumers_;
+    consumersLock.unlock();
+    for (const auto& consumer : consumers_) {
+        if (!consumer->isConnected()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+uint64_t PartitionedConsumerImpl::getNumberOfConnectedConsumer() {
+    uint64_t numberOfConnectedConsumer = 0;
+    Lock consumersLock(consumersMutex_);
+    const auto consumers = consumers_;
+    consumersLock.unlock();
+    for (const auto& consumer : consumers) {
+        if (consumer->isConnected()) {
+            numberOfConnectedConsumer++;
+        }
+    }
+    return numberOfConnectedConsumer;
 }
 
 }  // namespace pulsar

@@ -20,17 +20,17 @@
 
 usage() {
     cat <<EOF
-Usage: pulsar-daemon (start|stop) <command> <args...>
+Usage: pulsar-daemon (start|stop|restart) <command> <args...>
 where command is one of:
     broker              Run a broker server
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
     configuration-store Run a configuration-store server
-    discovery           Run a discovery server
     websocket           Run a websocket proxy server
     functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
     proxy               Run a Proxy Pulsar service
+    autorecovery        Run an autorecovery service
 
 where argument is one of:
     -force (accepted only with stop command): Decides whether to stop the server forcefully if not stopped by normal shutdown
@@ -91,9 +91,6 @@ case $command in
     (configuration-store)
         echo "doing $startStop $command ..."
         ;;
-    (discovery)
-        echo "doing $startStop $command ..."
-        ;;
     (websocket)
         echo "doing $startStop $command ..."
         ;;
@@ -104,6 +101,9 @@ case $command in
         echo "doing $startStop $command ..."
         ;;
     (proxy)
+        echo "doing $startStop $command ..."
+        ;;
+    (autorecovery)
         echo "doing $startStop $command ..."
         ;;
     (*)
@@ -138,11 +138,9 @@ rotate_out_log ()
     fi
 }
 
-mkdir -p "$PULSAR_LOG_DIR"
-
-case $startStop in
-  (start)
-    if [ -f $pid ]; then
+start ()
+{
+  if [ -f $pid ]; then
       if kill -0 `cat $pid` > /dev/null 2>&1; then
         echo $command running as process `cat $pid`.  Stop it first.
         exit 1
@@ -153,17 +151,18 @@ case $startStop in
     echo starting $command, logging to $logfile
     echo Note: Set immediateFlush to true in conf/log4j2.yaml will guarantee the logging event is flushing to disk immediately. The default behavior is switched off due to performance considerations.
     pulsar=$PULSAR_HOME/bin/pulsar
-    nohup $pulsar $command "$@" > "$out" 2>&1 < /dev/null &
+    nohup $pulsar $command "$1" > "$out" 2>&1 < /dev/null &
     echo $! > $pid
     sleep 1; head $out
     sleep 2;
     if ! ps -p $! > /dev/null ; then
       exit 1
     fi
-    ;;
+}
 
-  (stop)
-    if [ -f $pid ]; then
+stop ()
+{
+  if [ -f $pid ]; then
       TARGET_PID=$(cat $pid)
       if kill -0 $TARGET_PID > /dev/null 2>&1; then
         echo "stopping $command"
@@ -206,6 +205,36 @@ case $startStop in
       rm $pid
     else
       echo no "$command to stop"
+    fi
+}
+
+mkdir -p "$PULSAR_LOG_DIR"
+
+case $startStop in
+  (start)
+    start "$*"
+    ;;
+
+  (stop)
+    stop $1
+    ;;
+
+  (restart)
+    forceStopFlag=$(echo "$*"|grep "\-force")
+    if [[ "$forceStopFlag" != "" ]]
+    then
+      stop "-force"
+    else
+      stop
+    fi
+    if [ "$?" == 0 ]
+    then
+       sleep 3
+       paramaters="$*"
+       startParamaters=${paramaters//-force/}
+       start "$startParamaters"
+    else
+       echo "WARNNING :  $command failed restart, for $command is not stopped completely."
     fi
     ;;
 

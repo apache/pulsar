@@ -19,6 +19,8 @@
 syntax = "proto3";
 package proto;
 
+import "ExternalTest.proto";
+
 option java_package = "org.apache.pulsar.client.schema.proto";
 option java_outer_classname = "Test";
 
@@ -30,6 +32,11 @@ enum TestEnum {
 message SubMessage {
     string foo = 1;
     double bar = 2;
+    message NestedMessage {
+        string url = 1;
+        string title = 2;
+        repeated string snippets = 3;
+    }
 }
 
 message TestMessage {
@@ -39,4 +46,5 @@ message TestMessage {
     TestEnum testEnum = 4;
     SubMessage nestedField = 5;
     repeated string repeatedField = 10;
+    proto.external.ExternalMessage externalMessage = 11;
 }

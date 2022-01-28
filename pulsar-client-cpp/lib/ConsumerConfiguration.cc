@@ -18,6 +18,8 @@
  */
 #include <lib/ConsumerConfigurationImpl.h>
 
+#include <stdexcept>
+
 namespace pulsar {
 
 const static std::string emptyString;
@@ -71,6 +73,19 @@ MessageListener ConsumerConfiguration::getMessageListener() const { return impl_
 
 bool ConsumerConfiguration::hasMessageListener() const { return impl_->hasMessageListener; }
 
+ConsumerConfiguration& ConsumerConfiguration::setConsumerEventListener(
+    ConsumerEventListenerPtr eventListener) {
+    impl_->eventListener = eventListener;
+    impl_->hasConsumerEventListener = true;
+    return *this;
+}
+
+ConsumerEventListenerPtr ConsumerConfiguration::getConsumerEventListener() const {
+    return impl_->eventListener;
+}
+
+bool ConsumerConfiguration::hasConsumerEventListener() const { return impl_->hasConsumerEventListener; }
+
 void ConsumerConfiguration::setReceiverQueueSize(int size) { impl_->receiverQueueSize = size; }
 
 int ConsumerConfiguration::getReceiverQueueSize() const { return impl_->receiverQueueSize; }
@@ -93,7 +108,8 @@ long ConsumerConfiguration::getUnAckedMessagesTimeoutMs() const { return impl_->
 
 void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds) {
     if (milliSeconds < 10000 && milliSeconds != 0) {
-        throw "Consumer Config Exception: Unacknowledged message timeout should be greater than 10 seconds.";
+        throw std::invalid_argument(
+            "Consumer Config Exception: Unacknowledged message timeout should be greater than 10 seconds.");
     }
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
 }
@@ -160,6 +176,14 @@ void ConsumerConfiguration::setPatternAutoDiscoveryPeriod(int periodInSeconds) {
 
 int ConsumerConfiguration::getPatternAutoDiscoveryPeriod() const { return impl_->patternAutoDiscoveryPeriod; }
 
+void ConsumerConfiguration::setReplicateSubscriptionStateEnabled(bool enabled) {
+    impl_->replicateSubscriptionStateEnabled = enabled;
+}
+
+bool ConsumerConfiguration::isReplicateSubscriptionStateEnabled() const {
+    return impl_->replicateSubscriptionStateEnabled;
+}
+
 bool ConsumerConfiguration::hasProperty(const std::string& name) const {
     const std::map<std::string, std::string>& m = impl_->properties;
     return m.find(name) != m.end();
@@ -188,6 +212,40 @@ ConsumerConfiguration& ConsumerConfiguration::setProperties(
         setProperty(it->first, it->second);
     }
     return *this;
+}
+
+ConsumerConfiguration& ConsumerConfiguration::setPriorityLevel(int priorityLevel) {
+    if (priorityLevel < 0) {
+        throw std::invalid_argument("Consumer Config Exception: PriorityLevel should be nonnegative number.");
+    }
+    impl_->priorityLevel = priorityLevel;
+    return *this;
+}
+
+int ConsumerConfiguration::getPriorityLevel() const { return impl_->priorityLevel; }
+
+ConsumerConfiguration& ConsumerConfiguration::setKeySharedPolicy(KeySharedPolicy keySharedPolicy) {
+    impl_->keySharedPolicy = keySharedPolicy.clone();
+    return *this;
+}
+
+KeySharedPolicy ConsumerConfiguration::getKeySharedPolicy() const { return impl_->keySharedPolicy; }
+
+ConsumerConfiguration& ConsumerConfiguration::setMaxPendingChunkedMessage(size_t maxPendingChunkedMessage) {
+    impl_->maxPendingChunkedMessage = maxPendingChunkedMessage;
+    return *this;
+}
+
+size_t ConsumerConfiguration::getMaxPendingChunkedMessage() const { return impl_->maxPendingChunkedMessage; }
+
+ConsumerConfiguration& ConsumerConfiguration::setAutoOldestChunkedMessageOnQueueFull(
+    bool autoAckOldestChunkedMessageOnQueueFull) {
+    impl_->autoAckOldestChunkedMessageOnQueueFull = autoAckOldestChunkedMessageOnQueueFull;
+    return *this;
+}
+
+bool ConsumerConfiguration::isAutoOldestChunkedMessageOnQueueFull() const {
+    return impl_->autoAckOldestChunkedMessageOnQueueFull;
 }
 
 }  // namespace pulsar

@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 public class ConnectionTimeoutTest {
 
     // 192.0.2.0/24 is assigned for documentation, should be a deadend
-    final static String blackholeBroker = "pulsar://192.0.2.1:1234";
+    static final String blackholeBroker = "pulsar://192.0.2.1:1234";
 
     @Test
     public void testLowTimeout() throws Exception {

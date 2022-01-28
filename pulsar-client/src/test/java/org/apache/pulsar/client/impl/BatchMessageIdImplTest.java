@@ -28,6 +28,8 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+
 public class BatchMessageIdImplTest {
 
     @Test
@@ -46,7 +48,7 @@ public class BatchMessageIdImplTest {
         BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
 
         assertEquals(batchMsgId1.hashCode(), batchMsgId1.hashCode());
-        assertTrue(batchMsgId1.hashCode() != batchMsgId2.hashCode());
+        assertNotEquals(batchMsgId1.hashCode(), batchMsgId2.hashCode());
     }
 
     @Test
@@ -73,6 +75,32 @@ public class BatchMessageIdImplTest {
     }
 
     @Test
+    public void equalsUnbatchedTest() {
+        BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, -1);
+        BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, -1);
+
+        MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
+        MessageIdImpl msgId2 = new MessageIdImpl(1, 1, 1);
+
+        assertEquals(batchMsgId1, msgId1);
+        assertEquals(batchMsgId2, msgId2);
+        assertNotEquals(batchMsgId1, msgId2);
+        assertNotEquals(batchMsgId2, msgId1);
+    }
+
+    @Test
+    public void hashCodeUnbatchedTest() {
+        BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, -1);
+        BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, -1);
+
+        MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
+        MessageIdImpl msgId2 = new MessageIdImpl(1, 1, 1);
+
+        assertEquals(batchMsgId1.hashCode(), msgId1.hashCode());
+        assertEquals(batchMsgId2.hashCode(), msgId2.hashCode());
+    }
+
+    @Test
     public void deserializationTest() {
         // initialize BitSet with null
         BatchMessageAcker ackerDisabled = new BatchMessageAcker(null, 0);
@@ -96,6 +124,16 @@ public class BatchMessageIdImplTest {
         } catch (JsonProcessingException e) {
             fail("Should be successful");
         }
+    }
+
+    @Test
+    public void serializeAndDeserializeTest() throws IOException {
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, 0,
+            1, 10, BatchMessageAcker.newAcker(10));
+        byte[] serialized = batchMessageId.toByteArray();
+        BatchMessageIdImpl deserialized = (BatchMessageIdImpl) MessageIdImpl.fromByteArray(serialized);
+        assertEquals(deserialized.getBatchSize(), batchMessageId.getBatchSize());
+        assertEquals(deserialized, batchMessageId);
     }
 
 }

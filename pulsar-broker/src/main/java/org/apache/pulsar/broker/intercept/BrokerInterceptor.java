@@ -18,16 +18,26 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import com.google.common.annotations.Beta;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-
+import io.netty.buffer.ByteBuf;
+import java.io.IOException;
+import java.util.Map;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import java.io.IOException;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 /**
  * A plugin interface that allows you to intercept the
@@ -36,25 +46,119 @@ import java.io.IOException;
  * <p>BrokerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Evolving
 public interface BrokerInterceptor extends AutoCloseable {
+
+    /**
+     * Intercept messages before sending them to the consumers.
+     *
+     * @param subscription pulsar subscription
+     * @param entry entry
+     * @param ackSet entry ack bitset. it is either <tt>null</tt> or an array of long-based bitsets.
+     * @param msgMetadata message metadata. The message metadata will be recycled after this call.
+     */
+    default void beforeSendMessage(Subscription subscription,
+                                   Entry entry,
+                                   long[] ackSet,
+                                   MessageMetadata msgMetadata) {
+    }
+
+    /**
+     * Called by the broker when a new connection is created.
+     */
+    default void onConnectionCreated(ServerCnx cnx){
+    }
+
+    /**
+     * Called by the broker when a new connection is created.
+     */
+    default void producerCreated(ServerCnx cnx, Producer producer,
+                                 Map<String, String> metadata){
+    }
+
+    /**
+     * Intercept after a consumer is created.
+     *
+     * @param cnx client Connection
+     * @param consumer Consumer object
+     * @param metadata A map of metdata
+     */
+    default void consumerCreated(ServerCnx cnx,
+                                 Consumer consumer,
+                                 Map<String, String> metadata) {
+    }
+
+    /**
+     * Intercept after a message is produced.
+     *
+     * @param cnx client Connection
+     * @param producer Producer object
+     * @param publishContext Publish Context
+     */
+    default void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
+                                 long entryId, Topic.PublishContext publishContext) {
+    }
+
+    /**
+     * Intercept after a message is dispatched to consumer.
+     *
+     * @param cnx client Connection
+     * @param consumer Consumer object
+     * @param ledgerId Ledger ID
+     * @param entryId Entry ID
+     * @param headersAndPayload Data
+     */
+    default void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
+                                   long entryId, ByteBuf headersAndPayload) {
+    }
+
+    /**
+     * Intercept after a message ack is processed.
+     *
+     * @param cnx client Connection
+     * @param ackCmd Command object
+     */
+    default void messageAcked(ServerCnx cnx, Consumer consumer,
+                              CommandAck ackCmd) {
+    }
 
     /**
      * Called by the broker while new command incoming.
      */
-    void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception;
+    void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException;
+
+    /**
+     * Called by the broker while connection closed.
+     */
+    void onConnectionClosed(ServerCnx cnx);
 
     /**
      * Called by the web service while new request incoming.
      */
-    void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
+    void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException;
+
+    /**
+     * Intercept the webservice response before send to client.
+     */
+    void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException;
+
+    /**
+     * The interception of web processing, as same as `Filter.onFilter`.
+     * So In this method, we must call `chain.doFilter` to continue the chain.
+     */
+    default void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        // Just continue the chain by default.
+        chain.doFilter(request, response);
+    }
 
     /**
      * Initialize the broker interceptor.
      *
      * @throws Exception when fail to initialize the broker interceptor.
      */
-    void initialize(ServiceConfiguration conf) throws Exception;
+    void initialize(PulsarService pulsarService) throws Exception;
 
     BrokerInterceptor DISABLED = new BrokerInterceptorDisabled();
 
@@ -64,23 +168,33 @@ public interface BrokerInterceptor extends AutoCloseable {
     class BrokerInterceptorDisabled implements BrokerInterceptor {
 
         @Override
-        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
-            //No-op
+        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
+            // no-op
         }
 
         @Override
-        public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-            chain.doFilter(request, response);
+        public void onConnectionClosed(ServerCnx cnx) {
+            // no-op
         }
 
         @Override
-        public void initialize(ServiceConfiguration conf) throws Exception {
-            //No-op
+        public void onWebserviceRequest(ServletRequest request) {
+            // no-op
+        }
+
+        @Override
+        public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
+            // no-op
+        }
+
+        @Override
+        public void initialize(PulsarService pulsarService) throws Exception {
+            // no-op
         }
 
         @Override
         public void close() {
-            //No-op
+            // no-op
         }
     }
 

@@ -21,10 +21,14 @@ package org.apache.pulsar.common.schema;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A simple KeyValue class.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public class KeyValue<K, V> {
     private final K key;
     private final V value;

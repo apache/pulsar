@@ -13,6 +13,7 @@ class PulsarAdminCli extends React.Component {
             <div className="pageContainer">
             <Container className="mainContainer documentContainer postContainer" >
             <span id="latestVersion" style={{display:'none'}}>{latestVersion}</span>
+            <span id="clientModule" style={{display: 'none'}}>pulsar-admin</span>
             <script src={url}></script>
             </Container>
             </div>

@@ -22,7 +22,6 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -52,8 +51,8 @@ public class ManagedLedgerOfflineBacklog {
     private final byte[] password;
     private final BookKeeper.DigestType digestType;
     private static final int META_READ_TIMEOUT_SECONDS = 60;
-    private boolean accurate = false;
-    private String brokerName;
+    private final boolean accurate;
+    private final String brokerName;
 
     public ManagedLedgerOfflineBacklog(DigestType digestType, byte[] password, String brokerName,
             boolean accurate) {

@@ -32,14 +32,25 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import io.prometheus.client.hotspot.BufferPoolsExports;
+import io.prometheus.client.hotspot.ClassLoadingExports;
+import io.prometheus.client.hotspot.GarbageCollectorExports;
+import io.prometheus.client.hotspot.MemoryPoolsExports;
+import io.prometheus.client.hotspot.StandardExports;
+import io.prometheus.client.hotspot.ThreadExports;
+import io.prometheus.client.hotspot.VersionInfoExports;
+import io.prometheus.jmx.JmxCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+
+import javax.management.MalformedObjectNameException;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -70,8 +81,9 @@ public class RuntimeUtils {
                                           Boolean installUserCodeDependencies,
                                           String pythonDependencyRepository,
                                           String pythonExtraDependencyRepository,
-                                          int metricsPort,
-                                          String narExtractionDirectory) throws Exception {
+                                          String narExtractionDirectory,
+                                          String functionInstanceClassPath,
+                                          String pulsarWebServiceUrl) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -80,7 +92,8 @@ public class RuntimeUtils {
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory));
+                pythonExtraDependencyRepository, narExtractionDirectory,
+                functionInstanceClassPath, false, pulsarWebServiceUrl));
         return cmd;
     }
 
@@ -116,7 +129,8 @@ public class RuntimeUtils {
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
                                                 String originalCodeFileName,
-                                                String pulsarServiceUrl) throws IOException {
+                                                String pulsarServiceUrl,
+                                                boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
@@ -158,8 +172,14 @@ public class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
             goInstanceConfig.setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
         }
+        if (instanceConfig.getFunctionDetails().getRuntime() != null) {
+            goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().getRuntimeValue());
+        }
         if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
             goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
+        }
+        if (instanceConfig.getFunctionDetails().getUserConfig() != null) {
+            goInstanceConfig.setUserConfig(instanceConfig.getFunctionDetails().getUserConfig());
         }
         if (instanceConfig.getFunctionDetails().getParallelism() != 0) {
             goInstanceConfig.setParallelism(instanceConfig.getFunctionDetails().getParallelism());
@@ -178,6 +198,8 @@ public class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
             goInstanceConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
         }
+        goInstanceConfig.setSubscriptionPosition(
+                instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
             for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
@@ -213,6 +235,10 @@ public class RuntimeUtils {
             goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
+        if (instanceConfig.hasValidMetricsPort()) {
+            goInstanceConfig.setMetricsPort(instanceConfig.getMetricsPort());
+        }
+
         goInstanceConfig.setKillAfterIdleMs(0);
         goInstanceConfig.setPort(instanceConfig.getPort());
 
@@ -220,11 +246,13 @@ public class RuntimeUtils {
         ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
-        // Nit: at present, the implementation of go function depends on pulsar-client-go,
-        // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
         args.add("-instance-conf");
-        args.add(configContent);
+        if (k8sRuntime) {
+            args.add("'" + configContent + "'");
+        } else {
+            args.add(configContent);
+        }
         return args;
     }
 
@@ -246,12 +274,14 @@ public class RuntimeUtils {
                                       Boolean installUserCodeDependencies,
                                       String pythonDependencyRepository,
                                       String pythonExtraDependencyRepository,
-                                      int metricsPort,
-                                      String narExtractionDirectory) throws Exception {
+                                      String narExtractionDirectory,
+                                      String functionInstanceClassPath,
+                                      boolean k8sRuntime,
+                                      String pulsarWebServiceUrl) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl);
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -269,21 +299,31 @@ public class RuntimeUtils {
                 args.add(String.format("-D%s=%s", FUNCTIONS_EXTRA_DEPS_PROPERTY, extraDependenciesDir));
             }
 
-            // add complete classpath for broker/worker so that the function instance can load
-            // the functions instance dependencies separately from user code dependencies
-            String functionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
-            if (functionInstanceClasspath == null) {
-                log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
-                functionInstanceClasspath = System.getProperty("java.class.path");
+            if (StringUtils.isNotEmpty(functionInstanceClassPath)) {
+               args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
+            } else {
+                // add complete classpath for broker/worker so that the function instance can load
+                // the functions instance dependencies separately from user code dependencies
+                String systemFunctionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
+                if (systemFunctionInstanceClasspath == null) {
+                    log.warn("Property {} is not set.  Falling back to using classpath of current JVM", FUNCTIONS_INSTANCE_CLASSPATH);
+                    systemFunctionInstanceClasspath = System.getProperty("java.class.path");
+                }
+                args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
             }
-            args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClasspath));
-
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
                     "%s-%s",
                     instanceConfig.getFunctionDetails().getName(),
                     shardId));
+
+            args.add("-Dio.netty.tryReflectionSetAccessible=true");
+
+            if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
+                args.addAll(instanceConfig.getAdditionalJavaRuntimeArguments());
+            }
+
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                 for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                     args.add(runtimeFlagArg);
@@ -342,6 +382,17 @@ public class RuntimeUtils {
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            // TODO: for now only Java function context exposed pulsar admin, so python/go no need to pass this argument
+            // until pulsar admin client enabled in python/go function context.
+            // For backward compatibility, pass `--web_serviceurl` parameter only if
+            // exposed pulsar admin client enabled.
+            if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
+                args.add("--web_serviceurl");
+                args.add(pulsarWebServiceUrl);
+                args.add("--expose_pulsaradmin");
+            }
+        }
         if (authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())) {
@@ -363,13 +414,19 @@ public class RuntimeUtils {
         }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-
+        
         args.add("--port");
         args.add(String.valueOf(grpcPort));
 
         args.add("--metrics_port");
-        args.add(String.valueOf(metricsPort));
+        args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
+        // only the Java instance supports --pending_async_requests right now.
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            args.add("--pending_async_requests");
+            args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+        }
+        
         // state storage configs
         if (null != stateStorageServiceUrl) {
             args.add("--state_storage_serviceurl");
@@ -431,4 +488,20 @@ public class RuntimeUtils {
         return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
     }
 
+    public static void registerDefaultCollectors(FunctionCollectorRegistry registry) {
+        // Add the JMX exporter for functionality similar to the kafka connect JMX metrics
+        try {
+            new JmxCollector("{}").register(registry);
+        } catch (MalformedObjectNameException ex) {
+            System.err.println(ex);
+        }
+        // Add the default exports from io.prometheus.client.hotspot.DefaultExports
+        new StandardExports().register(registry);
+        new MemoryPoolsExports().register(registry);
+        new BufferPoolsExports().register(registry);
+        new GarbageCollectorExports().register(registry);
+        new ThreadExports().register(registry);
+        new ClassLoadingExports().register(registry);
+        new VersionInfoExports().register(registry);
+    }
 }

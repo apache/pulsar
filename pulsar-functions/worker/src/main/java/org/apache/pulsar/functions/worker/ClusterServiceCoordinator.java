@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @Slf4j
 public class ClusterServiceCoordinator implements AutoCloseable {
@@ -49,10 +51,12 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     private final Map<String, TimerTaskInfo> tasks = new HashMap<>();
     private final ScheduledExecutorService executor;
     private final LeaderService leaderService;
+    private final Supplier<Boolean> isLeader;
 
-    public ClusterServiceCoordinator(String workerId, LeaderService leaderService) {
+    public ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader) {
         this.workerId = workerId;
         this.leaderService = leaderService;
+        this.isLeader = isLeader;
         this.executor = Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build());
     }
@@ -66,16 +70,15 @@ public class ClusterServiceCoordinator implements AutoCloseable {
         for (Map.Entry<String, TimerTaskInfo> entry : this.tasks.entrySet()) {
             TimerTaskInfo timerTaskInfo = entry.getValue();
             String taskName = entry.getKey();
-            this.executor.scheduleAtFixedRate(() -> {
-                boolean isLeader = leaderService.isLeader();
-                if (isLeader) {
+            this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                if (isLeader.get()) {
                     try {
                         timerTaskInfo.getTask().run();
                     } catch (Exception e) {
                         log.error("Cluster timer task {} failed with exception.", taskName, e);
                     }
                 }
-            }, timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
+            }), timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
         }
     }
 

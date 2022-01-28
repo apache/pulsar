@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.sql.Timestamp;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.sql.Timestamp;
 
 /**
  * A schema for `java.sql.Timestamp`.
@@ -33,7 +32,7 @@ public class TimestampSchema extends AbstractSchema<Timestamp> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfo()
+       SCHEMA_INFO = new SchemaInfoImpl()
              .setName("Timestamp")
              .setType(SchemaType.TIMESTAMP)
              .setSchema(new byte[0]);

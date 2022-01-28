@@ -19,17 +19,14 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Schema definition for Strings encoded in UTF-8 format.
@@ -46,7 +43,7 @@ public class StringSchema extends AbstractSchema<String> {
         // Ensure the ordering of the static initialization
         CHARSET_KEY = "__charset";
         DEFAULT_CHARSET = StandardCharsets.UTF_8;
-        DEFAULT_SCHEMA_INFO = new SchemaInfo()
+        DEFAULT_SCHEMA_INFO = new SchemaInfoImpl()
                 .setName("String")
                 .setType(SchemaType.STRING)
                 .setSchema(new byte[0]);
@@ -87,7 +84,7 @@ public class StringSchema extends AbstractSchema<String> {
         this.charset = charset;
         Map<String, String> properties = new HashMap<>();
         properties.put(CHARSET_KEY, charset.name());
-        this.schemaInfo = new SchemaInfo()
+        this.schemaInfo = new SchemaInfoImpl()
                 .setName(DEFAULT_SCHEMA_INFO.getName())
                 .setType(SchemaType.STRING)
                 .setSchema(DEFAULT_SCHEMA_INFO.getSchema())
@@ -120,7 +117,7 @@ public class StringSchema extends AbstractSchema<String> {
                 bytes = new byte[size * 2];
                 tmpBuffer.set(bytes);
             }
-            byteBuf.readBytes(bytes, 0, size);
+            byteBuf.getBytes(byteBuf.readerIndex(), bytes, 0, size);
 
             return new String(bytes, 0, size, charset);
         }

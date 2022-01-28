@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -30,18 +29,21 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 
+@Test(groups = "broker-impl")
 public class RawMessageSerDeserTest {
     static final Logger log = LoggerFactory.getLogger(RawMessageSerDeserTest.class);
 
     @Test
-    public void testSerializationAndDeserialization() throws Exception {
+    public void testSerializationAndDeserialization() {
         int payload = 0xbeefcafe;
         ByteBuf headersAndPayload = Unpooled.buffer(4);
         headersAndPayload.writeInt(payload);
 
-        MessageIdData id = MessageIdData.newBuilder()
-            .setLedgerId(0xf00).setEntryId(0xbaa)
-            .setPartition(10).setBatchIndex(20).build();
+        MessageIdData id = new MessageIdData()
+            .setLedgerId(0xf00)
+            .setEntryId(0xbaa)
+            .setPartition(10)
+            .setBatchIndex(20);
 
         @Cleanup
         RawMessage m = new RawMessageImpl(id, headersAndPayload);

@@ -7,7 +7,7 @@ original_id: client-libraries-go
 
 The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
-> #### API docs available as well
+> **API docs available as well**  
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar).
 
 
@@ -23,7 +23,7 @@ through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) o
 
 You can install the `pulsar` library locally using `go get`:
 
-> #### NOTE
+> **NOTE**
 > 
 > `go get` doesn't support fetching a specific tag. so it will always pull in pulsar go client
 > from latest master. You need to make sure you have installed the right pulsar cpp client library.
@@ -131,7 +131,7 @@ if err := producer.Send(msg); err != nil {
 }
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar producer, the operation will block (waiting on a go channel) until either a producer is successfully created or an error is thrown.
 
 
@@ -196,7 +196,7 @@ func main() {
         producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
             if err != nil { log.Fatal(err) }
 
-            fmt.Printf("Message %s succesfully published", msg.ID())
+            fmt.Printf("Message %s successfully published", msg.ID())
         })
     }
 }
@@ -249,7 +249,7 @@ for cm := range channel {
 }
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar consumer, the operation will block (on a go channel) until either a producer is successfully created or an error is thrown.
 
 
@@ -338,7 +338,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 })
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar reader, the operation will block (on a go channel) until either a reader is successfully created or an error is thrown.
 
 
@@ -411,7 +411,7 @@ Parameter | Description | Default
 :---------|:------------|:-------
 `Topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader will establish a subscription and listen for messages |
 `Name` | The name of the reader |
-`StartMessageID` | THe initial reader position, i.e. the message at which the reader begins processing messages. The options are `pulsar.EarliestMessage` (the earliest available message on the topic), `pulsar.LatestMessage` (the latest available message on the topic), or a `MessageID` object for a position that isn't earliest or latest. |
+`StartMessageID` | The initial reader position, i.e. the message at which the reader begins processing messages. The options are `pulsar.EarliestMessage` (the earliest available message on the topic), `pulsar.LatestMessage` (the latest available message on the topic), or a `MessageID` object for a position that isn't earliest or latest. |
 `MessageChannel` | The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `Next`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000
 `SubscriptionRolePrefix` | The subscription role prefix. | `reader`

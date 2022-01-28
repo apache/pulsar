@@ -18,13 +18,16 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import java.util.List;
-
 import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
+import java.util.List;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ReadOnlyCursor {
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
@@ -41,9 +44,23 @@ public interface ReadOnlyCursor {
      * @param numberOfEntriesToRead maximum number of entries to return
      * @param callback              callback object
      * @param ctx                   opaque context
+     * @param maxPosition           max position can read
      * @see #readEntries(int)
      */
-    void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback,
+                          Object ctx, PositionImpl maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger.
+     *
+     * @param numberOfEntriesToRead maximum number of entries to return
+     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param callback              callback object
+     * @param ctx                   opaque context
+     * @param maxPosition           max position can read
+     */
+    void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                          Object ctx, PositionImpl maxPosition);
 
     /**
      * Get the read position. This points to the next message to be read from the cursor.
@@ -88,7 +105,8 @@ public interface ReadOnlyCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    Position findNewestMatching(ManagedCursor.FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
+    Position findNewestMatching(ManagedCursor.FindPositionConstraint constraint, Predicate<Entry> condition)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Return the number of messages that this cursor still has to read.

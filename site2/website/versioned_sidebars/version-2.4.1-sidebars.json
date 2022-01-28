@@ -1,6 +1,6 @@
 {
   "version-2.4.1-docs": {
-    "Get started": [
+    "Get Started": [
       "version-2.4.1-pulsar-2.0",
       "version-2.4.1-standalone",
       "version-2.4.1-standalone-docker",
@@ -83,7 +83,7 @@
       "version-2.4.1-security-encryption",
       "version-2.4.1-security-extending"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.4.1-client-libraries-java",
       "version-2.4.1-client-libraries-go",
       "version-2.4.1-client-libraries-python",

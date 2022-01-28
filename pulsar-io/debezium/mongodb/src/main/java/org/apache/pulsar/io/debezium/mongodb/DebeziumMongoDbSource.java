@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.io.debezium.mongodb;
 
+import java.util.Map;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.io.debezium.DebeziumSource;
 
-import java.util.Map;
-
 /**
- * A pulsar source that runs debezium mongodb source
+ * A pulsar source that runs debezium mongodb source.
  */
 public class DebeziumMongoDbSource extends DebeziumSource {
-    static private final String DEFAULT_TASK = "io.debezium.connector.mongodb.MongoDbConnectorTask";
+    private static final String DEFAULT_TASK = "io.debezium.connector.mongodb.MongoDbConnectorTask";
 
     @Override
     public void setDbConnectorTask(Map<String, Object> config) throws Exception {

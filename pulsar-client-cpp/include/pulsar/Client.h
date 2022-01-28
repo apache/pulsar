@@ -28,6 +28,8 @@
 #include <pulsar/MessageBuilder.h>
 #include <pulsar/ClientConfiguration.h>
 #include <pulsar/Schema.h>
+#include <pulsar/ConsoleLoggerFactory.h>
+#include <pulsar/FileLoggerFactory.h>
 #include <string>
 
 namespace pulsar {
@@ -86,43 +88,153 @@ class PULSAR_PUBLIC Client {
      */
     Result createProducer(const std::string& topic, const ProducerConfiguration& conf, Producer& producer);
 
+    /**
+     * Asynchronously create a producer with the default ProducerConfiguration for publishing on a specific
+     * topic
+     *
+     * @param topic the name of the topic where to produce
+     * @param callback the callback that is triggered when the producer is created successfully or not
+     * @param callback Callback function that is invoked when the operation is completed
+     */
     void createProducerAsync(const std::string& topic, CreateProducerCallback callback);
 
+    /**
+     * Asynchronously create a producer with the customized ProducerConfiguration for publishing on a specific
+     * topic
+     *
+     * @param topic the name of the topic where to produce
+     * @param conf the customized ProducerConfiguration
+     */
     void createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                              CreateProducerCallback callback);
 
-    Result subscribe(const std::string& topic, const std::string& consumerName, Consumer& consumer);
-    Result subscribe(const std::string& topic, const std::string& consumerName,
+    /**
+     * Subscribe to a given topic and subscription combination with the default ConsumerConfiguration
+     *
+     * @param topic the topic name
+     * @param subscriptionName the subscription name
+     * @param[out] consumer the consumer instance to be returned
+     * @return ResultOk if it subscribes to the topic successfully
+     */
+    Result subscribe(const std::string& topic, const std::string& subscriptionName, Consumer& consumer);
+
+    /**
+     * Subscribe to a given topic and subscription combination with the customized ConsumerConfiguration
+     *
+     * @param topic the topic name
+     * @param subscriptionName the subscription name
+     * @param[out] consumer the consumer instance to be returned
+     * @return ResultOk if it subscribes to the topic successfully
+     */
+    Result subscribe(const std::string& topic, const std::string& subscriptionName,
                      const ConsumerConfiguration& conf, Consumer& consumer);
 
-    void subscribeAsync(const std::string& topic, const std::string& consumerName,
+    /**
+     * Asynchronously subscribe to a given topic and subscription combination with the default
+     * ConsumerConfiguration
+     *
+     * @param topic the topic name
+     * @param subscriptionName the subscription name
+     * @param callback the callback that is triggered when a given topic and subscription combination with the
+     * default ConsumerConfiguration are asynchronously subscribed successfully or not
+     */
+    void subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                         SubscribeCallback callback);
-    void subscribeAsync(const std::string& topic, const std::string& consumerName,
+
+    /**
+     * Asynchronously subscribe to a given topic and subscription combination with the customized
+     * ConsumerConfiguration
+     *
+     * @param topic the topic name
+     * @param subscriptionName the subscription name
+     * @param conf the customized ConsumerConfiguration
+     * @param callback the callback that is triggered when a given topic and subscription combination with the
+     * customized ConsumerConfiguration are asynchronously subscribed successfully or not
+     */
+    void subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**
-     * subscribe for multiple topics under the same namespace.
+     * Subscribe to multiple topics under the same namespace.
+     *
+     * @param topics a list of topic names to subscribe to
+     * @param subscriptionName the subscription name
+     * @param[out] consumer the consumer instance to be returned
      */
     Result subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                      Consumer& consumer);
+
+    /**
+     * Subscribe to multiple topics with the customized ConsumerConfiguration under the same namespace
+     *
+     * @param topics a list of topic names to subscribe to
+     * @param subscriptionName the subscription name
+     * @param conf the customized ConsumerConfiguration
+     * @param[out] consumer the consumer instance to be returned
+     */
     Result subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                      const ConsumerConfiguration& conf, Consumer& consumer);
+
+    /**
+     * Asynchronously subscribe to a list of topics and subscription combination using the default
+     ConsumerConfiguration
+     *
+     * @param topics the topic list
+     * @param subscriptionName the subscription name
+     * @param callback the callback that is triggered when a list of topics and subscription combination using
+     the default ConsumerConfiguration are asynchronously subscribed successfully or not
+
+     */
     void subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                         SubscribeCallback callback);
+
+    /**
+     * Asynchronously subscribe to a list of topics and subscription combination using the customized
+     * ConsumerConfiguration
+     *
+     * @param topics the topic list
+     * @param subscriptionName the subscription name
+     * @param conf the customized ConsumerConfiguration
+     * @param callback the callback that is triggered when a list of topics and subscription combination using
+     * the customized ConsumerConfiguration are asynchronously subscribed successfully or not
+     */
     void subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**
-     * subscribe for multiple topics, which match given regexPattern, under the same namespace.
+     * Subscribe to multiple topics, which match given regexPattern, under the same namespace.
      */
-    Result subscribeWithRegex(const std::string& regexPattern, const std::string& consumerName,
+    Result subscribeWithRegex(const std::string& regexPattern, const std::string& subscriptionName,
                               Consumer& consumer);
-    Result subscribeWithRegex(const std::string& regexPattern, const std::string& consumerName,
+
+    /**
+     * Subscribe to multiple topics (which match given regexPatterns) with the customized
+     * ConsumerConfiguration under the same namespace
+     */
+    Result subscribeWithRegex(const std::string& regexPattern, const std::string& subscriptionName,
                               const ConsumerConfiguration& conf, Consumer& consumer);
 
-    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+    /**
+     * Asynchronously subscribe to multiple topics (which match given regexPatterns) with the default
+     * ConsumerConfiguration under the same namespace
+     *
+     * @see subscribeWithRegexAsync(const std::string&, const std::string&, const ConsumerConfiguration&,
+     * SubscribeCallback)
+     */
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                  SubscribeCallback callback);
-    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+
+    /**
+     * Asynchronously subscribe to multiple topics (which match given regexPatterns) with the customized
+     * ConsumerConfiguration under the same namespace
+     *
+     * @param regexPattern the regular expression for topics pattern
+     * @param subscriptionName the subscription name
+     * @param conf the ConsumerConfiguration
+     * @param callback the callback that is triggered when multiple topics with the customized
+     * ConsumerConfiguration under the same namespace are asynchronously subscribed successfully or not
+     */
+    void subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                  const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**
@@ -157,6 +269,32 @@ class PULSAR_PUBLIC Client {
     Result createReader(const std::string& topic, const MessageId& startMessageId,
                         const ReaderConfiguration& conf, Reader& reader);
 
+    /**
+     * Asynchronously create a topic reader with the customized ReaderConfiguration for reading messages from
+     * the specified topic.
+     *
+     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without
+     * using a
+     * subscription. The reader can only work on non-partitioned topics.
+     *
+     * The initial reader positioning is done by specifying a message ID. The options are  as below:
+     * <ul>
+     * <li><code>MessageId.earliest</code> : start reading from the earliest message available in the topic
+     * <li><code>MessageId.latest</code> : start reading from the latest topic, only getting messages
+     * published after the reader was created <li><code>MessageId</code> : when passing a particular message
+     * ID, the reader positions itself on that is the message next to the specified messageId.
+     * </ul>
+     *
+     * @param topic
+     *            the name of the topic where to read
+     * @param startMessageId
+     *            the message ID where the reader positions itself. The first message returned is the
+     * one after
+     *            the specified startMessageId
+     * @param conf
+     *            the ReaderConfiguration object
+     * @return the Reader object
+     */
     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
                            const ReaderConfiguration& conf, ReaderCallback callback);
 
@@ -198,9 +336,38 @@ class PULSAR_PUBLIC Client {
      */
     Result close();
 
+    /**
+     * Asynchronously close the Pulsar client and release all resources.
+     *
+     * All producers, consumers, and readers are orderly closed. The client waits until all pending write
+     * requests are persisted.
+     *
+     * @param callback the callback that is triggered when the Pulsar client is asynchronously closed
+     * successfully or not
+     */
     void closeAsync(CloseCallback callback);
 
+    /**
+     * Perform immediate shutdown of Pulsar client.
+     *
+     * Release all resources and close all producer, consumer, and readers without waiting
+     * for ongoing operations to complete.
+     */
     void shutdown();
+
+    /**
+     * @brief Get the number of alive producers on the current client.
+     *
+     * @return The number of alive producers on the  current client.
+     */
+    uint64_t getNumberOfProducers();
+
+    /**
+     * @brief Get the number of alive consumers on the current client.
+     *
+     * @return The number of alive consumers on the current client.
+     */
+    uint64_t getNumberOfConsumers();
 
    private:
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,

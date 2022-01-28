@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
-
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -30,11 +30,14 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+import lombok.Builder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
 import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
@@ -45,6 +48,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     public static final String TLS_HANDLER = "tls";
 
     private final PulsarService pulsar;
+    private final String listenerName;
     private final boolean enableTls;
     private final boolean tlsEnabledWithKeyStore;
     private SslContextAutoRefreshBuilder<SslContext> sslCtxRefresher;
@@ -62,13 +66,14 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     /**
      * @param pulsar
      *              An instance of {@link PulsarService}
-     * @param enableTLS
-     *              Enable tls or not
+     * @param opts
+     *              Channel options
      */
-    public PulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception {
+    public PulsarChannelInitializer(PulsarService pulsar, PulsarChannelOptions opts) throws Exception {
         super();
         this.pulsar = pulsar;
-        this.enableTls = enableTLS;
+        this.listenerName = opts.getListenerName();
+        this.enableTls = opts.isEnableTLS();
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
         this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         if (this.enableTls) {
@@ -118,6 +123,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         }
 
+        if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
+            ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
+        }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
             brokerConf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
         // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
@@ -126,7 +134,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ServerCnx cnx = new ServerCnx(pulsar);
+        ServerCnx cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
 
         connections.put(ch.remoteAddress(), cnx);
@@ -137,8 +145,35 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             try {
                 cnx.refreshAuthenticationCredentials();
             } catch (Throwable t) {
-                log.warn("[{}] Failed to refresh auth credentials", cnx.getRemoteAddress());
+                log.warn("[{}] Failed to refresh auth credentials", cnx.clientAddress());
             }
         });
+    }
+
+    @VisibleForTesting
+    protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+        return new ServerCnx(pulsar, listenerName);
+    }
+
+    public interface Factory {
+        PulsarChannelInitializer newPulsarChannelInitializer(
+                PulsarService pulsar, PulsarChannelOptions opts) throws Exception;
+    }
+
+    public static final Factory DEFAULT_FACTORY = PulsarChannelInitializer::new;
+
+    @Data
+    @Builder
+    public static class PulsarChannelOptions {
+
+        /**
+         * Indicates whether to enable TLS on the channel.
+         */
+        private boolean enableTLS;
+
+        /**
+         * The name of the listener to associate with the channel (optional).
+         */
+        private String listenerName;
     }
 }

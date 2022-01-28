@@ -102,6 +102,7 @@ $ pulsar broker options
 ```
 
 Options
+
 |Option|Description|Default|
 |---|---|---|
 |`-bc` , `--bookie-conf`|Configuration file for BookKeeper||
@@ -122,6 +123,7 @@ Usage
 $ pulsar compact-topic options
 ```
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-t` , `--topic`|The Pulsar topic that you would like to compact||
@@ -169,6 +171,7 @@ $ pulsar initialize-cluster-metadata options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-ub` , `--broker-service-url`|The broker service URL for the new cluster||
@@ -190,6 +193,7 @@ $ pulsar proxy options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--configuration-store`|Configuration store connection string||
@@ -212,10 +216,11 @@ $ pulsar standalone options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-a` , `--advertised-address`|The standalone broker advertised address||
-|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookeeper|
+|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookkeeper|
 |`--bookkeeper-port`|Local bookies’ base port|3181|
 |`--no-broker`|Only start ZooKeeper and BookKeeper services, not the broker|false|
 |`--num-bookies`|The number of local bookies|1|
@@ -266,6 +271,7 @@ $ pulsar zookeeper-shell options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-c`, `--conf`|Configuration file for ZooKeeper||
@@ -287,11 +293,13 @@ Commands
 
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, for example key1:val1,key2:val2||
 |`--auth-plugin`|Authentication plugin class name||
 |`--url`|Broker URL to which to connect|pulsar://localhost:6650/|
+|`-h`, `--help`|Show this help
 
 
 ### `produce`
@@ -303,6 +311,7 @@ $ pulsar-client produce topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-f`, `--files`|Comma-separated file paths to send; either -m or -f must be specified|[]|
@@ -320,6 +329,7 @@ $ pulsar-client consume topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--hex`|Display binary messages in hexadecimal format.|false|
@@ -362,6 +372,7 @@ $ pulsar-daemon stop service options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |-force|Stop the service forcefully if not stopped by normal shutdown.|false|
@@ -404,6 +415,7 @@ $ pulsar-perf consume options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
@@ -435,6 +447,7 @@ $ pulsar-perf produce options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--auth_params`|Authentication parameters in the form of key1:val1,key2:val2||
@@ -468,6 +481,7 @@ $ pulsar-perf monitor-brokers options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--connect-string`|A connection string for one or more ZooKeeper servers||
@@ -491,6 +505,7 @@ $ pulsar-perf simulation-controller options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--client-port`|The port that the clients are listening on|0|
@@ -507,7 +522,7 @@ $ bookkeeper command
 ```
 
 Commands
-* `auto-recovery`
+* `autorecovery`
 * `bookie`
 * `localbookie`
 * `upgrade`
@@ -530,17 +545,18 @@ The table below lists the environment variables that you can use to configure th
 
 
 ### `auto-recovery`
-Runs an auto-recovery service daemon
+Runs an auto-recovery service
 
 Usage
 ```bash
-$ bookkeeper auto-recovery options
+$ bookkeeper autorecovery options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 
 
 ### `bookie`
@@ -552,9 +568,10 @@ $ bookkeeper bookie options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |-readOnly|Force start a read-only bookie server|false|
 |-withAutoRecovery|Start auto-recovery service bookie server|false|
 
@@ -576,9 +593,10 @@ $ bookkeeper upgrade options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
-|`-c`, `--conf`|Configuration for the auto-recovery daemon||
+|`-c`, `--conf`|Configuration for the auto-recovery||
 |`-u`, `--upgrade`|Upgrade the bookie’s directories||
 
 

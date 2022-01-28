@@ -36,8 +36,21 @@ class PULSAR_PUBLIC Logger {
 
     virtual ~Logger() {}
 
+    /**
+     * Check whether the log level is enabled
+     *
+     * @param level the Logger::Level
+     * @return true if log is enabled
+     */
     virtual bool isEnabled(Level level) = 0;
 
+    /**
+     * Log the message with related metadata
+     *
+     * @param level the Logger::Level
+     * @param line the line number of this log
+     * @param message the message to log
+     */
     virtual void log(Level level, int line, const std::string& message) = 0;
 };
 
@@ -45,6 +58,13 @@ class PULSAR_PUBLIC LoggerFactory {
    public:
     virtual ~LoggerFactory() {}
 
+    /**
+     * Create a Logger that is created from the filename
+     *
+     * @param fileName the filename that is used to construct the Logger
+     * @return a pointer to the created Logger instance
+     * @note the pointer must be allocated with the `new` keyword in C++
+     */
     virtual Logger* getLogger(const std::string& fileName) = 0;
 };
 

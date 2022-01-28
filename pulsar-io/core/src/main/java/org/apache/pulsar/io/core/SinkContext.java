@@ -18,140 +18,72 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.slf4j.Logger;
-
-import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.BaseContext;
 
 /**
  * Interface for a sink connector providing information about environment where it is running.
  * It also allows to propagate information, such as logs, metrics, states, back to the Pulsar environment.
  */
-public interface SinkContext {
-
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface SinkContext extends BaseContext {
     /**
-     * The id of the instance that invokes this sink.
-     *
-     * @return the instance id
-     */
-    int getInstanceId();
-
-    /**
-     * Get the number of instances that invoke this sink.
-     *
-     * @return the number of instances that invoke this sink.
-     */
-    int getNumInstances();
-
-    /**
-     * Record a user defined metric
-     * @param metricName The name of the metric
-     * @param value The value of the metric
-     */
-    void recordMetric(String metricName, double value);
-
-    /**
-     * Get a list of all input topics
-     * @return a list of all input topics
-     */
-    Collection<String> getInputTopics();
-
-    /**
-     * The tenant this sink belongs to
-     * @return the tenant this sink belongs to
-     */
-    String getTenant();
-
-    /**
-     * The namespace this sink belongs to
-     * @return the namespace this sink belongs to
-     */
-    String getNamespace();
-
-    /**
-     * The name of the sink that we are executing
+     * The name of the sink that we are executing.
      * @return The Sink name
      */
     String getSinkName();
 
     /**
-     * The logger object that can be used to log in a sink
-     * @return the logger object
-     */
-    Logger getLogger();
-
-    /**
-     * Get the secret associated with this key
-     * @param secretName The name of the secret
-     * @return The secret if anything was found or null
-     */
-    String getSecret(String secretName);
-
-    /**
-     * Increment the builtin distributed counter referred by key.
+     * Get a list of all input topics.
      *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
+     * @return a list of all input topics
      */
-    void incrCounter(String key, long amount);
-
+    Collection<String> getInputTopics();
 
     /**
-     * Increment the builtin distributed counter referred by key
-     * but dont wait for the completion of the increment operation
+     * Get subscription type used by the source providing data for the sink.
      *
-     * @param key    The name of the key
-     * @param amount The amount to be incremented
+     * @return subscription type
      */
-    CompletableFuture<Void> incrCounterAsync(String key, long amount);
+    default SubscriptionType getSubscriptionType() {
+        throw new UnsupportedOperationException("Context does not provide SubscriptionType");
+    }
 
     /**
-     * Retrieve the counter value for the key.
+     * Reset the subscription associated with this topic and partition to a specific message id.
      *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
+     * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
+     * @param messageId to reset to
+     * @throws PulsarClientException
      */
-    long getCounter(String key);
+    default void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        throw new UnsupportedOperationException("not implemented");
+    }
 
     /**
-     * Retrieve the counter value for the key, but don't wait
-     * for the operation to be completed
+     * Stop requesting new messages for given topic and partition until {@link #resume(String topic, int partition)}
+     * is called.
      *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
+     * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
      */
-    CompletableFuture<Long> getCounterAsync(String key);
+    default void pause(String topic, int partition) throws PulsarClientException {
+        throw new UnsupportedOperationException("not implemented");
+    }
 
     /**
-     * Update the state value for the key.
-     *
-     * @param key   name of the key
-     * @param value state value of the key
+     * Resume requesting messages.
+     * @param topic - topic name
+     * @param partition - partition id (0 for non-partitioned topics)
      */
-    void putState(String key, ByteBuffer value);
-
-    /**
-     * Update the state value for the key, but don't wait for the operation to be completed
-     *
-     * @param key   name of the key
-     * @param value state value of the key
-     */
-    CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
-
-    /**
-     * Retrieve the state value for the key.
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    ByteBuffer getState(String key);
-
-    /**
-     * Retrieve the state value for the key, but don't wait for the operation to be completed
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    CompletableFuture<ByteBuffer> getStateAsync(String key);
+    default void resume(String topic, int partition) throws PulsarClientException {
+        throw new UnsupportedOperationException("not implemented");
+    }
 }

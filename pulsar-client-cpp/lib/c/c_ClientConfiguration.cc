@@ -146,3 +146,15 @@ const unsigned int pulsar_client_configuration_get_stats_interval_in_seconds(
     pulsar_client_configuration_t *conf) {
     return conf->conf.getStatsIntervalInSeconds();
 }
+
+void pulsar_client_configuration_set_memory_limit(pulsar_client_configuration_t *conf,
+                                                  unsigned long long memoryLimitBytes) {
+    conf->conf.setMemoryLimit(memoryLimitBytes);
+}
+
+/**
+ * @return the client memory limit in bytes
+ */
+unsigned long long pulsar_client_configuration_get_memory_limit(pulsar_client_configuration_t *conf) {
+    return conf->conf.getMemoryLimit();
+}

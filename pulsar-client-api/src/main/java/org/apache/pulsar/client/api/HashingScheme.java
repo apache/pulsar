@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Standard hashing functions available when choosing the partition to use for a particular message.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum HashingScheme {
 
     /**

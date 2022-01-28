@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.config.validation;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * System defined Validator Annotations.
@@ -204,7 +203,7 @@ public class ValidatorImpls {
             if (count == 0) {
                 throw new IllegalArgumentException(
                         String.format("Field '%s' with value '%s' does not implement any of these classes %s",
-                                name, o, classesImplements));
+                                name, o, Arrays.toString(classesImplements)));
             }
         }
     }

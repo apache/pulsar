@@ -48,4 +48,16 @@ public class Exceptions {
         return sw.toString();
     }
 
+    public static boolean areExceptionsPresentInChain(Throwable error, Class ... types) {
+        while (error != null) {
+            for (Class type : types) {
+                if (type.isInstance(error)) {
+                    return true;
+                }
+            }
+            error = error.getCause();
+        }
+        return false;
+    }
+
 }

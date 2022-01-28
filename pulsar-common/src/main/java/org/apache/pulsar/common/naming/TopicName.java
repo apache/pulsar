@@ -18,26 +18,22 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Splitter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Encapsulate the parsing of the completeTopicName name.
  */
 public class TopicName implements ServiceUnitId {
-
-    private static final Logger log = LoggerFactory.getLogger(TopicName.class);
 
     public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
@@ -67,6 +63,9 @@ public class TopicName implements ServiceUnitId {
     public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
             NamespaceName.SYSTEM_NAMESPACE, "transaction_coordinator_assign");
 
+    public static final TopicName TRANSACTION_COORDINATOR_LOG = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, "__transaction_log_");
+
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
         return TopicName.get(name);
@@ -78,7 +77,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String domain, String tenant, String cluster, String namespace,
-            String topic) {
+                                String topic) {
         String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }
@@ -86,11 +85,17 @@ public class TopicName implements ServiceUnitId {
     public static TopicName get(String topic) {
         try {
             return cache.get(topic);
-        } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        } catch (UncheckedExecutionException e) {
+        } catch (ExecutionException | UncheckedExecutionException e) {
             throw (RuntimeException) e.getCause();
         }
+    }
+
+    public static TopicName getPartitionedTopicName(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPartitioned()) {
+            return TopicName.get(topicName.getPartitionedTopicName());
+        }
+        return topicName;
     }
 
     public static boolean isValid(String topic) {
@@ -274,9 +279,17 @@ public class TopicName implements ServiceUnitId {
         int partitionIndex = -1;
         if (topic.contains(PARTITIONED_TOPIC_SUFFIX)) {
             try {
-                partitionIndex = Integer.parseInt(topic.substring(topic.lastIndexOf('-') + 1));
+                String idx = StringUtils.substringAfterLast(topic, PARTITIONED_TOPIC_SUFFIX);
+                partitionIndex = Integer.parseInt(idx);
+                if (partitionIndex < 0) {
+                    // for the "topic-partition--1"
+                    partitionIndex = -1;
+                } else if (StringUtils.length(idx) != String.valueOf(partitionIndex).length()) {
+                    // for the "topic-partition-01"
+                    partitionIndex = -1;
+                }
             } catch (NumberFormatException nfe) {
-                log.warn("Could not get the partition index from the topic {}", topic);
+                // ignore exception
             }
         }
 
@@ -292,10 +305,15 @@ public class TopicName implements ServiceUnitId {
      * @return topic rest path
      */
     public String getRestPath() {
+        return getRestPath(true);
+    }
+
+    public String getRestPath(boolean includeDomain) {
+        String domainName = includeDomain ? domain + "/" : "";
         if (isV2()) {
-            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
+            return String.format("%s%s/%s/%s", domainName, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
+            return String.format("%s%s/%s/%s/%s", domainName, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
     }
 
@@ -354,7 +372,7 @@ public class TopicName implements ServiceUnitId {
     public boolean equals(Object obj) {
         if (obj instanceof TopicName) {
             TopicName other = (TopicName) obj;
-            return Objects.equal(completeTopicName, other.completeTopicName);
+            return Objects.equals(completeTopicName, other.completeTopicName);
         }
 
         return false;

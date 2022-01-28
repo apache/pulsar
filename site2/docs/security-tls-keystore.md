@@ -19,7 +19,7 @@ You can use Java’s `keytool` utility to accomplish this task. We will generate
 initially for broker, so that we can export and sign it later with CA.
 
 ```shell
-keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkey
+keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
 ```
 
 You need to specify two parameters in the above command:
@@ -121,7 +121,7 @@ tlsTrustStoreType=JKS
 tlsTrustStore=/var/private/tls/broker.truststore.jks
 tlsTrustStorePassword=brokerpw
 
-# interal client/admin-client config
+# internal client/admin-client config
 brokerClientTlsEnabled=true
 brokerClientTlsEnabledWithKeyStore=true
 brokerClientTlsTrustStoreType=JKS
@@ -131,6 +131,21 @@ brokerClientTlsTrustStorePassword=clientpw
 
 NOTE: it is important to restrict access to the store files via filesystem permissions.
 
+If you have configured TLS on the broker, to disable non-TLS ports, you can set the values of the following configurations to empty as below.
+
+```
+brokerServicePort=
+webServicePort=
+```
+In this case, you need to set the following configurations.
+
+```conf
+brokerClientTlsEnabled=true // Set this to true
+brokerClientTlsEnabledWithKeyStore=true  // Set this to true
+brokerClientTlsTrustStore= // Set this to your desired value
+brokerClientTlsTrustStorePassword= // Set this to your desired value
+```
+
 Optional settings that may worth consider:
 
 1. tlsClientAuthentication=false: Enable/Disable using TLS for authentication. This config when enabled will authenticate the other end
@@ -139,9 +154,9 @@ Optional settings that may worth consider:
     algorithm used to negotiate the security settings for a network connection using TLS network protocol. By default,
     it is null. [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html)
     [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
-3. tlsProtocols=[TLSv1.2,TLSv1.1,TLSv1] (list out the TLS protocols that you are going to accept from clients).
+3. tlsProtocols=[TLSv1.3,TLSv1.2] (list out the TLS protocols that you are going to accept from clients).
     By default, it is not set.
-
+```
 ### Configuring Clients
 
 This is similar to [TLS encryption configuing for client with PEM type](security-tls-transport.md#Client configuration).
@@ -213,7 +228,7 @@ tlsTrustStoreType=JKS
 tlsTrustStore=/var/private/tls/broker.truststore.jks
 tlsTrustStorePassword=brokerpw
 
-# interal client/admin-client config
+# internal client/admin-client config
 brokerClientTlsEnabled=true
 brokerClientTlsEnabledWithKeyStore=true
 brokerClientTlsTrustStoreType=JKS
@@ -221,7 +236,7 @@ brokerClientTlsTrustStore=/var/private/tls/client.truststore.jks
 brokerClientTlsTrustStorePassword=clientpw
 # internal auth config
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
-brokerClientAuthenticationParameters=keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw
+brokerClientAuthenticationParameters={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
 # currently websocket not support keystore type
 webSocketServiceEnabled=false
 ```
@@ -241,7 +256,7 @@ e.g.
     tlsTrustStorePath=/var/private/tls/client.truststore.jks
     tlsTrustStorePassword=clientpw
     authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
-    authParams=keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw
+    authParams={"keyStoreType":"JKS","keyStorePath":"/path/to/keystorefile","keyStorePassword":"keystorepw"}
     ```
 
 1. for java client

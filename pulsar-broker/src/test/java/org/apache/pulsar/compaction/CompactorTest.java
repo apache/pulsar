@@ -33,26 +33,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawMessageImpl;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-compaction")
 public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     private ScheduledExecutorService compactionScheduler;
@@ -63,26 +66,25 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("use",
-                new ClusterData(pulsar.getWebServiceAddress()));
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
         compactionScheduler.shutdownNow();
     }
 
-    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected) throws Exception {
+    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics) throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         long compactedLedgerId = compactor.compact(topic).get();
 
@@ -107,6 +109,17 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(bytes, expected.remove(key),
                                 "Compacted version should match expected version");
             m.close();
+        }
+        if (checkMetrics) {
+            CompactionRecord compactionRecord = compactor.getStats().getCompactionRecordForTopic(topic).get();
+            long compactedTopicRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
+            long lastCompactSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
+            long lastCompactFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
+            long lastCompactDurationTimeInMills = compactionRecord.getLastCompactionDurationTimeInMills();
+            Assert.assertTrue(compactedTopicRemovedEventCount >= 1);
+            Assert.assertTrue(lastCompactSucceedTimestamp >= 1L);
+            Assert.assertTrue(lastCompactDurationTimeInMills >= 0L);
+            Assert.assertEquals(lastCompactFailedTimestamp, 0L);
         }
         Assert.assertTrue(expected.isEmpty(), "All expected keys should have been found");
         return keys;
@@ -136,7 +149,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                     .send();
             expected.put(key, data);
         }
-        compactAndVerify(topic, expected);
+        compactAndVerify(topic, expected, true);
     }
 
     @Test
@@ -165,7 +178,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         expected.put("a", "A_2".getBytes());
         expected.put("b", "B_1".getBytes());
 
-        compactAndVerify(topic, new HashMap<>(expected));
+        compactAndVerify(topic, new HashMap<>(expected), false);
 
         producer.newMessage()
                 .key("b")
@@ -173,7 +186,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 .send();
         expected.put("b", "B_2".getBytes());
 
-        compactAndVerify(topic, expected);
+        compactAndVerify(topic, expected, false);
     }
 
     @Test
@@ -202,7 +215,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         expected.put("b", "B_1".getBytes());
         expected.put("c", "C_1".getBytes());
 
-        List<String> keyOrder = compactAndVerify(topic, expected);
+        List<String> keyOrder = compactAndVerify(topic, expected, false);
 
         Assert.assertEquals(keyOrder, Lists.newArrayList("c", "b", "a"));
     }
@@ -215,9 +228,19 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, Optional.empty(), null);
+                this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
+    }
+
+    @Test
+    public void testPhaseOneLoopTimeConfiguration() {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setBrokerServiceCompactionPhaseOneLoopTimeInSeconds(60);
+        TwoPhaseCompactor compactor = new TwoPhaseCompactor(configuration, Mockito.mock(PulsarClientImpl.class),
+                Mockito.mock(BookKeeper.class), compactionScheduler);
+        Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
+
     }
 
     public ByteBuf extractPayload(RawMessage m) throws Exception {

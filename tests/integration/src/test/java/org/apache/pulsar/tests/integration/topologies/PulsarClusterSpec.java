@@ -29,6 +29,7 @@ import lombok.Setter;
 import lombok.Singular;
 import lombok.experimental.Accessors;
 
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
 
@@ -89,6 +90,12 @@ public class PulsarClusterSpec {
     boolean enablePrestoWorker = false;
 
     /**
+     * Allow to query the last message
+     */
+    @Default
+    boolean queryLastMessage = false;
+
+    /**
      * Returns the function runtime type.
      *
      * @return the function runtime type.
@@ -126,4 +133,27 @@ public class PulsarClusterSpec {
      */
     @Default
     String pulsarTestImage = PulsarContainer.DEFAULT_IMAGE_NAME;
+
+    /**
+     * Specify envs for proxy.
+     */
+    Map<String, String> proxyEnvs;
+
+    /**
+     * Specify envs for broker.
+     */
+    Map<String, String> brokerEnvs;
+
+    /**
+     * Specify mount files.
+     */
+    Map<String, String> proxyMountFiles;
+
+    /**
+     * Specify mount files.
+     */
+    Map<String, String> brokerMountFiles;
+
+    @Default
+    int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 }

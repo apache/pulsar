@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.config.validation;
 
+import static org.testng.Assert.assertThrows;
 import org.testng.annotations.Test;
 
 import java.net.InetSocketAddress;
@@ -26,8 +27,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import static org.testng.Assert.*;
 
 public class ValidatorImplsTest {
     @Test

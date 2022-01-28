@@ -23,10 +23,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
-
-import java.io.File;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.api.Authentication;
@@ -98,12 +98,12 @@ public class AuthenticationTokenTest {
 
     @Test
     public void testAuthTokenConfigFromFile() throws Exception {
-        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "my-test-token-string", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "my-test-token-string", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("file://" + tokenFile);
+        authToken.configure(getTokenFileUri(tokenFile));
         assertEquals(authToken.getAuthMethodName(), "token");
 
         AuthenticationDataProvider authData = authToken.getAuthData();
@@ -111,7 +111,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -126,12 +126,12 @@ public class AuthenticationTokenTest {
      */
     @Test
     public void testAuthTokenConfigFromFileWithNewline() throws Exception {
-        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("file://" + tokenFile);
+        authToken.configure(getTokenFileUri(tokenFile));
         assertEquals(authToken.getAuthMethodName(), "token");
 
         AuthenticationDataProvider authData = authToken.getAuthData();
@@ -139,7 +139,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -158,5 +158,60 @@ public class AuthenticationTokenTest {
         assertTrue(authData.hasDataFromCommand());
         assertEquals(authData.getCommandData(), "my-test-token-string");
         authToken.close();
+    }
+
+    @Test
+    public void testAuthTokenConfigFromJson() throws Exception{
+        AuthenticationToken authToken = new AuthenticationToken();
+        authToken.configure("{\"token\":\"my-test-token-string\"}");
+        assertEquals(authToken.getAuthMethodName(), "token");
+
+        AuthenticationDataProvider authData = authToken.getAuthData();
+        assertTrue(authData.hasDataFromCommand());
+        assertEquals(authData.getCommandData(), "my-test-token-string");
+        authToken.close();
+    }
+
+    @Test
+    public void testSerializableAuthentication() throws Exception {
+        SerializableSupplier tokenSupplier = new SerializableSupplier("cert");
+        AuthenticationToken token = new AuthenticationToken(tokenSupplier);
+
+        // serialize
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(outStream);
+        out.writeObject(token);
+        out.flush();
+        byte[] outputBytes = outStream.toByteArray();
+        out.close();
+
+        // deserialize
+        ByteArrayInputStream bis = new ByteArrayInputStream(outputBytes);
+        ObjectInput in = new ObjectInputStream(bis);
+        AuthenticationToken ts = (AuthenticationToken) in.readObject();
+        in.close();
+
+        // read the deserialized object
+        assertEquals(tokenSupplier.token, ts.getAuthData().getCommandData());
+    }
+
+    private String getTokenFileUri(File file) {
+        return file.toURI().toString();
+    }
+
+    public static class SerializableSupplier implements Supplier<String>, Serializable {
+
+        private static final long serialVersionUID = 6259616338933150683L;
+        private final String token;
+
+        public SerializableSupplier(final String token) {
+            super();
+            this.token = token;
+        }
+
+        @Override
+        public String get() {
+            return token;
+        }
     }
 }

@@ -45,7 +45,7 @@ public class JdbcUtilsTest {
         sqliteUtils.setUp();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws IOException, SQLException {
         sqliteUtils.tearDown();
     }

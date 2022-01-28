@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,17 +23,18 @@ set -e
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+# ROOT_DIR should be an absolute path so that Docker accepts it as a valid volumes path
+ROOT_DIR=`cd $(dirname $0)/../..; pwd`
 cd $ROOT_DIR
 
 PYTHON_VERSIONS=(
    '2.7 cp27-cp27mu'
    '2.7 cp27-cp27m'
-   '3.4 cp34-cp34m'
    '3.5 cp35-cp35m'
    '3.6 cp36-cp36m'
    '3.7 cp37-cp37m'
    '3.8 cp38-cp38'
+   '3.9 cp39-cp39'
 )
 
 function contains() {
@@ -76,7 +77,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 
     VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
     COMMAND="/pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh"
-    DOCKER_CMD="docker run -i ${VOLUME_OPTION} ${IMAGE}"
+    DOCKER_CMD="docker run -i ${VOLUME_OPTION} -e USE_FULL_POM_NAME -e NAME_POSTFIX ${IMAGE}"
 
     $DOCKER_CMD bash -c "${COMMAND}"
 

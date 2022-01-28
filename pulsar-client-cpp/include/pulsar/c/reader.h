@@ -68,6 +68,8 @@ PULSAR_PUBLIC void pulsar_reader_free(pulsar_reader_t *reader);
 
 PULSAR_PUBLIC pulsar_result pulsar_reader_has_message_available(pulsar_reader_t *reader, int *available);
 
+PULSAR_PUBLIC int pulsar_reader_is_connected(pulsar_reader_t *reader);
+
 #ifdef __cplusplus
 }
 #endif

@@ -18,8 +18,13 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import com.google.common.collect.Lists;
+import io.netty.buffer.PoolArenaMetric;
+import io.netty.buffer.PoolChunkListMetric;
+import io.netty.buffer.PoolChunkMetric;
+import io.netty.buffer.PoolSubpageMetric;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolArenaStats;
@@ -27,17 +32,9 @@ import org.apache.pulsar.common.stats.AllocatorStats.PoolChunkListStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolChunkStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolSubpageStats;
 
-import com.google.common.collect.Lists;
-
-import io.netty.buffer.PoolArenaMetric;
-import io.netty.buffer.PoolChunkListMetric;
-import io.netty.buffer.PoolChunkMetric;
-import io.netty.buffer.PoolSubpageMetric;
-import io.netty.buffer.PooledByteBufAllocator;
-
 public class AllocatorStatsGenerator {
     public static AllocatorStats generate(String allocatorName) {
-        PooledByteBufAllocator allocator = null;
+        PooledByteBufAllocator allocator;
         if ("default".equals(allocatorName)) {
             allocator = PooledByteBufAllocator.DEFAULT;
         } else if ("ml-cache".equals(allocatorName)) {
@@ -59,19 +56,14 @@ public class AllocatorStatsGenerator {
         stats.numThreadLocalCaches = allocator.metric().numThreadLocalCaches();
         stats.normalCacheSize = allocator.metric().normalCacheSize();
         stats.smallCacheSize = allocator.metric().smallCacheSize();
-        stats.tinyCacheSize = allocator.metric().tinyCacheSize();
         return stats;
     }
 
     private static PoolArenaStats newPoolArenaStats(PoolArenaMetric m) {
         PoolArenaStats stats = new PoolArenaStats();
-        stats.numTinySubpages = m.numTinySubpages();
         stats.numSmallSubpages = m.numSmallSubpages();
         stats.numChunkLists = m.numChunkLists();
 
-        stats.tinySubpages = m.tinySubpages().stream()
-            .map(AllocatorStatsGenerator::newPoolSubpageStats)
-            .collect(Collectors.toList());
         stats.smallSubpages = m.smallSubpages().stream()
             .map(AllocatorStatsGenerator::newPoolSubpageStats)
             .collect(Collectors.toList());
@@ -80,17 +72,14 @@ public class AllocatorStatsGenerator {
             .collect(Collectors.toList());
 
         stats.numAllocations = m.numAllocations();
-        stats.numTinyAllocations = m.numTinyAllocations();
         stats.numSmallAllocations = m.numSmallAllocations();
         stats.numNormalAllocations = m.numNormalAllocations();
         stats.numHugeAllocations = m.numHugeAllocations();
         stats.numDeallocations = m.numDeallocations();
-        stats.numTinyDeallocations = m.numTinyDeallocations();
         stats.numSmallDeallocations = m.numSmallDeallocations();
         stats.numNormalDeallocations = m.numNormalDeallocations();
         stats.numHugeDeallocations = m.numHugeDeallocations();
         stats.numActiveAllocations = m.numActiveAllocations();
-        stats.numActiveTinyAllocations = m.numActiveTinyAllocations();
         stats.numActiveSmallAllocations = m.numActiveSmallAllocations();
         stats.numActiveNormalAllocations = m.numActiveNormalAllocations();
         stats.numActiveHugeAllocations = m.numActiveHugeAllocations();

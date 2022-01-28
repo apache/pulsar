@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.reverseOrder;
-
 import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
@@ -37,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy {
 
-    private final static double PercentOfSizeToConsiderForEviction = 0.5;
+    private static final double PercentOfSizeToConsiderForEviction = 0.5;
 
     @Override
     public void doEviction(List<EntryCache> caches, long sizeToFree) {

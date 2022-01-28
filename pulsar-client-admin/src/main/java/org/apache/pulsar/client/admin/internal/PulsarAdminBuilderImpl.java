@@ -21,7 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.Authentication;
@@ -33,18 +32,21 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     protected final ClientConfigurationData conf;
-    private int connectTimeout = PulsarAdmin.DEFAULT_CONNECT_TIMEOUT_SECONDS;
-    private int readTimeout = PulsarAdmin.DEFAULT_READ_TIMEOUT_SECONDS;
-    private int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+    private int connectTimeout = PulsarAdminImpl.DEFAULT_CONNECT_TIMEOUT_SECONDS;
+    private int readTimeout = PulsarAdminImpl.DEFAULT_READ_TIMEOUT_SECONDS;
+    private int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+    private int autoCertRefreshTime = PulsarAdminImpl.DEFAULT_CERT_REFRESH_SECONDS;
     private TimeUnit connectTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit readTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit requestTimeoutUnit = TimeUnit.SECONDS;
+    private TimeUnit autoCertRefreshTimeUnit = TimeUnit.SECONDS;
+    private ClassLoader clientBuilderClassLoader = null;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdmin(conf.getServiceUrl(),
-                conf, connectTimeout, connectTimeoutUnit, readTimeout, readTimeoutUnit,
-                requestTimeout, requestTimeoutUnit);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, connectTimeout, connectTimeoutUnit, readTimeout,
+                readTimeoutUnit, requestTimeout, requestTimeoutUnit, autoCertRefreshTime,
+                autoCertRefreshTimeUnit, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -164,6 +166,19 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit) {
         this.requestTimeout = requestTimeout;
         this.requestTimeoutUnit = requestTimeoutUnit;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder autoCertRefreshTime(int autoCertRefreshTime, TimeUnit autoCertRefreshTimeUnit) {
+        this.autoCertRefreshTime = autoCertRefreshTime;
+        this.autoCertRefreshTimeUnit = autoCertRefreshTimeUnit;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
+        this.clientBuilderClassLoader = clientBuilderClassLoader;
         return this;
     }
 }

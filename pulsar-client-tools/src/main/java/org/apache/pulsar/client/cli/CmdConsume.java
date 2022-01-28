@@ -18,20 +18,25 @@
  */
 package org.apache.pulsar.client.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -39,9 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
 import org.apache.commons.io.HexDump;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -50,9 +53,15 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
@@ -82,6 +91,9 @@ public class CmdConsume {
     @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type.")
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
+    @Parameter(names = { "-m", "--subscription-mode" }, description = "Subscription mode.")
+    private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
+
     @Parameter(names = { "-p", "--subscription-position" }, description = "Subscription position.")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
@@ -95,23 +107,38 @@ public class CmdConsume {
     @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
     private boolean displayHex = false;
 
+    @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
+    private boolean hideContent = false;
+
     @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
             + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
 
     @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
-    
-    @Parameter(names = { "-q", "--queue-size" }, description = "Consumer receiver queue size.")
+
+    @Parameter(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
     private int receiverQueueSize = 0;
 
     @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-    private int maxPendingChuckedMessage = 0;
+    private int maxPendingChunkedMessage = 0;
 
     @Parameter(names = { "-ac",
             "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
-    
+
+    @Parameter(names = { "-ekv",
+            "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
+                    + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
+    private String encKeyValue;
+
+    @Parameter(names = { "-st", "--schema-type"},
+            description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
+    private String schematype = "bytes";
+
+    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
+    private boolean poolMessages = true;
+
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
@@ -131,7 +158,7 @@ public class CmdConsume {
     }
 
     /**
-     * Interprets the message to create a string representation
+     * Interprets the message to create a string representation.
      *
      * @param message
      *            The message to interpret
@@ -139,19 +166,25 @@ public class CmdConsume {
      *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
      * @return String representation of the message
      */
-    private String interpretMessage(Message<byte[]> message, boolean displayHex) throws IOException {
+    private String interpretMessage(Message<?> message, boolean displayHex) throws IOException {
         StringBuilder sb = new StringBuilder();
 
         String properties = Arrays.toString(message.getProperties().entrySet().toArray());
 
         String data;
-        byte[] msgData = message.getData();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        if (!displayHex) {
-            data = new String(msgData);
+        Object value = message.getValue();
+        if (value == null) {
+            data = "null";
+        } else if (value instanceof byte[]) {
+            byte[] msgData = (byte[]) value;
+            data = interpretByteArray(displayHex, msgData);
+        } else if (value instanceof GenericObject) {
+            Map<String, Object> asMap = genericObjectToMap((GenericObject) value, displayHex);
+            data = asMap.toString();
+        } else if (value instanceof ByteBuffer) {
+            data = new String(getBytes((ByteBuffer) value));
         } else {
-            HexDump.dump(msgData, 0, out, 0);
-            data = new String(out.toByteArray());
+            data = value.toString();
         }
 
         String key = null;
@@ -160,10 +193,73 @@ public class CmdConsume {
         }
 
         sb.append("key:[").append(key).append("], ");
-        sb.append("properties:").append(properties).append(", ");
+        if (!properties.isEmpty()) {
+            sb.append("properties:").append(properties).append(", ");
+        }
         sb.append("content:").append(data);
 
         return sb.toString();
+    }
+
+    private static String interpretByteArray(boolean displayHex, byte[] msgData) throws IOException {
+        String data;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if (!displayHex) {
+            return new String(msgData);
+        } else {
+            HexDump.dump(msgData, 0, out, 0);
+            return out.toString();
+        }
+    }
+
+    private static Map<String, Object> genericObjectToMap(GenericObject value, boolean displayHex) throws IOException {
+        switch (value.getSchemaType()) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF_NATIVE:
+                    return genericRecordToMap((GenericRecord) value, displayHex);
+            case KEY_VALUE:
+                    return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
+            default:
+                return primitiveValueToMap(value.getNativeObject(), displayHex);
+        }
+    }
+
+    private static Map<String, Object> keyValueToMap(KeyValue value, boolean displayHex) throws IOException {
+        if (value == null) {
+            return ImmutableMap.of("value", "NULL");
+        }
+        return ImmutableMap.of("key", primitiveValueToMap(value.getKey(), displayHex),
+                "value", primitiveValueToMap(value.getValue(), displayHex));
+    }
+
+    private static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
+        if (value == null) {
+            return ImmutableMap.of("value", "NULL");
+        }
+        if (value instanceof GenericObject) {
+            return genericObjectToMap((GenericObject) value, displayHex);
+        }
+        if (value instanceof byte[]) {
+            value = interpretByteArray(displayHex, (byte[]) value);
+        }
+        return ImmutableMap.of("value", value.toString(), "type", value.getClass());
+    }
+
+    private static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex) throws IOException {
+        Map<String, Object> res = new HashMap<>();
+        for (Field f : value.getFields()) {
+            Object fieldValue = value.getField(f);
+            if (fieldValue instanceof GenericRecord) {
+                fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
+            } else if (fieldValue == null) {
+                fieldValue =  "NULL";
+            } else if (fieldValue instanceof byte[]) {
+                fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
+            }
+            res.put(f.getName(), fieldValue);
+        }
+        return res;
     }
 
     /**
@@ -172,18 +268,21 @@ public class CmdConsume {
      * @return 0 for success, < 0 otherwise
      */
     public int run() throws PulsarClientException, IOException {
-        if (mainOptions.size() != 1)
+        if (mainOptions.size() != 1) {
             throw (new ParameterException("Please provide one and only one topic name."));
-        if (this.subscriptionName == null || this.subscriptionName.isEmpty())
+        }
+        if (this.subscriptionName == null || this.subscriptionName.isEmpty()) {
             throw (new ParameterException("Subscription name is not provided."));
-        if (this.numMessagesToConsume < 0)
+        }
+        if (this.numMessagesToConsume < 0) {
             throw (new ParameterException("Number of messages should be zero or positive."));
+        }
 
         String topic = this.mainOptions.get(0);
 
-        if(this.serviceURL.startsWith("ws")) {
+        if (this.serviceURL.startsWith("ws")) {
             return consumeFromWebSocket(topic);
-        }else {
+        } else {
             return consume(topic);
         }
     }
@@ -193,11 +292,20 @@ public class CmdConsume {
         int returnCode = 0;
 
         try {
+            ConsumerBuilder<?> builder;
             PulsarClient client = clientBuilder.build();
-            ConsumerBuilder<byte[]> builder = client.newConsumer()
+            Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
+            if ("auto_consume".equals(schematype)) {
+                schema = Schema.AUTO_CONSUME();
+            } else if (!"bytes".equals(schematype)) {
+                throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume");
+            }
+            builder = client.newConsumer(schema)
                     .subscriptionName(this.subscriptionName)
                     .subscriptionType(subscriptionType)
-                    .subscriptionInitialPosition(subscriptionInitialPosition);
+                    .subscriptionMode(subscriptionMode)
+                    .subscriptionInitialPosition(subscriptionInitialPosition)
+                    .poolMessages(poolMessages);
 
             if (isRegex) {
                 builder.topicsPattern(Pattern.compile(topic));
@@ -205,8 +313,8 @@ public class CmdConsume {
                 builder.topic(topic);
             }
 
-            if (this.maxPendingChuckedMessage > 0) {
-                builder.maxPendingChuckedMessage(this.maxPendingChuckedMessage);
+            if (this.maxPendingChunkedMessage > 0) {
+                builder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
             }
             if (this.receiverQueueSize > 0) {
                 builder.receiverQueueSize(this.receiverQueueSize);
@@ -214,23 +322,34 @@ public class CmdConsume {
 
             builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
 
-            Consumer<byte[]> consumer = builder.subscribe();
+            if (isNotBlank(this.encKeyValue)) {
+                builder.defaultCryptoKeyReader(this.encKeyValue);
+            }
 
+            Consumer<?> consumer = builder.subscribe();
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                 if (limiter != null) {
                     limiter.acquire();
                 }
 
-                Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+                Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
                 if (msg == null) {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
-                    numMessagesConsumed += 1;
-                    System.out.println(MESSAGE_BOUNDARY);
-                    String output = this.interpretMessage(msg, displayHex);
-                    System.out.println(output);
-                    consumer.acknowledge(msg);
+                    try {
+                        numMessagesConsumed += 1;
+                        if (!hideContent) {
+                            System.out.println(MESSAGE_BOUNDARY);
+                            String output = this.interpretMessage(msg, displayHex);
+                            System.out.println(output);
+                        } else if (numMessagesConsumed % 1000 == 0) {
+                            System.out.println("Received " + numMessagesConsumed + " messages");
+                        }
+                        consumer.acknowledge(msg);
+                    } finally {
+                        msg.release();
+                    }
                 }
             }
             client.close();
@@ -247,30 +366,43 @@ public class CmdConsume {
     }
 
     @SuppressWarnings("deprecation")
+    @VisibleForTesting
+    public String getWebSocketConsumeUri(String topic) {
+        String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
+                serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
+
+        TopicName topicName = TopicName.get(topic);
+        String wsTopic;
+        if (topicName.isV2()) {
+            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                    topicName.getNamespacePortion(), topicName.getLocalName());
+        } else {
+            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
+        }
+
+        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/")
+                + "consumer/%s/%s?subscriptionType=%s&subscriptionMode=%s";
+        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic, subscriptionName,
+                subscriptionType.toString(), subscriptionMode.toString());
+    }
+
+    @SuppressWarnings("deprecation")
     private int consumeFromWebSocket(String topic) {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
-        TopicName topicName = TopicName.get(topic);
+        URI consumerUri = URI.create(getWebSocketConsumeUri(topic));
 
-        String wsTopic = String.format(
-                "%s/%s/" + (StringUtils.isEmpty(topicName.getCluster()) ? "" : topicName.getCluster() + "/")
-                        + "%s/%s/%s?subscriptionType=%s",
-                topicName.getDomain(), topicName.getTenant(), topicName.getNamespacePortion(), topicName.getLocalName(),
-                subscriptionName, subscriptionType.toString());
-
-        String consumerBaseUri = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/consumer/" + wsTopic;
-        URI consumerUri = URI.create(consumerBaseUri);
-
-        WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
-        ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+        WebSocketClient consumeClient = new WebSocketClient(new SslContextFactory(true));
+        ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
         try {
             if (authentication != null) {
                 authentication.start();
                 AuthenticationDataProvider authData = authentication.getAuthData();
                 if (authData.hasDataForHttp()) {
                     for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
-                        produceRequest.setHeader(kv.getKey(), kv.getValue());
+                        consumeRequest.setHeader(kv.getKey(), kv.getValue());
                     }
                 }
             }
@@ -281,15 +413,15 @@ public class CmdConsume {
         CompletableFuture<Void> connected = new CompletableFuture<>();
         ConsumerSocket consumerSocket = new ConsumerSocket(connected);
         try {
-            produceClient.start();
+            consumeClient.start();
         } catch (Exception e) {
             LOG.error("Failed to start websocket-client", e);
             return -1;
         }
 
         try {
-            LOG.info("Trying to create websocket session..{}",consumerUri);
-            produceClient.connect(consumerSocket, consumerUri, produceRequest);
+            LOG.info("Trying to create websocket session..{}", consumerUri);
+            consumeClient.connect(consumerSocket, consumerUri, consumeRequest);
             connected.get();
         } catch (Exception e) {
             LOG.error("Failed to create web-socket session", e);
@@ -307,8 +439,9 @@ public class CmdConsume {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     try {
-                        System.out.println(Base64.getDecoder().decode(msg));
-                    }catch(Exception e) {
+                        String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
+                        System.out.println(output); // print decode
+                    } catch (Exception e) {
                         System.out.println(msg);
                     }
                     numMessagesConsumed += 1;

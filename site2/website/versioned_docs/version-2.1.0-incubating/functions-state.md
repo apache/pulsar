@@ -12,14 +12,14 @@ for storing the `State` for functions. For example, A `WordCount` function can s
 
 ### Java API
 
-Currently Pulsar Functions expose following APIs for mutating and accessing State. These APIs are avaible in the [Context](functions-api.md#context) object when
+Currently Pulsar Functions expose following APIs for mutating and accessing State. These APIs are available in the [Context](functions-api.md#context) object when
 you are using [Java SDK](functions-api.md#java-sdk-functions) functions.
 
 #### incrCounter
 
 ```java
     /**
-     * Increment the builtin distributed counter refered by key
+     * Increment the builtin distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */

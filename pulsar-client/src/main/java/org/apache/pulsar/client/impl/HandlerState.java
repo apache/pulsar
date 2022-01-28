@@ -39,7 +39,8 @@ abstract class HandlerState {
         Terminated, // Topic associated with this handler
                     // has been terminated
         Failed, // Handler is failed
-        RegisteringSchema // Handler is registering schema
+        RegisteringSchema, // Handler is registering schema
+        ProducerFenced, // The producer has been fenced by the broker
     };
 
     public HandlerState(PulsarClientImpl client, String topic) {
@@ -61,6 +62,13 @@ abstract class HandlerState {
 
     protected State getState() {
         return STATE_UPDATER.get(this);
+    }
+
+    protected boolean changeToConnecting() {
+        return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Connecting)
+                || STATE_UPDATER.compareAndSet(this, State.Ready, State.Connecting)
+                || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Connecting)
+                || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Connecting));
     }
 
     protected void setState(State s) {

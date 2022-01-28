@@ -75,7 +75,7 @@ or using [`helm`](#deploying-pulsar-components-helm).
 
 You can run Kubernetes on [Amazon Web Services](https://aws.amazon.com/) (AWS) in a variety of ways. A very simple way that was [recently introduced](https://aws.amazon.com/blogs/compute/kubernetes-clusters-aws-kops/) involves using the [Kubernetes Operations](https://github.com/kubernetes/kops) (kops) tool.
 
-You can find detailed instructions for setting up a Kubernetes cluster on AWS [here](https://github.com/kubernetes/kops/blob/master/docs/aws.md).
+You can find detailed instructions for setting up a Kubernetes cluster on AWS [here](https://github.com/kubernetes/kops/blob/master/docs/getting_started/aws.md).
 
 When you create a cluster using those instructions, your `kubectl` config in `~/.kube/config` (on MacOS and Linux) will be updated for you, so you probably won't need to change your configuration. Nonetheless, you can ensure that `kubectl` can interact with your cluster by listing the nodes in the cluster:
 
@@ -92,7 +92,7 @@ Pulsar can be deployed on a custom, non-GKE Kubernetes cluster as well. You can 
 
 The easiest way to run a Kubernetes cluster is to do so locally. To install a mini local cluster for testing purposes, running in local VMs, you can either:
 
-1. Use [minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) to run a single-node Kubernetes cluster
+1. Use [minikube](https://minikube.sigs.k8s.io/docs/start/) to run a single-node Kubernetes cluster
 1. Create a local cluster running on multiple VMs on the same machine
 
 ### Minikube
@@ -307,7 +307,7 @@ $ pulsar-admin persistent stats persistent://public/default/my-topic
 
 ### Monitoring
 
-The default monitoring stack for Pulsar on Kubernetes has consists of [Prometheus](#prometheus), [Grafana](#grafana), and the [Pulsar dashbaord](administration-dashboard.md).
+The default monitoring stack for Pulsar on Kubernetes has consists of [Prometheus](#prometheus), [Grafana](#grafana), and the [Pulsar dashboard](administration-dashboard.md).
 
 > If you deployed the cluster to Minikube, the following monitoring ports are mapped at the minikube VM:
 >
@@ -324,7 +324,7 @@ All Pulsar metrics in Kubernetes are collected by a [Prometheus](https://prometh
 
 #### Grafana
 
-In your Kubernetes cluster, you can use [Grafana](https://grafana.com) to view dashbaords for Pulsar [namespaces](reference-terminology.md#namespace) (message rates, latency, and storage), JVM stats, [ZooKeeper](https://zookeeper.apache.org), and [BookKeeper](reference-terminology.md#bookkeeper). You can get access to the pod serving Grafana using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
+In your Kubernetes cluster, you can use [Grafana](https://grafana.com) to view dashboards for Pulsar [namespaces](reference-terminology.md#namespace) (message rates, latency, and storage), JVM stats, [ZooKeeper](https://zookeeper.apache.org), and [BookKeeper](reference-terminology.md#bookkeeper). You can get access to the pod serving Grafana using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
 
 ```bash
 $ kubectl port-forward \
@@ -379,7 +379,7 @@ You can find client documentation for:
 Pulsar also provides a [Helm](https://docs.helm.sh/) chart for deploying a Pulsar cluster to Kubernetes. Before you start,
 make sure you follow [Helm documentation](https://docs.helm.sh/using_helm) to install helm.
 
-> Assum you have cloned pulsar repo under a `PULSAR_HOME` directory.
+> Assume you have cloned pulsar repo under a `PULSAR_HOME` directory.
 
 ### Minikube
 

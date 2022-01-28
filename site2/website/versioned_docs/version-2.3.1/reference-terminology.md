@@ -47,7 +47,7 @@ modes (exclusive, shared, and failover).
 
 #### Pub-Sub
 
-A messaging pattern in which [producer](#producer) proccesses publish messages on [topics](#topic) that
+A messaging pattern in which [producer](#producer) processes publish messages on [topics](#topic) that
 are then consumed (processed) by [consumer](#consumer) processes.
 
 #### Producer
@@ -79,7 +79,7 @@ if no acknowledgement, then the message will be retained until it's processed.
 
 #### Negative Acknowledgment (nack)
 
-When an application fails to process a particular message, it can sends a "negative ack" to Pulsar
+When an application fails to process a particular message, it can send a "negative ack" to Pulsar
 to signal that the message should be replayed at a later timer. (By default, failed messages are
 replayed after a 1 minute delay)
 

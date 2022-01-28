@@ -22,13 +22,11 @@ import static org.testng.Assert.assertEquals;
 
 import java.io.IOException;
 
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.testng.annotations.Test;
 
-/**
- */
-
+@Test(groups = "broker-impl")
 public class BatchMessageIdImplSerializationTest {
+
     @Test
     public void testSerialization1() throws Exception {
         BatchMessageIdImpl id = new BatchMessageIdImpl(1, 2, 3, 4);

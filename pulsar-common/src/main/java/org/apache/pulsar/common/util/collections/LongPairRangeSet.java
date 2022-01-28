@@ -23,10 +23,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
-
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
+import lombok.EqualsAndHashCode;
 
 /**
  * A set comprising zero or more ranges type of key-value pair.
@@ -149,6 +151,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     /**
      * This class is a simple key-value data structure.
      */
+    @EqualsAndHashCode
     class LongPair implements Comparable<LongPair> {
 
         @SuppressWarnings("checkstyle:ConstantName")
@@ -237,7 +240,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
         @Override
         public Range<T> span() {
-            return set.span();
+            try {
+                return set.span();
+            } catch (NoSuchElementException e) {
+                return null;
+            }
         }
 
         @Override
@@ -266,7 +273,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
 
         @Override
         public Range<T> firstRange() {
-            return set.asRanges().iterator().next();
+            Iterator<Range<T>> iterable = set.asRanges().iterator();
+            if (iterable.hasNext()) {
+                return iterable.next();
+            }
+            return null;
         }
 
         @Override

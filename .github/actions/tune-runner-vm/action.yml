@@ -1,0 +1,82 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Tune Runner VM performance
+description: tunes the GitHub Runner VM operation system
+runs:
+  using: composite
+  steps:
+    - run: |
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            # Ensure that reverse lookups for current hostname are handled properly
+            # Add the current IP address, long hostname and short hostname record to /etc/hosts file
+            echo -e "$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)\t$(hostname -f) $(hostname -s)" | sudo tee -a /etc/hosts
+
+            # The default vm.swappiness setting is 60 which has a tendency to start swapping when memory
+            # consumption is high.
+            # Set vm.swappiness=1 to avoid swapping and allow high RAM usage
+            echo 1 | sudo tee /proc/sys/vm/swappiness
+            # Set swappiness to 1 for all cgroups and sub-groups
+            for swappiness_dir in /sys/fs/cgroup/memory/*/ /sys/fs/cgroup/memory/*/*/; do
+              if [ -d "swappiness_dir" ]; then
+                echo 1 | sudo tee $(swappiness_dir)memory.swappiness > /dev/null
+              fi
+            done
+
+            # use "madvise" Linux Transparent HugePages (THP) setting
+            # https://www.kernel.org/doc/html/latest/admin-guide/mm/transhuge.html
+            # "madvise" is generally a better option than the default "always" setting
+            echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
+
+            # tune filesystem mount options, https://www.kernel.org/doc/Documentation/filesystems/ext4.txt
+            # commit=999999, effectively disables automatic syncing to disk (default is every 5 seconds)
+            # nobarrier/barrier=0, loosen data consistency on system crash (no negative impact to empheral CI nodes)
+            sudo mount -o remount,nodiscard,commit=999999,barrier=0 /
+            sudo mount -o remount,nodiscard,commit=999999,barrier=0 /mnt
+            # disable discard/trim at device level since remount with nodiscard doesn't seem to be effective
+            # https://www.spinics.net/lists/linux-ide/msg52562.html
+            for i in /sys/block/sd*/queue/discard_max_bytes; do
+              echo 0 | sudo tee $i
+            done
+            # disable any background jobs that run SSD discard/trim
+            sudo systemctl disable fstrim.timer || true
+            sudo systemctl stop fstrim.timer || true
+            sudo systemctl disable fstrim.service || true
+            sudo systemctl stop fstrim.service || true
+
+            # stop php-fpm
+            sudo systemctl stop php8.0-fpm.service || true
+            sudo systemctl stop php7.4-fpm.service || true
+            # stop mono-xsp4
+            sudo systemctl disable mono-xsp4.service || true
+            sudo systemctl stop mono-xsp4.service || true
+            sudo killall mono || true
+
+            # stop Azure Linux agent to save RAM
+            sudo systemctl stop walinuxagent.service || true
+
+            # show memory
+            free -m
+            # show disk
+            df -h
+            # show cggroup
+            echo "/actions_job cgroup settings:"
+            sudo cgget actions_job
+        fi
+      shell: bash

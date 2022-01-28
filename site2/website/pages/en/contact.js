@@ -80,6 +80,12 @@ class Contact extends React.Component {
               </tbody>
             </table>
 
+            <h2><translate>Stack Overflow</translate></h2>
+              <p><translate>
+              For technical questions, we ask that you post them to</translate>
+              <a href="https://stackoverflow.com/tags/apache-pulsar" target="_blank"> Stack Overflow </a> <translate>using the tag “apache-pulsar”.  
+              </translate></p>
+            
             <h2><translate>Slack</translate></h2>
             <p><translate>There is a Pulsar slack channel that is used for informal discussions for devs and users.</translate></p>
 

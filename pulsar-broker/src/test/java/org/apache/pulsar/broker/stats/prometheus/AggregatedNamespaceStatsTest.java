@@ -23,10 +23,11 @@ import static org.testng.Assert.assertNotNull;
 
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class AggregatedNamespaceStatsTest {
 
     @Test
-    public void testSimpleAggregation() throws Exception {
+    public void testSimpleAggregation() {
         final String namespace = "tenant/cluster/ns";
 
         TopicStats topicStats1 = new TopicStats();
@@ -37,10 +38,19 @@ public class AggregatedNamespaceStatsTest {
         topicStats1.rateOut = 20.0;
         topicStats1.throughputIn = 10240.0;
         topicStats1.throughputOut = 20480.0;
-        topicStats1.storageSize = 5120;
+        topicStats1.managedLedgerStats.storageSize = 5120;
+        topicStats1.managedLedgerStats.storageLogicalSize = 2048;
         topicStats1.msgBacklog = 30;
-        topicStats1.storageWriteRate = 12.0;
-        topicStats1.storageReadRate = 6.0;
+        topicStats1.managedLedgerStats.storageWriteRate = 12.0;
+        topicStats1.managedLedgerStats.storageReadRate = 6.0;
+        topicStats1.compactionRemovedEventCount = 10;
+        topicStats1.compactionSucceedCount = 1;
+        topicStats1.compactionFailedCount = 2;
+        topicStats1.compactionDurationTimeInMills = 1000;
+        topicStats1.compactionReadThroughput = 15.0;
+        topicStats1.compactionWriteThroughput = 20.0;
+        topicStats1.compactionCompactedEntriesCount = 30;
+        topicStats1.compactionCompactedEntriesSize = 1000;
 
         AggregatedReplicationStats replStats1 = new AggregatedReplicationStats();
         replStats1.msgRateIn = 1.0;
@@ -48,6 +58,9 @@ public class AggregatedNamespaceStatsTest {
         replStats1.msgRateOut = 2.0;
         replStats1.msgThroughputOut = 256.0;
         replStats1.replicationBacklog = 1;
+        replStats1.connectedCount = 0;
+        replStats1.msgRateExpired = 3.0;
+        replStats1.replicationDelayInSeconds = 20;
         topicStats1.replicationStats.put(namespace, replStats1);
 
         AggregatedSubscriptionStats subStats1 = new AggregatedSubscriptionStats();
@@ -65,10 +78,19 @@ public class AggregatedNamespaceStatsTest {
         topicStats2.rateOut = 0.5;
         topicStats2.throughputIn = 512.0;
         topicStats2.throughputOut = 1024.5;
-        topicStats2.storageSize = 1024;
+        topicStats2.managedLedgerStats.storageSize = 1024;
+        topicStats2.managedLedgerStats.storageLogicalSize = 512;
         topicStats2.msgBacklog = 7;
-        topicStats2.storageWriteRate = 5.0;
-        topicStats2.storageReadRate = 2.5;
+        topicStats2.managedLedgerStats.storageWriteRate = 5.0;
+        topicStats2.managedLedgerStats.storageReadRate = 2.5;
+        topicStats2.compactionRemovedEventCount = 10;
+        topicStats2.compactionSucceedCount = 1;
+        topicStats2.compactionFailedCount = 2;
+        topicStats2.compactionDurationTimeInMills = 1000;
+        topicStats2.compactionReadThroughput = 15.0;
+        topicStats2.compactionWriteThroughput = 20.0;
+        topicStats2.compactionCompactedEntriesCount = 30;
+        topicStats2.compactionCompactedEntriesSize = 1000;
 
         AggregatedReplicationStats replStats2 = new AggregatedReplicationStats();
         replStats2.msgRateIn = 3.5;
@@ -76,6 +98,9 @@ public class AggregatedNamespaceStatsTest {
         replStats2.msgRateOut = 10.5;
         replStats2.msgThroughputOut = 1536.0;
         replStats2.replicationBacklog = 99;
+        replStats2.connectedCount = 1;
+        replStats2.msgRateExpired = 3.0;
+        replStats2.replicationDelayInSeconds = 20;
         topicStats2.replicationStats.put(namespace, replStats2);
 
         AggregatedSubscriptionStats subStats2 = new AggregatedSubscriptionStats();
@@ -97,10 +122,21 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsStats.rateOut, 20.5);
         assertEquals(nsStats.throughputIn, 10752.0);
         assertEquals(nsStats.throughputOut, 21504.5);
-        assertEquals(nsStats.storageSize, 6144);
+        assertEquals(nsStats.managedLedgerStats.storageSize, 6144);
         assertEquals(nsStats.msgBacklog, 37);
-        assertEquals(nsStats.storageWriteRate, 17.0);
-        assertEquals(nsStats.storageReadRate, 8.5);
+        assertEquals(nsStats.managedLedgerStats.storageWriteRate, 17.0);
+        assertEquals(nsStats.managedLedgerStats.storageReadRate, 8.5);
+        assertEquals(nsStats.managedLedgerStats.storageSize, 6144);
+        assertEquals(nsStats.managedLedgerStats.storageLogicalSize, 2560);
+
+        assertEquals(nsStats.compactionRemovedEventCount, 20);
+        assertEquals(nsStats.compactionSucceedCount, 2);
+        assertEquals(nsStats.compactionFailedCount, 4);
+        assertEquals(nsStats.compactionDurationTimeInMills, 2000);
+        assertEquals(nsStats.compactionReadThroughput, 30.0);
+        assertEquals(nsStats.compactionWriteThroughput, 40.0);
+        assertEquals(nsStats.compactionCompactedEntriesCount, 60);
+        assertEquals(nsStats.compactionCompactedEntriesSize, 2000);
 
         AggregatedReplicationStats nsReplStats = nsStats.replicationStats.get(namespace);
         assertNotNull(nsReplStats);
@@ -109,6 +145,9 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsReplStats.msgRateOut, 12.5);
         assertEquals(nsReplStats.msgThroughputOut, 1792.0);
         assertEquals(nsReplStats.replicationBacklog, 100);
+        assertEquals(nsReplStats.connectedCount, 1);
+        assertEquals(nsReplStats.msgRateExpired, 6.0);
+        assertEquals(nsReplStats.replicationDelayInSeconds, 40);
 
         AggregatedSubscriptionStats nsSubStats = nsStats.subscriptionStats.get(namespace);
         assertNotNull(nsSubStats);

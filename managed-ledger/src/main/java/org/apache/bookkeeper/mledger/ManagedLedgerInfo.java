@@ -20,7 +20,11 @@ package org.apache.bookkeeper.mledger;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedLedgerInfo {
     /** Z-Node version. */

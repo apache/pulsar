@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -29,17 +30,26 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
+@Test(groups = "broker-api")
 public class ConsumerRedeliveryTest extends ProducerConsumerBase {
+
+    private static final Logger log = LoggerFactory.getLogger(ConsumerRedeliveryTest.class);
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -48,10 +58,15 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     /**
@@ -64,8 +79,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * </pre>
      * @throws Exception
      */
-    @Test
-    public void testOrderedRedelivery() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testOrderedRedelivery(boolean ackReceiptEnabled) throws Exception {
         String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
 
         conf.setManagedLedgerMaxEntriesPerLedger(2);
@@ -77,7 +92,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
                 .producerName("my-producer-name")
                 .create();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
-                .subscriptionType(SubscriptionType.Shared);
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(ackReceiptEnabled);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
 
         final int totalMsgs = 100;
@@ -130,12 +146,14 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testUnAckMessageRedeliveryWithReceiveAsync() throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         String topic = "persistent://my-property/my-ns/async-unack-redelivery";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
+                .isAckReceiptEnabled(ackReceiptEnabled)
+                .enableBatchIndexAcknowledgment(ackReceiptEnabled)
                 .ackTimeout(3, TimeUnit.SECONDS)
                 .subscribe();
 
@@ -165,7 +183,6 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
 
         assertEquals(10, messageReceived);
-
         for (int i = 0; i < messages; i++) {
             Message<String> message = consumer.receive();
             assertNotNull(message);
@@ -179,4 +196,109 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    /**
+     * Validates broker should dispatch messages to consumer which still has the permit to consume more messages.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testConsumerWithPermitReceiveBatchMessages() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+
+        final int queueSize = 10;
+        int batchSize = 100;
+        String subName = "my-subscriber-name";
+        String topicName = "permitReceiveBatchMessages"+(UUID.randomUUID().toString());
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
+                .subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
+
+        producerBuilder.enableBatching(true);
+        producerBuilder.batchingMaxPublishDelay(2000, TimeUnit.MILLISECONDS);
+        producerBuilder.batchingMaxMessages(100);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        for (int i = 0; i < batchSize; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+        producer.flush();
+
+        for (int i = 0; i < queueSize; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+        producer.flush();
+
+        retryStrategically((test) -> {
+            return consumer1.getTotalIncomingMessages() == batchSize;
+        }, 5, 2000);
+
+        assertEquals(consumer1.getTotalIncomingMessages(), batchSize);
+
+        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
+                .subscribe();
+
+        retryStrategically((test) -> {
+            return consumer2.getTotalIncomingMessages() == queueSize;
+        }, 5, 2000);
+        assertEquals(consumer2.getTotalIncomingMessages(), queueSize);
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 30000)
+    public void testMessageRedeliveryAfterUnloadedWithEarliestPosition() throws Exception {
+
+        final String subName = "my-subscriber-name";
+        final String topicName = "testMessageRedeliveryAfterUnloadedWithEarliestPosition" + UUID.randomUUID();
+        final int messages = 100;
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        List<CompletableFuture<MessageId>> sendResults = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            sendResults.add(producer.sendAsync("Hello - " + i));
+        }
+        producer.flush();
+
+        FutureUtil.waitForAll(sendResults).get();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        List<Message<String>> received = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            received.add(consumer.receive());
+        }
+
+        assertEquals(received.size(), messages);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        admin.topics().unload(topicName);
+
+        // The consumer does not ack any messages, so after unloading the topic,
+        // the consumer should get the unacked messages again
+
+        received.clear();
+        for (int i = 0; i < messages; i++) {
+            received.add(consumer.receive());
+        }
+
+        assertEquals(received.size(), messages);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        consumer.close();
+        producer.close();
+    }
 }

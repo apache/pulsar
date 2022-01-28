@@ -31,11 +31,13 @@ PatternMultiTopicsConsumerImpl::PatternMultiTopicsConsumerImpl(ClientImplPtr cli
     : MultiTopicsConsumerImpl(client, topics, subscriptionName, TopicName::get(pattern), conf,
                               lookupServicePtr_),
       patternString_(pattern),
-      pattern_(std::regex(pattern)),
+      pattern_(PULSAR_REGEX_NAMESPACE::regex(pattern)),
       autoDiscoveryTimer_(),
-      autoDiscoveryRunning_(false) {}
+      autoDiscoveryRunning_(false) {
+    namespaceName_ = TopicName::get(pattern)->getNamespaceName();
+}
 
-const std::regex PatternMultiTopicsConsumerImpl::getPattern() { return pattern_; }
+const PULSAR_REGEX_NAMESPACE::regex PatternMultiTopicsConsumerImpl::getPattern() { return pattern_; }
 
 void PatternMultiTopicsConsumerImpl::resetAutoDiscoveryTimer() {
     autoDiscoveryRunning_ = false;
@@ -137,8 +139,7 @@ void PatternMultiTopicsConsumerImpl::onTopicsAdded(NamespaceTopicsPtr addedTopic
 void PatternMultiTopicsConsumerImpl::handleOneTopicAdded(const Result result, const std::string& topic,
                                                          std::shared_ptr<std::atomic<int>> topicsNeedCreate,
                                                          ResultCallback callback) {
-    int previous = topicsNeedCreate->fetch_sub(1);
-    assert(previous > 0);
+    (*topicsNeedCreate)--;
 
     if (result != ResultOk) {
         LOG_ERROR("Failed when subscribed to topic " << topic << "  Error - " << result);
@@ -160,12 +161,11 @@ void PatternMultiTopicsConsumerImpl::onTopicsRemoved(NamespaceTopicsPtr removedT
         callback(ResultOk);
         return;
     }
-    int topicsNumber = removedTopics->size();
 
-    std::shared_ptr<std::atomic<int>> topicsNeedUnsub = std::make_shared<std::atomic<int>>(topicsNumber);
-    ResultCallback oneTopicUnsubscribedCallback = [this, topicsNeedUnsub, callback](Result result) {
-        int previous = topicsNeedUnsub->fetch_sub(1);
-        assert(previous > 0);
+    auto topicsNeedUnsub = std::make_shared<std::atomic<int>>(removedTopics->size());
+
+    ResultCallback oneTopicUnsubscribedCallback = [topicsNeedUnsub, callback](Result result) {
+        (*topicsNeedUnsub)--;
 
         if (result != ResultOk) {
             LOG_ERROR("Failed when unsubscribe to one topic.  Error - " << result);
@@ -186,12 +186,12 @@ void PatternMultiTopicsConsumerImpl::onTopicsRemoved(NamespaceTopicsPtr removedT
     }
 }
 
-NamespaceTopicsPtr PatternMultiTopicsConsumerImpl::topicsPatternFilter(const std::vector<std::string>& topics,
-                                                                       const std::regex& pattern) {
+NamespaceTopicsPtr PatternMultiTopicsConsumerImpl::topicsPatternFilter(
+    const std::vector<std::string>& topics, const PULSAR_REGEX_NAMESPACE::regex& pattern) {
     NamespaceTopicsPtr topicsResultPtr = std::make_shared<std::vector<std::string>>();
 
     for (std::vector<std::string>::const_iterator itr = topics.begin(); itr != topics.end(); itr++) {
-        if (std::regex_match(*itr, pattern)) {
+        if (PULSAR_REGEX_NAMESPACE::regex_match(*itr, pattern)) {
             topicsResultPtr->push_back(*itr);
         }
     }

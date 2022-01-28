@@ -19,22 +19,20 @@
 
 package org.apache.pulsar.client.impl.auth;
 
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import java.util.Base64;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
-    private final static String HTTP_HEADER_NAME = "Authorization";
+    private static final String HTTP_HEADER_NAME = "Authorization";
     private String httpAuthToken;
     private String commandAuthToken;
 
     public AuthenticationDataBasic(String userId, String password) {
         httpAuthToken = "Basic " + Base64.getEncoder().encodeToString((userId + ":" + password).getBytes());
-        commandAuthToken = userId+":"+password;
+        commandAuthToken = userId + ":" + password;
     }
 
     @Override

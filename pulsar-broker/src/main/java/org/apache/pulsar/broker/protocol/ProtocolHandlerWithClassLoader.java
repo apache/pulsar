@@ -26,6 +26,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -43,37 +44,52 @@ class ProtocolHandlerWithClassLoader implements ProtocolHandler {
 
     @Override
     public String protocolName() {
-        return handler.protocolName();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.protocolName();
+        }
     }
 
     @Override
     public boolean accept(String protocol) {
-        return handler.accept(protocol);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.accept(protocol);
+        }
     }
 
     @Override
     public void initialize(ServiceConfiguration conf) throws Exception {
-        handler.initialize(conf);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            handler.initialize(conf);
+        }
     }
 
     @Override
     public String getProtocolDataToAdvertise() {
-        return handler.getProtocolDataToAdvertise();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.getProtocolDataToAdvertise();
+        }
     }
 
     @Override
     public void start(BrokerService service) {
-        handler.start(service);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            handler.start(service);
+        }
     }
 
     @Override
     public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
-        return handler.newChannelInitializers();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.newChannelInitializers();
+        }
     }
 
     @Override
     public void close() {
-        handler.close();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            handler.close();
+        }
+
         try {
             classLoader.close();
         } catch (IOException e) {

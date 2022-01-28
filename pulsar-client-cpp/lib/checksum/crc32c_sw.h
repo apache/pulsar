@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LOGGING_CRC32C_SW_H__
-#define LOGGING_CRC32C_SW_H__
+#pragma once
 
 #include <stdint.h>
 
+namespace pulsar {
+
 uint32_t crc32c_sw(uint32_t crc, const void* data, int length);
 
-#endif
+}  // namespace pulsar

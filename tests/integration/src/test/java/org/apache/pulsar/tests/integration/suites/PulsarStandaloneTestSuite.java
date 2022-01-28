@@ -20,24 +20,40 @@ package org.apache.pulsar.tests.integration.suites;
 
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarStandaloneTestBase;
-import org.testng.ITest;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
-public class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase implements ITest {
+public abstract class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase {
+    private final String imageName;
 
-    @BeforeSuite
-    public void setUpCluster() throws Exception {
-        super.startCluster(PulsarContainer.DEFAULT_IMAGE_NAME);
+    protected PulsarStandaloneTestSuite() {
+        this(PulsarContainer.DEFAULT_IMAGE_NAME);
     }
 
-    @AfterSuite
+    protected PulsarStandaloneTestSuite(String imageName) {
+        this.imageName = imageName;
+    }
+
+    public void setUpCluster() throws Exception {
+        incrementSetupNumber();
+        super.startCluster(imageName);
+    }
+
     public void tearDownCluster() throws Exception {
+        markCurrentSetupNumberCleaned();
         super.stopCluster();
     }
 
+    @BeforeClass(alwaysRun = true)
     @Override
-    public String getTestName() {
-        return "pulsar-standalone-suite";
+    protected final void setup() throws Exception {
+        setUpCluster();
     }
+
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected final void cleanup() throws Exception {
+        tearDownCluster();
+    }
+
 }

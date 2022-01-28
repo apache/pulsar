@@ -104,7 +104,7 @@ public class WindowManagerTest {
         windowManager = new WindowManager<>(listener, new LinkedList<>());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         windowManager.shutdown();
     }

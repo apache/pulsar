@@ -19,65 +19,109 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
+import com.google.common.annotations.VisibleForTesting;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.RequiredTypeException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.SignatureException;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
-
+import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.SignatureException;
-
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
-    final static String HTTP_HEADER_NAME = "Authorization";
-    final static String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
+    static final String HTTP_HEADER_NAME = "Authorization";
+    static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When symmetric key is configured
-    final static String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
+    static final String CONF_TOKEN_SETTING_PREFIX = "tokenSettingPrefix";
+
+    // When symmetric key is configured
+    static final String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
 
     // When public/private key pair is configured
-    final static String CONF_TOKEN_PUBLIC_KEY = "tokenPublicKey";
+    static final String CONF_TOKEN_PUBLIC_KEY = "tokenPublicKey";
 
     // The token's claim that corresponds to the "role" string
-    final static String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
+    static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
     // When using public key's, the algorithm of the key
-    final static String CONF_TOKEN_PUBLIC_ALG = "tokenPublicAlg";
+    static final String CONF_TOKEN_PUBLIC_ALG = "tokenPublicAlg";
 
     // The token audience "claim" name, e.g. "aud", that will be used to get the audience from token.
-    final static String CONF_TOKEN_AUDIENCE_CLAIM = "tokenAudienceClaim";
+    static final String CONF_TOKEN_AUDIENCE_CLAIM = "tokenAudienceClaim";
 
     // The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token, need contains this.
-    final static String CONF_TOKEN_AUDIENCE = "tokenAudience";
+    static final String CONF_TOKEN_AUDIENCE = "tokenAudience";
 
-    final static String TOKEN = "token";
+    static final String TOKEN = "token";
+
+    private static final Counter expiredTokenMetrics = Counter.build()
+            .name("pulsar_expired_token_count")
+            .help("Pulsar expired token")
+            .register();
+
+    private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
+            .name("pulsar_expiring_token_minutes")
+            .help("The remaining time of expiring token in minutes")
+            .buckets(5, 10, 60, 240)
+            .register();
 
     private Key validationKey;
     private String roleClaim;
     private SignatureAlgorithm publicKeyAlg;
     private String audienceClaim;
     private String audience;
+    private JwtParser parser;
+
+    // config keys
+    private String confTokenSecretKeySettingName;
+    private String confTokenPublicKeySettingName;
+    private String confTokenAuthClaimSettingName;
+    private String confTokenPublicAlgSettingName;
+    private String confTokenAudienceClaimSettingName;
+    private String confTokenAudienceSettingName;
 
     @Override
     public void close() throws IOException {
         // noop
     }
 
+    @VisibleForTesting
+    public static void resetMetrics() {
+        expiredTokenMetrics.clear();
+        expiringTokenMinutesMetrics.clear();
+    }
+
     @Override
     public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
+        String prefix = (String) config.getProperty(CONF_TOKEN_SETTING_PREFIX);
+        if (null == prefix) {
+            prefix = "";
+        }
+        this.confTokenSecretKeySettingName = prefix + CONF_TOKEN_SECRET_KEY;
+        this.confTokenPublicKeySettingName = prefix + CONF_TOKEN_PUBLIC_KEY;
+        this.confTokenAuthClaimSettingName = prefix + CONF_TOKEN_AUTH_CLAIM;
+        this.confTokenPublicAlgSettingName = prefix + CONF_TOKEN_PUBLIC_ALG;
+        this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
+        this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
+
         // we need to fetch the algorithm before we fetch the key
         this.publicKeyAlg = getPublicKeyAlgType(config);
         this.validationKey = getValidationKey(config);
@@ -85,9 +129,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
 
-        if (audienceClaim != null && audience == null ) {
+        this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
+
+        if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
-                                               + "] configured, but Audience stands for this broker not.");
+                    + "] configured, but Audience stands for this broker not.");
         }
     }
 
@@ -98,11 +144,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        // Get Token
-        String token = getToken(authData);
-
-        // Parse Token by validating
-        return getPrincipal(authenticateToken(token));
+        try {
+            // Get Token
+            String token;
+            token = getToken(authData);
+            // Parse Token by validating
+            String role = getPrincipal(authenticateToken(token));
+            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+            return role;
+        } catch (AuthenticationException exception) {
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
+                    exception.getMessage());
+            throw exception;
+        }
     }
 
     @Override
@@ -142,9 +196,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @SuppressWarnings("unchecked")
     private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            Jwt<?, Claims> jwt = Jwts.parser()
-                    .setSigningKey(validationKey)
-                    .parse(token);
+            Jwt<?, Claims> jwt = parser.parseClaimsJws(token);
 
             if (audienceClaim != null) {
                 Object object = jwt.getBody().get(audienceClaim);
@@ -155,7 +207,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 if (object instanceof List) {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
-                    if (!audiences.stream().anyMatch(audienceInToken -> audienceInToken.equals(audience))) {
+                    if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
                         throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
                                                           + "] not contains this broker: " + audience);
                     }
@@ -170,29 +222,42 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
 
+            if (jwt.getBody().getExpiration() != null) {
+                expiringTokenMinutesMetrics.observe(
+                        (double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
+            }
             return jwt;
         } catch (JwtException e) {
+            if (e instanceof ExpiredJwtException) {
+                expiredTokenMetrics.inc();
+            }
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }
 
     private String getPrincipal(Jwt<?, Claims> jwt) {
-        return jwt.getBody().get(roleClaim, String.class);
+        try {
+            return jwt.getBody().get(roleClaim, String.class);
+        } catch (RequiredTypeException requiredTypeException) {
+            List list = jwt.getBody().get(roleClaim, List.class);
+            if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
+                return (String) list.get(0);
+            }
+            return null;
+        }
     }
 
     /**
      * Try to get the validation key for tokens from several possible config options.
      */
     private Key getValidationKey(ServiceConfiguration conf) throws IOException {
-        if (conf.getProperty(CONF_TOKEN_SECRET_KEY) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_SECRET_KEY))) {
-            final String validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_SECRET_KEY);
-            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
+        String tokenSecretKey = (String) conf.getProperty(confTokenSecretKeySettingName);
+        String tokenPublicKey = (String) conf.getProperty(confTokenPublicKeySettingName);
+        if (StringUtils.isNotBlank(tokenSecretKey)) {
+            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(tokenSecretKey);
             return AuthTokenUtils.decodeSecretKey(validationKey);
-        } else if (conf.getProperty(CONF_TOKEN_PUBLIC_KEY) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY))) {
-            final String validationKeyConfig = (String) conf.getProperty(CONF_TOKEN_PUBLIC_KEY);
-            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
+        } else if (StringUtils.isNotBlank(tokenPublicKey)) {
+            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(tokenPublicKey);
             return AuthTokenUtils.decodePublicKey(validationKey, publicKeyAlg);
         } else {
             throw new IOException("No secret key was provided for token authentication");
@@ -200,22 +265,21 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     private String getTokenRoleClaim(ServiceConfiguration conf) throws IOException {
-        if (conf.getProperty(CONF_TOKEN_AUTH_CLAIM) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUTH_CLAIM))) {
-            return (String) conf.getProperty(CONF_TOKEN_AUTH_CLAIM);
+        String tokenAuthClaim = (String) conf.getProperty(confTokenAuthClaimSettingName);
+        if (StringUtils.isNotBlank(tokenAuthClaim)) {
+            return tokenAuthClaim;
         } else {
             return Claims.SUBJECT;
         }
     }
 
     private SignatureAlgorithm getPublicKeyAlgType(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(CONF_TOKEN_PUBLIC_ALG) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_PUBLIC_ALG))) {
-            String alg = (String) conf.getProperty(CONF_TOKEN_PUBLIC_ALG);
+        String tokenPublicAlg = (String) conf.getProperty(confTokenPublicAlgSettingName);
+        if (StringUtils.isNotBlank(tokenPublicAlg)) {
             try {
-                return SignatureAlgorithm.forName(alg);
+                return SignatureAlgorithm.forName(tokenPublicAlg);
             } catch (SignatureException ex) {
-                throw new IllegalArgumentException("invalid algorithm provided " + alg, ex);
+                throw new IllegalArgumentException("invalid algorithm provided " + tokenPublicAlg, ex);
             }
         } else {
             return SignatureAlgorithm.RS256;
@@ -224,9 +288,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // get Token Audience Claim from configuration, if not configured return null.
     private String getTokenAudienceClaim(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM) != null
-            && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM))) {
-            return (String) conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM);
+        String tokenAudienceClaim = (String) conf.getProperty(confTokenAudienceClaimSettingName);
+        if (StringUtils.isNotBlank(tokenAudienceClaim)) {
+            return tokenAudienceClaim;
         } else {
             return null;
         }
@@ -234,9 +298,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // get Token Audience that stands for this broker from configuration, if not configured return null.
     private String getTokenAudience(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(CONF_TOKEN_AUDIENCE) != null
-            && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUDIENCE))) {
-            return (String) conf.getProperty(CONF_TOKEN_AUDIENCE);
+        String tokenAudience = (String) conf.getProperty(confTokenAudienceSettingName);
+        if (StringUtils.isNotBlank(tokenAudience)) {
+            return tokenAudience;
         } else {
             return null;
         }

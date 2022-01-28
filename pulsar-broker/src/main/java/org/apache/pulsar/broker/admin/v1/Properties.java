@@ -19,12 +19,11 @@
 package org.apache.pulsar.broker.admin.v1;
 
 import io.swagger.annotations.Api;
-import org.apache.pulsar.broker.admin.impl.TenantsBase;
-
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import org.apache.pulsar.broker.admin.impl.TenantsBase;
 
 @Path("/properties")
 @Produces(MediaType.APPLICATION_JSON)

@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.io.BinaryEncoder;
@@ -28,15 +34,8 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
-import java.util.stream.Collectors;
 
 
 public class GenericAvroReader implements SchemaReader<GenericRecord> {
@@ -47,7 +46,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
     private final List<Field> fields;
     private final Schema schema;
     private final byte[] schemaVersion;
-    private int offset;
+    private final int offset;
 
     public GenericAvroReader(Schema schema) {
         this(null, schema, null);
@@ -66,7 +65,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
             this.reader = new GenericDatumReader<>(writerSchema, readerSchema);
         }
         this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
+        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
 
         if (schema.getObjectProp(GenericAvroSchema.OFFSET_PROP) != null) {
             this.offset = Integer.parseInt(schema.getObjectProp(GenericAvroSchema.OFFSET_PROP).toString());
@@ -84,11 +83,11 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
             }
             Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length - offset, null);
             org.apache.avro.generic.GenericRecord avroRecord =
-                    (org.apache.avro.generic.GenericRecord)reader.read(
+                    (org.apache.avro.generic.GenericRecord) reader.read(
                     null,
                     decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException e) {
+        } catch (IOException | IndexOutOfBoundsException e) {
             throw new SchemaSerializationException(e);
         }
     }
@@ -98,11 +97,11 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         try {
             Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
             org.apache.avro.generic.GenericRecord avroRecord =
-                    (org.apache.avro.generic.GenericRecord)reader.read(
+                    (org.apache.avro.generic.GenericRecord) reader.read(
                             null,
                             decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException e) {
+        } catch (IOException | IndexOutOfBoundsException e) {
             throw new SchemaSerializationException(e);
         } finally {
             try {
@@ -115,6 +114,11 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
 
     public int getOffset() {
         return offset;
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(schema);
     }
 
     private static final Logger log = LoggerFactory.getLogger(GenericAvroReader.class);

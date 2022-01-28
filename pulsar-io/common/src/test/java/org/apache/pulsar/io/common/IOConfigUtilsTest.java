@@ -21,6 +21,7 @@ package org.apache.pulsar.io.common;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -183,6 +184,16 @@ public class IOConfigUtilsTest {
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
         }
+        
+        @Override
+        public void deleteState(String key) {
+        	
+        }
+        
+        @Override
+        public CompletableFuture<Void> deleteStateAsync(String key) {
+        	return null;
+        }
 
         @Override
         public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
@@ -191,6 +202,11 @@ public class IOConfigUtilsTest {
 
         @Override
         public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public PulsarClient getPulsarClient() {
             return null;
         }
     }
@@ -329,6 +345,21 @@ public class IOConfigUtilsTest {
 
         @Override
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+            return null;
+        }
+        
+        @Override
+        public void deleteState(String key) {
+        	
+        }
+        
+        @Override
+        public CompletableFuture<Void> deleteStateAsync(String key) {
+        	return null;
+        }
+
+        @Override
+        public PulsarClient getPulsarClient() {
             return null;
         }
     }

@@ -90,6 +90,11 @@ enum SchemaType
     KEY_VALUE = 15,
 
     /**
+     * Protobuf native schema based on Descriptor.
+     */
+    PROTOBUF_NATIVE = 20,
+
+    /**
      * A bytes array.
      */
     BYTES = -1,
@@ -117,6 +122,16 @@ typedef std::map<std::string, std::string> StringMap;
  */
 class PULSAR_PUBLIC SchemaInfo {
    public:
+    /**
+     * The default constructor with following configs:
+     * - schemaType: SchemaType::BYTES
+     * - name: "BYTES"
+     * - schema: ""
+     * - properties: {}
+     *
+     * @see SchemaInfo(SchemaType schemaType, const std::string& name, const std::string& schema, const
+     * StringMap& properties)
+     */
     SchemaInfo();
 
     /**

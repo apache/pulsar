@@ -30,12 +30,9 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       subscriptionName_(subscriptionName),
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
       conf_(conf),
-      state_(Pending),
       messages_(conf.getReceiverQueueSize()),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
-      pendingReceives_(),
-      namespaceName_(topicName ? topicName->getNamespaceName() : std::shared_ptr<NamespaceName>()),
       lookupServicePtr_(lookupServicePtr),
       numberTopicPartitions_(std::make_shared<std::atomic<int>>(0)),
       topics_(topics) {
@@ -84,8 +81,7 @@ void MultiTopicsConsumerImpl::start() {
 void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer consumer,
                                                        const std::string& topic,
                                                        std::shared_ptr<std::atomic<int>> topicsNeedCreate) {
-    int previous = topicsNeedCreate->fetch_sub(1);
-    assert(previous > 0);
+    (*topicsNeedCreate)--;
 
     if (result != ResultOk) {
         setState(Failed);
@@ -97,9 +93,6 @@ void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer c
     if (topicsNeedCreate->load() == 0) {
         if (compareAndSetState(Pending, Ready)) {
             LOG_INFO("Successfully Subscribed to Topics");
-            if (!namespaceName_) {
-                namespaceName_ = TopicName::get(topic)->getNamespaceName();
-            }
             multiTopicsConsumerCreatedPromise_.setValue(shared_from_this());
         } else {
             LOG_ERROR("Unable to create Consumer - " << consumerStr_ << " Error - " << result);
@@ -118,13 +111,6 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
     ConsumerSubResultPromisePtr topicPromise = std::make_shared<Promise<Result, Consumer>>();
     if (!(topicName = TopicName::get(topic))) {
         LOG_ERROR("TopicName invalid: " << topic);
-        topicPromise->setFailed(ResultInvalidTopicName);
-        return topicPromise->getFuture();
-    }
-
-    if (namespaceName_ && !(*namespaceName_ == *(topicName->getNamespaceName()))) {
-        LOG_ERROR("TopicName namespace not the same with topicsConsumer. wanted namespace: "
-                  << namespaceName_->toString() << " this topic: " << topic);
         topicPromise->setFailed(ResultInvalidTopicName);
         return topicPromise->getFuture();
     }
@@ -181,7 +167,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     if (numPartitions == 0) {
         // We don't have to add partition-n suffix
         consumer = std::make_shared<ConsumerImpl>(client_, topicName->toString(), subscriptionName_, config,
-                                                  internalListenerExecutor, NonPartitioned);
+                                                  internalListenerExecutor, true, NonPartitioned);
         consumer->getConsumerCreatedFuture().addListener(std::bind(
             &MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), std::placeholders::_1,
             std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
@@ -193,7 +179,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
         for (int i = 0; i < numPartitions; i++) {
             std::string topicPartitionName = topicName->getTopicPartitionName(i);
             consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                      internalListenerExecutor, Partitioned);
+                                                      internalListenerExecutor, true, Partitioned);
             consumer->getConsumerCreatedFuture().addListener(std::bind(
                 &MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(),
                 std::placeholders::_1, std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
@@ -266,8 +252,7 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
 void MultiTopicsConsumerImpl::handleUnsubscribedAsync(Result result,
                                                       std::shared_ptr<std::atomic<int>> consumerUnsubed,
                                                       ResultCallback callback) {
-    int previous = consumerUnsubed->fetch_add(1);
-    assert(previous < numberTopicPartitions_->load());
+    (*consumerUnsubed)++;
 
     if (result != ResultOk) {
         setState(Failed);
@@ -331,8 +316,7 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
 void MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync(
     Result result, std::shared_ptr<std::atomic<int>> consumerUnsubed, int numberPartitions,
     TopicNamePtr topicNamePtr, std::string& topicPartitionName, ResultCallback callback) {
-    int previous = consumerUnsubed->fetch_add(1);
-    assert(previous < numberPartitions);
+    (*consumerUnsubed)++;
 
     if (result != ResultOk) {
         setState(Failed);
@@ -624,7 +608,7 @@ void MultiTopicsConsumerImpl::receiveMessages() {
     for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
          consumer++) {
         ConsumerImplPtr consumerPtr = consumer->second;
-        consumerPtr->receiveMessages(consumerPtr->getCnx().lock(), conf_.getReceiverQueueSize());
+        consumerPtr->sendFlowPermitsToBroker(consumerPtr->getCnx().lock(), conf_.getReceiverQueueSize());
         LOG_DEBUG("Sending FLOW command for consumer - " << consumerPtr->getConsumerId());
     }
 }
@@ -719,22 +703,12 @@ void MultiTopicsConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerS
 
 std::shared_ptr<TopicName> MultiTopicsConsumerImpl::topicNamesValid(const std::vector<std::string>& topics) {
     TopicNamePtr topicNamePtr = std::shared_ptr<TopicName>();
-    NamespaceNamePtr namespaceNamePtr = std::shared_ptr<NamespaceName>();
 
     // all topics name valid, and all topics have same namespace
     for (std::vector<std::string>::const_iterator itr = topics.begin(); itr != topics.end(); itr++) {
         // topic name valid
         if (!(topicNamePtr = TopicName::get(*itr))) {
             LOG_ERROR("Topic name invalid when init " << *itr);
-            return std::shared_ptr<TopicName>();
-        }
-
-        // all contains same namespace part
-        if (!namespaceNamePtr) {
-            namespaceNamePtr = topicNamePtr->getNamespaceName();
-        } else if (!(*namespaceNamePtr == *(topicNamePtr->getNamespaceName()))) {
-            LOG_ERROR("Different namespace name. expected: " << namespaceNamePtr->toString() << " now:"
-                                                             << topicNamePtr->getNamespaceName()->toString());
             return std::shared_ptr<TopicName>();
         }
     }
@@ -755,4 +729,31 @@ void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
     for (auto&& c : consumers_) {
         c.second->setNegativeAcknowledgeEnabledForTesting(enabled);
     }
+}
+
+bool MultiTopicsConsumerImpl::isConnected() const {
+    Lock lock(mutex_);
+    if (state_ != Ready) {
+        return false;
+    }
+
+    for (const auto& topicAndConsumer : consumers_) {
+        if (!topicAndConsumer.second->isConnected()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
+    Lock lock(mutex_);
+    uint64_t numberOfConnectedConsumer = 0;
+    const auto consumers = consumers_;
+    lock.unlock();
+    for (const auto& topicAndConsumer : consumers) {
+        if (topicAndConsumer.second->isConnected()) {
+            numberOfConnectedConsumer++;
+        }
+    }
+    return numberOfConnectedConsumer;
 }

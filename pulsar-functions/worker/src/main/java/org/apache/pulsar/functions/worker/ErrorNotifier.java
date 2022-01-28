@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
-
 import java.io.Serializable;
+import org.apache.pulsar.broker.ShutdownService;
 
 public interface ErrorNotifier extends Serializable, AutoCloseable {
   
@@ -34,7 +33,7 @@ public interface ErrorNotifier extends Serializable, AutoCloseable {
     return new ErrorNotifierImpl();
   }
 
-  static ErrorNotifier getShutdownServiceImpl(ZooKeeperSessionWatcher.ShutdownService shutdownService) {
+  static ErrorNotifier getShutdownServiceImpl(ShutdownService shutdownService) {
     return new ErrorNotifierShutdownServiceImpl(shutdownService);
   }
   

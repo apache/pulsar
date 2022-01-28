@@ -22,8 +22,6 @@
 #include <string>
 #include <lib/LogUtils.h>
 
-DECLARE_LOG_OBJECT()
-
 using namespace pulsar;
 TEST(MessageTest, testMessageContents) {
     MessageBuilder msgBuilder1;
@@ -78,4 +76,26 @@ TEST(MessageTest, testProperties) {
     ASSERT_EQ(msg.getProperty("p2"), "v2");
     ASSERT_EQ(msg.getProperty("p3"), "v3");
     ASSERT_TRUE(compareMaps(msg.getProperties(), stringMap));
+}
+
+TEST(MessageTest, testMessageBuilder) {
+    std::string value;
+    value.resize(1024, 'x');
+    const void* originalAddress = &value[0];
+    {
+        auto msg = MessageBuilder().setContent(value).build();
+        ASSERT_NE(msg.getData(), originalAddress);
+    }
+    {
+        auto msg = MessageBuilder().setContent(value.data(), value.length()).build();
+        ASSERT_NE(msg.getData(), originalAddress);
+    }
+    {
+        auto msg = MessageBuilder().setAllocatedContent(&value[0], value.length()).build();
+        ASSERT_EQ(msg.getData(), originalAddress);
+    }
+    {
+        auto msg = MessageBuilder().setContent(std::move(value)).build();
+        ASSERT_EQ(msg.getData(), originalAddress);
+    }
 }

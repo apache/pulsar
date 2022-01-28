@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Map;
-
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 
 /**
  */
-public class NamespaceBundleStatsComparator implements Comparator<String> {
+public class NamespaceBundleStatsComparator implements Comparator<String>, Serializable {
     Map<String, NamespaceBundleStats> map;
     ResourceType resType;
 

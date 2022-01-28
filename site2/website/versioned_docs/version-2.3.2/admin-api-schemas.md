@@ -46,7 +46,7 @@ An example of the schema definition file can be found at {@inject: github:Schema
 
 #### REST
 
-{@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchema}
+{@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchema?version=[[pulsar:version_number]]}
 
 ### Get Schema
 
@@ -78,11 +78,11 @@ $ pulsar-admin schemas get <topic-name> --version <version>
 
 Retrieve the latest version of the schema:
 
-{@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchema}
+{@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchema?version=[[pulsar:version_number]]}
 
 Retrieve the schema of a given version:
 
-{@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchema}
+{@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchema?version=[[pulsar:version_number]]}
 
 ### Delete Schema
 
@@ -96,4 +96,4 @@ $ pulsar-admin schemas delete <topic-name>
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema}
+{@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=[[pulsar:version_number]]}

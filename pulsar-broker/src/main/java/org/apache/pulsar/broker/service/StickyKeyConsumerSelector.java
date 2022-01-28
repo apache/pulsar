@@ -18,29 +18,54 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.List;
+import java.util.Map;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 public interface StickyKeyConsumerSelector {
 
     int DEFAULT_RANGE_SIZE =  2 << 15;
 
     /**
-     * Add a new consumer
+     * Add a new consumer.
+     *
      * @param consumer new consumer
      */
     void addConsumer(Consumer consumer) throws ConsumerAssignException;
 
     /**
-     * Remove the consumer
+     * Remove the consumer.
      * @param consumer consumer to be removed
      */
     void removeConsumer(Consumer consumer);
 
     /**
-     * Select a consumer by sticky key
+     * Select a consumer by sticky key.
      *
      * @param stickyKey sticky key
      * @return consumer
      */
-    Consumer select(byte[] stickyKey);
+    default Consumer select(byte[] stickyKey) {
+        return select(makeStickyKeyHash(stickyKey));
+    }
+
+    static int makeStickyKeyHash(byte[] stickyKey) {
+        return Murmur3_32Hash.getInstance().makeHash(stickyKey);
+    }
+
+    /**
+     * Select a consumer by hash.
+     *
+     * @param hash hash corresponding to sticky key
+     * @return consumer
+     */
+    Consumer select(int hash);
+
+    /**
+     * Get key hash ranges handled by each consumer.
+     * @return A map where key is a consumer name and value is list of hash range it receiving message for.
+     */
+    Map<Consumer, List<Range>> getConsumerKeyHashRanges();
 }

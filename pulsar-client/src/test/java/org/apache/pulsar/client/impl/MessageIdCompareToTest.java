@@ -23,8 +23,8 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.collect.Maps;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 import org.testng.annotations.Test;
@@ -73,7 +73,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId2.compareTo(batchMessageId3) > 0, "Expected to be greater than");
         assertTrue(batchMessageId2.compareTo(batchMessageId4) > 0, "Expected to be greater than");
         assertTrue(batchMessageId2.compareTo(batchMessageId5) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId3.compareTo(batchMessageId4) > 0, "Expected to be greater than");
+        assertTrue(batchMessageId4.compareTo(batchMessageId3) > 0, "Expected to be greater than");
         assertTrue(batchMessageId3.compareTo(batchMessageId5) > 0, "Expected to be greater than");
         assertTrue(batchMessageId4.compareTo(batchMessageId5) > 0, "Expected to be greater than");
     }
@@ -105,7 +105,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId3.compareTo(batchMessageId2) < 0, "Expected to be less than");
         assertTrue(batchMessageId4.compareTo(batchMessageId2) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertTrue(batchMessageId4.compareTo(batchMessageId3) < 0, "Expected to be less than");
+        assertTrue(batchMessageId3.compareTo(batchMessageId4) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId3) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId4) < 0, "Expected to be less than");
     }
@@ -235,8 +235,8 @@ public class MessageIdCompareToTest  {
         assertNotEquals(item4, item3);
 
         // 2 items
-        Map<String, MessageId> map1 = Maps.newHashMap();
-        Map<String, MessageId> map2 = Maps.newHashMap();
+        Map<String, MessageId> map1 = new HashMap<>();
+        Map<String, MessageId> map2 = new HashMap<>();
         map1.put(topic1, messageIdImpl1);
         map1.put(topic2, messageIdImpl2);
         map2.put(topic2, messageIdImpl2);
@@ -341,8 +341,8 @@ public class MessageIdCompareToTest  {
         }
 
         // 2 items
-        Map<String, MessageId> map1 = Maps.newHashMap();
-        Map<String, MessageId> map2 = Maps.newHashMap();
+        Map<String, MessageId> map1 = new HashMap<>();
+        Map<String, MessageId> map2 = new HashMap<>();
         map1.put(topic1, messageIdImpl1);
         map1.put(topic2, messageIdImpl2);
         map2.put(topic2, messageIdImpl2);
@@ -394,7 +394,7 @@ public class MessageIdCompareToTest  {
         assertTrue(item7.compareTo(item5) > 0);
         assertTrue(item5.compareTo(item7) < 0);
 
-        Map<String, MessageId> map3 = Maps.newHashMap();
+        Map<String, MessageId> map3 = new HashMap<>();
         map3.put(topic1, messageIdImpl3);
         map3.put(topic2, messageIdImpl3);
         MultiMessageIdImpl item8 = new MultiMessageIdImpl(map3);

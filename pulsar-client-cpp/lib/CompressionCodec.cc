@@ -46,6 +46,7 @@ CompressionCodec& CompressionCodecProvider::getCodec(CompressionType compression
         default:
             return compressionCodecNone_;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid CompressionType enumeration value"));
 }
 
 CompressionType CompressionCodecProvider::convertType(proto::CompressionType type) {
@@ -61,6 +62,7 @@ CompressionType CompressionCodecProvider::convertType(proto::CompressionType typ
         case proto::SNAPPY:
             return CompressionSNAPPY;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid proto::CompressionType enumeration value"));
 }
 
 proto::CompressionType CompressionCodecProvider::convertType(CompressionType type) {
@@ -76,6 +78,7 @@ proto::CompressionType CompressionCodecProvider::convertType(CompressionType typ
         case CompressionSNAPPY:
             return proto::SNAPPY;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid CompressionType enumeration value"));
 }
 
 SharedBuffer CompressionCodecNone::encode(const SharedBuffer& raw) { return raw; }

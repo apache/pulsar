@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.junit.Assert.assertTrue;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -30,11 +32,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -42,20 +46,21 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test
 public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessagePublishThrottlingTest.class);
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
         this.conf.setClusterName("test");
         this.conf.setTopicPublisherThrottlingTickTimeMillis(1);
         this.conf.setBrokerPublisherThrottlingTickTimeMillis(1);
+        super.internalSetup();
+        super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -375,6 +380,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         topicPublishMsgRate.publishThrottlingRateInByte = topicByteRate;
 
         // create producer and topic
+        @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
             .topic(topicName)
             .enableBatching(false)
@@ -385,26 +391,21 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Assert.assertEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         // enable broker and topic throttling
-        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate",
-            Long.toString(brokerByteRate));
         admin.namespaces().setPublishRate(namespace, topicPublishMsgRate);
-        retryStrategically((test) ->
-                !topic.getTopicPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
-            5,
-            200);
-        retryStrategically(
-            (test) ->
-                (topic.getBrokerPublishRateLimiter() != PublishRateLimiter.DISABLED_RATE_LIMITER),
-            5,
-            200);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        });
+
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate",
+                Long.toString(brokerByteRate));
+        Awaitility.await().untilAsserted(() -> {
+            assertNotSame(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+        });
 
         log.info("Get broker configuration after enable: brokerTick {},  MaxMessageRate {}, MaxByteRate {}",
             pulsar.getConfiguration().getBrokerPublisherThrottlingTickTimeMillis(),
             pulsar.getConfiguration().getBrokerPublisherThrottlingMaxMessageRate(),
             pulsar.getConfiguration().getBrokerPublisherThrottlingMaxByteRate());
-
-        Assert.assertNotEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
-        Assert.assertNotEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
@@ -452,6 +453,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         List<Callable<Void>> topicRatesCounter = Lists.newArrayListWithExpectedSize(3);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         final AtomicDouble topicsRateIn = new AtomicDouble(0);
         final AtomicInteger index = new AtomicInteger(0);
@@ -484,11 +486,10 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         // disable topic throttling, it will use broker throttling, expected rateIn bigger than before.
         topicPublishMsgRate.publishThrottlingRateInByte = -1;
         admin.namespaces().setPublishRate(namespace, topicPublishMsgRate);
-        retryStrategically((test) ->
-                topic.getTopicPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
-            5,
-            200);
-        Assert.assertEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
+
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(topic.getTopicPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER)
+        );
 
         // reset counter
         prod.updateRates();
@@ -527,7 +528,5 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         rateIn = prod.getStats().msgThroughputIn;
         log.info("4-th byte rate in: {}, total: {} ", rateIn, numMessage * msgBytes);
         assertTrue(rateIn > numMessage * msgBytes);
-
-        producer.close();
     }
 }

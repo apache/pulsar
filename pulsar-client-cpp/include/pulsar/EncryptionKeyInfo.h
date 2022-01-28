@@ -42,14 +42,34 @@ class PULSAR_PUBLIC EncryptionKeyInfo {
 
     EncryptionKeyInfo();
 
+    /**
+     * EncryptionKeyInfo contains the encryption key and corresponding metadata which contains additional
+     * information about the key, such as version and timestamp.
+     */
     EncryptionKeyInfo(std::string key, StringMap& metadata);
 
+    /**
+     * @return the key of the message
+     */
     std::string& getKey();
 
+    /**
+     * Set the key of the message for routing policy
+     *
+     * @param Key the key of the message for routing policy
+     */
     void setKey(std::string key);
 
+    /**
+     * @return the metadata information
+     */
     StringMap& getMetadata(void);
 
+    /**
+     * Set metadata information
+     *
+     * @param Metadata the information of metadata
+     */
     void setMetadata(StringMap& metadata);
 
    private:

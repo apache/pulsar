@@ -38,7 +38,7 @@ using namespace pulsar;
 TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey) {
     const int selectedPartition = 1234;
 
-    SinglePartitionMessageRouter router(selectedPartition, ProducerConfiguration::BoostHash);
+    SinglePartitionMessageRouter router(selectedPartition, 10000, ProducerConfiguration::BoostHash);
 
     GMockMessage message;
     EXPECT_CALL(message, hasPartitionKey()).Times(1).WillOnce(Return(false));
@@ -50,7 +50,7 @@ TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey)
 TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithPartitionKey) {
     const int numPartitons = 1234;
 
-    SinglePartitionMessageRouter router(1, ProducerConfiguration::BoostHash);
+    SinglePartitionMessageRouter router(1, numPartitons, ProducerConfiguration::BoostHash);
 
     std::string partitionKey1 = "key1";
     std::string partitionKey2 = "key2";

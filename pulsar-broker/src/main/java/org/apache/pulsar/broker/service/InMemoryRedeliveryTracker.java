@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
@@ -42,7 +41,7 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     public int getRedeliveryCount(Position position) {
         PositionImpl positionImpl = (PositionImpl) position;
         LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
-        return (int) (count!=null ? count.first : 0);
+        return (int) (count != null ? count.first : 0);
     }
 
     @Override

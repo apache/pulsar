@@ -34,6 +34,19 @@ class PULSAR_PUBLIC ClientConfiguration {
     ClientConfiguration& operator=(const ClientConfiguration&);
 
     /**
+     * Configure a limit on the amount of memory that will be allocated by this client instance.
+     * Setting this to 0 will disable the limit. By default this is disabled.
+     *
+     * @param memoryLimitBytes the memory limit
+     */
+    ClientConfiguration& setMemoryLimit(uint64_t memoryLimitBytes);
+
+    /**
+     * @return the client memory limit in bytes
+     */
+    uint64_t getMemoryLimit() const;
+
+    /**
      * Set the authentication method to be used with the broker
      *
      * @param authentication the authentication data to use
@@ -129,26 +142,89 @@ class PULSAR_PUBLIC ClientConfiguration {
      */
     ClientConfiguration& setLogger(LoggerFactory* loggerFactory);
 
+    /**
+     * Configure whether to use the TLS encryption on the connections.
+     *
+     * The default value is false.
+     *
+     * @param useTls
+     */
     ClientConfiguration& setUseTls(bool useTls);
+
+    /**
+     * @return whether the TLS encryption is used on the connections
+     */
     bool isUseTls() const;
 
+    /**
+     * Set the path to the trusted TLS certificate file.
+     *
+     * @param tlsTrustCertsFilePath
+     */
     ClientConfiguration& setTlsTrustCertsFilePath(const std::string& tlsTrustCertsFilePath);
-    std::string getTlsTrustCertsFilePath() const;
 
+    /**
+     * @return the path to the trusted TLS certificate file
+     */
+    const std::string& getTlsTrustCertsFilePath() const;
+
+    /**
+     * Configure whether the Pulsar client accepts untrusted TLS certificates from brokers.
+     *
+     * The default value is false.
+     *
+     * @param tlsAllowInsecureConnection
+     */
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
+
+    /**
+     * @return whether the Pulsar client accepts untrusted TLS certificates from brokers
+     */
     bool isTlsAllowInsecureConnection() const;
 
+    /**
+     * Configure whether it allows validating hostname verification when a client connects to a broker over
+     * TLS.
+     *
+     * It validates the incoming x509 certificate and matches the provided hostname (CN/SAN) with the
+     * expected broker's hostname. It follows the server identity hostname verification in RFC 2818.
+     *
+     * The default value is false.
+     *
+     * @see [RFC 2818](https://tools.ietf.org/html/rfc2818).
+     *
+     * @param validateHostName whether to enable the TLS hostname verification
+     */
     ClientConfiguration& setValidateHostName(bool validateHostName);
+
+    /**
+     * @return true if the TLS hostname verification is enabled
+     */
     bool isValidateHostName() const;
 
-    /*
-     * Initialize stats interval in seconds. Stats are printed and reset after every 'statsIntervalInSeconds'.
-     * Set to 0 in order to disable stats collection.
+    /**
+     * Configure the listener name that the broker returns the corresponding `advertisedListener`.
+     *
+     * @param name the listener name
+     */
+    ClientConfiguration& setListenerName(const std::string& listenerName);
+
+    /**
+     * @return the listener name for the broker
+     */
+    const std::string& getListenerName() const;
+
+    /**
+     * Initialize stats interval in seconds. Stats are printed and reset after every `statsIntervalInSeconds`.
+     *
+     * Default: 600
+     *
+     * Set to 0 means disabling stats collection.
      */
     ClientConfiguration& setStatsIntervalInSeconds(const unsigned int&);
 
-    /*
-     * Get the stats interval set in the client.
+    /**
+     * @return the stats interval configured for the client
      */
     const unsigned int& getStatsIntervalInSeconds() const;
 
@@ -167,6 +243,22 @@ class PULSAR_PUBLIC ClientConfiguration {
      * Get partitions update interval in seconds.
      */
     unsigned int getPartitionsUpdateInterval() const;
+
+    /**
+     * Set the duration of time to wait for a connection to a broker to be established. If the duration passes
+     * without a response from the broker, the connection attempt is dropped.
+     *
+     * Default: 10000
+     *
+     * @param timeoutMs the duration in milliseconds
+     * @return
+     */
+    ClientConfiguration& setConnectionTimeout(int timeoutMs);
+
+    /**
+     * The getter associated with setConnectionTimeout().
+     */
+    int getConnectionTimeout() const;
 
     friend class ClientImpl;
     friend class PulsarWrapper;

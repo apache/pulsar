@@ -19,11 +19,10 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 
 /**
  * A starter to start function worker.
@@ -39,6 +38,9 @@ public class FunctionWorkerStarter {
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -52,6 +54,13 @@ public class FunctionWorkerStarter {
         if (workerArguments.help) {
             commander.usage();
             System.exit(1);
+            return;
+        }
+
+        if (workerArguments.generateDocs) {
+            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+            cmd.addCommand("functions-worker", workerArguments);
+            cmd.run(null);
             return;
         }
 

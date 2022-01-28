@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import java.io.ByteArrayOutputStream;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
@@ -25,8 +26,6 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
-
-import java.io.ByteArrayOutputStream;
 
 public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
 
@@ -37,13 +36,13 @@ public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
     public GenericAvroWriter(Schema schema) {
         this.writer = new GenericDatumWriter<>(schema);
         this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
+        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
     }
 
     @Override
     public synchronized byte[] write(GenericRecord message) {
         try {
-            writer.write(((GenericAvroRecord)message).getAvroRecord(), this.encoder);
+            writer.write(((GenericAvroRecord) message).getAvroRecord(), this.encoder);
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {

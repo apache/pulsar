@@ -1,0 +1,854 @@
+# TYPE jvm_memory_bytes_used gauge
+jvm_memory_bytes_used{cluster="use",area="heap"} 2.21249584E8
+jvm_memory_bytes_used{cluster="use",area="nonheap"} 1.73281992E8
+# TYPE jvm_memory_bytes_committed gauge
+jvm_memory_bytes_committed{cluster="use",area="heap"} 4.01604608E8
+jvm_memory_bytes_committed{cluster="use",area="nonheap"} 1.83017472E8
+# TYPE jvm_memory_bytes_max gauge
+jvm_memory_bytes_max{cluster="use",area="heap"} 1.073741824E9
+jvm_memory_bytes_max{cluster="use",area="nonheap"} -1.0
+# TYPE jvm_memory_bytes_init gauge
+jvm_memory_bytes_init{cluster="use",area="heap"} 1.1534336E8
+jvm_memory_bytes_init{cluster="use",area="nonheap"} 2555904.0
+# TYPE jvm_memory_pool_bytes_used gauge
+jvm_memory_pool_bytes_used{cluster="use",pool="Code Cache"} 6.0460544E7
+jvm_memory_pool_bytes_used{cluster="use",pool="Metaspace"} 1.00656824E8
+jvm_memory_pool_bytes_used{cluster="use",pool="Compressed Class Space"} 1.2164624E7
+jvm_memory_pool_bytes_used{cluster="use",pool="G1 Eden Space"} 5.9768832E7
+jvm_memory_pool_bytes_used{cluster="use",pool="G1 Survivor Space"} 3145728.0
+jvm_memory_pool_bytes_used{cluster="use",pool="G1 Old Gen"} 1.58335024E8
+# TYPE jvm_memory_pool_bytes_committed gauge
+jvm_memory_pool_bytes_committed{cluster="use",pool="Code Cache"} 6.1014016E7
+jvm_memory_pool_bytes_committed{cluster="use",pool="Metaspace"} 1.08556288E8
+jvm_memory_pool_bytes_committed{cluster="use",pool="Compressed Class Space"} 1.3447168E7
+jvm_memory_pool_bytes_committed{cluster="use",pool="G1 Eden Space"} 1.9398656E8
+jvm_memory_pool_bytes_committed{cluster="use",pool="G1 Survivor Space"} 3145728.0
+jvm_memory_pool_bytes_committed{cluster="use",pool="G1 Old Gen"} 2.0447232E8
+# TYPE jvm_memory_pool_bytes_max gauge
+jvm_memory_pool_bytes_max{cluster="use",pool="Code Cache"} 2.5165824E8
+jvm_memory_pool_bytes_max{cluster="use",pool="Metaspace"} -1.0
+jvm_memory_pool_bytes_max{cluster="use",pool="Compressed Class Space"} 1.073741824E9
+jvm_memory_pool_bytes_max{cluster="use",pool="G1 Eden Space"} -1.0
+jvm_memory_pool_bytes_max{cluster="use",pool="G1 Survivor Space"} -1.0
+jvm_memory_pool_bytes_max{cluster="use",pool="G1 Old Gen"} 1.073741824E9
+# TYPE jvm_memory_pool_bytes_init gauge
+jvm_memory_pool_bytes_init{cluster="use",pool="Code Cache"} 2555904.0
+jvm_memory_pool_bytes_init{cluster="use",pool="Metaspace"} 0.0
+jvm_memory_pool_bytes_init{cluster="use",pool="Compressed Class Space"} 0.0
+jvm_memory_pool_bytes_init{cluster="use",pool="G1 Eden Space"} 8388608.0
+jvm_memory_pool_bytes_init{cluster="use",pool="G1 Survivor Space"} 0.0
+jvm_memory_pool_bytes_init{cluster="use",pool="G1 Old Gen"} 1.06954752E8
+# TYPE zk_write_latency summary
+zk_write_latency{cluster="use",quantile="0.5"} NaN
+zk_write_latency{cluster="use",quantile="0.75"} NaN
+zk_write_latency{cluster="use",quantile="0.95"} NaN
+zk_write_latency{cluster="use",quantile="0.99"} NaN
+zk_write_latency{cluster="use",quantile="0.999"} NaN
+zk_write_latency{cluster="use",quantile="0.9999"} NaN
+zk_write_latency_count{cluster="use"} 0.0
+zk_write_latency_sum{cluster="use"} 0.0
+# TYPE jvm_threads_current gauge
+jvm_threads_current{cluster="use"} 212.0
+# TYPE jvm_threads_daemon gauge
+jvm_threads_daemon{cluster="use"} 44.0
+# TYPE jvm_threads_peak gauge
+jvm_threads_peak{cluster="use"} 226.0
+# TYPE jvm_threads_started_total counter
+jvm_threads_started_total{cluster="use"} 2928.0
+# TYPE jvm_threads_deadlocked gauge
+jvm_threads_deadlocked{cluster="use"} 0.0
+# TYPE jvm_threads_deadlocked_monitor gauge
+jvm_threads_deadlocked_monitor{cluster="use"} 0.0
+# TYPE jvm_info gauge
+jvm_info{cluster="use",version="1.8.0_282-b08",vendor="Azul Systems, Inc.",runtime="OpenJDK Runtime Environment"} 1.0
+# TYPE topic_load_times summary
+topic_load_times{cluster="use",quantile="0.5"} NaN
+topic_load_times{cluster="use",quantile="0.75"} NaN
+topic_load_times{cluster="use",quantile="0.95"} NaN
+topic_load_times{cluster="use",quantile="0.99"} NaN
+topic_load_times{cluster="use",quantile="0.999"} NaN
+topic_load_times{cluster="use",quantile="0.9999"} NaN
+topic_load_times_count{cluster="use"} 5.0
+topic_load_times_sum{cluster="use"} 281.0
+# TYPE jmx_config_reload_failure_total counter
+jmx_config_reload_failure_total{cluster="use"} 0.0
+# TYPE jvm_buffer_pool_used_bytes gauge
+jvm_buffer_pool_used_bytes{cluster="use",pool="direct"} 1793385.0
+jvm_buffer_pool_used_bytes{cluster="use",pool="mapped"} 0.0
+# TYPE jvm_buffer_pool_capacity_bytes gauge
+jvm_buffer_pool_capacity_bytes{cluster="use",pool="direct"} 1793384.0
+jvm_buffer_pool_capacity_bytes{cluster="use",pool="mapped"} 0.0
+# TYPE jvm_buffer_pool_used_buffers gauge
+jvm_buffer_pool_used_buffers{cluster="use",pool="direct"} 97.0
+jvm_buffer_pool_used_buffers{cluster="use",pool="mapped"} 0.0
+# TYPE pulsar_broker_lookup_pending_requests gauge
+pulsar_broker_lookup_pending_requests{cluster="use"} 0.0
+# TYPE pulsar_authentication_success_count counter
+pulsar_authentication_success_count{cluster="use",provider_name="AuthenticationProviderTls",auth_method="tls"} 850.0
+# TYPE pulsar_version_info gauge
+pulsar_version_info{cluster="use",version="2.8.0-SNAPSHOT",commit="e600b65a05e610bc7cbd874d4c446619d9d9606f"} 1.0
+# TYPE zk_read_latency summary
+zk_read_latency{cluster="use",quantile="0.5"} NaN
+zk_read_latency{cluster="use",quantile="0.75"} NaN
+zk_read_latency{cluster="use",quantile="0.95"} NaN
+zk_read_latency{cluster="use",quantile="0.99"} NaN
+zk_read_latency{cluster="use",quantile="0.999"} NaN
+zk_read_latency{cluster="use",quantile="0.9999"} NaN
+zk_read_latency_count{cluster="use"} 0.0
+zk_read_latency_sum{cluster="use"} 0.0
+# TYPE pulsar_broker_publish_latency summary
+pulsar_broker_publish_latency{cluster="use",quantile="0.0"} +Inf
+pulsar_broker_publish_latency{cluster="use",quantile="0.5"} NaN
+pulsar_broker_publish_latency{cluster="use",quantile="0.95"} NaN
+pulsar_broker_publish_latency{cluster="use",quantile="0.99"} NaN
+pulsar_broker_publish_latency{cluster="use",quantile="0.999"} NaN
+pulsar_broker_publish_latency{cluster="use",quantile="0.9999"} NaN
+pulsar_broker_publish_latency{cluster="use",quantile="1.0"} -Inf
+pulsar_broker_publish_latency_count{cluster="use"} 146.0
+pulsar_broker_publish_latency_sum{cluster="use"} 149.0
+# TYPE pulsar_broker_lookup summary
+pulsar_broker_lookup{cluster="use",quantile="0.5"} 8.151
+pulsar_broker_lookup{cluster="use",quantile="0.99"} 8.151
+pulsar_broker_lookup{cluster="use",quantile="0.999"} 8.151
+pulsar_broker_lookup{cluster="use",quantile="1.0"} 8.151
+pulsar_broker_lookup_count{cluster="use"} 134.0
+pulsar_broker_lookup_sum{cluster="use"} 142.0
+# TYPE jmx_config_reload_success_total counter
+jmx_config_reload_success_total{cluster="use"} 0.0
+# TYPE pulsar_broker_topic_load_pending_requests gauge
+pulsar_broker_topic_load_pending_requests{cluster="use"} 0.0
+# TYPE jvm_memory_direct_bytes_used gauge
+jvm_memory_direct_bytes_used{cluster="use"} 7.8839815E7
+# TYPE jetty_requests_total counter
+jetty_requests_total{cluster="use"} 39.0
+# TYPE jetty_requests_active gauge
+jetty_requests_active{cluster="use"} 1.0
+# TYPE jetty_requests_active_max gauge
+jetty_requests_active_max{cluster="use"} 2.0
+# TYPE jetty_request_time_max_seconds gauge
+jetty_request_time_max_seconds{cluster="use"} 0.16
+# TYPE jetty_request_time_seconds_total counter
+jetty_request_time_seconds_total{cluster="use"} 0.557
+# TYPE jetty_dispatched_total counter
+jetty_dispatched_total{cluster="use"} 39.0
+# TYPE jetty_dispatched_active gauge
+jetty_dispatched_active{cluster="use"} 0.0
+# TYPE jetty_dispatched_active_max gauge
+jetty_dispatched_active_max{cluster="use"} 2.0
+# TYPE jetty_dispatched_time_max gauge
+jetty_dispatched_time_max{cluster="use"} 160.0
+# TYPE jetty_dispatched_time_seconds_total counter
+jetty_dispatched_time_seconds_total{cluster="use"} 0.46
+# TYPE jetty_async_requests_total counter
+jetty_async_requests_total{cluster="use"} 5.0
+# TYPE jetty_async_requests_waiting gauge
+jetty_async_requests_waiting{cluster="use"} 1.0
+# TYPE jetty_async_requests_waiting_max gauge
+jetty_async_requests_waiting_max{cluster="use"} 1.0
+# TYPE jetty_async_dispatches_total counter
+jetty_async_dispatches_total{cluster="use"} 0.0
+# TYPE jetty_expires_total counter
+jetty_expires_total{cluster="use"} 0.0
+# TYPE jetty_responses_total counter
+jetty_responses_total{cluster="use",code="1xx"} 0.0
+jetty_responses_total{cluster="use",code="2xx"} 37.0
+jetty_responses_total{cluster="use",code="3xx"} 1.0
+jetty_responses_total{cluster="use",code="4xx"} 0.0
+jetty_responses_total{cluster="use",code="5xx"} 0.0
+# TYPE jetty_stats_seconds gauge
+jetty_stats_seconds{cluster="use"} 3.655
+# TYPE jetty_responses_bytes_total counter
+jetty_responses_bytes_total{cluster="use"} 37592.0
+# TYPE jvm_classes_loaded gauge
+jvm_classes_loaded{cluster="use"} 17534.0
+# TYPE jvm_classes_loaded_total counter
+jvm_classes_loaded_total{cluster="use"} 17562.0
+# TYPE jvm_classes_unloaded_total counter
+jvm_classes_unloaded_total{cluster="use"} 28.0
+# TYPE caffeine_cache_hit_total counter
+caffeine_cache_hit_total{cluster="use",cache="owned-bundles"} 92.0
+caffeine_cache_hit_total{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_hit_total{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_hit_total{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_hit_total{cluster="use",cache="local-zk-exists"} 6.0
+caffeine_cache_hit_total{cluster="use",cache="bundles"} 98.0
+caffeine_cache_hit_total{cluster="use",cache="local-zk-children"} 5.0
+caffeine_cache_hit_total{cluster="use",cache="global-zk-data"} 288.0
+caffeine_cache_hit_total{cluster="use",cache="local-zk-data"} 44.0
+caffeine_cache_hit_total{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_hit_total{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_miss_total counter
+caffeine_cache_miss_total{cluster="use",cache="owned-bundles"} 9.0
+caffeine_cache_miss_total{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_miss_total{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_miss_total{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_miss_total{cluster="use",cache="local-zk-exists"} 10.0
+caffeine_cache_miss_total{cluster="use",cache="bundles"} 3.0
+caffeine_cache_miss_total{cluster="use",cache="local-zk-children"} 4.0
+caffeine_cache_miss_total{cluster="use",cache="global-zk-data"} 30.0
+caffeine_cache_miss_total{cluster="use",cache="local-zk-data"} 102.0
+caffeine_cache_miss_total{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_miss_total{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_requests_total counter
+caffeine_cache_requests_total{cluster="use",cache="owned-bundles"} 101.0
+caffeine_cache_requests_total{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_requests_total{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_requests_total{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_requests_total{cluster="use",cache="local-zk-exists"} 16.0
+caffeine_cache_requests_total{cluster="use",cache="bundles"} 101.0
+caffeine_cache_requests_total{cluster="use",cache="local-zk-children"} 9.0
+caffeine_cache_requests_total{cluster="use",cache="global-zk-data"} 318.0
+caffeine_cache_requests_total{cluster="use",cache="local-zk-data"} 146.0
+caffeine_cache_requests_total{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_requests_total{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_eviction_total counter
+caffeine_cache_eviction_total{cluster="use",cache="owned-bundles"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="local-zk-exists"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="bundles"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="local-zk-children"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="global-zk-data"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="local-zk-data"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_eviction_total{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_eviction_weight gauge
+caffeine_cache_eviction_weight{cluster="use",cache="owned-bundles"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="local-zk-exists"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="bundles"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="local-zk-children"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="global-zk-data"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="local-zk-data"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_eviction_weight{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_load_failure_total counter
+caffeine_cache_load_failure_total{cluster="use",cache="owned-bundles"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="local-zk-exists"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="bundles"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="local-zk-children"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="global-zk-data"} 9.0
+caffeine_cache_load_failure_total{cluster="use",cache="local-zk-data"} 45.0
+caffeine_cache_load_failure_total{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_load_failure_total{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_loads_total counter
+caffeine_cache_loads_total{cluster="use",cache="owned-bundles"} 5.0
+caffeine_cache_loads_total{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_loads_total{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_loads_total{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_loads_total{cluster="use",cache="local-zk-exists"} 10.0
+caffeine_cache_loads_total{cluster="use",cache="bundles"} 3.0
+caffeine_cache_loads_total{cluster="use",cache="local-zk-children"} 4.0
+caffeine_cache_loads_total{cluster="use",cache="global-zk-data"} 15.0
+caffeine_cache_loads_total{cluster="use",cache="local-zk-data"} 51.0
+caffeine_cache_loads_total{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_loads_total{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_estimated_size gauge
+caffeine_cache_estimated_size{cluster="use",cache="owned-bundles"} 5.0
+caffeine_cache_estimated_size{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_estimated_size{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_estimated_size{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_estimated_size{cluster="use",cache="local-zk-exists"} 3.0
+caffeine_cache_estimated_size{cluster="use",cache="bundles"} 3.0
+caffeine_cache_estimated_size{cluster="use",cache="local-zk-children"} 3.0
+caffeine_cache_estimated_size{cluster="use",cache="global-zk-data"} 2.0
+caffeine_cache_estimated_size{cluster="use",cache="local-zk-data"} 6.0
+caffeine_cache_estimated_size{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_estimated_size{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE caffeine_cache_load_duration_seconds summary
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="owned-bundles"} 5.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="owned-bundles"} 0.017773733
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="bookies-racks-exists"} 0.0
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="global-zk-children"} 0.0
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="bookies-racks-children"} 0.0
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="local-zk-exists"} 10.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="local-zk-exists"} 0.007577912
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="bundles"} 3.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="bundles"} 0.089910757
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="local-zk-children"} 4.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="local-zk-children"} 0.005372309
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="global-zk-data"} 15.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="global-zk-data"} 0.010657818
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="local-zk-data"} 51.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="local-zk-data"} 0.068997424
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="bookies-racks-data"} 0.0
+caffeine_cache_load_duration_seconds_count{cluster="use",cache="global-zk-exists"} 0.0
+caffeine_cache_load_duration_seconds_sum{cluster="use",cache="global-zk-exists"} 0.0
+# TYPE pulsar_broker_throttled_connections_global_limit gauge
+pulsar_broker_throttled_connections_global_limit{cluster="use"} 0.0
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total{cluster="use"} 101.68
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds{cluster="use"} 1.617950201185E9
+# TYPE process_open_fds gauge
+process_open_fds{cluster="use"} 745.0
+# TYPE process_max_fds gauge
+process_max_fds{cluster="use"} 65536.0
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes{cluster="use"} 4.424998912E9
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes{cluster="use"} 7.5831296E8
+# TYPE pulsar_broker_throttled_connections gauge
+pulsar_broker_throttled_connections{cluster="use"} 0.0
+# TYPE pulsar_broker_lookup_redirects counter
+pulsar_broker_lookup_redirects{cluster="use"} 0.0
+# TYPE jvm_memory_direct_bytes_max gauge
+jvm_memory_direct_bytes_max{cluster="use"} 1.073741824E9
+# TYPE jvm_gc_collection_seconds summary
+jvm_gc_collection_seconds_count{cluster="use",gc="G1 Young Generation"} 80.0
+jvm_gc_collection_seconds_sum{cluster="use",gc="G1 Young Generation"} 3.199
+jvm_gc_collection_seconds_count{cluster="use",gc="G1 Old Generation"} 0.0
+jvm_gc_collection_seconds_sum{cluster="use",gc="G1 Old Generation"} 0.0
+# TYPE pulsar_broker_lookup_failures counter
+pulsar_broker_lookup_failures{cluster="use"} 0.0
+# TYPE pulsar_authentication_failures_count counter
+pulsar_authentication_failures_count{cluster="use",provider_name="AuthenticationProviderTls",auth_method="tls",reason="Client unable to authenticate with TLS certificate"} 1.0
+# TYPE pulsar_broker_lookup_answers counter
+pulsar_broker_lookup_answers{cluster="use"} 134.0
+# TYPE pulsar_topics_count gauge
+pulsar_topics_count{cluster="use"} 0 1617950344967
+# TYPE pulsar_subscriptions_count gauge
+pulsar_subscriptions_count{cluster="use"} 0 1617950344967
+# TYPE pulsar_producers_count gauge
+pulsar_producers_count{cluster="use"} 0 1617950344967
+# TYPE pulsar_consumers_count gauge
+pulsar_consumers_count{cluster="use"} 0 1617950344967
+# TYPE pulsar_rate_in gauge
+pulsar_rate_in{cluster="use"} 0 1617950344967
+# TYPE pulsar_rate_out gauge
+pulsar_rate_out{cluster="use"} 0 1617950344967
+# TYPE pulsar_throughput_in gauge
+pulsar_throughput_in{cluster="use"} 0 1617950344967
+# TYPE pulsar_throughput_out gauge
+pulsar_throughput_out{cluster="use"} 0 1617950344967
+# TYPE pulsar_storage_size gauge
+pulsar_storage_size{cluster="use"} 0 1617950344967
+# TYPE pulsar_storage_write_rate gauge
+pulsar_storage_write_rate{cluster="use"} 0 1617950344967
+# TYPE pulsar_storage_read_rate gauge
+pulsar_storage_read_rate{cluster="use"} 0 1617950344967
+# TYPE pulsar_msg_backlog gauge
+pulsar_msg_backlog{cluster="use"} 0 1617950344967
+pulsar_subscriptions_count{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 1.0 1617950344967
+pulsar_producers_count{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 1.0 1617950344967
+pulsar_consumers_count{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 1.0 1617950344967
+pulsar_rate_in{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+pulsar_rate_out{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+pulsar_throughput_in{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+pulsar_throughput_out{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+pulsar_storage_size{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+pulsar_msg_backlog{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_backlog_size gauge
+pulsar_storage_backlog_size{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_offloaded_size gauge
+pulsar_storage_offloaded_size{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_backlog_quota_limit gauge
+pulsar_storage_backlog_quota_limit{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} -1073741824.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_0_5 gauge
+pulsar_storage_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_1 gauge
+pulsar_storage_write_latency_le_1{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_5 gauge
+pulsar_storage_write_latency_le_5{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_10 gauge
+pulsar_storage_write_latency_le_10{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_20 gauge
+pulsar_storage_write_latency_le_20{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_50 gauge
+pulsar_storage_write_latency_le_50{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_100 gauge
+pulsar_storage_write_latency_le_100{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_200 gauge
+pulsar_storage_write_latency_le_200{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_le_1000 gauge
+pulsar_storage_write_latency_le_1000{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_overflow gauge
+pulsar_storage_write_latency_overflow{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_count gauge
+pulsar_storage_write_latency_count{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_write_latency_sum gauge
+pulsar_storage_write_latency_sum{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_0_5 gauge
+pulsar_storage_ledger_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_1 gauge
+pulsar_storage_ledger_write_latency_le_1{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_5 gauge
+pulsar_storage_ledger_write_latency_le_5{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_10 gauge
+pulsar_storage_ledger_write_latency_le_10{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_20 gauge
+pulsar_storage_ledger_write_latency_le_20{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_50 gauge
+pulsar_storage_ledger_write_latency_le_50{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_100 gauge
+pulsar_storage_ledger_write_latency_le_100{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_200 gauge
+pulsar_storage_ledger_write_latency_le_200{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_le_1000 gauge
+pulsar_storage_ledger_write_latency_le_1000{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_overflow gauge
+pulsar_storage_ledger_write_latency_overflow{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_count gauge
+pulsar_storage_ledger_write_latency_count{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_storage_ledger_write_latency_sum gauge
+pulsar_storage_ledger_write_latency_sum{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_128 gauge
+pulsar_entry_size_le_128{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_512 gauge
+pulsar_entry_size_le_512{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_1_kb gauge
+pulsar_entry_size_le_1_kb{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_2_kb gauge
+pulsar_entry_size_le_2_kb{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_4_kb gauge
+pulsar_entry_size_le_4_kb{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_16_kb gauge
+pulsar_entry_size_le_16_kb{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_100_kb gauge
+pulsar_entry_size_le_100_kb{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_1_mb gauge
+pulsar_entry_size_le_1_mb{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_le_overflow gauge
+pulsar_entry_size_le_overflow{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_count gauge
+pulsar_entry_size_count{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_entry_size_sum gauge
+pulsar_entry_size_sum{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_subscription_back_log gauge
+pulsar_subscription_back_log{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_back_log_no_delayed gauge
+pulsar_subscription_back_log_no_delayed{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_delayed gauge
+pulsar_subscription_delayed{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_msg_rate_redeliver gauge
+pulsar_subscription_msg_rate_redeliver{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0.0 1617950344967
+# TYPE pulsar_subscription_unacked_messages gauge
+pulsar_subscription_unacked_messages{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_blocked_on_unacked_messages gauge
+pulsar_subscription_blocked_on_unacked_messages{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_msg_rate_out gauge
+pulsar_subscription_msg_rate_out{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0.0 1617950344967
+# TYPE pulsar_subscription_msg_throughput_out gauge
+pulsar_subscription_msg_throughput_out{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0.0 1617950344967
+# TYPE pulsar_out_bytes_total gauge
+pulsar_out_bytes_total{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_out_messages_total gauge
+pulsar_out_messages_total{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_last_expire_timestamp gauge
+pulsar_subscription_last_expire_timestamp{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_last_acked_timestamp gauge
+pulsar_subscription_last_acked_timestamp{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_last_consumed_flow_timestamp gauge
+pulsar_subscription_last_consumed_flow_timestamp{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 1617950344921 1617950344967
+# TYPE pulsar_subscription_last_consumed_timestamp gauge
+pulsar_subscription_last_consumed_timestamp{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_last_mark_delete_advanced_timestamp gauge
+pulsar_subscription_last_mark_delete_advanced_timestamp{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_subscription_msg_rate_expired gauge
+pulsar_subscription_msg_rate_expired{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0.0 1617950344967
+# TYPE pulsar_subscription_total_msg_expired gauge
+pulsar_subscription_total_msg_expired{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1",subscription="test-sub"} 0 1617950344967
+# TYPE pulsar_in_bytes_total gauge
+pulsar_in_bytes_total{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+# TYPE pulsar_in_messages_total gauge
+pulsar_in_messages_total{cluster="use",namespace="external-repl-prop/io",topic="persistent://external-repl-prop/io/my-topic1"} 0.0 1617950344967
+pulsar_topics_count{cluster="use",namespace="external-repl-prop/io"} 1 1617950344967
+pulsar_subscriptions_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_producers_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 1.0 1617950344967
+pulsar_consumers_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_rate_in{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_rate_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_throughput_in{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_throughput_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 1728.0 1617950344967
+pulsar_msg_backlog{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_backlog_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_offloaded_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_backlog_quota_limit{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} -1073741824.0 1617950344967
+pulsar_storage_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_1{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_10{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_20{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_50{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_100{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_200{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_le_1000{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344967
+pulsar_storage_write_latency_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_write_latency_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_write_latency_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_1{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_10{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_20{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_50{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_100{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_200{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_1000{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_128{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_512{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_1_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_2_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_4_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_16_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_100_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_1_mb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_le_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_entry_size_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 0.0 1617950344968
+pulsar_in_bytes_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 864.0 1617950344968
+pulsar_in_messages_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/metadata"} 2.0 1617950344968
+pulsar_subscriptions_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_producers_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 1.0 1617950344968
+pulsar_consumers_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_rate_in{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_rate_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_throughput_in{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_throughput_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 1748.0 1617950344968
+pulsar_msg_backlog{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_backlog_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_offloaded_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_backlog_quota_limit{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} -1073741824.0 1617950344968
+pulsar_storage_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_1{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_10{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_20{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_50{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_100{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_200{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_le_1000{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_write_latency_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_1{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_10{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_20{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_50{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_100{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_200{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_1000{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_128{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_512{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_1_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_2_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_4_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_16_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_100_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_1_mb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_le_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_entry_size_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 0.0 1617950344968
+pulsar_in_bytes_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 874.0 1617950344968
+pulsar_in_messages_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/assignment"} 2.0 1617950344968
+pulsar_subscriptions_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 1.0 1617950344968
+pulsar_producers_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_consumers_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 1.0 1617950344968
+pulsar_rate_in{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_rate_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_throughput_in{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_throughput_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_msg_backlog{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_backlog_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_offloaded_size{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_backlog_quota_limit{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} -1073741824.0 1617950344968
+pulsar_storage_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_1{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_10{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_20{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_50{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_100{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_200{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_le_1000{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_write_latency_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_0_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_1{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_5{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_10{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_20{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_50{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_100{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_200{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_le_1000{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_storage_ledger_write_latency_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_128{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_512{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_1_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_2_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_4_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_16_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_100_kb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_1_mb{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_le_overflow{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_entry_size_sum{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_subscription_back_log{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_back_log_no_delayed{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_delayed{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_msg_rate_redeliver{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0.0 1617950344968
+pulsar_subscription_unacked_messages{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_blocked_on_unacked_messages{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_msg_rate_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0.0 1617950344968
+pulsar_subscription_msg_throughput_out{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0.0 1617950344968
+pulsar_out_bytes_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_out_messages_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_last_expire_timestamp{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_last_acked_timestamp{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_last_consumed_flow_timestamp{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 1617950342238 1617950344968
+pulsar_subscription_last_consumed_timestamp{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_last_mark_delete_advanced_timestamp{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_subscription_msg_rate_expired{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0.0 1617950344968
+pulsar_subscription_total_msg_expired{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate",subscription="participants"} 0 1617950344968
+pulsar_in_bytes_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_in_messages_total{cluster="use",namespace="external-repl-prop/pulsar-function-admin",topic="persistent://external-repl-prop/pulsar-function-admin/coordinate"} 0.0 1617950344968
+pulsar_topics_count{cluster="use",namespace="external-repl-prop/pulsar-function-admin"} 3 1617950344968
+pulsar_function_worker_schedule_execution_time_total_ms{cluster="use",quantile="0.5",} 39.596969
+pulsar_function_worker_schedule_execution_time_total_ms{cluster="use",quantile="0.9",} 84.478748
+pulsar_function_worker_schedule_execution_time_total_ms{cluster="use",quantile="1.0",} 125.453621
+pulsar_function_worker_schedule_execution_time_total_ms_count{cluster="use",} 3.0
+pulsar_function_worker_schedule_execution_time_total_ms_sum{cluster="use",} 249.529338
+pulsar_function_worker_schedule_strategy_execution_time_ms{cluster="use",quantile="0.5",} 0.0035
+pulsar_function_worker_schedule_strategy_execution_time_ms{cluster="use",quantile="0.9",} 0.0058
+pulsar_function_worker_schedule_strategy_execution_time_ms{cluster="use",quantile="1.0",} 0.444901
+pulsar_function_worker_schedule_strategy_execution_time_ms_count{cluster="use",} 3.0
+pulsar_function_worker_schedule_strategy_execution_time_ms_sum{cluster="use",} 0.45420099999999997
+pulsar_function_worker_rebalance_strategy_execution_time_ms{cluster="use",quantile="0.5",} NaN
+pulsar_function_worker_rebalance_strategy_execution_time_ms{cluster="use",quantile="0.9",} NaN
+pulsar_function_worker_rebalance_strategy_execution_time_ms{cluster="use",quantile="1.0",} NaN
+pulsar_function_worker_rebalance_strategy_execution_time_ms_count{cluster="use",} 0.0
+pulsar_function_worker_rebalance_strategy_execution_time_ms_sum{cluster="use",} 0.0
+pulsar_function_worker_stop_instance_process_time_ms{cluster="use",quantile="0.5",} 108.794191
+pulsar_function_worker_stop_instance_process_time_ms{cluster="use",quantile="0.9",} 108.794191
+pulsar_function_worker_stop_instance_process_time_ms{cluster="use",quantile="1.0",} 108.794191
+pulsar_function_worker_stop_instance_process_time_ms_count{cluster="use",} 1.0
+pulsar_function_worker_stop_instance_process_time_ms_sum{cluster="use",} 108.794191
+pulsar_function_worker_instance_count{cluster="use",} 1.0
+pulsar_function_worker_start_up_time_ms_count{cluster="use",} 1.0
+pulsar_function_worker_start_up_time_ms_sum{cluster="use",} 800.223605
+pulsar_function_worker_start_instance_process_time_ms{cluster="use",quantile="0.5",} 5.82621
+pulsar_function_worker_start_instance_process_time_ms{cluster="use",quantile="0.9",} 5.82621
+pulsar_function_worker_start_instance_process_time_ms{cluster="use",quantile="1.0",} 53.323294
+pulsar_function_worker_start_instance_process_time_ms_count{cluster="use",} 2.0
+pulsar_function_worker_start_instance_process_time_ms_sum{cluster="use",} 59.14950399999999
+pulsar_function_worker_rebalance_execution_time_total_ms{cluster="use",quantile="0.5",} NaN
+pulsar_function_worker_rebalance_execution_time_total_ms{cluster="use",quantile="0.9",} NaN
+pulsar_function_worker_rebalance_execution_time_total_ms{cluster="use",quantile="1.0",} NaN
+pulsar_function_worker_rebalance_execution_time_total_ms_count{cluster="use",} 0.0
+pulsar_function_worker_rebalance_execution_time_total_ms_sum{cluster="use",} 0.0
+pulsar_function_worker_total_function_count{cluster="use",} 1
+pulsar_function_worker_total_expected_instance_count{cluster="use",} 1
+pulsar_function_worker_is_leader{cluster="use",} 1
+pulsar_function_last_invocation{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_processed_successfully_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_received_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_user_exceptions_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_process_latency_ms_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.5",} NaN
+pulsar_function_process_latency_ms_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.9",} NaN
+pulsar_function_process_latency_ms_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.99",} NaN
+pulsar_function_process_latency_ms_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.999",} NaN
+pulsar_function_process_latency_ms_1min_count{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_process_latency_ms_1min_sum{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_processed_successfully_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_received_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_system_exceptions_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_process_latency_ms{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.5",} NaN
+pulsar_function_process_latency_ms{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.9",} NaN
+pulsar_function_process_latency_ms{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.99",} NaN
+pulsar_function_process_latency_ms{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.999",} NaN
+pulsar_function_process_latency_ms_count{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_process_latency_ms_sum{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_system_exceptions_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_user_exceptions_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+# TYPE pulsar_ml_cache_evictions gauge
+pulsar_ml_cache_evictions{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_hits_rate gauge
+pulsar_ml_cache_hits_rate{cluster="use"} 0.0 1617950344971
+# TYPE pulsar_ml_cache_hits_throughput gauge
+pulsar_ml_cache_hits_throughput{cluster="use"} 0.0 1617950344971
+# TYPE pulsar_ml_cache_misses_rate gauge
+pulsar_ml_cache_misses_rate{cluster="use"} 0.0 1617950344971
+# TYPE pulsar_ml_cache_misses_throughput gauge
+pulsar_ml_cache_misses_throughput{cluster="use"} 0.0 1617950344971
+# TYPE pulsar_ml_cache_pool_active_allocations gauge
+pulsar_ml_cache_pool_active_allocations{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_pool_active_allocations_huge gauge
+pulsar_ml_cache_pool_active_allocations_huge{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_pool_active_allocations_normal gauge
+pulsar_ml_cache_pool_active_allocations_normal{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_pool_active_allocations_small gauge
+pulsar_ml_cache_pool_active_allocations_small{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_pool_active_allocations_tiny gauge
+pulsar_ml_cache_pool_active_allocations_tiny{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_pool_allocated gauge
+pulsar_ml_cache_pool_allocated{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_pool_used gauge
+pulsar_ml_cache_pool_used{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_cache_used_size gauge
+pulsar_ml_cache_used_size{cluster="use"} 0 1617950344971
+# TYPE pulsar_ml_count gauge
+pulsar_ml_count{cluster="use"} 4 1617950344971
+# TYPE pulsar_ml_AddEntryBytesRate gauge
+pulsar_ml_AddEntryBytesRate{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_AddEntryErrors gauge
+pulsar_ml_AddEntryErrors{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_AddEntryLatencyBuckets gauge
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="0.0_0.5"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="0.5_1.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="1.0_5.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="10.0_20.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="100.0_200.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="20.0_50.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="200.0_1000.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="5.0_10.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="50.0_100.0"} 0.0 1617950344972
+# TYPE pulsar_ml_AddEntryLatencyBuckets_OVERFLOW gauge
+pulsar_ml_AddEntryLatencyBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_AddEntryMessagesRate gauge
+pulsar_ml_AddEntryMessagesRate{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_AddEntrySucceed gauge
+pulsar_ml_AddEntrySucceed{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_EntrySizeBuckets gauge
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="0.0_128.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="1024.0_2048.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="102400.0_1232896.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="128.0_512.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="16384.0_102400.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="2048.0_4096.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="4096.0_16384.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="512.0_1024.0"} 0.0 1617950344972
+# TYPE pulsar_ml_EntrySizeBuckets_OVERFLOW gauge
+pulsar_ml_EntrySizeBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_LedgerAddEntryLatencyBuckets gauge
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="0.0_0.5"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="0.5_1.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="1.0_5.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="10.0_20.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="100.0_200.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="20.0_50.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="200.0_1000.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="5.0_10.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="50.0_100.0"} 0.0 1617950344972
+# TYPE pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW gauge
+pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_LedgerSwitchLatencyBuckets gauge
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="0.0_0.5"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="0.5_1.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="1.0_5.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="10.0_20.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="100.0_200.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="20.0_50.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="200.0_1000.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="5.0_10.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/io/persistent", quantile="50.0_100.0"} 0.0 1617950344972
+# TYPE pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW gauge
+pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_MarkDeleteRate gauge
+pulsar_ml_MarkDeleteRate{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_NumberOfMessagesInBacklog gauge
+pulsar_ml_NumberOfMessagesInBacklog{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_ReadEntriesBytesRate gauge
+pulsar_ml_ReadEntriesBytesRate{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_ReadEntriesErrors gauge
+pulsar_ml_ReadEntriesErrors{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_ReadEntriesRate gauge
+pulsar_ml_ReadEntriesRate{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_ReadEntriesSucceeded gauge
+pulsar_ml_ReadEntriesSucceeded{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+# TYPE pulsar_ml_StoredMessagesSize gauge
+pulsar_ml_StoredMessagesSize{cluster="use", namespace="external-repl-prop/io/persistent"} 0.0 1617950344972
+pulsar_ml_AddEntryBytesRate{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_AddEntryErrors{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="0.0_0.5"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="0.5_1.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="1.0_5.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="10.0_20.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="100.0_200.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="20.0_50.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="200.0_1000.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="5.0_10.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="50.0_100.0"} 0.0 1617950344972
+pulsar_ml_AddEntryLatencyBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_AddEntryMessagesRate{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_AddEntrySucceed{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="0.0_128.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="1024.0_2048.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="102400.0_1232896.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="128.0_512.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="16384.0_102400.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="2048.0_4096.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="4096.0_16384.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="512.0_1024.0"} 0.0 1617950344972
+pulsar_ml_EntrySizeBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="0.0_0.5"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="0.5_1.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="1.0_5.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="10.0_20.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="100.0_200.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="20.0_50.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="200.0_1000.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="5.0_10.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="50.0_100.0"} 0.0 1617950344972
+pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="0.0_0.5"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="0.5_1.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="1.0_5.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="10.0_20.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="100.0_200.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="20.0_50.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="200.0_1000.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="5.0_10.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent", quantile="50.0_100.0"} 0.0 1617950344972
+pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_MarkDeleteRate{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_NumberOfMessagesInBacklog{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_ReadEntriesBytesRate{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_ReadEntriesErrors{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_ReadEntriesRate{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_ReadEntriesSucceeded{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 0.0 1617950344972
+pulsar_ml_StoredMessagesSize{cluster="use", namespace="external-repl-prop/pulsar-function-admin/persistent"} 3476.0 1617950344972
+# TYPE pulsar_active_connections gauge
+pulsar_active_connections{cluster="use", broker="localhost", metric="broker_connection"} 3 1617950344972
+# TYPE pulsar_connection_closed_total_count gauge
+pulsar_connection_closed_total_count{cluster="use", broker="localhost", metric="broker_connection"} 0 1617950344972
+# TYPE pulsar_connection_create_fail_count gauge
+pulsar_connection_create_fail_count{cluster="use", broker="localhost", metric="broker_connection"} 0 1617950344972
+# TYPE pulsar_connection_create_success_count gauge
+pulsar_connection_create_success_count{cluster="use", broker="localhost", metric="broker_connection"} 3 1617950344972
+# TYPE pulsar_connection_created_total_count gauge
+pulsar_connection_created_total_count{cluster="use", broker="localhost", metric="broker_connection"} 3 1617950344972
+# TYPE pulsar_lb_load_rank gauge
+pulsar_lb_load_rank{cluster="use", broker="localhost"} 19 1617950344972
+# TYPE pulsar_lb_quota_pct_bandwidth_in gauge
+pulsar_lb_quota_pct_bandwidth_in{cluster="use", broker="localhost"} 0.0 1617950344972
+# TYPE pulsar_lb_quota_pct_bandwidth_out gauge
+pulsar_lb_quota_pct_bandwidth_out{cluster="use", broker="localhost"} 0.0 1617950344972
+# TYPE pulsar_lb_quota_pct_cpu gauge
+pulsar_lb_quota_pct_cpu{cluster="use", broker="localhost"} 0.0 1617950344972
+# TYPE pulsar_lb_quota_pct_memory gauge
+pulsar_lb_quota_pct_memory{cluster="use", broker="localhost"} 0.0 1617950344972

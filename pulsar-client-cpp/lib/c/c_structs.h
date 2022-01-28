@@ -75,7 +75,7 @@ struct _pulsar_topic_metadata {
 
 typedef void (*pulsar_result_callback)(pulsar_result res, void* ctx);
 
-static void handle_result_callback(pulsar::Result result, pulsar_result_callback callback, void* ctx) {
+inline void handle_result_callback(pulsar::Result result, pulsar_result_callback callback, void* ctx) {
     if (callback) {
         callback((pulsar_result)result, ctx);
     }

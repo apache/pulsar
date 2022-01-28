@@ -37,6 +37,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.netty.buffer.ByteBuf;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -61,7 +64,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     void readFromEmptyLedger() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 0);
         entries.forEach(e -> e.release());
@@ -104,7 +107,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     void testZNodeBypassed() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         assertFalse(Iterables.isEmpty(ledger.getCursors()));
 
         c1.close();
@@ -120,8 +123,8 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger",
                 new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.latest);
-        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.LATEST);
+        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.LATEST);
 
         ledger.addEntry("entry-1".getBytes(Encoding));
         ledger.addEntry("entry-2".getBytes(Encoding));
@@ -147,12 +150,14 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     void readWithCacheDisabled() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
-        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), config);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
                 .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.latest);
-        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.LATEST);
+        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.LATEST);
 
         ledger.addEntry("entry-1".getBytes(Encoding));
         ledger.addEntry("entry-2".getBytes(Encoding));
@@ -181,7 +186,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
                 .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.LATEST);
 
         ledger.close();
 
@@ -198,15 +203,15 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
                 .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
-        ManagedCursor c3 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c3 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         ledger.addEntry("dummy-entry-3".getBytes(Encoding));
-        ManagedCursor c4 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c4 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         ledger.addEntry("dummy-entry-4".getBytes(Encoding));
-        ManagedCursor c5 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c5 = ledger.newNonDurableCursor(PositionImpl.LATEST);
 
         assertEquals(c1.getNumberOfEntries(), 4);
         assertTrue(c1.hasMoreEntries());
@@ -235,15 +240,15 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
                 .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         Position p1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c2 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
-        ManagedCursor c3 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c3 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         Position p3 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
-        ManagedCursor c4 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c4 = ledger.newNonDurableCursor(PositionImpl.LATEST);
         Position p4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
-        ManagedCursor c5 = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor c5 = ledger.newNonDurableCursor(PositionImpl.LATEST);
 
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
         assertEquals(c2.getNumberOfEntriesInBacklog(false), 3);
@@ -323,10 +328,17 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void markDeleteGreaterThanLastConfirmedEntry() throws Exception {
+        ManagedLedger ml1 = factory.open("my_test_ledger");
+        ManagedCursor mc1 = ml1.newNonDurableCursor(PositionImpl.get(Long.MAX_VALUE - 1, Long.MAX_VALUE - 1));
+        assertEquals(mc1.getMarkDeletedPosition(), ml1.getLastConfirmedEntry());
+    }
+
+    @Test(timeOut = 20000)
     void testResetCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.LATEST);
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
         ledger.addEntry("dummy-entry-3".getBytes(Encoding));
@@ -350,7 +362,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     void testasyncResetCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.LATEST);
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
         ledger.addEntry("dummy-entry-3".getBytes(Encoding));
@@ -383,7 +395,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     void rewind() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
                 .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         Position p1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         Position p2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
         Position p3 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
@@ -434,7 +446,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void markDeleteSkippingMessage() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         Position p1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         Position p2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
         ledger.addEntry("dummy-entry-3".getBytes(Encoding));
@@ -478,7 +490,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
                 }
 
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     lastPosition.set(position);
                     c1.asyncMarkDelete(position, new MarkDeleteCallback() {
                         @Override
@@ -499,12 +511,12 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntries(), 0);
 
         // Reopen
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = factory2.open("my_test_ledger");
         ManagedCursor c2 = ledger.openCursor("c1");
 
         assertEquals(c2.getMarkDeletedPosition(), lastPosition.get());
-        factory2.shutdown();
     }
 
     @Test(timeOut = 20000)
@@ -530,7 +542,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     void testSingleDelete() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(3)
                 .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.latest);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.LATEST);
 
         Position p1 = ledger.addEntry("entry1".getBytes());
         Position p2 = ledger.addEntry("entry2".getBytes());
@@ -576,7 +588,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         Position p3 = ledger.addEntry("entry-3".getBytes());
 
         Thread.sleep(300);
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         assertEquals(c1.getReadPosition(), p3);
         assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(5, -1));
     }
@@ -593,7 +605,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         /* Position p5 = */ ledger.addEntry("entry-5".getBytes());
         /* Position p6 = */ ledger.addEntry("entry-6".getBytes());
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         assertEquals(c1.getReadPosition(), p1);
         assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(3, -1));
         assertEquals(c1.getNumberOfEntries(), 6);
@@ -686,7 +698,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testBacklogStatsWhenDroppingData",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
         ManagedCursor c1 = ledger.openCursor("c1");
-        ManagedCursor nonDurableCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor nonDurableCursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
 
         assertEquals(nonDurableCursor.getNumberOfEntries(), 0);
         assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 0);
@@ -744,7 +756,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     void deleteNonDurableCursorWithName() throws Exception {
         ManagedLedger ledger = factory.open("deleteManagedLedgerWithNonDurableCursor");
 
-        ManagedCursor c = ledger.newNonDurableCursor(PositionImpl.earliest, "custom-name");
+        ManagedCursor c = ledger.newNonDurableCursor(PositionImpl.EARLIEST, "custom-name");
         assertEquals(Iterables.size(ledger.getCursors()), 1);
 
         ledger.deleteCursor(c.getName());

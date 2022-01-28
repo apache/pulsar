@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -31,9 +33,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.testng.Assert;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
@@ -49,7 +48,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         return entry;
     }
 
-    public void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
+    protected void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-cli-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
@@ -121,7 +120,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
-    public void testPublishOffloadAndConsumeViaThreshold(String serviceUrl, String adminUrl) throws Exception {
+    protected void testPublishOffloadAndConsumeViaThreshold(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-threshold-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";
@@ -241,7 +240,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
-    public void testPublishOffloadAndConsumeDeletionLag(String serviceUrl, String adminUrl) throws Exception {
+    protected void testPublishOffloadAndConsumeDeletionLag(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-deletion-lag-" + randomName(4);
         final String namespace = tenant + "/ns1";
         final String topic = "persistent://" + namespace + "/topic1";

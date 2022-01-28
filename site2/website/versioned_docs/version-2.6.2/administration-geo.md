@@ -46,6 +46,44 @@ All messages produced in any of the three clusters are delivered to all subscrip
 
 As stated in [Geo-replication and Pulsar properties](#geo-replication-and-pulsar-properties) section, geo-replication in Pulsar is managed at the [tenant](reference-terminology.md#tenant) level.
 
+The following example connects three clusters: **us-east**, **us-west**, and **us-cent**.
+
+### Connect replication clusters
+
+To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool to create a connection.
+
+**Example**
+
+Suppose that you have 3 replication clusters: `us-west`, `us-cent`, and `us-east`.
+
+1. Configure the connection from `us-west` to `us-east`.
+
+   Run the following command on `us-west`.
+
+```shell
+$ bin/pulsar-admin clusters create \
+  --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
+  --url http://<DNS-OF-US-EAST>:<PORT> \
+  us-east
+```
+
+> #### Tip
+>
+> If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](https://pulsar.apache.org/tools/pulsar-admin/).
+
+2. Configure the connection from `us-west` to `us-cent`.
+
+   Run the following command on `us-west`.
+
+```shell
+$ bin/pulsar-admin clusters create \
+  --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
+  --url http://<DNS-OF-US-CENT>:<PORT> \
+  us-cent
+```
+
+3. Run similar commands on `us-east` and `us-cent` to create connections among clusters.
+
 ### Grant permissions to properties
 
 To replicate to a cluster, the tenant needs permission to use that cluster. You can grant permission to the tenant when you create the tenant or grant later.
@@ -154,4 +192,5 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 
 ### Limitations
 
-When you enable replicated subscription, you're creating a consistent distributed snapshot to establish an association between message ids from different clusters. The snapshots are taken periodically. The default value is `1 second`. It means that a consumer failing over to a different cluster can potentially receive 1 second of duplicates. You can also configure the frequency of the snapshot in the `broker.conf` file.
+* When you enable replicated subscription, you're creating a consistent distributed snapshot to establish an association between message ids from different clusters. The snapshots are taken periodically. The default value is `1 second`. It means that a consumer failing over to a different cluster can potentially receive 1 second of duplicates. You can also configure the frequency of the snapshot in the `broker.conf` file.
+* Only the base line cursor position is synced in replicated subscriptions while the individual acknowledgments are not synced. This means the messages acknowledged out-of-order could end up getting delivered again, in the case of a cluster failover.

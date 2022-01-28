@@ -18,12 +18,16 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
 /**
  * Management Bean for a {@link ManagedLedger}.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface ManagedLedgerMXBean {
 
     /**
@@ -35,6 +39,11 @@ public interface ManagedLedgerMXBean {
      * @return the total size of the messages in active ledgers (accounting for the multiple copies stored)
      */
     long getStoredMessagesSize();
+
+    /**
+     * @return the total size of the messages in active ledgers (without accounting for replicas)
+     */
+    long getStoredMessagesLogicalSize();
 
     /**
      * @return the number of backlog messages for all the consumers
@@ -50,6 +59,11 @@ public interface ManagedLedgerMXBean {
      * @return the bytes/s rate of messages added
      */
     double getAddEntryBytesRate();
+
+    /**
+     * @return the bytes/s rate of messages added with replicas
+     */
+    double getAddEntryWithReplicasBytesRate();
 
     /**
      * @return the msg/s rate of messages read
@@ -107,4 +121,10 @@ public interface ManagedLedgerMXBean {
     StatsBuckets getInternalEntrySizeBuckets();
 
     PendingBookieOpsStats getPendingBookieOpsStats();
+
+    double getLedgerAddEntryLatencyAverageUsec();
+
+    long[] getLedgerAddEntryLatencyBuckets();
+
+    StatsBuckets getInternalLedgerAddEntryLatencyBuckets();
 }

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.ssl.SslContext;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -28,11 +32,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.ssl.SslContext;
 import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PulsarVersion;
@@ -58,8 +57,8 @@ import org.asynchttpclient.netty.ssl.JsseSslEngineFactory;
 @Slf4j
 public class HttpClient implements Closeable {
 
-    protected final static int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected final static int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
+    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;
     protected final ServiceNameResolver serviceNameResolver;
@@ -112,13 +111,14 @@ public class HttpClient implements Closeable {
                 } else {
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(
-                                conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(),
-                                authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
-                    }
-                    else {
+                        sslCtx = authData.getTlsTrustStoreStream() == null
+                                ? SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey())
+                                : SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                        authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey());
+                    } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath());
@@ -216,7 +216,8 @@ public class HttpClient implements Closeable {
                     }
 
                     try {
-                        T data = ObjectMapperFactory.getThreadLocal().readValue(response2.getResponseBodyAsBytes(), clazz);
+                        T data = ObjectMapperFactory.getThreadLocal().readValue(
+                                response2.getResponseBodyAsBytes(), clazz);
                         future.complete(data);
                     } catch (Exception e) {
                         log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());

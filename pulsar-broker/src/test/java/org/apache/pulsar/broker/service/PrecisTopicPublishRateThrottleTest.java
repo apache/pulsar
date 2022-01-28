@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+@Test(groups = "broker")
 public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Override

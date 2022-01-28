@@ -19,14 +19,14 @@
 package org.apache.pulsar.common.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.MoreObjects;
-
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Builder;
 
 /**
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
@@ -50,31 +50,23 @@ import java.util.function.Supplier;
  * </ul>
  */
 public class RateLimiter implements AutoCloseable{
-
     private final ScheduledExecutorService executorService;
     private long rateTime;
     private TimeUnit timeUnit;
     private final boolean externalExecutor;
     private ScheduledFuture<?> renewTask;
-    private long permits;
-    private long acquiredPermits;
+    private volatile long permits;
+    private volatile long acquiredPermits;
     private boolean isClosed;
     // permitUpdate helps to update permit-rate at runtime
     private Supplier<Long> permitUpdater;
     private RateLimitFunction rateLimitFunction;
+    private boolean isDispatchOrPrecisePublishRateLimiter;
 
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
-        this(null, permits, rateTime, timeUnit, null);
-    }
-
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit,
-                       RateLimitFunction autoReadResetFunction) {
-        this(null, permits, rateTime, timeUnit, null);
-        this.rateLimitFunction = autoReadResetFunction;
-    }
-
-    public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-            final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
+    @Builder
+    RateLimiter(final ScheduledExecutorService scheduledExecutorService, final long permits, final long rateTime,
+            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchOrPrecisePublishRateLimiter,
+                       RateLimitFunction rateLimitFunction) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
@@ -82,9 +74,10 @@ public class RateLimiter implements AutoCloseable{
         this.timeUnit = timeUnit;
         this.permits = permits;
         this.permitUpdater = permitUpdater;
+        this.isDispatchOrPrecisePublishRateLimiter = isDispatchOrPrecisePublishRateLimiter;
 
-        if (service != null) {
-            this.executorService = service;
+        if (scheduledExecutorService != null) {
+            this.executorService = scheduledExecutorService;
             this.externalExecutor = true;
         } else {
             final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
@@ -94,6 +87,14 @@ public class RateLimiter implements AutoCloseable{
             this.externalExecutor = false;
         }
 
+        this.rateLimitFunction = rateLimitFunction;
+
+    }
+
+    // default values for Lombok generated builder class
+    public static class RateLimiterBuilder {
+        private long rateTime = 1;
+        private TimeUnit timeUnit = TimeUnit.SECONDS;
     }
 
     @Override
@@ -106,6 +107,10 @@ public class RateLimiter implements AutoCloseable{
                 renewTask.cancel(false);
             }
             isClosed = true;
+            // If there is a ratelimit function registered, invoke it to unblock.
+            if (rateLimitFunction != null) {
+                rateLimitFunction.apply();
+            }
         }
     }
 
@@ -174,15 +179,26 @@ public class RateLimiter implements AutoCloseable{
             renewTask = createTask();
         }
 
-        // acquired-permits can't be larger than the rate
-        if (acquirePermit > this.permits) {
-            acquiredPermits = this.permits;
-            return false;
-        }
         boolean canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
-        if (canAcquire) {
+        if (isDispatchOrPrecisePublishRateLimiter) {
+            // for dispatch rate limiter just add acquirePermit
             acquiredPermits += acquirePermit;
+
+            // we want to back-pressure from the current state of the rateLimiter therefore we should check if there
+            // are any available premits again
+            canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
+        } else {
+            // acquired-permits can't be larger than the rate
+            if (acquirePermit > this.permits) {
+                acquiredPermits = this.permits;
+                return false;
+            }
+
+            if (canAcquire) {
+                acquiredPermits += acquirePermit;
+            }
         }
+
         return canAcquire;
     }
 
@@ -191,7 +207,7 @@ public class RateLimiter implements AutoCloseable{
      *
      * @return returns 0 if permits is not available
      */
-    public synchronized long getAvailablePermits() {
+    public long getAvailablePermits() {
         return Math.max(0, this.permits - this.acquiredPermits);
     }
 
@@ -241,18 +257,20 @@ public class RateLimiter implements AutoCloseable{
     }
 
     protected ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(this::renew, this.rateTime, this.rateTime, this.timeUnit);
+        return executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::renew), this.rateTime,
+                this.rateTime, this.timeUnit);
     }
 
     synchronized void renew() {
-        acquiredPermits = 0;
+        acquiredPermits = isDispatchOrPrecisePublishRateLimiter ? Math.max(0, acquiredPermits - permits) : 0;
         if (permitUpdater != null) {
             long newPermitRate = permitUpdater.get();
             if (newPermitRate > 0) {
                 setRate(newPermitRate);
             }
         }
-        if (rateLimitFunction != null) {
+        // release the back-pressure by applying the rateLimitFunction only when there are available permits
+        if (rateLimitFunction != null && this.getAvailablePermits() > 0) {
             rateLimitFunction.apply();
         }
         notifyAll();

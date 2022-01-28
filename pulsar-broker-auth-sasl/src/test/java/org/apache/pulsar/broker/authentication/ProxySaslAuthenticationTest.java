@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.authentication;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -34,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.login.Configuration;
 
+import lombok.Cleanup;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -160,7 +160,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("created AuthenticationSasl");
 	}
 
-	@AfterClass
+	@AfterClass(alwaysRun = true)
 	public static void stopMiniKdc() {
 		System.clearProperty("java.security.auth.login.config");
 		System.clearProperty("java.security.krb5.conf");
@@ -206,7 +206,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	@Override
-	@AfterMethod
+	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
 		super.internalCleanup();
 	}
@@ -249,6 +249,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("1 proxy service started {}", proxyService);
 
 		// Step 3: Pass correct client params
+		@Cleanup
 		PulsarClient proxyClient = createProxyClient(proxyServiceUrl, 1);
 		log.info("2 create proxy client {}, {}", proxyServiceUrl, proxyClient);
 
@@ -265,7 +266,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		}
 
 		Message<byte[]> msg = null;
-		Set<String> messageSet = Sets.newHashSet();
+		Set<String> messageSet = new HashSet<>();
 		for (int i = 0; i < 10; i++) {
 			msg = consumer.receive(5, TimeUnit.SECONDS);
 			String receivedMessage = new String(msg.getData());
@@ -277,7 +278,6 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		consumer.acknowledgeCumulative(msg);
 		consumer.close();
 
-		proxyClient.close();
 		proxyService.close();
 	}
 

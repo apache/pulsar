@@ -19,48 +19,50 @@
 package org.apache.pulsar.io;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
-
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestTemporaryDirectory;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService.PulsarClientCreator;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
@@ -71,21 +73,20 @@ import org.testng.annotations.Test;
 
 /**
  * Test Pulsar function TLS authentication
- *
  */
+@Test(groups = "broker-io")
 public class PulsarFunctionTlsTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
     ServiceConfiguration config;
     WorkerConfig workerConfig;
-    URL urlTls;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
     String workerId;
     WorkerServer workerServer;
     PulsarAdmin functionAdmin;
-    private List<String> namespaceList = new LinkedList<>();
+    private final List<String> namespaceList = new LinkedList<>();
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
@@ -93,6 +94,7 @@ public class PulsarFunctionTlsTest {
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionTlsTest.class);
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     void setup(Method method) throws Exception {
@@ -103,9 +105,10 @@ public class PulsarFunctionTlsTest {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
-        config = spy(new ServiceConfiguration());
+        config = spy(ServiceConfiguration.class);
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setClusterName("use");
-        Set<String> superUsers = Sets.newHashSet("superUser");
+        Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         Set<String> providers = new HashSet<>();
@@ -117,30 +120,34 @@ public class PulsarFunctionTlsTest {
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
-        functionsWorkerService = spy(createPulsarFunctionWorker(config));
-        AuthenticationService authenticationService = new AuthenticationService(config);
-        AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));
-        when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
-        when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
-        when(functionsWorkerService.isInitialized()).thenReturn(true);
 
         PulsarAdmin admin = mock(PulsarAdmin.class);
         Tenants tenants = mock(Tenants.class);
         when(admin.tenants()).thenReturn(tenants);
-        when(functionsWorkerService.getBrokerAdmin()).thenReturn(admin);
-        Set<String> admins = Sets.newHashSet("superUser");
-        TenantInfo tenantInfo = new TenantInfo(admins, null);
+        Set<String> admins = Sets.newHashSet("superUser", "admin");
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(admins, null);
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
         Namespaces namespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(namespaces);
         when(namespaces.getNamespaces(any())).thenReturn(namespaceList);
+
+        functionsWorkerService = spy(createPulsarFunctionWorker(config, admin));
+        doNothing().when(functionsWorkerService).initAsStandalone(any(WorkerConfig.class));
+        when(functionsWorkerService.getBrokerAdmin()).thenReturn(admin);
+        functionsWorkerService.init(workerConfig, null, false);
+
+        AuthenticationService authenticationService = new AuthenticationService(config);
+        AuthorizationService authorizationService = new AuthorizationService(config, mock(PulsarResources.class));
+        when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
+        when(functionsWorkerService.isInitialized()).thenReturn(true);
 
         // mock: once authentication passes, function should return response: function already exist
         FunctionMetaDataManager dataManager = mock(FunctionMetaDataManager.class);
         when(dataManager.containsFunction(any(), any(), any())).thenReturn(true);
         when(functionsWorkerService.getFunctionMetaDataManager()).thenReturn(dataManager);
 
-        workerServer = new WorkerServer(functionsWorkerService);
+        workerServer = new WorkerServer(functionsWorkerService, authenticationService);
         workerServer.start();
         Thread.sleep(2000);
         String functionTlsUrl = String.format("https://%s:%s",
@@ -159,17 +166,26 @@ public class PulsarFunctionTlsTest {
         Thread.sleep(100);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        functionAdmin.close();
-        bkEnsemble.stop();
-        workerServer.stop();
-        functionsWorkerService.stop();
+        try {
+            functionAdmin.close();
+            bkEnsemble.stop();
+            workerServer.stop();
+            functionsWorkerService.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
+        }
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
+                                                           PulsarAdmin mockPulsarAdmin) {
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -207,11 +223,23 @@ public class PulsarFunctionTlsTest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        return new WorkerService(workerConfig);
+        PulsarWorkerService workerService = new PulsarWorkerService(new PulsarClientCreator() {
+            @Override
+            public PulsarAdmin newPulsarAdmin(String pulsarServiceUrl, WorkerConfig workerConfig) {
+                return mockPulsarAdmin;
+            }
+
+            @Override
+            public PulsarClient newPulsarClient(String pulsarServiceUrl, WorkerConfig workerConfig) {
+                return null;
+            }
+        });
+
+        return workerService;
     }
 
     @Test
-    public void testAuthorization() throws Exception {
+    public void testAuthorization() {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -234,16 +262,24 @@ public class PulsarFunctionTlsTest {
 
     }
 
-    protected static FunctionConfig createFunctionConfig(String jarFile, String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String jarFile,
+                                                         String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         File file = new File(jarFile);
         try {
-            ClassLoaderUtils.loadJar(file);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to load user jar " + file, e);
+            ClassLoader classLoader = ClassLoaderUtils.loadJar(file);
+            if (classLoader instanceof Closeable) {
+                ((Closeable) classLoader).close();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to load user jar " + file, e);
         }
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
-        Class<?> typeArg = byte[].class;
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

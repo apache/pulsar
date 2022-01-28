@@ -35,7 +35,7 @@ int main() {
     Client client("pulsar://localhost:6650");
 
     Producer producer;
-    Result result = client.createProducer("persistent://prop/r1/ns1/my-topic", producer);
+    Result result = client.createProducer("persistent://public/default/my-topic", producer);
     if (result != ResultOk) {
         LOG_ERROR("Error creating producer: " << result);
         return -1;

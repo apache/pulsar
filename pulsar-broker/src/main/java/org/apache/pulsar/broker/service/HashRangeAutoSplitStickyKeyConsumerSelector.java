@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.client.api.Range;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * 2.The whole range of hash value could be covered by all the consumers.
  * 3.Once a consumer is removed, the left consumers could still serve the whole range.
  *
- * Initializing with a fixed hash range, by default 2 << 5.
+ * Initializing with a fixed hash range, by default 2 << 15.
  * First consumer added, hash range looks like:
  *
  * 0 -> 65536(consumer-1)
@@ -102,14 +102,25 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Consumer select(byte[] stickyKey) {
-        int hash = Murmur3_32Hash.getInstance().makeHash(stickyKey);
+    public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
         } else {
             return null;
         }
+    }
+
+    @Override
+    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
+        Map<Consumer, List<Range>> result = new HashMap<>();
+        int start = 0;
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
+                    .add(Range.of(start, entry.getKey()));
+            start = entry.getKey() + 1;
+        }
+        return result;
     }
 
     private int findBiggestRange() {
@@ -143,15 +154,9 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     private boolean is2Power(int num) {
-        if(num < 2) return false;
+        if (num < 2) {
+            return false;
+        }
         return (num & num - 1) == 0;
-    }
-
-    Map<Consumer, Integer> getConsumerRange() {
-        return Collections.unmodifiableMap(consumerRange);
-    }
-
-    Map<Integer, Consumer> getRangeConsumer() {
-        return Collections.unmodifiableMap(rangeMap);
     }
 }

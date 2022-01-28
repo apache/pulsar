@@ -38,8 +38,10 @@ public class Actions {
     @Builder(toBuilder=true)
     public static class Action {
         private String actionName;
+        @Builder.Default
         private int numRetries = 1;
         private Supplier<ActionResult> supplier;
+        @Builder.Default
         private long sleepBetweenInvocationsMs = 500;
         private Boolean continueOn;
         private Consumer<ActionResult> onFail;
@@ -94,12 +96,13 @@ public class Actions {
                 log.error("Uncaught exception thrown when running action [ {} ]:", action.getActionName(), e);
                 success = false;
             }
-            if (action.getContinueOn() != null
-                    && success == action.getContinueOn()) {
-                continue;
-            } else {
-                // terminate
-                break;
+            if (action.getContinueOn() != null) {
+                if (success == action.getContinueOn()) {
+                    continue;
+                } else {
+                    // terminate
+                    break;
+                }
             }
         }
     }

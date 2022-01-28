@@ -220,12 +220,13 @@ public class MiniKdc {
     }
 
     private void resetDefaultRealm() throws IOException {
-        InputStream templateResource = new FileInputStream(
-                getKrb5conf().getAbsolutePath());
-        String content = IOUtil.readInput(templateResource);
-        content = content.replaceAll("default_realm = .*\n",
-                "default_realm = " + getRealm() + "\n");
-        IOUtil.writeFile(content, getKrb5conf());
+        try (InputStream templateResource = new FileInputStream(
+                getKrb5conf().getAbsolutePath())) {
+            String content = IOUtil.readInput(templateResource);
+            content = content.replaceAll("default_realm = .*\n",
+                    "default_realm = " + getRealm() + "\n");
+            IOUtil.writeFile(content, getKrb5conf());
+        }
     }
 
     private void prepareKdcServer() throws Exception {

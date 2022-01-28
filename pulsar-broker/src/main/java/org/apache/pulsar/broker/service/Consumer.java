@@ -19,59 +19,57 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
-
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.Promise;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeyLongValue;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A Consumer is a consumer currently connected and associated with a Subscription
+ * A Consumer is a consumer currently connected and associated with a Subscription.
  */
 public class Consumer {
     private final Subscription subscription;
     private final SubType subType;
-    private final ServerCnx cnx;
+    private final TransportCnx cnx;
     private final String appId;
-    private AuthenticationDataSource authenticationData;
     private final String topicName;
     private final int partitionIdx;
     private final InitialPosition subscriptionInitialPosition;
@@ -87,7 +85,7 @@ public class Consumer {
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
-    private Rate chuckedMessageRate;
+    private Rate chunkedMessageRate;
 
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
@@ -104,9 +102,9 @@ public class Consumer {
 
     private final ConcurrentLongLongPairHashMap pendingAcks;
 
-    private final ConsumerStats stats;
+    private final ConsumerStatsImpl stats;
 
-    private final int maxUnackedMessages;
+    private final boolean isDurable;
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
@@ -114,7 +112,7 @@ public class Consumer {
 
     private final Map<String, String> metadata;
 
-    private final PulsarApi.KeySharedMeta keySharedMeta;
+    private final KeySharedMeta keySharedMeta;
 
     /**
      * It starts keep tracking the average messages per entry.
@@ -127,12 +125,16 @@ public class Consumer {
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
+    private PositionImpl readPositionWhenJoining;
+    private final String clientAddress; // IP address only, no port number included
+    private final MessageId startMessageId;
+    private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
-                    int maxUnackedMessages, ServerCnx cnx, String appId,
+                    boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -142,19 +144,21 @@ public class Consumer {
         this.priorityLevel = priorityLevel;
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
-        this.maxUnackedMessages = maxUnackedMessages;
+        this.isDurable = isDurable;
         this.subscriptionInitialPosition = subscriptionInitialPosition;
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
         this.msgOut = new Rate();
-        this.chuckedMessageRate = new Rate();
+        this.chunkedMessageRate = new Rate();
         this.msgRedeliver = new Rate();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
-        this.authenticationData = cnx.getAuthenticationData();
-        this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
 
+        // Ensure we start from compacted view
+        this.startMessageId = (readCompacted && startMessageId == null) ? MessageId.earliest : startMessageId;
+
+        this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
@@ -162,8 +166,12 @@ public class Consumer {
 
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
-        stats = new ConsumerStats();
-        stats.setAddress(cnx.clientAddress().toString());
+        stats = new ConsumerStatsImpl();
+        if (cnx.hasHAProxyMessage()) {
+            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
+        } else {
+            stats.setAddress(cnx.clientAddress().toString());
+        }
         stats.consumerName = consumerName;
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
@@ -175,6 +183,10 @@ public class Consumer {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
         }
+
+        this.clientAddress = cnx.clientSourceAddress();
+        this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
+                .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
     }
 
     public SubType subType() {
@@ -190,18 +202,11 @@ public class Consumer {
     }
 
     void notifyActiveConsumerChange(Consumer activeConsumer) {
-        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
-            // if the client is older than `v12`, we don't need to send consumer group changes.
-            return;
-        }
-
         if (log.isDebugEnabled()) {
             log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
                 consumerId, topicName, subscription.getName(), activeConsumer);
         }
-        cnx.ctx().writeAndFlush(
-            Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
-            cnx.ctx().voidPromise());
+        cnx.getCommandSender().sendActiveConsumerChange(consumerId, this == activeConsumer);
     }
 
     public boolean readCompacted() {
@@ -214,130 +219,85 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-
-    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-               int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
+    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+                                     EntryBatchIndexesAcks batchIndexesAcks,
+                                     int totalMessages, long totalBytes, long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
-        final ChannelHandlerContext ctx = cnx.ctx();
-        final ChannelPromise writePromise = ctx.newPromise();
 
         if (entries.isEmpty() || totalMessages == 0) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] List of messages is empty, triggering write future immediately for consumerId {}",
                         topicName, subscription, consumerId);
             }
-            writePromise.setSuccess();
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
             }
+            final Promise<Void> writePromise = cnx.newPromise();
+            writePromise.setSuccess(null);
             return writePromise;
         }
-
+        int unackedMessages = totalMessages;
         // Note
-        // Must ensure that the message is written to the pendingAcks before sent is first , because this consumer
+        // Must ensure that the message is written to the pendingAcks before sent is first, because this consumer
         // is possible to disconnect at this time.
         if (pendingAcks != null) {
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 if (entry != null) {
                     int batchSize = batchSizes.getBatchSize(i);
-                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                    int stickyKeyHash = getStickyKeyHash(entry);
+                    long[] ackSet = getCursorAckSet(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    if (ackSet != null) {
+                        unackedMessages -= (batchSize - BitSet.valueOf(ackSet).cardinality());
+                    }
+                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, stickyKeyHash);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}-{}] Added {}:{} ledger entry with batchSize of {} to pendingAcks in"
+                                        + " broker.service.Consumer for consumerId: {}",
+                                topicName, subscription, entry.getLedgerId(), entry.getEntryId(), batchSize,
+                                consumerId);
+                    }
                 }
             }
         }
 
         // calculate avg message per entry
         int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
-        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent +
-                    (1 - avgPercent) * totalMessages / entries.size());
+        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent
+                + (1 - avgPercent) * totalMessages / entries.size());
         AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
         MESSAGE_PERMITS_UPDATER.addAndGet(this, ackedCount - totalMessages);
-        incrementUnackedMessages(totalMessages);
+        if (log.isDebugEnabled()){
+            log.debug("[{}-{}] Added {} minus {} messages to MESSAGE_PERMITS_UPDATER in broker.service.Consumer"
+                            + " for consumerId: {}; avgMessagesPerEntry is {}",
+                   topicName, subscription, ackedCount, totalMessages, consumerId, tmpAvgMessagesPerEntry);
+        }
+        incrementUnackedMessages(unackedMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
         msgOutCounter.add(totalMessages);
         bytesOutCounter.add(totalBytes);
-        chuckedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
+        chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
 
-        ctx.channel().eventLoop().execute(() -> {
-            for (int i = 0; i < entries.size(); i++) {
-                Entry entry = entries.get(i);
-                if (entry == null) {
-                    // Entry was filtered out
-                    continue;
-                }
 
-                int batchSize = batchSizes.getBatchSize(i);
-
-                if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
-                    log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
-                            topicName, subscription,
-                            consumerId, entry.getLedgerId(), entry.getEntryId());
-                    ctx.close();
-                    entry.release();
-                    continue;
-                }
-
-                MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-                MessageIdData messageId = messageIdBuilder
-                    .setLedgerId(entry.getLedgerId())
-                    .setEntryId(entry.getEntryId())
-                    .setPartition(partitionIdx)
-                    .build();
-
-                ByteBuf metadataAndPayload = entry.getDataBuffer();
-                // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
-                metadataAndPayload.retain();
-                // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
-                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
-                    Commands.skipChecksumIfPresent(metadataAndPayload);
-                }
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{}", topicName, subscription,
-                            consumerId, entry.getLedgerId(), entry.getEntryId());
-                }
-
-                int redeliveryCount = 0;
-                PositionImpl position = PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId());
-                if (redeliveryTracker.contains(position)) {
-                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
-                }
-                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload,
-                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i)), ctx.voidPromise());
-                messageId.recycle();
-                messageIdBuilder.recycle();
-                entry.release();
-            }
-
-            // Use an empty write here so that we can just tie the flush with the write promise for last entry
-            ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
-            batchSizes.recyle();
-            if (batchIndexesAcks != null) {
-                batchIndexesAcks.recycle();
-            }
-        });
-
-        return writePromise;
+        return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
+                entries, batchSizes, batchIndexesAcks, redeliveryTracker);
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
         if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages
-                && maxUnackedMessages > 0) {
+                && addAndGetUnAckedMsgs(this, ackedMessages) >= getMaxUnackedMessages()
+                && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
 
     public boolean isWritable() {
         return cnx.isWritable();
-    }
-
-    public void sendError(ByteBuf error) {
-        cnx.ctx().writeAndFlush(error).addListener(ChannelFutureListener.CLOSE);
     }
 
     /**
@@ -367,87 +327,313 @@ public class Consumer {
         }
     }
 
-    void doUnsubscribe(final long requestId) {
-        final ChannelHandlerContext ctx = cnx.ctx();
-
+    public void doUnsubscribe(final long requestId) {
         subscription.doUnsubscribe(this).thenAccept(v -> {
             log.info("Unsubscribed successfully from {}", subscription);
             cnx.removedConsumer(this);
-            ctx.writeAndFlush(Commands.newSuccess(requestId));
+            cnx.getCommandSender().sendSuccess(requestId);
         }).exceptionally(exception -> {
             log.warn("Unsubscribe failed for {}", subscription, exception);
-            ctx.writeAndFlush(
-                    Commands.newError(requestId, BrokerServiceException.getClientErrorCode(exception),
-                            exception.getCause().getMessage()));
+            cnx.getCommandSender().sendError(requestId, BrokerServiceException.getClientErrorCode(exception),
+                    exception.getCause().getMessage());
             return null;
         });
     }
 
-    void messageAcked(CommandAck ack) {
+    public CompletableFuture<Void> messageAcked(CommandAck ack) {
         this.lastAckedTimestamp = System.currentTimeMillis();
-        Map<String,Long> properties = Collections.emptyMap();
+        Map<String, Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
-                .collect(Collectors.toMap((e) -> e.getKey(),
-                                          (e) -> e.getValue()));
+                .collect(Collectors.toMap(KeyLongValue::getKey, KeyLongValue::getValue));
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
-            if (ack.getMessageIdCount() != 1) {
+            if (ack.getMessageIdsCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
-                return;
             }
 
             if (Subscription.isIndividualAckMode(subType)) {
-                log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
-                return;
+                log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring",
+                        subscription, consumerId);
             }
-            PositionImpl position = PositionImpl.earliest;
-            if (ack.getMessageIdCount() == 1) {
-                MessageIdData msgId = ack.getMessageId(0);
-                if (msgId.getAckSetCount() > 0) {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+            PositionImpl position = PositionImpl.EARLIEST;
+            if (ack.getMessageIdsCount() == 1) {
+                MessageIdData msgId = ack.getMessageIdAt(0);
+                if (msgId.getAckSetsCount() > 0) {
+                    long[] ackSets = new long[msgId.getAckSetsCount()];
+                    for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                        ackSets[j] = msgId.getAckSetAt(j);
+                    }
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
                 } else {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
             }
-            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative, properties);
+            if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
+                List<PositionImpl> positionsAcked = Collections.singletonList(position);
+                return transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
+                        ack.getTxnidLeastBits(), positionsAcked);
+            } else {
+                List<Position> positionsAcked = Collections.singletonList(position);
+                subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
+                return CompletableFuture.completedFuture(null);
+            }
         } else {
-            // Individual ack
-            List<Position> positionsAcked = new ArrayList<>();
-            for (int i = 0; i < ack.getMessageIdCount(); i++) {
-                MessageIdData msgId = ack.getMessageId(i);
-                PositionImpl position;
-                if (msgId.getAckSetCount() > 0) {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
-                } else {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                }
-                positionsAcked.add(position);
-
-                if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
-                    removePendingAcks(position);
-                }
-
-                if (ack.hasValidationError()) {
-                    log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
-                            consumerId, position, ack.getValidationError());
-                }
+            if (ack.hasTxnidLeastBits() && ack.hasTxnidMostBits()) {
+                return individualAckWithTransaction(ack);
+            } else {
+                return individualAckNormal(ack, properties);
             }
-            subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
         }
     }
 
-    void flowPermits(int additionalNumberOfMessages) {
+    //this method is for individual ack not carry the transaction
+    private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
+        List<Position> positionsAcked = new ArrayList<>();
+        for (int i = 0; i < ack.getMessageIdsCount(); i++) {
+            MessageIdData msgId = ack.getMessageIdAt(i);
+            PositionImpl position;
+            long ackedCount = 0;
+            long batchSize = getBatchSize(msgId);
+            Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
+            if (msgId.getAckSetsCount() > 0) {
+                long[] ackSets = new long[msgId.getAckSetsCount()];
+                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                    ackSets[j] = msgId.getAckSetAt(j);
+                }
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
+                if (isTransactionEnabled()) {
+                    //sync the batch position bit set point, in order to delete the position in pending acks
+                    if (Subscription.isIndividualAckMode(subType)) {
+                        ((PersistentSubscription) subscription)
+                                .syncBatchPositionBitSetForPendingAck(position);
+                    }
+                }
+            } else {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+                    long[] cursorAckSet = getCursorAckSet(position);
+                    if (cursorAckSet != null) {
+                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
+                    } else {
+                        ackedCount = batchSize;
+                    }
+                } else {
+                    ackedCount = batchSize;
+                }
+            }
+
+            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+
+            positionsAcked.add(position);
+
+            checkCanRemovePendingAcksAndHandle(position, msgId);
+
+            checkAckValidationError(ack, position);
+        }
+        subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(null);
+        if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
+            completableFuture.whenComplete((v, e) -> positionsAcked.forEach(position -> {
+                //check if the position can remove from the consumer pending acks.
+                // the bit set is empty in pending ack handle.
+                if (((PositionImpl) position).getAckSet() != null) {
+                    if (((PersistentSubscription) subscription)
+                            .checkIsCanDeleteConsumerPendingAck((PositionImpl) position)) {
+                        removePendingAcks((PositionImpl) position);
+                    }
+                }
+            }));
+        }
+        return completableFuture;
+    }
+
+
+    //this method is for individual ack carry the transaction
+    private CompletableFuture<Void> individualAckWithTransaction(CommandAck ack) {
+        // Individual ack
+        List<MutablePair<PositionImpl, Integer>> positionsAcked = new ArrayList<>();
+        if (!isTransactionEnabled()) {
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
+        }
+
+        for (int i = 0; i < ack.getMessageIdsCount(); i++) {
+            MessageIdData msgId = ack.getMessageIdAt(i);
+            PositionImpl position;
+            if (msgId.getAckSetsCount() > 0) {
+                long[] acksSets = new long[msgId.getAckSetsCount()];
+                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                    acksSets[j] = msgId.getAckSetAt(j);
+                }
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), acksSets);
+            } else {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+            }
+
+            if (msgId.hasBatchIndex()) {
+                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
+            } else {
+                positionsAcked.add(new MutablePair<>(position, 0));
+            }
+
+            checkCanRemovePendingAcksAndHandle(position, msgId);
+
+            checkAckValidationError(ack, position);
+        }
+
+        CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
+                ack.getTxnidLeastBits(), positionsAcked);
+        if (Subscription.isIndividualAckMode(subType)) {
+            completableFuture.whenComplete((v, e) ->
+                    positionsAcked.forEach(positionLongMutablePair -> {
+                        if (positionLongMutablePair.getLeft().getAckSet() != null) {
+                            if (((PersistentSubscription) subscription)
+                                    .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
+                                removePendingAcks(positionLongMutablePair.left);
+                            }
+                        }
+                    }));
+        }
+        return completableFuture;
+    }
+
+    private long getBatchSize(MessageIdData msgId) {
+        long batchSize = 1;
+        if (Subscription.isIndividualAckMode(subType)) {
+            LongPair longPair = pendingAcks.get(msgId.getLedgerId(), msgId.getEntryId());
+            // Consumer may ack the msg that not belongs to it.
+            if (longPair == null) {
+                Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
+                longPair = ackOwnerConsumer.getPendingAcks().get(msgId.getLedgerId(), msgId.getEntryId());
+                if (longPair != null) {
+                    batchSize = longPair.first;
+                }
+            } else {
+                batchSize = longPair.first;
+            }
+        }
+        return batchSize;
+    }
+
+    private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
+        long ackedCount = 0;
+        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+            long[] cursorAckSet = getCursorAckSet(position);
+            if (cursorAckSet != null) {
+                BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
+                int lastCardinality = cursorBitSet.cardinality();
+                BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
+                cursorBitSet.and(givenBitSet);
+                givenBitSet.recycle();
+                int currentCardinality = cursorBitSet.cardinality();
+                ackedCount = lastCardinality - currentCardinality;
+                cursorBitSet.recycle();
+            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
+                ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
+            }
+        }
+        return ackedCount;
+    }
+
+    private long getUnAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize) {
+        long unAckedCount = batchSize;
+        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+            long[] cursorAckSet = getCursorAckSet(position);
+            if (cursorAckSet != null) {
+                BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
+                unAckedCount = cursorBitSet.cardinality();
+            }
+        }
+        return unAckedCount;
+    }
+
+    private void checkAckValidationError(CommandAck ack, PositionImpl position) {
+        if (ack.hasValidationError()) {
+            log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
+                    consumerId, position, ack.getValidationError());
+        }
+    }
+
+    private void checkCanRemovePendingAcksAndHandle(PositionImpl position, MessageIdData msgId) {
+        if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetsCount() == 0) {
+            removePendingAcks(position);
+        }
+    }
+
+    private Consumer getAckOwnerConsumer(long ledgerId, long entryId) {
+        Consumer ackOwnerConsumer = this;
+        if (Subscription.isIndividualAckMode(subType)) {
+            for (Consumer consumer : subscription.getConsumers()) {
+                if (consumer != this && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
+                    ackOwnerConsumer = consumer;
+                    break;
+                }
+            }
+        }
+        return ackOwnerConsumer;
+    }
+
+    private long[] getCursorAckSet(PositionImpl position) {
+        if (!(subscription instanceof PersistentSubscription)) {
+            return null;
+        }
+        return (((PersistentSubscription) subscription).getCursor()).getDeletedBatchIndexesAsLongArray(position);
+    }
+
+    private boolean isTransactionEnabled() {
+        return subscription instanceof PersistentSubscription
+                && ((PersistentTopic) subscription.getTopic())
+                .getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled();
+    }
+
+    private CompletableFuture<Void> transactionIndividualAcknowledge(
+            long txnidMostBits,
+            long txnidLeastBits,
+            List<MutablePair<PositionImpl, Integer>> positionList) {
+        if (subscription instanceof PersistentSubscription) {
+            TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+            return ((PersistentSubscription) subscription).transactionIndividualAcknowledge(txnID, positionList);
+        } else {
+            String error = "Transaction acknowledge only support the `PersistentSubscription`.";
+            log.error(error);
+            return FutureUtil.failedFuture(new TransactionConflictException(error));
+        }
+    }
+
+    private CompletableFuture<Void> transactionCumulativeAcknowledge(long txnidMostBits, long txnidLeastBits,
+                                                                     List<PositionImpl> positionList) {
+        if (!isTransactionEnabled()) {
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
+        }
+        if (subscription instanceof PersistentSubscription) {
+            TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+            return ((PersistentSubscription) subscription).transactionCumulativeAcknowledge(txnID, positionList);
+        } else {
+            String error = "Transaction acknowledge only support the `PersistentSubscription`.";
+            log.error(error);
+            return FutureUtil.failedFuture(new TransactionConflictException(error));
+        }
+    }
+
+    public void flowPermits(int additionalNumberOfMessages) {
         checkArgument(additionalNumberOfMessages > 0);
 
         // block shared consumer when unacked-messages reaches limit
-        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= maxUnackedMessages) {
+        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= getMaxUnackedMessages()) {
             blockedConsumerOnUnackedMsgs = true;
         }
         int oldPermits;
         if (!blockedConsumerOnUnackedMsgs) {
             oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Added {} message permits in broker.service.Consumer before updating dispatcher "
+                        + "for consumer {}", topicName, subscription, additionalNumberOfMessages, consumerId);
+            }
             subscription.consumerFlow(this, additionalNumberOfMessages);
         } else {
             oldPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndAdd(this, additionalNumberOfMessages);
@@ -471,6 +657,10 @@ public class Consumer {
         int additionalNumberOfPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(consumer, 0);
         // add newly flow permits to actual consumer.messagePermits
         MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
+        if (log.isDebugEnabled()){
+            log.debug("[{}-{}] Added {} blocked permits to broker.service.Consumer for consumer {}", topicName,
+                    subscription, additionalNumberOfPermits, consumerId);
+        }
         // dispatch pending permits to flow more messages: it will add more permits to dispatcher and consumer
         subscription.consumerFlow(consumer, additionalNumberOfPermits);
     }
@@ -488,35 +678,47 @@ public class Consumer {
     }
 
     public void reachedEndOfTopic() {
-        // Only send notification if the client understand the command
-        if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9_VALUE) {
-            log.info("[{}] Notifying consumer that end of topic has been reached", this);
-            cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId));
-        }
+        cnx.getCommandSender().sendReachedEndOfTopic(consumerId);
     }
 
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
-     * b. {@link maxUnackedMessages} value > 0
+     * b. {@link this#getMaxUnackedMessages()} value > 0
      *
      * @return
      */
     private boolean shouldBlockConsumerOnUnackMsgs() {
-        return Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
+        return Subscription.isIndividualAckMode(subType) && getMaxUnackedMessages() > 0;
     }
 
     public void updateRates() {
         msgOut.calculateRate();
-        chuckedMessageRate.calculateRate();
+        chunkedMessageRate.calculateRate();
         msgRedeliver.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
-        stats.chuckedMessageRate = chuckedMessageRate.getRate();
+        stats.chunkedMessageRate = chunkedMessageRate.getRate();
     }
 
-    public ConsumerStats getStats() {
+    public void updateStats(ConsumerStatsImpl consumerStats) {
+        msgOutCounter.add(consumerStats.msgOutCounter);
+        bytesOutCounter.add(consumerStats.bytesOutCounter);
+        msgOut.recordMultipleEvents(consumerStats.msgOutCounter, consumerStats.bytesOutCounter);
+        lastAckedTimestamp = consumerStats.lastAckedTimestamp;
+        lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
+        MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
+        if (log.isDebugEnabled()){
+            log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer {}", topicName,
+                    subscription, consumerStats.availablePermits, consumerId);
+        }
+        unackedMessages = consumerStats.unackedMessages;
+        blockedConsumerOnUnackedMsgs = consumerStats.blockedConsumerOnUnackedMsgs;
+        AVG_MESSAGES_PER_ENTRY.set(this, consumerStats.avgMessagesPerEntry);
+    }
+
+    public ConsumerStatsImpl getStats() {
         stats.msgOutCounter = msgOutCounter.longValue();
         stats.bytesOutCounter = bytesOutCounter.longValue();
         stats.lastAckedTimestamp = lastAckedTimestamp;
@@ -525,6 +727,9 @@ public class Consumer {
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
+        if (readPositionWhenJoining != null) {
+            stats.readPositionWhenJoining = readPositionWhenJoining.toString();
+        }
         return stats;
     }
 
@@ -532,7 +737,7 @@ public class Consumer {
         return unackedMessages;
     }
 
-    public PulsarApi.KeySharedMeta getKeySharedMeta() {
+    public KeySharedMeta getKeySharedMeta() {
         return keySharedMeta;
     }
 
@@ -542,25 +747,26 @@ public class Consumer {
                 .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
     }
 
-    public ChannelHandlerContext ctx() {
-        return cnx.ctx();
-    }
-
-    public void checkPermissions() {
+    public CompletableFuture<Void> checkPermissionsAsync() {
         TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
-            try {
-                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId, authenticationData,
-                        subscription.getName())) {
-                    return;
-                }
-            } catch (Exception e) {
-                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, subscription.getTopicName(),
-                        e.getMessage(), e);
-            }
-            log.info("[{}] is not allowed to consume from topic [{}] anymore", appId, subscription.getTopicName());
-            disconnect();
+            return cnx.getBrokerService().getAuthorizationService().canConsumeAsync(topicName, appId,
+                            cnx.getAuthenticationData(), subscription.getName())
+                    .handle((ok, e) -> {
+                        if (e != null) {
+                            log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId,
+                                    subscription.getTopicName(), e.getMessage(), e);
+                        }
+
+                        if (ok == null || !ok) {
+                            log.info("[{}] is not allowed to consume from topic [{}] anymore", appId,
+                                    subscription.getTopicName());
+                            disconnect();
+                        }
+                        return null;
+                    });
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -590,7 +796,8 @@ public class Consumer {
         Consumer ackOwnedConsumer = null;
         if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(), position.getEntryId())) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(),
+                        position.getEntryId())) {
                     ackOwnedConsumer = consumer;
                     break;
                 }
@@ -604,7 +811,6 @@ public class Consumer {
                 ? ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId())
                 : null;
         if (ackedPosition != null) {
-            int totalAckedMsgs = (int) ackedPosition.first;
             if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
                 // Message was already removed by the other consumer
                 return;
@@ -612,11 +818,12 @@ public class Consumer {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
             }
-            // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
-            // consuming messages
-            if (((addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
-                    && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
-                    && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()) {
+            // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
+            // consumer can start again consuming messages
+            int unAckedMsgs = UNACKED_MESSAGES_UPDATER.get(ackOwnedConsumer);
+            if ((((unAckedMsgs <= getMaxUnackedMessages() / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
+                    && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs())
+                    || !shouldBlockConsumerOnUnackMsgs()) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
                 flowConsumerBlockedPermits(ackOwnedConsumer);
             }
@@ -642,8 +849,10 @@ public class Consumer {
         if (pendingAcks != null) {
             List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
-            pendingAcks.forEach((ledgerId, entryId, batchSize, none) -> {
-                totalRedeliveryMessages.add((int) batchSize);
+            pendingAcks.forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
+                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(PositionImpl.get(ledgerId, entryId),
+                        batchSize);
+                totalRedeliveryMessages.add(unAckedCount);
                 pendingPositions.add(new PositionImpl(ledgerId, entryId));
             });
 
@@ -665,10 +874,11 @@ public class Consumer {
         List<PositionImpl> pendingPositions = Lists.newArrayList();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
-            LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
-            if (batchSize != null) {
+            LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            if (longPair != null) {
+                int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, longPair.first);
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
-                totalRedeliveryMessages += batchSize.first;
+                totalRedeliveryMessages += unAckedCount;
                 pendingPositions.add(position);
             }
         }
@@ -689,6 +899,10 @@ public class Consumer {
         // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
         if (numberOfBlockedPermits > 0) {
             MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
+            if (log.isDebugEnabled()) {
+               log.debug("[{}-{}] Added {} blockedPermits to broker.service.Consumer's messagePermits for consumer {}",
+                       topicName, subscription, numberOfBlockedPermits, consumerId);
+            }
             subscription.consumerFlow(this, numberOfBlockedPermits);
         }
     }
@@ -698,8 +912,15 @@ public class Consumer {
     }
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
-        subscription.addUnAckedMessages(ackedMessages);
-        return UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+        int unackedMsgs = 0;
+        if (Subscription.isIndividualAckMode(subType)) {
+            subscription.addUnAckedMessages(ackedMessages);
+            unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+        }
+        if (unackedMsgs < 0) {
+            log.error("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
+        }
+        return unackedMsgs;
     }
 
     private void clearUnAckedMsgs() {
@@ -709,6 +930,41 @@ public class Consumer {
 
     public boolean isPreciseDispatcherFlowControl() {
         return preciseDispatcherFlowControl;
+    }
+
+    public void setReadPositionWhenJoining(PositionImpl readPositionWhenJoining) {
+        this.readPositionWhenJoining = readPositionWhenJoining;
+    }
+
+    public int getMaxUnackedMessages() {
+        //Unacked messages check is disabled for non-durable subscriptions.
+        if (isDurable && subscription != null) {
+            return subscription.getTopic().getHierarchyTopicPolicies().getMaxUnackedMessagesOnConsumer().get();
+        } else {
+            return 0;
+        }
+    }
+
+
+    public TransportCnx cnx() {
+        return cnx;
+    }
+
+    public String getClientAddress() {
+        return clientAddress;
+    }
+
+    public MessageId getStartMessageId() {
+        return startMessageId;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
+    private int getStickyKeyHash(Entry entry) {
+        byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
+        return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

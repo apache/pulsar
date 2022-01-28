@@ -21,12 +21,12 @@ package org.apache.pulsar.tests.integration.auth.token;
 import static java.util.stream.Collectors.joining;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -46,17 +46,13 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.Network;
-import org.testng.ITest;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
-public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTestBase implements ITest {
+public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTestBase {
 
     protected String superUserAuthToken;
     protected String proxyAuthToken;
@@ -74,9 +70,10 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
     protected ZKContainer<?> cmdContainer;
 
-    @BeforeSuite
+    @BeforeClass(alwaysRun = true)
     @Override
-    public void setupCluster() throws Exception {
+    public final void setupCluster() throws Exception {
+        incrementSetupNumber();
         // Before starting the cluster, generate the secret key and the token
         // Use Zk container to have 1 container available before starting the cluster
         this.cmdContainer = new ZKContainer<>("cli-setup");
@@ -132,16 +129,11 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         log.info("Cluster {} is setup", spec.clusterName());
     }
 
-    @AfterSuite
+    @AfterClass(alwaysRun = true)
     @Override
-    public void tearDownCluster() {
+    public final void tearDownCluster() throws Exception {
         super.tearDownCluster();
         cmdContainer.close();
-    }
-
-    @Override
-    public String getTestName() {
-        return "token-auth-test-suite";
     }
 
     @Test
@@ -158,7 +150,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         try {
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
                         Collections.singleton(pulsarCluster.getClusterName())));
 
         } catch (Exception e) {
@@ -228,7 +220,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         try {
             admin.tenants().createTenant(tenant,
-                    new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                    new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
                             Collections.singleton(pulsarCluster.getClusterName())));
 
         } catch (Exception e) {
@@ -281,13 +273,14 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .build();
 
         admin.tenants().createTenant(tenant,
-                new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
                         Collections.singleton(pulsarCluster.getClusterName())));
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
         String initialToken = this.createClientTokenWithExpiry(5, TimeUnit.SECONDS);
+        String refreshedToken = this.createClientTokenWithExpiry(30, TimeUnit.SECONDS);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -295,7 +288,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .authentication(AuthenticationFactory.token(() -> {
                     if (shouldRefreshToken) {
                         try {
-                            return createClientTokenWithExpiry(5, TimeUnit.SECONDS);
+                            return refreshedToken;
                         } catch (Exception e) {
                             return null;
                         }
@@ -308,17 +301,19 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic)
-                .sendTimeout(1, TimeUnit.SECONDS)
+                .sendTimeout(3, TimeUnit.SECONDS)
                 .create();
-
         // Initially the token is valid and producer will be able to publish
         producer.send("hello-1");
+        long lastDisconnectedTimestamp = producer.getLastDisconnectedTimestamp();
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(10));
 
         if (shouldRefreshToken) {
             // The token will have been refreshed, so the app won't see any error
             producer.send("hello-2");
+            long timestamp = producer.getLastDisconnectedTimestamp();
+            assertEquals(timestamp, lastDisconnectedTimestamp);
         } else {
             // The token has expired, so this next message will be rejected
             try {
@@ -327,6 +322,73 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
             } catch (PulsarClientException e) {
                 // Expected
             }
+        }
+    }
+
+    @Test
+    public void testExpiringTokenWithRefreshAndProducerRestart() throws Exception {
+        final String tenant = "token-expiry-test-tenant" + randomName(4);
+        final String namespace = tenant + "/ns-1";
+        final String topic = "persistent://" + namespace + "/topic-1";
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .authentication(AuthenticationFactory.token(superUserAuthToken))
+                .build();
+
+        admin.tenants().createTenant(tenant,
+                new TenantInfoImpl(Collections.singleton(REGULAR_USER_ROLE),
+                        Collections.singleton(pulsarCluster.getClusterName())));
+
+        admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
+        admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
+
+        final int TokenExpiryTimeSecs = 2;
+        String initialToken = this.createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .authentication(AuthenticationFactory.token(() -> {
+                    try {
+                        return createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }))
+                .build();
+
+        Producer<String> producer1 = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        // Initially the token is valid and producer will be able to publish
+        producer1.send("hello-1");
+
+        producer1.close();
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(TokenExpiryTimeSecs));
+
+        @Cleanup
+        Producer<String> producer2 = client.newProducer(Schema.STRING)
+                    .topic(topic)
+                    .sendTimeout(1, TimeUnit.SECONDS)
+                    .create();
+    }
+
+    @Test
+    public void testAuthenticationFailedImmediately() throws PulsarClientException {
+        try {
+            @Cleanup
+            PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .authentication(AuthenticationFactory.token("invalid_token"))
+                .build();
+            client.newProducer().topic("test_token_topic" + randomName(4));
+        } catch (PulsarClientException.AuthenticationException pae) {
+            // expected error
         }
     }
 }

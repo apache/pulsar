@@ -18,9 +18,22 @@
  */
 #include "SinglePartitionMessageRouter.h"
 
+#include <chrono>
+#include <random>
+
 namespace pulsar {
 SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
+
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int numberOfPartitions,
+                                                           ProducerConfiguration::HashingScheme hashingScheme)
+    : MessageRouterBase(hashingScheme) {
+    std::default_random_engine generator(
+        std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    selectedSinglePartition_ = generator() % numberOfPartitions;
+}
+
 SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
+                                                           const int numberOfPartitions,
                                                            ProducerConfiguration::HashingScheme hashingScheme)
     : MessageRouterBase(hashingScheme) {
     selectedSinglePartition_ = partitionIndex;

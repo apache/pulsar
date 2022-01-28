@@ -18,35 +18,33 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import com.google.common.base.MoreObjects;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,17 +57,36 @@ public class NonPersistentSubscription implements Subscription {
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
-    private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(NonPersistentSubscription.class, "isFenced");
+    private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER =
+            AtomicIntegerFieldUpdater
+                    .newUpdater(NonPersistentSubscription.class, "isFenced");
     @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
-    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
+    // Timestamp of when this subscription was last seen active
+    private volatile long lastActive;
+
+    private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
+    private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
+
+    // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
+    private final boolean isDurable;
+
+    private KeySharedMode keySharedMode = null;
+
+    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
+        this.lastActive = System.currentTimeMillis();
+        this.isDurable = isDurable;
+    }
+
+    @Override
+    public BrokerInterceptor interceptor() {
+        return this.topic.getBrokerService().getInterceptor();
     }
 
     @Override
@@ -88,10 +105,11 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+        updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
-            throw new SubscriptionFencedException("Subscription is fenced");
+            return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
         }
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
@@ -124,34 +142,16 @@ public class NonPersistentSubscription implements Subscription {
                 }
                 break;
             case Key_Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                KeySharedMeta ksm = consumer.getKeySharedMeta();
+                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
+                        || !((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                                .hasSameKeySharedPolicy(ksm)) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
-
-                    switch (ksm.getKeySharedMode()) {
-                        case STICKY:
-                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                    new HashRangeExclusiveStickyKeyConsumerSelector());
-                            break;
-
-                        case AUTO_SPLIT:
-                        default:
-                            StickyKeyConsumerSelector selector;
-                            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
-                            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
-                                selector = new ConsistentHashingStickyKeyConsumerSelector(
-                                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
-                            } else {
-                                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-                            }
-
-                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, selector);
-                            break;
-                    }
+                    this.dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, ksm);
                 }
                 break;
             default:
-                throw new ServerMetadataException("Unsupported subscription type");
+                return FutureUtil.failedFuture(new ServerMetadataException("Unsupported subscription type"));
             }
 
             if (previousDispatcher != null) {
@@ -164,25 +164,38 @@ public class NonPersistentSubscription implements Subscription {
             }
         } else {
             if (consumer.subType() != dispatcher.getType()) {
-                throw new SubscriptionBusyException("Subscription is of different type");
+                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription is of different type"));
             }
         }
 
-        dispatcher.addConsumer(consumer);
+        try {
+            dispatcher.addConsumer(consumer);
+            return CompletableFuture.completedFuture(null);
+        } catch (BrokerServiceException brokerServiceException) {
+            return FutureUtil.failedFuture(brokerServiceException);
+        }
     }
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
+        updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
+        }
+        // preserve accumulative stats form removed consumer
+        ConsumerStatsImpl stats = consumer.getStats();
+        bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
+        msgOutFromRemovedConsumer.add(stats.msgOutCounter);
+        if (!isDurable) {
+            topic.unsubscribe(subName);
         }
 
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
-        NonPersistentTopic.USAGE_COUNT_UPDATER.decrementAndGet(topic);
+        topic.decrementUsageCount();
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    NonPersistentTopic.USAGE_COUNT_UPDATER.get(topic));
+                    topic.currentUsageCount());
         }
     }
 
@@ -253,7 +266,7 @@ public class NonPersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Entry> peekNthMessage(int messagePosition) {
         // No-op
-        return CompletableFuture.completedFuture(null);// TODO: throw exception
+        return CompletableFuture.completedFuture(null); // TODO: throw exception
     }
 
     @Override
@@ -274,7 +287,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     /**
-     * Disconnect all consumers attached to the dispatcher and close this subscription
+     * Disconnect all consumers attached to the dispatcher and close this subscription.
      *
      * @return CompletableFuture indicating the completion of disconnect operation
      */
@@ -384,10 +397,9 @@ public class NonPersistentSubscription implements Subscription {
 
     /**
      * Handle unsubscribe command from the client API Check with the dispatcher is this consumer can proceed with
-     * unsubscribe
+     * unsubscribe.
      *
-     * @param consumer
-     *            consumer object that is initiating the unsubscribe operation
+     * @param consumer consumer object that is initiating the unsubscribe operation
      * @return CompletableFuture indicating the completion of ubsubscribe operation
      */
     @Override
@@ -418,17 +430,26 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public void expireMessages(int messageTTLInSeconds) {
-        // No-op
+    public boolean expireMessages(int messageTTLInSeconds) {
+        throw new UnsupportedOperationException("Expire message by timestamp is not supported for"
+                + " non-persistent topic.");
     }
 
-    public NonPersistentSubscriptionStats getStats() {
-        NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
+    @Override
+    public boolean expireMessages(Position position) {
+        throw new UnsupportedOperationException("Expire message by position is not supported for"
+                + " non-persistent topic.");
+    }
+
+    public NonPersistentSubscriptionStatsImpl getStats() {
+        NonPersistentSubscriptionStatsImpl subStats = new NonPersistentSubscriptionStatsImpl();
+        subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
+        subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
-                ConsumerStats consumerStats = consumer.getStats();
+                ConsumerStatsImpl consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
@@ -438,8 +459,14 @@ public class NonPersistentSubscription implements Subscription {
             });
         }
 
-        subStats.type = getType();
+        subStats.type = getTypeString();
         subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
+
+        KeySharedMode keySharedMode = this.keySharedMode;
+        if (getType() == SubType.Key_Shared && keySharedMode != null) {
+            subStats.keySharedMode = keySharedMode.toString();
+        }
+
         return subStats;
     }
 
@@ -474,6 +501,21 @@ public class NonPersistentSubscription implements Subscription {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(
+                new Exception("Unsupported operation end txn for NonPersistentSubscription"));
+        return completableFuture;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
 
+    public long getLastActive() {
+        return lastActive;
+    }
+
+    public void updateLastActive() {
+        this.lastActive = System.currentTimeMillis();
+    }
 }

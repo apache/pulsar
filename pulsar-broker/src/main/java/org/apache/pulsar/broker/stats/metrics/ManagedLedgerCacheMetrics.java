@@ -18,19 +18,16 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import java.util.List;
-
-import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
-import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.stats.Metrics;
-
 import com.google.common.collect.Lists;
-
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
+import java.util.List;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
+import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.stats.Metrics;
 
 public class ManagedLedgerCacheMetrics extends AbstractMetrics {
 
@@ -59,7 +56,6 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
 
         PooledByteBufAllocator allocator = EntryCacheImpl.ALLOCATOR;
         long activeAllocations = 0;
-        long activeAllocationsTiny = 0;
         long activeAllocationsSmall = 0;
         long activeAllocationsNormal = 0;
         long activeAllocationsHuge = 0;
@@ -68,7 +64,6 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
 
         for (PoolArenaMetric arena : allocator.metric().directArenas()) {
             activeAllocations += arena.numActiveAllocations();
-            activeAllocationsTiny += arena.numActiveTinyAllocations();
             activeAllocationsSmall += arena.numActiveSmallAllocations();
             activeAllocationsNormal += arena.numActiveNormalAllocations();
             activeAllocationsHuge += arena.numActiveHugeAllocations();
@@ -87,7 +82,6 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
         m.put("brk_ml_cache_pool_allocated", totalAllocated);
         m.put("brk_ml_cache_pool_used", totalUsed);
         m.put("brk_ml_cache_pool_active_allocations", activeAllocations);
-        m.put("brk_ml_cache_pool_active_allocations_tiny", activeAllocationsTiny);
         m.put("brk_ml_cache_pool_active_allocations_small", activeAllocationsSmall);
         m.put("brk_ml_cache_pool_active_allocations_normal", activeAllocationsNormal);
         m.put("brk_ml_cache_pool_active_allocations_huge", activeAllocationsHuge);

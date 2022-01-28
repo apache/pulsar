@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 public class TestStaticZooKeeperConfigurationProvider extends
         TestAbstractZooKeeperConfigurationProvider {

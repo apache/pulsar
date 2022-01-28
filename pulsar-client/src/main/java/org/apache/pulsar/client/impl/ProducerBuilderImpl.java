@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.annotations.VisibleForTesting;
-
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -38,6 +37,7 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -48,10 +48,6 @@ import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
-import lombok.NonNull;
-
-import static com.google.common.base.Preconditions.checkArgument;
-
 @Getter(AccessLevel.PUBLIC)
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
@@ -60,7 +56,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     private Schema<T> schema;
     private List<ProducerInterceptor> interceptorList;
 
-    @VisibleForTesting
     public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
     }
@@ -72,7 +67,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     /**
-     * Allow to override schema in builder implementation
+     * Allow to override schema in builder implementation.
      * @return
      */
     public ProducerBuilder<T> schema(Schema<T> schema) {
@@ -106,13 +101,13 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
         try {
             setMessageRoutingMode();
-        } catch(PulsarClientException pce) {
+        } catch (PulsarClientException pce) {
             return FutureUtil.failedFuture(pce);
         }
 
-        return interceptorList == null || interceptorList.size() == 0 ?
-                client.createProducerAsync(conf, schema, null) :
-                client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
+        return interceptorList == null || interceptorList.size() == 0
+                ? client.createProducerAsync(conf, schema, null)
+                : client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
     }
 
     @Override
@@ -147,9 +142,16 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Deprecated
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> accessMode(ProducerAccessMode accessMode) {
+        conf.setAccessMode(accessMode);
         return this;
     }
 
@@ -199,6 +201,18 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public ProducerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> defaultCryptoKeyReader(String publicKey) {
+        checkArgument(StringUtils.isNotBlank(publicKey), "publicKey cannot be blank");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPublicKey(publicKey).build());
+    }
+
+    @Override
+    public ProducerBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> publicKeys) {
+        checkArgument(!publicKeys.isEmpty(), "publicKeys cannot be empty");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().publicKeys(publicKeys).build());
     }
 
     @Override
@@ -306,22 +320,28 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers) {
+        conf.setLazyStartPartitionedProducers(lazyStartPartitionedProducers);
+        return this;
+    }
+
     private void setMessageRoutingMode() throws PulsarClientException {
-        if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
+        if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        } else if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
+        } else if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
             messageRoutingMode(MessageRoutingMode.CustomPartition);
-        } else if((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
+        } else if ((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
                 && conf.getCustomMessageRouter() == null)
                 || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
                 && conf.getCustomMessageRouter() != null)) {
-            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
-                    "should be set as " + MessageRoutingMode.CustomPartition);
+            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' "
+                    + "should be set as " + MessageRoutingMode.CustomPartition);
         }
     }
 
     @Override
     public String toString() {
-        return conf != null ? conf.toString() : null;
+        return conf != null ? conf.toString() : "";
     }
 }

@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -38,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -153,6 +155,7 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>(16, 1);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -181,13 +184,12 @@ public class ConcurrentOpenHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -216,8 +218,6 @@ public class ConcurrentOpenHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
@@ -370,9 +370,40 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.get(t1_b));
     }
 
-    final static int Iterations = 1;
-    final static int ReadIterations = 1000;
-    final static int N = 1_000_000;
+    @Test
+    public void testNullValue() {
+        ConcurrentOpenHashMap<String, String> map = new ConcurrentOpenHashMap<>(16, 1);
+        String key = "a";
+        assertThrows(NullPointerException.class, () -> map.put(key, null));
+
+        //put a null value.
+        assertNull(map.computeIfAbsent(key, k -> null));
+        assertEquals(1, map.size());
+        assertEquals(1, map.keys().size());
+        assertEquals(1, map.values().size());
+        assertNull(map.get(key));
+        assertFalse(map.containsKey(key));
+
+        //test remove null value
+        map.removeNullValue(key);
+        assertTrue(map.isEmpty());
+        assertEquals(0, map.keys().size());
+        assertEquals(0, map.values().size());
+        assertNull(map.get(key));
+        assertFalse(map.containsKey(key));
+
+
+        //test not remove non-null value
+        map.put(key, "V");
+        assertEquals(1, map.size());
+        map.removeNullValue(key);
+        assertEquals(1, map.size());
+
+    }
+
+    static final int Iterations = 1;
+    static final int ReadIterations = 1000;
+    static final int N = 1_000_000;
 
     public void benchConcurrentOpenHashMap() throws Exception {
         ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>(N, 1);
@@ -414,8 +445,8 @@ public class ConcurrentOpenHashMapTest {
         }
     }
 
-    void benchHashMap() throws Exception {
-        HashMap<Long, String> map = new HashMap<Long, String>(N, 0.66f);
+    void benchHashMap() {
+        HashMap<Long, String> map = new HashMap<>(N, 0.66f);
 
         for (long i = 0; i < Iterations; i++) {
             for (int j = 0; j < N; j++) {

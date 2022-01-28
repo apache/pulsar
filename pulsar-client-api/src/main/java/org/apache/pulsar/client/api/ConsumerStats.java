@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import java.util.Map;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Consumer statistics recorded by client.
@@ -26,6 +29,8 @@ import java.io.Serializable;
  * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
  * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConsumerStats extends Serializable {
 
     /**
@@ -97,4 +102,16 @@ public interface ConsumerStats extends Serializable {
      * @return Total number of message acknowledgments failures on this consumer
      */
     long getTotalAcksFailed();
+
+    /**
+     * Get the size of receiver queue.
+     * @return
+     */
+    Integer getMsgNumInReceiverQueue();
+
+    /**
+     * Get the receiver queue size of sub-consumers.
+     * @return
+     */
+    Map<Long, Integer> getMsgNumInSubReceiverQueue();
 }

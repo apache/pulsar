@@ -25,6 +25,7 @@
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
 #include "Utils.h"
+#include "MessageIdUtil.h"
 #include "AckGroupingTracker.h"
 #include "AckGroupingTrackerEnabled.h"
 #include "AckGroupingTrackerDisabled.h"
@@ -36,35 +37,35 @@ namespace pulsar {
 DECLARE_LOG_OBJECT()
 
 ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
-                           const std::string& subscription, const ConsumerConfiguration& conf,
+                           const std::string& subscriptionName, const ConsumerConfiguration& conf,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
+                           bool hasParent /* = false by default */,
                            const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */,
                            Commands::SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId)
     : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60), milliseconds(0))),
       waitingForZeroQueueSizeMessage(false),
       config_(conf),
-      subscription_(subscription),
-      originalSubscriptionName_(subscription),
+      subscription_(subscriptionName),
+      originalSubscriptionName_(subscriptionName),
       messageListener_(config_.getMessageListener()),
+      eventListener_(config_.getConsumerEventListener()),
+      hasParent_(hasParent),
       consumerTopicType_(consumerTopicType),
       subscriptionMode_(subscriptionMode),
-      startMessageId_(startMessageId),
       // This is the initial capacity of the queue
       incomingMessages_(std::max(config_.getReceiverQueueSize(), 1)),
-      pendingReceives_(),
-      availablePermits_(conf.getReceiverQueueSize()),
+      availablePermits_(0),
+      receiverQueueRefillThreshold_(config_.getReceiverQueueSize() / 2),
       consumerId_(client->newConsumerId()),
       consumerName_(config_.getConsumerName()),
-      partitionIndex_(-1),
-      consumerCreatedPromise_(),
       messageListenerRunning_(true),
-      batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
-      brokerConsumerStats_(),
-      consumerStatsBasePtr_(),
+      batchAcknowledgementTracker_(topic_, subscriptionName, (long)consumerId_),
       negativeAcksTracker_(client, *this, conf),
-      msgCrypto_(),
+      ackGroupingTrackerPtr_(std::make_shared<AckGroupingTracker>()),
       readCompacted_(conf.isReadCompacted()),
-      lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
+      startMessageId_(startMessageId),
+      maxPendingChunkedMessage_(conf.getMaxPendingChunkedMessage()),
+      autoAckOldestChunkedMessageOnQueueFull_(conf.isAutoOldestChunkedMessageOnQueueFull()) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -101,23 +102,6 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     // Create msgCrypto
     if (conf.isEncryptionEnabled()) {
         msgCrypto_ = std::make_shared<MessageCrypto>(consumerStr_, false);
-    }
-
-    // Initialize ACK grouping tracker.
-    if (TopicName::get(topic)->isPersistent()) {
-        // Persistent topic, ACK requests need to be sent to broker.
-        if (conf.getAckGroupingTimeMs() > 0) {
-            // Grouping ACK is ENABLED because grouping time value is a positive value.
-            this->ackGroupingTrackerPtr_.reset(new AckGroupingTrackerEnabled(
-                client, *this, this->consumerId_, conf.getAckGroupingTimeMs(), conf.getAckGroupingMaxSize()));
-        } else {
-            // Grouping ACK is DISABLED because grouping time value is a non-positive value.
-            this->ackGroupingTrackerPtr_.reset(new AckGroupingTrackerDisabled(*this, this->consumerId_));
-        }
-    } else {
-        // Non-persistent topic, ACK requests do NOT need to be sent to broker.
-        LOG_INFO(getName() << "ACK will NOT be sent to broker for this non-persistent topic.");
-        this->ackGroupingTrackerPtr_.reset(new AckGroupingTracker());
     }
 }
 
@@ -156,33 +140,58 @@ const std::string& ConsumerImpl::getSubscriptionName() const { return originalSu
 
 const std::string& ConsumerImpl::getTopic() const { return topic_; }
 
-void ConsumerImpl::start() { grabCnx(); }
+void ConsumerImpl::start() {
+    HandlerBase::start();
+
+    // Initialize ackGroupingTrackerPtr_ here because the shared_from_this() was not initialized until the
+    // constructor completed.
+    if (TopicName::get(topic_)->isPersistent()) {
+        if (config_.getAckGroupingTimeMs() > 0) {
+            ackGroupingTrackerPtr_.reset(new AckGroupingTrackerEnabled(
+                client_.lock(), shared_from_this(), consumerId_, config_.getAckGroupingTimeMs(),
+                config_.getAckGroupingMaxSize()));
+        } else {
+            ackGroupingTrackerPtr_.reset(new AckGroupingTrackerDisabled(*this, consumerId_));
+        }
+    } else {
+        LOG_INFO(getName() << "ACK will NOT be sent to broker for this non-persistent topic.");
+    }
+    ackGroupingTrackerPtr_->start();
+}
 
 void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     Lock lock(mutex_);
-    if (state_ == Closed) {
-        lock.unlock();
+    const auto state = state_;
+    lock.unlock();
+    if (state == Closed) {
         LOG_DEBUG(getName() << "connectionOpened : Consumer is already closed");
         return;
     }
 
-    Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
-    unAckedMessageTrackerPtr_->clear();
-    batchAcknowledgementTracker_.clear();
+    // Register consumer so that we can handle other incomming commands (e.g. ACTIVE_CONSUMER_CHANGE) after
+    // sending the subscribe request.
+    cnx->registerConsumer(consumerId_, shared_from_this());
 
+    Lock lockForMessageId(mutexForMessageId_);
+    Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
     if (subscriptionMode_ == Commands::SubscriptionModeNonDurable) {
         // Update startMessageId so that we can discard messages after delivery
         // restarts
         startMessageId_ = firstMessageInQueue;
     }
+    const auto startMessageId = startMessageId_;
+    lockForMessageId.unlock();
 
-    lock.unlock();
+    unAckedMessageTrackerPtr_->clear();
+    batchAcknowledgementTracker_.clear();
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
     SharedBuffer cmd = Commands::newSubscribe(
         topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
-        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition());
+        startMessageId, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
+        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy(),
+        config_.getPriorityLevel());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -198,9 +207,12 @@ void ConsumerImpl::connectionFailed(Result result) {
     }
 }
 
-void ConsumerImpl::receiveMessages(const ClientConnectionPtr& cnx, unsigned int count) {
-    SharedBuffer cmd = Commands::newFlow(consumerId_, count);
-    cnx->sendCommand(cmd);
+void ConsumerImpl::sendFlowPermitsToBroker(const ClientConnectionPtr& cnx, int numMessages) {
+    if (cnx && numMessages > 0) {
+        LOG_DEBUG(getName() << "Send more permits: " << numMessages);
+        SharedBuffer cmd = Commands::newFlow(consumerId_, static_cast<unsigned int>(numMessages));
+        cnx->sendCommand(cmd);
+    }
 }
 
 void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result result) {
@@ -214,12 +226,11 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             Lock lock(mutex_);
             connection_ = cnx;
             incomingMessages_.clear();
-            cnx->registerConsumer(consumerId_, shared_from_this());
             state_ = Ready;
             backoff_.reset();
             // Complicated logic since we don't have a isLocked() function for mutex
             if (waitingForZeroQueueSizeMessage) {
-                receiveMessages(cnx, 1);
+                sendFlowPermitsToBroker(cnx, 1);
             }
             availablePermits_ = 0;
         }
@@ -227,9 +238,9 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
         LOG_DEBUG(getName() << "Send initial flow permits: " << config_.getReceiverQueueSize());
         if (consumerTopicType_ == NonPartitioned || !firstTime) {
             if (config_.getReceiverQueueSize() != 0) {
-                receiveMessages(cnx, config_.getReceiverQueueSize());
+                sendFlowPermitsToBroker(cnx, config_.getReceiverQueueSize());
             } else if (messageListener_) {
-                receiveMessages(cnx, 1);
+                sendFlowPermitsToBroker(cnx, 1);
             }
         }
         consumerCreatedPromise_.setValue(shared_from_this());
@@ -301,6 +312,80 @@ void ConsumerImpl::handleUnsubscribe(Result result, ResultCallback callback) {
     callback(result);
 }
 
+Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& payload,
+                                                         const proto::MessageMetadata& metadata,
+                                                         const MessageId& messageId,
+                                                         const proto::MessageIdData& messageIdData,
+                                                         const ClientConnectionPtr& cnx) {
+    const auto chunkId = metadata.chunk_id();
+    const auto uuid = metadata.uuid();
+    LOG_DEBUG("Process message chunk (chunkId: " << chunkId << ", uuid: " << uuid
+                                                 << ", messageId: " << messageId << ") of "
+                                                 << payload.readableBytes() << " bytes");
+
+    Lock lock(chunkProcessMutex_);
+    auto it = chunkedMessageCache_.find(uuid);
+
+    if (chunkId == 0) {
+        if (it == chunkedMessageCache_.end()) {
+            it = chunkedMessageCache_.putIfAbsent(
+                uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(), metadata.total_chunk_msg_size()});
+        }
+        if (maxPendingChunkedMessage_ > 0 && chunkedMessageCache_.size() >= maxPendingChunkedMessage_) {
+            chunkedMessageCache_.removeOldestValues(
+                chunkedMessageCache_.size() - maxPendingChunkedMessage_ + 1,
+                [this, messageId](const std::string& uuid, const ChunkedMessageCtx& ctx) {
+                    if (autoAckOldestChunkedMessageOnQueueFull_) {
+                        doAcknowledgeIndividual(messageId, [uuid, messageId](Result result) {
+                            if (result != ResultOk) {
+                                LOG_WARN("Failed to acknowledge discarded chunk, uuid: "
+                                         << uuid << ", messageId: " << messageId);
+                            }
+                        });
+                    } else {
+                        trackMessage(messageId);
+                    }
+                });
+            it = chunkedMessageCache_.putIfAbsent(
+                uuid, ChunkedMessageCtx{metadata.num_chunks_from_msg(), metadata.total_chunk_msg_size()});
+        }
+    }
+
+    auto& chunkedMsgCtx = it->second;
+    if (it == chunkedMessageCache_.end() || !chunkedMsgCtx.validateChunkId(chunkId)) {
+        if (it == chunkedMessageCache_.end()) {
+            LOG_ERROR("Received an uncached chunk (uuid: " << uuid << " chunkId: " << chunkId
+                                                           << ", messageId: " << messageId << ")");
+        } else {
+            LOG_ERROR("Received a chunk whose chunk id is invalid (uuid: "
+                      << uuid << " chunkId: " << chunkId << ", messageId: " << messageId << ")");
+            chunkedMessageCache_.remove(uuid);
+        }
+        lock.unlock();
+        increaseAvailablePermits(cnx);
+        trackMessage(messageId);
+        return Optional<SharedBuffer>::empty();
+    }
+
+    chunkedMsgCtx.appendChunk(messageId, payload);
+    if (!chunkedMsgCtx.isCompleted()) {
+        lock.unlock();
+        increaseAvailablePermits(cnx);
+        return Optional<SharedBuffer>::empty();
+    }
+
+    LOG_DEBUG("Chunked message completed chunkId: " << chunkId << ", ChunkedMessageCtx: " << chunkedMsgCtx
+                                                    << ", sequenceId: " << metadata.sequence_id());
+
+    auto wholePayload = chunkedMsgCtx.getBuffer();
+    chunkedMessageCache_.remove(uuid);
+    if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload, false)) {
+        return Optional<SharedBuffer>::of(wholePayload);
+    } else {
+        return Optional<SharedBuffer>::empty();
+    }
+}
+
 void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                                    bool& isChecksumValid, proto::MessageMetadata& metadata,
                                    SharedBuffer& payload) {
@@ -311,21 +396,47 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         return;
     }
 
-    if (!uncompressMessageIfNeeded(cnx, msg, metadata, payload)) {
-        // Message was discarded on decompression error
-        return;
-    }
-
     if (!isChecksumValid) {
         // Message discarded for checksum error
         discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::ChecksumMismatch);
         return;
     }
 
+    const bool isMessageDecryptable =
+        metadata.encryption_keys_size() <= 0 || config_.getCryptoKeyReader().get() ||
+        config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::CONSUME;
+
+    const bool isChunkedMessage = metadata.num_chunks_from_msg() > 1 &&
+                                  config_.getConsumerType() != ConsumerType::ConsumerShared &&
+                                  config_.getConsumerType() != ConsumerType::ConsumerKeyShared;
+    if (isMessageDecryptable && !isChunkedMessage) {
+        if (!uncompressMessageIfNeeded(cnx, msg.message_id(), metadata, payload, true)) {
+            // Message was discarded on decompression error
+            return;
+        }
+    }
+
+    // Only a non-batched messages can be a chunk
+    if (!metadata.has_num_messages_in_batch() && isChunkedMessage) {
+        const auto& messageIdData = msg.message_id();
+        MessageId messageId(messageIdData.partition(), messageIdData.ledgerid(), messageIdData.entryid(),
+                            messageIdData.batch_index());
+        auto optionalPayload = processMessageChunk(payload, metadata, messageId, messageIdData, cnx);
+        if (optionalPayload.is_present()) {
+            payload = optionalPayload.value();
+        } else {
+            return;
+        }
+    }
+
     Message m(msg, metadata, payload, partitionIndex_);
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
     m.impl_->setRedeliveryCount(msg.redelivery_count());
+
+    if (metadata.has_schema_version()) {
+        m.impl_->setSchemaVersion(metadata.schema_version());
+    }
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "
@@ -372,15 +483,32 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     }
 
     if (messageListener_) {
-        Lock lock(messageListenerMutex_);
         if (!messageListenerRunning_) {
             return;
         }
-        lock.unlock();
         // Trigger message listener callback in a separate thread
         while (numOfMessageReceived--) {
             listenerExecutor_->postWork(std::bind(&ConsumerImpl::internalListener, shared_from_this()));
         }
+    }
+}
+
+void ConsumerImpl::activeConsumerChanged(bool isActive) {
+    if (eventListener_) {
+        listenerExecutor_->postWork(
+            std::bind(&ConsumerImpl::internalConsumerChangeListener, shared_from_this(), isActive));
+    }
+}
+
+void ConsumerImpl::internalConsumerChangeListener(bool isActive) {
+    try {
+        if (isActive) {
+            eventListener_->becameActive(Consumer(shared_from_this()), partitionIndex_);
+        } else {
+            eventListener_->becameInactive(Consumer(shared_from_this()), partitionIndex_);
+        }
+    } catch (const std::exception& e) {
+        LOG_ERROR(getName() << "Exception thrown from event listener " << e.what());
     }
 }
 
@@ -412,6 +540,9 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
     LOG_DEBUG("Received Batch messages of size - " << batchSize
                                                    << " -- msgId: " << batchedMessage.getMessageId());
+    Lock lock(mutexForMessageId_);
+    const auto startMessageId = startMessageId_;
+    lock.unlock();
 
     int skippedMessages = 0;
 
@@ -419,15 +550,16 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
         // This is a cheap copy since message contains only one shared pointer (impl_)
         Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage, i);
         msg.impl_->setRedeliveryCount(redeliveryCount);
+        msg.impl_->setTopicName(batchedMessage.getTopicName());
 
-        if (startMessageId_.is_present()) {
+        if (startMessageId.is_present()) {
             const MessageId& msgId = msg.getMessageId();
 
             // If we are receiving a batch message, we need to discard messages that were prior
             // to the startMessageId
-            if (msgId.ledgerId() == startMessageId_.value().ledgerId() &&
-                msgId.entryId() == startMessageId_.value().entryId() &&
-                msgId.batchIndex() <= startMessageId_.value().batchIndex()) {
+            if (msgId.ledgerId() == startMessageId.value().ledgerId() &&
+                msgId.entryId() == startMessageId.value().entryId() &&
+                msgId.batchIndex() <= startMessageId.value().batchIndex()) {
                 LOG_DEBUG(getName() << "Ignoring message from before the startMessageId"
                                     << msg.getMessageId());
                 ++skippedMessages;
@@ -499,8 +631,10 @@ bool ConsumerImpl::decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const 
     return false;
 }
 
-bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
-                                             const proto::MessageMetadata& metadata, SharedBuffer& payload) {
+bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx,
+                                             const proto::MessageIdData& messageIdData,
+                                             const proto::MessageMetadata& metadata, SharedBuffer& payload,
+                                             bool checkMaxMessageSize) {
     if (!metadata.has_compression()) {
         return true;
     }
@@ -510,12 +644,11 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
     uint32_t uncompressedSize = metadata.uncompressed_size();
     uint32_t payloadSize = payload.readableBytes();
     if (cnx) {
-        if (payloadSize > cnx->getMaxMessageSize()) {
+        if (checkMaxMessageSize && payloadSize > ClientConnection::getMaxMessageSize()) {
             // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
             LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
-                                << " at  " << msg.message_id().ledgerid() << ":"
-                                << msg.message_id().entryid());
-            discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::UncompressedSizeCorruption);
+                                << " at  " << messageIdData.ledgerid() << ":" << messageIdData.entryid());
+            discardCorruptedMessage(cnx, messageIdData, proto::CommandAck::UncompressedSizeCorruption);
             return false;
         }
     } else {
@@ -525,8 +658,8 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
 
     if (!CompressionCodecProvider::getCodec(compressionType).decode(payload, uncompressedSize, payload)) {
         LOG_ERROR(getName() << "Failed to decompress message with " << uncompressedSize  //
-                            << " at  " << msg.message_id().ledgerid() << ":" << msg.message_id().entryid());
-        discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::DecompressionError);
+                            << " at  " << messageIdData.ledgerid() << ":" << messageIdData.entryid());
+        discardCorruptedMessage(cnx, messageIdData, proto::CommandAck::DecompressionError);
         return false;
     }
 
@@ -547,25 +680,23 @@ void ConsumerImpl::discardCorruptedMessage(const ClientConnectionPtr& cnx,
 }
 
 void ConsumerImpl::internalListener() {
-    Lock lock(messageListenerMutex_);
     if (!messageListenerRunning_) {
         return;
     }
-    lock.unlock();
     Message msg;
     if (!incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
-    unAckedMessageTrackerPtr_->add(msg.getMessageId());
+    trackMessage(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
-        lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
+        lastDequedMessageId_ = msg.getMessageId();
         messageListener_(Consumer(shared_from_this()), msg);
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from listener" << e.what());
     }
-    messageProcessed(msg);
+    messageProcessed(msg, false);
 }
 
 Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
@@ -588,10 +719,7 @@ Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
     waitingForZeroQueueSizeMessage = true;
     localLock.unlock();
 
-    if (currentCnx) {
-        LOG_DEBUG(getName() << "Send more permits: " << 1);
-        receiveMessages(currentCnx, 1);
-    }
+    sendFlowPermitsToBroker(currentCnx, 1);
 
     while (true) {
         incomingMessages_.pop(msg);
@@ -632,18 +760,13 @@ void ConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     if (incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         lock.unlock();
         messageProcessed(msg);
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
         callback(ResultOk, msg);
     } else {
         pendingReceives_.push(callback);
         lock.unlock();
 
         if (config_.getReceiverQueueSize() == 0) {
-            ClientConnectionPtr currentCnx = getCnx().lock();
-            if (currentCnx) {
-                LOG_DEBUG(getName() << "Send more permits: " << 1);
-                receiveMessages(currentCnx, 1);
-            }
+            sendFlowPermitsToBroker(getCnx().lock(), 1);
         }
     }
 }
@@ -666,7 +789,6 @@ Result ConsumerImpl::receiveHelper(Message& msg) {
 
     incomingMessages_.pop(msg);
     messageProcessed(msg);
-    unAckedMessageTrackerPtr_->add(msg.getMessageId());
     return ResultOk;
 }
 
@@ -696,16 +818,16 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
 
     if (incomingMessages_.pop(msg, std::chrono::milliseconds(timeout))) {
         messageProcessed(msg);
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
         return ResultTimeout;
     }
 }
 
-void ConsumerImpl::messageProcessed(Message& msg) {
-    Lock lock(mutex_);
-    lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
+void ConsumerImpl::messageProcessed(Message& msg, bool track) {
+    Lock lock(mutexForMessageId_);
+    lastDequedMessageId_ = msg.getMessageId();
+    lock.unlock();
 
     ClientConnectionPtr currentCnx = getCnx().lock();
     if (currentCnx && msg.impl_->cnx_ != currentCnx.get()) {
@@ -714,6 +836,9 @@ void ConsumerImpl::messageProcessed(Message& msg) {
     }
 
     increaseAvailablePermits(currentCnx);
+    if (track) {
+        trackMessage(msg.getMessageId());
+    }
 }
 
 /**
@@ -734,11 +859,11 @@ Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
             previousMessageId = MessageId(-1, nextMessageId.ledgerId(), nextMessageId.entryId() - 1, -1);
         }
         return Optional<MessageId>::of(previousMessageId);
-    } else if (lastDequedMessage_.is_present()) {
+    } else if (lastDequedMessageId_ != MessageId::earliest()) {
         // If the queue was empty we need to restart from the message just after the last one that has been
         // dequeued
         // in the past
-        return lastDequedMessage_;
+        return Optional<MessageId>::of(lastDequedMessageId_);
     } else {
         // No message was received or dequeued by this consumer. Next message would still be the
         // startMessageId
@@ -746,20 +871,13 @@ Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
     }
 }
 
-void ConsumerImpl::increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits) {
-    int additionalPermits = 0;
+void ConsumerImpl::increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int delta) {
+    int newAvailablePermits = availablePermits_.fetch_add(delta) + delta;
 
-    availablePermits_ += numberOfPermits;
-    if (availablePermits_ >= config_.getReceiverQueueSize() / 2) {
-        additionalPermits = availablePermits_;
-        availablePermits_ = 0;
-    }
-    if (additionalPermits > 0) {
-        if (currentCnx) {
-            LOG_DEBUG(getName() << "Send more permits: " << additionalPermits);
-            receiveMessages(currentCnx, additionalPermits);
-        } else {
-            LOG_DEBUG(getName() << "Connection is not ready, Unable to send flow Command");
+    while (newAvailablePermits >= receiverQueueRefillThreshold_ && messageListenerRunning_) {
+        if (availablePermits_.compare_exchange_weak(newAvailablePermits, 0)) {
+            sendFlowPermitsToBroker(currentCnx, newAvailablePermits);
+            break;
         }
     }
 }
@@ -779,6 +897,7 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
         case ConsumerKeyShared:
             return proto::CommandSubscribe_SubType_Key_Shared;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid ConsumerType enumeration value"));
 }
 
 inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition() {
@@ -790,6 +909,7 @@ inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition(
         case InitialPositionEarliest:
             return proto::CommandSubscribe_InitialPosition::CommandSubscribe_InitialPosition_Earliest;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid InitialPosition enumeration value"));
 }
 
 void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::CommandAck_AckType ackType) {
@@ -880,7 +1000,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     state_ = Closing;
 
     // Flush pending grouped ACK requests.
-    this->ackGroupingTrackerPtr_->close();
+    if (ackGroupingTrackerPtr_) {
+        ackGroupingTrackerPtr_->close();
+    }
 
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
@@ -964,7 +1086,6 @@ Result ConsumerImpl::pauseMessageListener() {
     if (!messageListener_) {
         return ResultInvalidConfiguration;
     }
-    Lock lock(messageListenerMutex_);
     messageListenerRunning_ = false;
     return ResultOk;
 }
@@ -974,19 +1095,19 @@ Result ConsumerImpl::resumeMessageListener() {
         return ResultInvalidConfiguration;
     }
 
-    Lock lock(messageListenerMutex_);
     if (messageListenerRunning_) {
         // Not paused
         return ResultOk;
     }
     messageListenerRunning_ = true;
     const size_t count = incomingMessages_.size();
-    lock.unlock();
 
     for (size_t i = 0; i < count; i++) {
         // Trigger message listener callback in a separate thread
         listenerExecutor_->postWork(std::bind(&ConsumerImpl::internalListener, shared_from_this()));
     }
+    // Check current permits and determine whether to send FLOW command
+    this->increaseAvailablePermits(getCnx().lock(), 0);
     return ResultOk;
 }
 
@@ -1078,6 +1199,9 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
 
 void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
     if (result == ResultOk) {
+        Lock lock(mutexForMessageId_);
+        lastDequedMessageId_ = MessageId::earliest();
+        lock.unlock();
         LOG_INFO(getName() << "Seek successfully");
     } else {
         LOG_ERROR(getName() << "Failed to seek: " << strResult(result));
@@ -1152,37 +1276,42 @@ void ConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
 
 bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
 
-void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
-    MessageId lastDequed = this->lastMessageIdDequed();
-    MessageId lastInBroker = this->lastMessageIdInBroker();
-    if (lastInBroker > lastDequed && lastInBroker.entryId() != -1) {
-        callback(ResultOk, true);
-        return;
-    }
+inline bool hasMoreMessages(const MessageId& lastMessageIdInBroker, const MessageId& messageId) {
+    return lastMessageIdInBroker > messageId && lastMessageIdInBroker.entryId() != -1;
+}
 
-    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
-        if (result == ResultOk) {
-            if (messageId > lastDequed && messageId.entryId() != -1) {
-                callback(ResultOk, true);
+void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    Lock lock(mutexForMessageId_);
+    const auto messageId =
+        (lastDequedMessageId_ == MessageId::earliest()) ? startMessageId_.value() : lastDequedMessageId_;
+
+    if (messageId == MessageId::latest()) {
+        lock.unlock();
+        getLastMessageIdAsync([callback](Result result, const GetLastMessageIdResponse& response) {
+            if (result != ResultOk) {
+                callback(result, {});
+                return;
+            }
+            if (response.hasMarkDeletePosition() && response.getLastMessageId().entryId() >= 0) {
+                // We only care about comparing ledger ids and entry ids as mark delete position doesn't have
+                // other ids such as batch index
+                callback(ResultOk, compareLedgerAndEntryId(response.getMarkDeletePosition(),
+                                                           response.getLastMessageId()) < 0);
             } else {
                 callback(ResultOk, false);
             }
-        } else {
-            callback(result, false);
-        }
-    });
-}
-
-void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,
-                                                  BrokerGetLastMessageIdCallback callback) {
-    Lock lock(mutex_);
-    if (messageId > lastMessageIdInBroker()) {
-        lastMessageInBroker_ = Optional<MessageId>::of(messageId);
-        lock.unlock();
-        callback(res, messageId);
+        });
     } else {
+        if (hasMoreMessages(lastMessageIdInBroker_, messageId)) {
+            lock.unlock();
+            callback(ResultOk, true);
+            return;
+        }
         lock.unlock();
-        callback(res, lastMessageIdInBroker());
+
+        getLastMessageIdAsync([callback, messageId](Result result, const GetLastMessageIdResponse& response) {
+            callback(result, (result == ResultOk) && hasMoreMessages(response.getLastMessageId(), messageId));
+        });
     }
 }
 
@@ -1206,9 +1335,19 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
             LOG_DEBUG(getName() << " Sending getLastMessageId Command for Consumer - " << getConsumerId()
                                 << ", requestId - " << requestId);
 
+            auto self = shared_from_this();
             cnx->newGetLastMessageId(consumerId_, requestId)
-                .addListener(std::bind(&ConsumerImpl::brokerGetLastMessageIdListener, shared_from_this(),
-                                       std::placeholders::_1, std::placeholders::_2, callback));
+                .addListener([this, self, callback](Result result, const GetLastMessageIdResponse& response) {
+                    if (result == ResultOk) {
+                        LOG_DEBUG(getName() << "getLastMessageId: " << response);
+                        Lock lock(mutexForMessageId_);
+                        lastMessageIdInBroker_ = response.getLastMessageId();
+                        lock.unlock();
+                    } else {
+                        LOG_ERROR(getName() << "Failed to getLastMessageId: " << result);
+                    }
+                    callback(result, response);
+                });
         } else {
             LOG_ERROR(getName() << " Operation not supported since server protobuf version "
                                 << cnx->getServerProtocolVersion() << " is older than proto::v12");
@@ -1223,5 +1362,20 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
 void ConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
     negativeAcksTracker_.setEnabledForTesting(enabled);
 }
+
+void ConsumerImpl::trackMessage(const MessageId& messageId) {
+    if (hasParent_) {
+        unAckedMessageTrackerPtr_->remove(messageId);
+    } else {
+        unAckedMessageTrackerPtr_->add(messageId);
+    }
+}
+
+bool ConsumerImpl::isConnected() const {
+    Lock lock(mutex_);
+    return !getCnx().expired() && state_ == Ready;
+}
+
+uint64_t ConsumerImpl::getNumberOfConnectedConsumer() { return isConnected() ? 1 : 0; }
 
 } /* namespace pulsar */

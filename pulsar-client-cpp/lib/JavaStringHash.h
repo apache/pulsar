@@ -24,7 +24,6 @@
 
 #include <cstdint>
 #include <string>
-#include <boost/functional/hash.hpp>
 
 namespace pulsar {
 class PULSAR_PUBLIC JavaStringHash : public Hash {

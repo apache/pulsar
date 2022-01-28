@@ -52,7 +52,7 @@ public class PulsarServiceNameResolverTest {
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
-    public void testResolveUrlBeforeUpdateServiceUrl() throws Exception {
+    public void testResolveUrlBeforeUpdateServiceUrl() {
         resolver.resolveHostUri();
     }
 

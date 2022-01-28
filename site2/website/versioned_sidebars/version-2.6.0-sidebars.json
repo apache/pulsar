@@ -1,6 +1,6 @@
 {
   "version-2.6.0-docs": {
-    "Get started": [
+    "Get Started": [
       "version-2.6.0-pulsar-2.0",
       "version-2.6.0-standalone",
       "version-2.6.0-standalone-docker",
@@ -16,7 +16,8 @@
       "version-2.6.0-concepts-multi-tenancy",
       "version-2.6.0-concepts-authentication",
       "version-2.6.0-concepts-topic-compaction",
-      "version-2.6.0-concepts-tiered-storage"
+      "version-2.6.0-concepts-tiered-storage",
+      "version-2.6.0-concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "version-2.6.0-schema-get-started",
@@ -91,7 +92,7 @@
     "Performance": [
       "version-2.6.0-performance-pulsar-perf"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.6.0-client-libraries-java",
       "version-2.6.0-client-libraries-go",
       "version-2.6.0-client-libraries-python",
@@ -111,7 +112,6 @@
       "version-2.6.0-admin-api-non-persistent-topics",
       "version-2.6.0-admin-api-partitioned-topics",
       "version-2.6.0-admin-api-non-partitioned-topics",
-      "version-2.6.0-admin-api-schemas",
       "version-2.6.0-admin-api-functions"
     ],
     "Adaptors": [
@@ -140,6 +140,7 @@
     "Reference": [
       "version-2.6.0-reference-terminology",
       "version-2.6.0-reference-cli-tools",
+      "version-2.6.0-pulsar-admin",
       "version-2.6.0-reference-configuration",
       "version-2.6.0-reference-metrics"
     ]

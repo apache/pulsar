@@ -18,18 +18,25 @@
  */
 package org.apache.bookkeeper.client;
 
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -38,8 +45,18 @@ import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.bookkeeper.discover.RegistrationClient;
+import org.apache.bookkeeper.meta.LayoutManager;
+import org.apache.bookkeeper.meta.LedgerManagerFactory;
+import org.apache.bookkeeper.meta.MetadataClientDriver;
+import org.apache.bookkeeper.meta.exceptions.MetadataException;
+import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.versioning.LongVersion;
+import org.apache.bookkeeper.versioning.Versioned;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,28 +67,38 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarMockBookKeeper extends BookKeeper {
 
+    final OrderedExecutor orderedExecutor;
     final ExecutorService executor;
-    final ZooKeeper zkc;
-
-    @Override
-    public ZooKeeper getZkHandle() {
-        return zkc;
-    }
 
     @Override
     public ClientConfiguration getConf() {
         return super.getConf();
     }
 
-    Map<Long, PulsarMockLedgerHandle> ledgers = new ConcurrentHashMap<>();
-    AtomicLong sequence = new AtomicLong(3);
+    final Map<Long, PulsarMockLedgerHandle> ledgers = new ConcurrentHashMap<>();
+    final AtomicLong sequence = new AtomicLong(3);
 
     CompletableFuture<Void> defaultResponse = CompletableFuture.completedFuture(null);
-    List<CompletableFuture<Void>> failures = new ArrayList<>();
+    private static final List<BookieId> ensemble = Collections.unmodifiableList(Lists.newArrayList(
+            new BookieSocketAddress("192.0.2.1", 1234).toBookieId(),
+            new BookieSocketAddress("192.0.2.2", 1234).toBookieId(),
+            new BookieSocketAddress("192.0.2.3", 1234).toBookieId()));
 
-    public PulsarMockBookKeeper(ZooKeeper zkc, ExecutorService executor) throws Exception {
-        this.zkc = zkc;
-        this.executor = executor;
+    public static Collection<BookieId> getMockEnsemble() {
+        return ensemble;
+    }
+
+    final Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
+    final List<CompletableFuture<Void>> failures = new ArrayList<>();
+
+    public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
+        this.orderedExecutor = orderedExecutor;
+        this.executor = orderedExecutor.chooseThread();
+    }
+
+    @Override
+    public OrderedExecutor getMainWorkerPool() {
+        return orderedExecutor;
     }
 
     @Override
@@ -93,7 +120,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
                 try {
                     long id = sequence.getAndIncrement();
                     log.info("Creating ledger {}", id);
-                    PulsarMockLedgerHandle lh = new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
+                    PulsarMockLedgerHandle lh =
+                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
                     ledgers.put(id, lh);
                     return FutureUtils.value(lh);
                 } catch (Throwable t) {
@@ -192,6 +220,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
         shutdown();
     }
 
+
+
     @Override
     public OpenBuilder newOpenLedgerOp() {
         return new OpenBuilderBase() {
@@ -265,12 +295,16 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return ledgers.keySet();
     }
 
+    public Map<Long, PulsarMockLedgerHandle> getLedgerMap() {
+        return ledgers;
+    }
+
     void checkProgrammedFail() throws BKException, InterruptedException {
         try {
             getProgrammedFailure().get();
         } catch (ExecutionException ee) {
             if (ee.getCause() instanceof BKException) {
-                throw (BKException)ee.getCause();
+                throw (BKException) ee.getCause();
             } else {
                 throw new BKException.BKUnexpectedConditionException();
             }
@@ -298,7 +332,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     private int emptyLedgerAfter = -1;
 
     /**
-     * After N times, make a ledger to appear to be empty
+     * After N times, make a ledger to appear to be empty.
      */
     public synchronized void returnEmptyLedgerAfter(int steps) {
         emptyLedgerAfter = steps;
@@ -313,6 +347,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return promise;
     }
 
+    public synchronized void addEntryDelay(long delay, TimeUnit unit) {
+        addEntryDelaysMillis.add(unit.toMillis(delay));
+    }
+
     static int getExceptionCode(Throwable t) {
         if (t instanceof BKException) {
             return ((BKException) t).getCode();
@@ -321,6 +359,91 @@ public class PulsarMockBookKeeper extends BookKeeper {
         } else {
             return BKException.Code.UnexpectedConditionException;
         }
+    }
+
+    private final RegistrationClient mockRegistrationClient = new RegistrationClient() {
+        @Override
+        public void close() {
+
+        }
+
+        @Override
+        public CompletableFuture<Versioned<Set<BookieId>>> getWritableBookies() {
+            return getAllBookies();
+        }
+
+        @Override
+        public CompletableFuture<Versioned<Set<BookieId>>> getAllBookies() {
+            return CompletableFuture.completedFuture(new Versioned<>(new HashSet<>(ensemble), new LongVersion(0)));
+        }
+
+        @Override
+        public CompletableFuture<Versioned<Set<BookieId>>> getReadOnlyBookies() {
+            return CompletableFuture.completedFuture(new Versioned<>(new HashSet<>(), new LongVersion(0)));
+        }
+
+        @Override
+        public CompletableFuture<Void> watchWritableBookies(RegistrationListener listener) {
+            return defaultResponse;
+        }
+
+        @Override
+        public void unwatchWritableBookies(RegistrationListener listener) {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> watchReadOnlyBookies(RegistrationListener listener) {
+            return defaultResponse;
+        }
+
+        @Override
+        public void unwatchReadOnlyBookies(RegistrationListener listener) {
+
+        }
+    };
+
+    private final MetadataClientDriver metadataClientDriver = new MetadataClientDriver() {
+        @Override
+        public MetadataClientDriver initialize(ClientConfiguration conf, ScheduledExecutorService scheduler,
+                                               StatsLogger statsLogger, Optional<Object> ctx) throws MetadataException {
+            return this;
+        }
+
+        @Override
+        public String getScheme() {
+            return "mock";
+        }
+
+        @Override
+        public RegistrationClient getRegistrationClient() {
+            return mockRegistrationClient;
+        }
+
+        @Override
+        public LedgerManagerFactory getLedgerManagerFactory() throws MetadataException {
+            return null;
+        }
+
+        @Override
+        public LayoutManager getLayoutManager() {
+            return null;
+        }
+
+        @Override
+        public void close() {
+
+        }
+
+        @Override
+        public void setSessionStateListener(SessionStateListener sessionStateListener) {
+
+        }
+    };
+
+    @Override
+    public MetadataClientDriver getMetadataClientDriver() {
+        return metadataClientDriver;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarMockBookKeeper.class);

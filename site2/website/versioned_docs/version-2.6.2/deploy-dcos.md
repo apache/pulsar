@@ -1,8 +1,8 @@
 ---
-id: version-2.6.2-deploy-docs
+id: version-2.6.2-deploy-dcos
 title: Deploy Pulsar on DC/OS
 sidebar_label: DC/OS
-original_id: deploy-docs
+original_id: deploy-dcos
 ---
 
 > ### Tips
@@ -114,7 +114,7 @@ Click into `grafana` to get the endpoint for Grafana, which is `192.168.65.121:3
  
 ![DC/OS grafana endpoint](assets/dcos_grafana_endpoint.png)
 
-If you click that endpoint, you can access the Grafana dashbaord.
+If you click that endpoint, you can access the Grafana dashboard.
 
 ![DC/OS grafana targets](assets/dcos_grafana_dashboard.png)
 

@@ -24,7 +24,6 @@
 #include "ProducerImpl.h"
 
 namespace pulsar {
-DECLARE_LOG_OBJECT()
 
 static const std::string EMPTY_STRING;
 
@@ -47,6 +46,17 @@ Result Producer::send(const Message& msg) {
     msg.setMessageId(mi);
 
     return result;
+}
+
+Result Producer::send(const Message& msg, MessageId& messageId) {
+    Promise<Result, MessageId> promise;
+    sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
+
+    if (!promise.isComplete()) {
+        impl_->triggerFlush();
+    }
+
+    return promise.getFuture().get(messageId);
 }
 
 void Producer::sendAsync(const Message& msg, SendCallback callback) {
@@ -103,7 +113,10 @@ void Producer::flushAsync(FlushCallback callback) {
 void Producer::producerFailMessages(Result result) {
     if (impl_) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(impl_.get());
-        producerImpl->failPendingMessages(result);
+        producerImpl->failPendingMessages(result, true);
     }
 }
+
+bool Producer::isConnected() const { return impl_ && impl_->isConnected(); }
+
 }  // namespace pulsar

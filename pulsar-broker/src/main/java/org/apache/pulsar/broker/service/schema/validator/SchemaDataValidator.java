@@ -41,6 +41,9 @@ public interface SchemaDataValidator {
             case PROTOBUF:
                 StructSchemaDataValidator.of().validate(schemaData);
                 break;
+            case PROTOBUF_NATIVE:
+                ProtobufNativeSchemaDataValidator.of().validate(schemaData);
+                break;
             case STRING:
                 StringSchemaDataValidator.of().validate(schemaData);
                 break;
@@ -54,6 +57,10 @@ public interface SchemaDataValidator {
             case DATE:
             case TIME:
             case TIMESTAMP:
+            case INSTANT:
+            case LOCAL_DATE:
+            case LOCAL_TIME:
+            case LOCAL_DATE_TIME:
                 PrimitiveSchemaDataValidator.of().validate(schemaData);
                 break;
             case NONE:

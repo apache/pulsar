@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.util.Callback;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,6 +51,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
     private PulsarKafkaWorkerConfig distributedConfig;
     private String topicName;
     private PulsarOffsetBackingStore offsetBackingStore;
+    private PulsarClient client;
 
     @BeforeMethod
     @Override
@@ -58,15 +60,17 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.producerBaseSetup();
 
         this.topicName = "persistent://my-property/my-ns/offset-topic";
-        this.defaultProps.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
         this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, topicName);
         this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
-        this.offsetBackingStore = new PulsarOffsetBackingStore();
+        this.client = PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build();
+        this.offsetBackingStore = new PulsarOffsetBackingStore(client);
         this.offsetBackingStore.configure(distributedConfig);
         this.offsetBackingStore.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         if (null != offsetBackingStore) {
@@ -80,25 +84,8 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
     @Test
     public void testGetFromEmpty() throws Exception {
         assertTrue(offsetBackingStore.get(
-            Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8))),
-            null
+            Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8)))
         ).get().isEmpty());
-    }
-
-    @Test
-    public void testGetFromEmptyCallback() throws Exception {
-        CompletableFuture<Map<ByteBuffer, ByteBuffer>> callbackFuture = new CompletableFuture<>();
-        assertTrue(offsetBackingStore.get(
-            Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8))),
-            (error, result) -> {
-                if (null != error) {
-                    callbackFuture.completeExceptionally(error);
-                } else {
-                    callbackFuture.complete(result);
-                }
-            }
-        ).get().isEmpty());
-        assertTrue(callbackFuture.get().isEmpty());
     }
 
     @Test
@@ -138,7 +125,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         }
 
         Map<ByteBuffer, ByteBuffer> result =
-            offsetBackingStore.get(keys, null).get();
+            offsetBackingStore.get(keys).get();
         assertEquals(numKeys, result.size());
         AtomicInteger count = new AtomicInteger();
         new TreeMap<>(result).forEach((key, value) -> {

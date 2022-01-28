@@ -35,6 +35,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class OverloadShedderTest {
 
     private final OverloadShedder os = new OverloadShedder();

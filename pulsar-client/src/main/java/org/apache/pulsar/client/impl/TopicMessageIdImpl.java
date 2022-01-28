@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.Objects;
 import org.apache.pulsar.client.api.MessageId;
 
 public class TopicMessageIdImpl implements MessageId {
@@ -66,17 +65,12 @@ public class TopicMessageIdImpl implements MessageId {
 
     @Override
     public int hashCode() {
-        return Objects.hash(topicPartitionName, messageId);
+        return messageId.hashCode();
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof TopicMessageIdImpl)) {
-            return false;
-        }
-        TopicMessageIdImpl other = (TopicMessageIdImpl) obj;
-        return Objects.equals(topicPartitionName, other.topicPartitionName)
-            && Objects.equals(messageId, other.messageId);
+        return messageId.equals(obj);
     }
 
     @Override

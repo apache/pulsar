@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.protocol;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -49,8 +48,10 @@ class ProtocolHandlerUtils {
      * @return the protocol handler definition
      * @throws IOException when fail to load the protocol handler or get the definition
      */
-    public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath, String narExtractionDirectory) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
+    public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath, String narExtractionDirectory)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
+                narExtractionDirectory)) {
             return getProtocolHandlerDefinition(ncl);
         }
     }
@@ -129,7 +130,7 @@ class ProtocolHandlerUtils {
 
         try {
             Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
-            Object handler = handlerClass.newInstance();
+            Object handler = handlerClass.getDeclaredConstructor().newInstance();
             if (!(handler instanceof ProtocolHandler)) {
                 throw new IOException("Class " + phDef.getHandlerClass()
                     + " does not implement protocol handler interface");

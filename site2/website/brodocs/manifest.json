@@ -35,6 +35,9 @@
 	},
 	{
 	    "filename": "schemas.md"
+	},
+	{
+	    "filename": "packages.md"
 	}
     ],
     "title": "Docs",

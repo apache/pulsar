@@ -32,7 +32,7 @@ public class BooleanSchema extends AbstractSchema<Boolean> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
                 .setName("Boolean")
                 .setType(SchemaType.BOOLEAN)
                 .setSchema(new byte[0]);
@@ -55,7 +55,7 @@ public class BooleanSchema extends AbstractSchema<Boolean> {
         if (null == message) {
             return null;
         } else {
-            return new byte[]{(byte)(message ? 1 : 0)};
+            return new byte[]{(byte) (message ? 1 : 0)};
         }
     }
 

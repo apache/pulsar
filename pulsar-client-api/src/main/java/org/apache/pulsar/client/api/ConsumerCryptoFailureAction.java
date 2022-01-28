@@ -19,10 +19,15 @@
 
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * The action a consumer should take when a consumer receives a
  * message that it cannot decrypt.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum ConsumerCryptoFailureAction {
     /**
      * This is the default option to fail consume messages until crypto succeeds.
@@ -40,8 +45,8 @@ public enum ConsumerCryptoFailureAction {
      * <p>If message is also compressed, decompression will fail. If message contain batch messages, client will not be
      * able to retrieve individual messages in the batch.
      *
-     * <p>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression
-     * information in it using which application can decrypt consumed message payload.
+     * <p>Delivered encrypted message contains {@link org.apache.pulsar.common.api.EncryptionContext} which contains
+     * encryption and compression information in it using which application can decrypt consumed message payload.
      */
     CONSUME;
 }

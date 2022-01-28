@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import java.io.File;
-import java.util.List;
-
-import junit.framework.Assert;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.flume.lifecycle.LifecycleController;
-import org.apache.flume.lifecycle.LifecycleState;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.io.Files;
+import java.io.File;
+import java.util.List;
+import org.apache.commons.io.FileUtils;
+import org.apache.flume.lifecycle.LifecycleController;
+import org.apache.flume.lifecycle.LifecycleState;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TestPollingPropertiesFileConfigurationProvider {
 
@@ -46,7 +43,7 @@ public class TestPollingPropertiesFileConfigurationProvider {
     private File configFile;
     private EventBus eventBus;
 
-    @Before
+    @BeforeMethod
     public void setUp() throws Exception {
 
         baseDir = Files.createTempDir();
@@ -62,13 +59,13 @@ public class TestPollingPropertiesFileConfigurationProvider {
         LifecycleController.waitForOneOf(provider, LifecycleState.START_OR_ERROR);
     }
 
-    @After
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         FileUtils.deleteDirectory(baseDir);
         provider.stop();
     }
 
-//    @Test
+    @Test(enabled = false)
     public void testPolling() throws Exception {
 
         // let first event fire
@@ -88,13 +85,13 @@ public class TestPollingPropertiesFileConfigurationProvider {
         // now wait for second event to fire
         Thread.sleep(2000L);
 
-        Assert.assertEquals(String.valueOf(events), 1, events.size());
+        Assert.assertEquals(events.size(), 1, String.valueOf(events));
 
         MaterializedConfiguration materializedConfiguration = events.remove(0);
 
-        Assert.assertEquals(1, materializedConfiguration.getSourceRunners().size());
-        Assert.assertEquals(1, materializedConfiguration.getSinkRunners().size());
-        Assert.assertEquals(1, materializedConfiguration.getChannels().size());
+        Assert.assertEquals(materializedConfiguration.getSourceRunners().size(),1);
+        Assert.assertEquals(materializedConfiguration.getSinkRunners().size(), 1);
+        Assert.assertEquals(materializedConfiguration.getChannels().size(), 1);
 
 
     }

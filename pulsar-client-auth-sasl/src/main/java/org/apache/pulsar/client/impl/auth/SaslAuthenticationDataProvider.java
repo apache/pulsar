@@ -19,14 +19,11 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-
 import javax.naming.AuthenticationException;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.AuthData;
@@ -51,7 +48,7 @@ public class SaslAuthenticationDataProvider implements AuthenticationDataProvide
     @Override
     public AuthData authenticate(AuthData commandData) throws AuthenticationException {
         // init
-        if (Arrays.equals(commandData.getBytes(), AuthData.INIT_AUTH_DATA)) {
+        if (Arrays.equals(commandData.getBytes(), AuthData.INIT_AUTH_DATA_BYTES)) {
             if (pulsarSaslClient.hasInitialResponse()) {
                 return pulsarSaslClient.evaluateChallenge(AuthData.of(new byte[0]));
             }

@@ -19,19 +19,21 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Arrays;
-
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.JCommander;
-
 public class PulsarStandaloneStarter extends PulsarStandalone {
+    @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+    private boolean generateDocs = false;
 
     private static final Logger log = LoggerFactory.getLogger(PulsarStandaloneStarter.class);
 
@@ -45,6 +47,12 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 jcommander.usage();
                 return;
             }
+            if (this.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("standalone", this);
+                cmd.run(null);
+                System.exit(0);
+            }
 
             if (this.isNoBroker() && this.isOnlyBroker()) {
                 log.error("Only one option is allowed between '--no-broker' and '--only-broker'");
@@ -57,7 +65,10 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             return;
         }
 
-        this.config = PulsarConfigurationLoader.create((new FileInputStream(this.getConfigFile())), ServiceConfiguration.class);
+        try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
+            this.config = PulsarConfigurationLoader.create(
+                    inputStream, ServiceConfiguration.class);
+        }
 
         String zkServers = "127.0.0.1";
 
@@ -65,25 +76,22 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             // Use advertised address from command line
             config.setAdvertisedAddress(this.getAdvertisedAddress());
             zkServers = this.getAdvertisedAddress();
-        } else if (isBlank(config.getAdvertisedAddress())) {
+        } else if (isBlank(config.getAdvertisedAddress()) && isBlank(config.getAdvertisedListeners())) {
             // Use advertised address as local hostname
             config.setAdvertisedAddress("localhost");
         } else {
-            // Use advertised address from config file
+            // Use advertised or advertisedListeners address from config file
         }
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        if (argsContains(args,"--zookeeper-port")) {
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-        } else {
-            if (config.getZookeeperServers() != null) {
-                this.setZkPort(Integer.parseInt(config.getZookeeperServers().split(":")[1]));
+        if (!argsContains(args, "--zookeeper-port")) {
+            if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
+                this.setZkPort(Integer.parseInt(config.getMetadataStoreUrl().split(":")[1]));
             }
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
         }
+        config.setZookeeperServers(zkServers + ":" + this.getZkPort());
+        config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
 
         config.setRunningStandalone(true);
 
@@ -101,6 +109,8 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                     if (bkEnsemble != null) {
                         bkEnsemble.stop();
                     }
+
+                    LogManager.shutdown();
                 } catch (Exception e) {
                     log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
@@ -119,6 +129,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             standalone.start();
         } catch (Throwable th) {
             log.error("Failed to start pulsar service.", th);
+            LogManager.shutdown();
             Runtime.getRuntime().exit(1);
         }
 

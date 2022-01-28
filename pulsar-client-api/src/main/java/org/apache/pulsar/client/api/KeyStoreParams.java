@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * KeyStore parameters used for tls authentication.
@@ -28,7 +30,9 @@ import lombok.Data;
 @Data
 @Builder
 @AllArgsConstructor
-public class KeyStoreParams{
+@InterfaceAudience.Private
+@InterfaceStability.Stable
+public class KeyStoreParams {
     private String keyStoreType;
     private String keyStorePath;
     private String keyStorePassword;

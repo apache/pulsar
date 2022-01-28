@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -45,9 +46,13 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import lombok.Cleanup;
+
+@Test(groups = "broker-api")
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
 
@@ -58,7 +63,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -72,6 +77,11 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     @DataProvider(name = "batch_with_timeout")
     public Object[][] ackTimeoutSecProvider() {
         return new Object[][] { { 0, 0 }, { 0, 2 }, { 1000, 0 }, { 1000, 2 } };
+    }
+
+    @DataProvider(name = "batchingEnabled")
+    public Object[][] batchingEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     @Test(dataProvider = "batch_with_timeout")
@@ -296,7 +306,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
         if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(2 * batchMessageDelayMs, TimeUnit.MILLISECONDS)
+            producerBuilder.enableBatching(true).batchingMaxPublishDelay(2L * batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         }
 
@@ -333,6 +343,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
     public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";
@@ -355,13 +366,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Thread.sleep(2000); // Two seconds sleep
         runTest.set(false);
         pulsar.getBrokerService().updateRates();
-        double actualRate = admin.topics().getStats(topicName).msgRateOut;
+        double actualRate = admin.topics().getStats(topicName).getMsgRateOut();
         assertTrue(actualRate > (produceRate / batchSize));
         consumer.unsubscribe();
         log.info("-- Exiting {} test --", methodName);
     }
 
-    public void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
+    private void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
             throws InterruptedException {
         // Waiting for recording last stat info
         Thread.sleep(1000);
@@ -385,7 +396,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = producerBuilder.create();
 
-        int numMessages = 11;
+        int numMessages = 120;
         for (int i = 0; i < numMessages; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -393,7 +404,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         pulsar.getBrokerService().updateRates();
 
-        JsonArray metrics = admin.brokerStats().getMetrics();
+        String json = admin.brokerStats().getMetrics();
+        JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
 
         boolean latencyCaptured = false;
         for (int i = 0; i < metrics.size(); i++) {
@@ -419,5 +431,26 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         assertTrue(latencyCaptured);
         producer.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(dataProvider =  "batchingEnabled")
+    public void testProducerPendingQueueSizeStats(boolean batchingEnabled) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/tp1/my-ns/my-topic1");
+
+        @Cleanup
+        Producer<byte[]> producer = producerBuilder.enableBatching(batchingEnabled).create();
+
+        stopBroker();
+
+        int numMessages = 120;
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+        Awaitility.await().timeout(2, TimeUnit.MINUTES)
+                .until(() -> producer.getStats().getPendingQueueSize() == numMessages);
+        assertEquals(producer.getStats().getPendingQueueSize(), numMessages);
     }
 }

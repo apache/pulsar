@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.broker.PulsarService;
@@ -33,6 +34,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-api")
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -43,7 +45,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -52,8 +54,9 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
     @Test
     public void testCreateClientWithServiceUrlProvider() throws Exception {
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrlProvider(new TestServiceUrlProvider(pulsar.getSafeBrokerServiceUrl()))
+                .serviceUrlProvider(new TestServiceUrlProvider(pulsar.getBrokerServiceUrl()))
                 .statsInterval(1, TimeUnit.SECONDS)
                 .build();
         Assert.assertTrue(((PulsarClientImpl) client).getConfiguration().getServiceUrlProvider() instanceof TestServiceUrlProvider);
@@ -67,7 +70,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             producer.send("Hello Pulsar[" + i + "]");
         }
-        client.updateServiceUrl(pulsar.getSafeBrokerServiceUrl());
+        client.updateServiceUrl(pulsar.getBrokerServiceUrl());
         for (int i = 100; i < 200; i++) {
             producer.send("Hello Pulsar[" + i + "]");
         }
@@ -77,17 +80,17 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
             System.out.println(message.getValue());
             received++;
         } while (received < 200);
-        Assert.assertEquals(200, received);
+        Assert.assertEquals(received, 200);
         producer.close();
         consumer.close();
-        client.close();
     }
 
     @Test
     public void testCreateClientWithAutoChangedServiceUrlProvider() throws Exception {
 
-        AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getSafeBrokerServiceUrl());
+        AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getBrokerServiceUrl());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrlProvider(serviceUrlProvider)
                 .statsInterval(1, TimeUnit.SECONDS)
@@ -103,41 +106,41 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
                 .subscribe();
 
         PulsarService pulsarService1 = pulsar;
+        conf.setBrokerShutdownTimeoutMs(0L);
         conf.setBrokerServicePort(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         restartBroker();
         PulsarService pulsarService2 = pulsar;
 
-        log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getSafeBrokerServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
-        Assert.assertNotEquals(pulsarService1.getSafeBrokerServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
+        log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        Assert.assertNotEquals(pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
 
         log.info("Service url : producer = {}, consumer = {}",
             producer.getClient().getLookup().getServiceUrl(),
             consumer.getClient().getLookup().getServiceUrl());
 
-        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService1.getSafeBrokerServiceUrl());
-        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService1.getSafeBrokerServiceUrl());
+        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
+        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
 
         log.info("Changing service url from {} to {}",
-            pulsarService1.getSafeBrokerServiceUrl(),
-            pulsarService2.getSafeBrokerServiceUrl());
+            pulsarService1.getBrokerServiceUrl(),
+            pulsarService2.getBrokerServiceUrl());
 
-        serviceUrlProvider.onServiceUrlChanged(pulsarService2.getSafeBrokerServiceUrl());
+        serviceUrlProvider.onServiceUrlChanged(pulsarService2.getBrokerServiceUrl());
         log.info("Service url changed : producer = {}, consumer = {}",
             producer.getClient().getLookup().getServiceUrl(),
             consumer.getClient().getLookup().getServiceUrl());
-        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
-        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
+        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
         producer.close();
         consumer.close();
-        client.close();
     }
 
-    class TestServiceUrlProvider implements ServiceUrlProvider {
+    static class TestServiceUrlProvider implements ServiceUrlProvider {
 
         private PulsarClient pulsarClient;
 
-        private String serviceUrl;
+        private final String serviceUrl;
 
         public TestServiceUrlProvider(String serviceUrl) {
             this.serviceUrl = serviceUrl;
@@ -158,7 +161,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         }
     }
 
-    class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
+    static class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
 
         public AutoChangedServiceUrlProvider(String serviceUrl) {
             super(serviceUrl);

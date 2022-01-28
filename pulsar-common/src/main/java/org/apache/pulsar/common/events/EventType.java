@@ -26,5 +26,10 @@ public enum EventType {
     /**
      * Topic policy events.
      */
-    TOPIC_POLICY
+    TOPIC_POLICY,
+
+    /**
+     * Transaction buffer snapshot events.
+     */
+    TRANSACTION_BUFFER_SNAPSHOT
 }

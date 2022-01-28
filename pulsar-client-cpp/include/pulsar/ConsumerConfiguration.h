@@ -29,6 +29,8 @@
 #include <pulsar/ConsumerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/InitialPosition.h>
+#include <pulsar/KeySharedPolicy.h>
+#include <pulsar/ConsumerEventListener.h>
 
 namespace pulsar {
 
@@ -41,6 +43,8 @@ typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 
 /// Callback definition for MessageListener
 typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;
+
+typedef std::shared_ptr<ConsumerEventListener> ConsumerEventListenerPtr;
 
 struct ConsumerConfigurationImpl;
 
@@ -88,7 +92,26 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * consumers will be promoted to primary and will start getting messages.
      */
     ConsumerConfiguration& setConsumerType(ConsumerType consumerType);
+
+    /**
+     * @return the consumer type
+     */
     ConsumerType getConsumerType() const;
+
+    /**
+     * Set KeyShared subscription policy for consumer.
+     *
+     * By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
+     * set a different KeyShared policy, you can set by following example:
+     *
+     * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
+     */
+    ConsumerConfiguration& setKeySharedPolicy(KeySharedPolicy keySharedPolicy);
+
+    /**
+     * @return the KeyShared subscription policy
+     */
+    KeySharedPolicy getKeySharedPolicy() const;
 
     /**
      * A message listener enables your application to configure how to process
@@ -96,37 +119,65 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * for every message received.
      */
     ConsumerConfiguration& setMessageListener(MessageListener messageListener);
+
+    /**
+     * @return the message listener
+     */
     MessageListener getMessageListener() const;
+
+    /**
+     * @return true if the message listener has been set
+     */
     bool hasMessageListener() const;
+
+    /**
+     * A event listener enables your application to react the consumer state
+     * change event (active or inactive).
+     */
+    ConsumerConfiguration& setConsumerEventListener(ConsumerEventListenerPtr eventListener);
+
+    /**
+     * @return the consumer event listener
+     */
+    ConsumerEventListenerPtr getConsumerEventListener() const;
+
+    /**
+     * @return true if the consumer event listener has been set
+     */
+    bool hasConsumerEventListener() const;
 
     /**
      * Sets the size of the consumer receive queue.
      *
-     * The consumer receive queue controls how many messages can be accumulated by the Consumer before the
-     * application calls receive(). Using a higher value could potentially increase the consumer throughput
+     * The consumer receive queue controls how many messages can be accumulated by the consumer before the
+     * application calls receive(). Using a higher value may potentially increase the consumer throughput
      * at the expense of bigger memory utilization.
      *
-     * Setting the consumer queue size as zero decreases the throughput of the consumer, by disabling
+     * Setting the consumer queue size to 0 decreases the throughput of the consumer by disabling
      * pre-fetching of
-     * messages. This approach improves the message distribution on shared subscription, by pushing messages
+     * messages. This approach improves the message distribution on shared subscription by pushing messages
      * only to
-     * the consumers that are ready to process them. Neither receive with timeout nor Partitioned Topics can
+     * the consumers that are ready to process them. Neither receive with timeout nor partitioned topics can
      * be
-     * used if the consumer queue size is zero. The receive() function call should not be interrupted when
-     * the consumer queue size is zero.
+     * used if the consumer queue size is 0. The receive() function call should not be interrupted when
+     * the consumer queue size is 0.
      *
-     * Default value is 1000 messages and should be good for most use cases.
+     * The default value is 1000 messages and it is appropriate for the most use cases.
      *
-     * @param size
-     *            the new receiver queue size value
+     * @param size the new receiver queue size value
+     *
      */
     void setReceiverQueueSize(int size);
+
+    /**
+     * @return the receiver queue size
+     */
     int getReceiverQueueSize() const;
 
     /**
      * Set the max total receiver queue size across partitons.
-     * <p>
-     * This setting will be used to reduce the receiver queue size for individual partitions
+     *
+     * This setting is used to reduce the receiver queue size for individual partitions
      * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
      *
      * @param maxTotalReceiverQueueSizeAcrossPartitions
@@ -138,7 +189,16 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     int getMaxTotalReceiverQueueSizeAcrossPartitions() const;
 
-    void setConsumerName(const std::string&);
+    /**
+     * Set the consumer name.
+     *
+     * @param consumerName
+     */
+    void setConsumerName(const std::string& consumerName);
+
+    /**
+     * @return the consumer name
+     */
     const std::string& getConsumerName() const;
 
     /**
@@ -146,6 +206,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * 10 seconds. An Exception is thrown if the given value is less than 10000 (10 seconds).
      * If a successful acknowledgement is not sent within the timeout all the unacknowledged messages are
      * redelivered.
+     *
+     * Default: 0, which means the the tracker for unacknowledged messages is disabled.
+     *
      * @param timeout in milliseconds
      */
     void setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds);
@@ -155,13 +218,27 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     long getUnAckedMessagesTimeoutMs() const;
 
+    /**
+     * Set the tick duration time that defines the granularity of the ack-timeout redelivery (in
+     * milliseconds).
+     *
+     * The default value is 1000, which means 1 second.
+     *
+     * Using a higher tick time reduces
+     * the memory overhead to track messages when the ack-timeout is set to a bigger value.
+     *
+     * @param milliSeconds the tick duration time (in milliseconds)
+     */
     void setTickDurationInMs(const uint64_t milliSeconds);
 
+    /**
+     * @return the tick duration time (in milliseconds)
+     */
     long getTickDurationInMs() const;
 
     /**
      * Set the delay to wait before re-delivering messages that have failed to be process.
-     * <p>
+     *
      * When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
      * will be redelivered after a fixed timeout. The default is 1 min.
      *
@@ -214,6 +291,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the time duration for which the broker side consumer stats will be cached in the client.
+     *
+     * Default: 30000, which means 30 seconds.
+     *
      * @param cacheTimeInMs in milliseconds
      */
     void setBrokerConsumerStatsCacheTimeInMs(const long cacheTimeInMs);
@@ -223,14 +303,51 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     long getBrokerConsumerStatsCacheTimeInMs() const;
 
+    /**
+     * @return true if encryption keys are added
+     */
     bool isEncryptionEnabled() const;
+
+    /**
+     * @return the shared pointer to CryptoKeyReader.
+     */
     const CryptoKeyReaderPtr getCryptoKeyReader() const;
+
+    /**
+     * Set the shared pointer to CryptoKeyReader.
+     *
+     * @param the shared pointer to CryptoKeyReader
+     */
     ConsumerConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
 
+    /**
+     * @return the ConsumerCryptoFailureAction
+     */
     ConsumerCryptoFailureAction getCryptoFailureAction() const;
+
+    /**
+     * Set the ConsumerCryptoFailureAction.
+     */
     ConsumerConfiguration& setCryptoFailureAction(ConsumerCryptoFailureAction action);
 
+    /**
+     * @return true if readCompacted is enabled
+     */
     bool isReadCompacted() const;
+
+    /**
+     * If enabled, the consumer reads messages from the compacted topics rather than reading the full message
+     * backlog of the topic. This means that if the topic has been compacted, the consumer only sees the
+     * latest value for each key in the topic, up until the point in the topic message backlog that has been
+     * compacted. Beyond that point, message is sent as normal.
+     *
+     * `readCompacted` can only be enabled subscriptions to persistent topics, which have a single active
+     * consumer (for example, failure or exclusive subscriptions). Attempting to enable it on subscriptions to
+     * a non-persistent topics or on a shared subscription leads to the subscription call failure.
+     *
+     * @param readCompacted
+     *            whether to read from the compacted topic
+     */
     void setReadCompacted(bool compacted);
 
     /**
@@ -241,10 +358,37 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @param periodInSeconds       period in seconds to do an auto discovery
      */
     void setPatternAutoDiscoveryPeriod(int periodInSeconds);
+
+    /**
+     * @return the time duration for the PatternMultiTopicsConsumer performs a pattern auto discovery
+     */
     int getPatternAutoDiscoveryPeriod() const;
 
+    /**
+     * The default value is `InitialPositionLatest`.
+     *
+     * @param subscriptionInitialPosition the initial position at which to set
+     * the cursor when subscribing to the topic for the first time
+     */
     void setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition);
+
+    /**
+     * @return the configured `InitialPosition` for the consumer
+     */
     InitialPosition getSubscriptionInitialPosition() const;
+
+    /**
+     * Set whether the subscription status should be replicated.
+     * The default value is `false`.
+     *
+     * @param replicateSubscriptionState whether the subscription status should be replicated
+     */
+    void setReplicateSubscriptionStateEnabled(bool enabled);
+
+    /**
+     * @return whether the subscription status should be replicated
+     */
+    bool isReplicateSubscriptionStateEnabled() const;
 
     /**
      * Check whether the message has a specific property attached.
@@ -279,6 +423,65 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * Add all the properties in the provided map
      */
     ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
+
+    /**
+     * Set the Priority Level for consumer (0 is the default value and means the highest priority).
+     *
+     * @param priorityLevel the priority of this consumer
+     * @return the ConsumerConfiguration instance
+     */
+    ConsumerConfiguration& setPriorityLevel(int priorityLevel);
+
+    /**
+     * @return the configured priority for the consumer
+     */
+    int getPriorityLevel() const;
+
+    /**
+     * Consumer buffers chunk messages into memory until it receives all the chunks of the original message.
+     * While consuming chunk-messages, chunks from same message might not be contiguous in the stream and they
+     * might be mixed with other messages' chunks. so, consumer has to maintain multiple buffers to manage
+     * chunks coming from different messages. This mainly happens when multiple publishers are publishing
+     * messages on the topic concurrently or publisher failed to publish all chunks of the messages.
+     *
+     * eg: M1-C1, M2-C1, M1-C2, M2-C2
+     * Here, Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 belong to M2 message.
+     *
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it
+     * can be guarded by providing this maxPendingChunkedMessage threshold. Once, consumer reaches this
+     * threshold, it drops the outstanding unchunked-messages by silently acking or asking broker to redeliver
+     * later by marking it unacked. See setAutoOldestChunkedMessageOnQueueFull.
+     *
+     * If it's zero, the pending chunked messages will not be limited.
+     *
+     * Default: 100
+     *
+     * @param maxPendingChunkedMessage the number of max pending chunked messages
+     */
+    ConsumerConfiguration& setMaxPendingChunkedMessage(size_t maxPendingChunkedMessage);
+
+    /**
+     * The associated getter of setMaxPendingChunkedMessage
+     */
+    size_t getMaxPendingChunkedMessage() const;
+
+    /**
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it
+     * can be guarded by providing the maxPendingChunkedMessage threshold. See setMaxPendingChunkedMessage.
+     * Once, consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acking
+     * if autoAckOldestChunkedMessageOnQueueFull is true else it marks them for redelivery.
+     *
+     * Default: false
+     *
+     * @param autoAckOldestChunkedMessageOnQueueFull whether to ack the discarded chunked message
+     */
+    ConsumerConfiguration& setAutoOldestChunkedMessageOnQueueFull(
+        bool autoAckOldestChunkedMessageOnQueueFull);
+
+    /**
+     * The associated getter of setAutoOldestChunkedMessageOnQueueFull
+     */
+    bool isAutoOldestChunkedMessageOnQueueFull() const;
 
     friend class PulsarWrapper;
 

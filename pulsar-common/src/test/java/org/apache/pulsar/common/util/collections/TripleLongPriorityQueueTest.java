@@ -35,7 +35,7 @@ public class TripleLongPriorityQueueTest {
         final int N = 1000;
 
         for (int i = N; i > 0; i--) {
-            pq.add(i, i * 2, i * 3);
+            pq.add(i, i * 2L, i * 3L);
         }
 
         assertEquals(pq.size(), N);

@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
@@ -31,6 +33,8 @@ import java.util.regex.Pattern;
  *
  * @since 2.0.0
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
@@ -164,6 +168,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionName(String subscriptionName);
 
     /**
+     * Specify the subscription properties for this subscription.
+     * Properties are immutable, and consumers under the same subscription will fail to create a subscription
+     * if they use different properties.
+     * @param subscriptionProperties
+     * @return
+     */
+    ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties);
+
+
+    /**
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
      * 1 second.
      *
@@ -181,6 +195,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
+
+    /**
+     * Ack will return receipt but does not mean that the message will not be resent after get receipt.
+     *
+     * @param isAckReceiptEnabled {@link Boolean} is enable ack for receipt
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled);
 
     /**
      * Define the granularity of the ack-timeout redelivery.
@@ -265,6 +287,30 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKey
+     *            the private key that is always used to decrypt message payloads.
+     * @return the consumer builder instance
+     * @since 2.8.0
+     */
+    ConsumerBuilder<T> defaultCryptoKeyReader(String privateKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKeys
+     *            the map of private key names and their URIs used to decrypt message payloads.
+     * @return the consumer builder instance
+     * @since 2.8.0
+     */
+    ConsumerBuilder<T> defaultCryptoKeyReader(Map<String, String> privateKeys);
 
     /**
      * Sets a {@link MessageCrypto}.
@@ -471,8 +517,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            the property key
      * @param value
      *            the property value
-     * @param key
-     * @param value
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> property(String key, String value);
@@ -647,12 +691,37 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @param maxPendingChuckedMessage
      * @return
+     * @deprecated use {@link #maxPendingChunkedMessage(int)}
      */
+    @Deprecated
     ConsumerBuilder<T> maxPendingChuckedMessage(int maxPendingChuckedMessage);
 
     /**
+     * Consumer buffers chunk messages into memory until it receives all the chunks of the original message. While
+     * consuming chunk-messages, chunks from same message might not be contiguous in the stream and they might be mixed
+     * with other messages' chunks. so, consumer has to maintain multiple buffers to manage chunks coming from different
+     * messages. This mainly happens when multiple publishers are publishing messages on the topic concurrently or
+     * publisher failed to publish all chunks of the messages.
+     *
+     * <pre>
+     * eg: M1-C1, M2-C1, M1-C2, M2-C2
+     * Here, Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 messages belong to M2 message.
+     * </pre>
      * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
-     * guarded by providing this @maxPendingChuckedMessage threshold. Once, consumer reaches this threshold, it drops
+     * guarded by providing this @maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
+     * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
+     *
+     * @default 100
+     *
+     * @param maxPendingChunkedMessage
+     * @return
+     */
+    ConsumerBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage);
+
+    /**
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
+     * guarded by providing this @maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops
      * the outstanding unchunked-messages by silently acking if autoAckOldestChunkedMessageOnQueueFull is true else it
      * marks them for redelivery.
      *
@@ -665,11 +734,68 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
-     * won't be able to receive all chunks in expire times (default 1 hour).
+     * won't be able to receive all chunks in expire times (default 1 minute).
      *
      * @param duration
      * @param unit
      * @return
      */
     ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
+
+    /**
+     * Enable pooling of messages and the underlying data buffers.
+     * <p/>
+     * When pooling is enabled, the application is responsible for calling Message.release() after the handling of every
+     * received message. If “release()” is not called on a received message, there will be a memory leak. If an
+     * application attempts to use and already “released” message, it might experience undefined behavior (eg: memory
+     * corruption, deserialization error, etc.).
+     */
+    ConsumerBuilder<T> poolMessages(boolean poolMessages);
+
+    /**
+     * If it's configured with a non-null value, the consumer will use the processor to process the payload, including
+     * decoding it to messages and triggering the listener.
+     *
+     * Default: null
+     */
+    ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
+
+    /**
+     * Notice: the negativeAckRedeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+     * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff);
+
+    /**
+     * Notice: the redeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+     * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().ackTimeout(10, TimeUnit.SECOND)
+     *              .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> ackTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff);
+
+    /**
+     * Start the consumer in a paused state. When enabled, the consumer does not immediately fetch messages when
+     * {@link #subscribe()} is called. Instead, the consumer waits to fetch messages until {@link Consumer#resume()} is
+     * called.
+     * <p/>
+     * See also {@link Consumer#pause()}.
+     * @default false
+     */
+    ConsumerBuilder<T> startPaused(boolean paused);
 }

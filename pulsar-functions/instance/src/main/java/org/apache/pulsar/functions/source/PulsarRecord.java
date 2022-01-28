@@ -20,14 +20,13 @@ package org.apache.pulsar.functions.source;
 
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
@@ -41,6 +40,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     private final int partition;
 
     private final Message<T> message;
+    private final Schema<T> schema;
 
     private final Runnable failFunction;
     private final Runnable ackFunction;
@@ -60,6 +60,11 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
+    public Optional<Integer> getPartitionIndex() {
+        return Optional.of(partition);
+    }
+
+    @Override
     public Optional<String> getPartitionId() {
         return Optional.of(String.format("%s-%s", topicName, partition));
     }
@@ -72,6 +77,11 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     @Override
     public T getValue() {
         return message.getValue();
+    }
+
+    @Override
+    public Schema<T> getSchema() {
+        return schema;
     }
 
     @Override

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.Position;
 
 public class RedeliveryTrackerDisabled implements RedeliveryTracker {

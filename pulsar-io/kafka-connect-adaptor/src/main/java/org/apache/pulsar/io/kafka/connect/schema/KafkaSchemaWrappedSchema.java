@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.io.kafka.connect.schema;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -45,9 +44,9 @@ public class KafkaSchemaWrappedSchema implements Schema<byte[]>, Serializable {
         boolean isJsonConverter = converter instanceof JsonConverter;
         props.put(GenericAvroSchema.OFFSET_PROP, isJsonConverter ? "0" : "5");
         this.schemaInfo = SchemaInfo.builder()
-                .name(isJsonConverter? "KafKaJson" : "KafkaAvro")
+                .name(isJsonConverter ? "KafKaJson" : "KafkaAvro")
                 .type(isJsonConverter ? SchemaType.JSON : SchemaType.AVRO)
-                .schema(schema.toString().getBytes(UTF_8))
+                .schema(schema.toString().getBytes(StandardCharsets.UTF_8))
                 .properties(props)
                 .build();
     }

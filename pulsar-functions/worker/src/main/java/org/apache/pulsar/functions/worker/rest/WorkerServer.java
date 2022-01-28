@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.RateLimitingFilter;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -31,7 +33,6 @@ import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -44,13 +45,10 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
-import java.net.BindException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
 
@@ -59,6 +57,7 @@ public class WorkerServer {
 
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
+    private final AuthenticationService authenticationService;
     private static final String MATCH_ALL = "/*";
     private static final int MAX_CONCURRENT_REQUESTS = 1024;
     private final WebExecutorThreadPool webServerExecutor;
@@ -67,18 +66,10 @@ public class WorkerServer {
     private ServerConnector httpConnector;
     private ServerConnector httpsConnector;
 
-    private static String getErrorMessage(Server server, int port, Exception ex) {
-        if (ex instanceof BindException) {
-            final URI uri = server.getURI();
-            return String.format("%s http://%s:%d", ex.getMessage(), uri.getHost(), port);
-        }
-
-        return ex.getMessage();
-    }
-
-    public WorkerServer(WorkerService workerService) {
+    public WorkerServer(WorkerService workerService, AuthenticationService authenticationService) {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
+        this.authenticationService = authenticationService;
         this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web");
         init();
     }
@@ -97,21 +88,19 @@ public class WorkerServer {
         connectors.add(httpConnector);
 
         List<Handler> handlers = new ArrayList<>(4);
-        handlers.add(
-                newServletContextHandler("/admin", new ResourceConfig(Resources.getApiV2Resources()), workerService));
-        handlers.add(
-                newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
-        handlers.add(
-                newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
+        handlers.add(newServletContextHandler("/admin",
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, authenticationService));
+        handlers.add(newServletContextHandler("/admin/v2",
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, authenticationService));
+        handlers.add(newServletContextHandler("/admin/v3",
+            new ResourceConfig(Resources.getApiV3Resources()), workerService, authenticationService));
         // don't require auth for metrics or config routes
-        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService, workerConfig.isAuthenticateMetricsEndpoint()));
+        handlers.add(newServletContextHandler("/",
+            new ResourceConfig(Resources.getRootResources()), workerService,
+            workerConfig.isAuthenticateMetricsEndpoint(), authenticationService));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        Slf4jRequestLog requestLog = new Slf4jRequestLog();
-        requestLog.setExtended(true);
-        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
-        requestLog.setLogLatency(true);
-        requestLogHandler.setRequestLog(requestLog);
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 
@@ -131,7 +120,7 @@ public class WorkerServer {
         handlers.add(stats);
         server.setHandler(stats);
 
-        if (this.workerConfig.getWorkerPortTls() != null) {
+        if (this.workerConfig.getTlsEnabled()) {
             try {
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
@@ -152,11 +141,18 @@ public class WorkerServer {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
-    public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
-        return newServletContextHandler(contextPath, config, workerService, true);
+    public static ServletContextHandler newServletContextHandler(String contextPath,
+                                                                 ResourceConfig config,
+                                                                 WorkerService workerService,
+                                                                 AuthenticationService authenticationService) {
+        return newServletContextHandler(contextPath, config, workerService, true, authenticationService);
     }
 
-    public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService, boolean requireAuthentication) {
+    public static ServletContextHandler newServletContextHandler(String contextPath,
+                                                                 ResourceConfig config,
+                                                                 WorkerService workerService,
+                                                                 boolean requireAuthentication,
+                                                                 AuthenticationService authenticationService) {
         final ServletContextHandler contextHandler =
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
@@ -169,14 +165,20 @@ public class WorkerServer {
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
         if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
-            FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
+            FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
             contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
+        if (workerService.getWorkerConfig().isHttpRequestsLimitEnabled()) {
+            contextHandler.addFilter(
+                    new FilterHolder(
+                            new RateLimitingFilter(workerService.getWorkerConfig().getHttpRequestsMaxPerSecond())),
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
         return contextHandler;
     }
 
-    @VisibleForTesting
     public void stop() {
         if (this.server != null) {
             try {

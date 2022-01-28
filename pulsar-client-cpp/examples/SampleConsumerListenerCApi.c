@@ -22,7 +22,7 @@
 
 static void listener_callback(pulsar_consumer_t* consumer, pulsar_message_t* message, void* ctx) {
     printf("Received message with payload: '%.*s'\n", pulsar_message_get_length(message),
-           pulsar_message_get_data(message));
+           (const char*)pulsar_message_get_data(message));
 
     pulsar_consumer_acknowledge(consumer, message);
     pulsar_message_free(message);

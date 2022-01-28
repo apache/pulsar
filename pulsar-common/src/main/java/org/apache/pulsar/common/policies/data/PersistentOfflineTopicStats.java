@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,8 +55,8 @@ public class PersistentOfflineTopicStats {
     public PersistentOfflineTopicStats(String topicName, String brokerName) {
         this.brokerName = brokerName;
         this.topicName = topicName;
-        this.dataLedgerDetails = Lists.newArrayList();
-        this.cursorDetails = Maps.newHashMap();
+        this.dataLedgerDetails = new ArrayList<>();
+        this.cursorDetails = new HashMap<>();
         this.statGeneratedAt = new Date(System.currentTimeMillis());
     }
 
@@ -72,7 +72,7 @@ public class PersistentOfflineTopicStats {
     /**
      * Details about a cursor.
      */
-    public class CursorDetails {
+    public static class CursorDetails {
         public long cursorBacklog;
         public long cursorLedgerId;
 
@@ -93,7 +93,7 @@ public class PersistentOfflineTopicStats {
     /**
      * Details about a ledger.
      */
-    public class LedgerDetails {
+    public static class LedgerDetails {
         public long entries;
         public long timestamp;
         public long size;

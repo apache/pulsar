@@ -37,9 +37,10 @@ class PULSAR_PUBLIC BrokerConsumerStats {
     std::shared_ptr<BrokerConsumerStatsImplBase> impl_;
 
    public:
+    BrokerConsumerStats() = default;
     explicit BrokerConsumerStats(std::shared_ptr<BrokerConsumerStatsImplBase> impl);
 
-    BrokerConsumerStats();
+    virtual ~BrokerConsumerStats() = default;
 
     /** Returns true if the Stats are still valid **/
     virtual bool isValid() const;

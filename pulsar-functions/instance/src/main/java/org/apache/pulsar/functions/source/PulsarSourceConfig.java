@@ -18,22 +18,14 @@
  */
 package org.apache.pulsar.functions.source;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.TreeMap;
-
 import lombok.Data;
 
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 
 @Data
-public class PulsarSourceConfig {
+public abstract class PulsarSourceConfig {
 
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     SubscriptionType subscriptionType;
@@ -43,14 +35,7 @@ public class PulsarSourceConfig {
     private Integer maxMessageRetries = -1;
     private String deadLetterTopic;
 
-    private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
-
     private String typeClassName;
     private Long timeoutMs;
     private Long negativeAckRedeliveryDelayMs;
-
-    public static PulsarSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), PulsarSourceConfig.class);
-    }
 }

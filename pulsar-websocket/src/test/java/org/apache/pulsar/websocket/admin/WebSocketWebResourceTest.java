@@ -73,7 +73,7 @@ public class WebSocketWebResourceTest {
 
     @BeforeMethod
     public void setup(Method method) throws Exception {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setSuperUserRoles(Sets.newHashSet(SUPER_USER));
@@ -127,7 +127,7 @@ public class WebSocketWebResourceTest {
         topicName = TopicName.get("persistent://tenant/cluster/ns/dest");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         this.webResource = null;
     }

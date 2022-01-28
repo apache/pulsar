@@ -39,7 +39,7 @@ broker1.use.org.com:8080
 
 ###### REST
 
-{@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers}
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers?version=[[pulsar:version_number]]}
 
 ###### Java
 
@@ -69,7 +69,7 @@ $ pulsar-admin brokers namespaces use \
 ```
 ###### REST
 
-{@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes}
+{@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes?version=[[pulsar:version_number]]}
 
 ###### Java
 
@@ -98,7 +98,7 @@ $ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration}
+{@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -119,7 +119,7 @@ brokerShutdownTimeoutMs
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName}
+{@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -140,7 +140,7 @@ brokerShutdownTimeoutMs:100
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations}
+{@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations?version=[[pulsar:version_number]]}
 
 #### Java
 

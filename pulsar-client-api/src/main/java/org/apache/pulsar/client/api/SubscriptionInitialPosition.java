@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * When creating a consumer, if the subscription does not exist, a new subscription will be created. By default the
  * subscription will be created at the end of the topic. See
  * {@link #subscriptionInitialPosition(SubscriptionInitialPosition)} to configure the initial position behavior.
  *
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public enum SubscriptionInitialPosition {
     /**
      * The latest position which means the start consuming position will be the last message.

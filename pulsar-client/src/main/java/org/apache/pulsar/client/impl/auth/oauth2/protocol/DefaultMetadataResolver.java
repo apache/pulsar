@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.time.Duration;
@@ -97,7 +98,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
      */
     public static URL getWellKnownMetadataUrl(URL issuerUrl) {
         try {
-            return new URL(issuerUrl, "/.well-known/openid-configuration");
+            return URI.create(issuerUrl.toExternalForm() + "/.well-known/openid-configuration").normalize().toURL();
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e);
         }

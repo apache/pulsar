@@ -41,12 +41,6 @@ public class LookupData {
         this.nativeUrl = brokerUrl;
     }
 
-    public LookupData(String brokerUrl, String brokerUrlTls, boolean redirect, boolean authoritative) {
-        this.brokerUrl = brokerUrl;
-        this.brokerUrlTls = brokerUrlTls;
-        this.nativeUrl = brokerUrl;
-    }
-
     public String getBrokerUrl() {
         return brokerUrl;
     }
@@ -89,6 +83,6 @@ public class LookupData {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("brokerUrl", brokerUrl).add("brokerUrlTls", brokerUrlTls)
-                .add("httpUrl", httpUrl).toString();
+                .add("httpUrl", httpUrl).add("httpUrlTls", httpUrlTls).toString();
     }
 }

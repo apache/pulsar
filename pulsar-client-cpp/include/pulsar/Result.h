@@ -83,6 +83,11 @@ enum Result
     ResultTransactionCoordinatorNotFoundError,       /// Transaction coordinator not found
     ResultInvalidTxnStatusError,                     /// Invalid txn status error
     ResultNotAllowedError,                           /// Not allowed
+    ResultTransactionConflict,                       /// Transaction ack conflict
+    ResultTransactionNotFound,                       /// Transaction not found
+    ResultProducerFenced,                            /// Producer was fenced by broker
+
+    ResultMemoryBufferIsFull,  /// Client-wide memory limit has been reached
 };
 
 // Return string representation of result code

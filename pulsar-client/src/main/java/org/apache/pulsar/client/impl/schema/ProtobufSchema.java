@@ -18,34 +18,30 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.GeneratedMessageV3;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import org.apache.avro.protobuf.ProtobufData;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
-import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
-import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import org.apache.avro.protobuf.ProtobufData;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
+import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A schema implementation to deal with protobuf generated messages.
  */
-public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends StructSchema<T> {
+public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends AvroBaseStructSchema<T> {
 
     public static final String PARSING_INFO_PROPERTY = "__PARSING_INFO__";
 
@@ -69,11 +65,10 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         setReader(new ProtobufReader<>(protoMessageInstance));
         setWriter(new ProtobufWriter<>());
         // update properties with protobuf related properties
-        Map<String, String> allProperties = new HashMap<>();
-        allProperties.putAll(schemaInfo.getProperties());
         // set protobuf parsing info
+        Map<String, String> allProperties = new HashMap<>(schemaInfo.getProperties());
         allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
-        schemaInfo.setProperties(allProperties);
+        ((SchemaInfoImpl) schemaInfo).setProperties(allProperties);
     }
 
     private String getParsingInfo(T protoMessageInstance) {
@@ -94,17 +89,13 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         }
     }
 
-    @Override
-    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
-        throw new RuntimeException("ProtobufSchema don't support schema versioning");
-    }
-
     public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
         return of(pojo, new HashMap<>());
     }
 
     public static <T> ProtobufSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
-        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
+        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo)
+                .withProperties(properties).build();
         return ProtobufSchema.of(schemaDefinition);
     }
 
@@ -116,7 +107,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
                     + " is not assignable from " + pojo.getName());
         }
 
-            SchemaInfo schemaInfo = SchemaInfo.builder()
+            SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
                     .type(SchemaType.PROTOBUF)
                     .name("")
@@ -126,7 +117,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         try {
             return new ProtobufSchema(schemaInfo,
                 (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
-        }catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }
     }

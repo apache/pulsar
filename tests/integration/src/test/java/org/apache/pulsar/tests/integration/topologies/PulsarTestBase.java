@@ -19,13 +19,11 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -34,9 +32,19 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.junit.Assert;
+import org.apache.pulsar.tests.TestRetrySupport;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 
-public class PulsarTestBase {
+public abstract class PulsarTestBase extends TestRetrySupport {
+
+    @DataProvider(name = "TopicDomain")
+    public Object[][] topicDomain() {
+        return new Object[][] {
+                {"persistent"},
+                {"non-persistent"}
+        };
+    }
 
     public static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();
@@ -68,7 +76,7 @@ public class PulsarTestBase {
         }
     }
 
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("testpubconsume", isPersistent);
 
         int numMessages = 10;
@@ -99,7 +107,7 @@ public class PulsarTestBase {
         }
     }
 
-    public void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+    protected void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("test-batch-publish-consume", isPersistent);
 
         final int numMessages = 10000;
@@ -134,7 +142,7 @@ public class PulsarTestBase {
         }
     }
 
-    public void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
+    protected void testBatchIndexAckDisabled(String serviceUrl) throws Exception {
         String topicName = generateTopicName("test-batch-index-ack-disabled", true);
         final int numMessages = 100;
         try (PulsarClient client = PulsarClient.builder()

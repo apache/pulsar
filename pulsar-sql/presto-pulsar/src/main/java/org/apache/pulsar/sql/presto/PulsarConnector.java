@@ -21,7 +21,6 @@ package org.apache.pulsar.sql.presto;
 import static io.prestosql.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static io.prestosql.spi.transaction.IsolationLevel.checkConnectorSupports;
 import static java.util.Objects.requireNonNull;
-
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import io.prestosql.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;

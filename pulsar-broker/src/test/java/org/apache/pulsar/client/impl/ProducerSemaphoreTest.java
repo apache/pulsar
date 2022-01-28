@@ -23,7 +23,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -36,11 +36,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+@Test(groups = "broker-impl")
 public class ProducerSemaphoreTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProducerSemaphoreTest.class);
 
     @Override
     @BeforeMethod
@@ -50,7 +47,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -74,33 +71,38 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             for (int i = 0; i < messages; i++) {
                 futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
             }
-            Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize - messages);
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages);
+            Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         futures.clear();
 
         // Simulate replicator, non batching message but `numMessagesInBatch` of message metadata > 1
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < messages / 2; i++) {
-                PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-                builder.setNumMessagesInBatch(10);
-                MessageImpl<byte[]> msg = MessageImpl.create(builder, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
+                MessageMetadata metadata = new MessageMetadata()
+                        .setNumMessagesInBatch(10);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 futures.add(producer.sendAsync(msg));
             }
-            Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize - messages/2);
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages/2);
+            Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         futures.clear();
 
         // Here must ensure that the semaphore available permits is 0
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
 
         // Acquire 5 and not wait the send ack call back
         producer.getClientCnx().channel().config().setAutoRead(false);
@@ -110,13 +112,15 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             }
 
             // Here must ensure that the Semaphore a acquired 5
-            Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize - messages / 2);
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages / 2);
+            Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
 
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
     }
 
     /**
@@ -140,28 +144,31 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         // Simulate replicator, non batching message but `numMessagesInBatch` of message metadata > 1
         // Test that when we fill the queue with "replicator" messages, we are notified
         // (replicator itself would block)
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
-                PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-                builder.setNumMessagesInBatch(10);
+                MessageMetadata metadata = new MessageMetadata()
+                        .setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(builder, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 futures.add(producer.sendAsync(msg));
             }
-            Assert.assertEquals(producer.getSemaphore().availablePermits(), 0);
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+            Assert.assertFalse(producer.isErrorStat());
             try {
-                PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-                builder.setNumMessagesInBatch(10);
+                MessageMetadata metadata = new MessageMetadata()
+                        .setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(builder, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 producer.sendAsync(msg).get();
                 Assert.fail("Shouldn't be able to send message");
             } catch (ExecutionException ee) {
                 Assert.assertEquals(ee.getCause().getClass(),
                                     PulsarClientException.ProducerQueueIsFullError.class);
-                Assert.assertEquals(producer.getSemaphore().availablePermits(), 0);
+                Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+                Assert.assertFalse(producer.isErrorStat());
             }
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
@@ -170,26 +177,30 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         futures.clear();
 
         // Test that when we fill the queue with normal messages, we get an error
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
                 futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
             }
-            Assert.assertEquals(producer.getSemaphore().availablePermits(), 0);
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+            Assert.assertFalse(producer.isErrorStat());
 
             try {
                 producer.newMessage().value(("Semaphore-test-Q-full").getBytes()).sendAsync().get();
             } catch (ExecutionException ee) {
                 Assert.assertEquals(ee.getCause().getClass(),
                                     PulsarClientException.ProducerQueueIsFullError.class);
-                Assert.assertEquals(producer.getSemaphore().availablePermits(), 0);
+                Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+                Assert.assertFalse(producer.isErrorStat());
 
             }
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
     }
 }

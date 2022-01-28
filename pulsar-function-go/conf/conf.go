@@ -52,10 +52,11 @@ type Conf struct {
 	AutoACK              bool   `json:"autoAck" yaml:"autoAck"`
 	Parallelism          int32  `json:"parallelism" yaml:"parallelism"`
 	//source config
-	SubscriptionType    int32  `json:"subscriptionType" yaml:"subscriptionType"`
-	TimeoutMs           uint64 `json:"timeoutMs" yaml:"timeoutMs"`
-	SubscriptionName    string `json:"subscriptionName" yaml:"subscriptionName"`
-	CleanupSubscription bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
+	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
+	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`
+	SubscriptionName     string `json:"subscriptionName" yaml:"subscriptionName"`
+	CleanupSubscription  bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
+	SubscriptionPosition int32  `json:"subscriptionPosition" yaml:"subscriptionPosition"`
 	//source input specs
 	SourceSpecTopic            string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
 	SourceSchemaType           string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
@@ -72,6 +73,9 @@ type Conf struct {
 	MaxMessageRetries           int32  `json:"maxMessageRetries" yaml:"maxMessageRetries"`
 	DeadLetterTopic             string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
 	ExpectedHealthCheckInterval int32  `json:"expectedHealthCheckInterval" yaml:"expectedHealthCheckInterval"`
+	UserConfig                  string `json:"userConfig" yaml:"userConfig"`
+	//metrics config
+	MetricsPort int `json:"metricsPort" yaml:"metricsPort"`
 }
 
 var (

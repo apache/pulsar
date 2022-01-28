@@ -9,7 +9,7 @@ sidebar_label: "How-to: Deploy"
 To deploy and manage Pulsar Functions, you need to have a Pulsar cluster running. There are several options for this:
 
 * You can run a [standalone cluster](getting-started-standalone.md) locally on your own machine.
-* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), [DC/OS](deploy-dcos.md), and more.
+* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), DC/OS, and more.
 
 If you run a non-[standalone](reference-terminology.md#standalone) cluster, you need to obtain the service URL for the cluster. How you obtain the service URL depends on how you deploy your Pulsar cluster.
 
@@ -153,6 +153,25 @@ $ bin/pulsar-admin functions create \
 
 > #### Resources are *per instance*
 > The resources that you apply to a given Pulsar Function are applied to each instance of the function. For example, if you apply 8 GB of RAM to a function with a parallelism of 5, you are applying 40 GB of RAM for the function in total. Make sure that you take the parallelism (the number of instances) factor into your resource calculations.
+
+### Use Package management service
+
+Package management enables version management and simplifies the upgrade and rollback processes for Functions, Sinks, and Sources. When you use the same function, sink and source in different namespaces, you can upload them to a common package management system.
+
+To use [Package management service](admin-api-packages.md), ensure that the package management service has been enabled in your cluster by setting the following properties in `broker.conf`.
+
+> Note: Package management service is not enabled by default.
+
+```yaml
+enablePackagesManagement=true
+packagesManagementStorageProvider=org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider
+packagesReplicas=1
+packagesManagementLedgerRootPath=/ledgers
+```
+
+With Package management service enabled, you can upload your function packages by [upload a package](admin-api-packages.md#upload-a-package) to the service and get the [package URL](admin-api-packages.md#package-url).
+
+When you have a ready to use package URL, you can create the function with package URL by setting `--jar`, `--py`, or `--go` to the package URL with `pulsar-admin functions create`. 
 
 ## Trigger Pulsar Functions
 

@@ -18,19 +18,22 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Collector;
+import java.io.IOException;
+import java.io.Writer;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.stats.CachingStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
-
-import java.io.IOException;
-import java.io.Writer;
-import java.util.concurrent.*;
 
 /**
  * A <i>Prometheus</i> based {@link StatsProvider} implementation.
@@ -47,11 +50,11 @@ public class PrometheusMetricsProvider implements StatsProvider {
     private final CachingStatsProvider cachingStatsProvider;
 
     /**
-     * These acts a registry of the metrics defined in this provider
+     * These acts a registry of the metrics defined in this provider.
      */
-    final ConcurrentMap<String, LongAdderCounter> counters = new ConcurrentSkipListMap<>();
-    final ConcurrentMap<String, SimpleGauge<? extends Number>> gauges = new ConcurrentSkipListMap<>();
-    final ConcurrentMap<String, DataSketchesOpStatsLogger> opStats = new ConcurrentSkipListMap<>();
+    public final ConcurrentMap<String, LongAdderCounter> counters = new ConcurrentSkipListMap<>();
+    public final ConcurrentMap<String, SimpleGauge<? extends Number>> gauges = new ConcurrentSkipListMap<>();
+    public final ConcurrentMap<String, DataSketchesOpStatsLogger> opStats = new ConcurrentSkipListMap<>();
 
     public PrometheusMetricsProvider() {
         this.cachingStatsProvider = new CachingStatsProvider(new StatsProvider() {
@@ -93,9 +96,8 @@ public class PrometheusMetricsProvider implements StatsProvider {
                 DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);
         cluster = conf.getString(CLUSTER_NAME, DEFAULT_CLUSTER_NAME);
 
-        executor.scheduleAtFixedRate(() -> {
-            rotateLatencyCollection();
-        }, 1, latencyRolloverSeconds, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::rotateLatencyCollection),
+                1, latencyRolloverSeconds, TimeUnit.SECONDS);
     }
 
     @Override
@@ -112,7 +114,8 @@ public class PrometheusMetricsProvider implements StatsProvider {
     public void writeAllMetrics(Writer writer) throws IOException {
         gauges.forEach((name, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, name, cluster, gauge));
         counters.forEach((name, counter) -> PrometheusTextFormatUtil.writeCounter(writer, name, cluster, counter));
-        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster, opStatLogger));
+        opStats.forEach((name, opStatLogger) -> PrometheusTextFormatUtil.writeOpStat(writer, name, cluster,
+                opStatLogger));
     }
 
     @Override

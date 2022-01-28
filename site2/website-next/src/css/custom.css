@@ -1,0 +1,91 @@
+/* stylelint-disable docusaurus/copyright-header */
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+.tailwind {
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+  @tailwind screens;
+}
+
+.tailwind .section {
+  @apply max-w-screen-xl container mx-auto;
+}
+
+svg {
+  width: inherit;
+  height: inherit;
+}
+
+:root {
+  --ifm-color-primary: #198fff;
+  --ifm-color-primary-dark: rgb(33, 175, 144);
+  --ifm-color-primary-darker: rgb(31, 165, 136);
+  --ifm-color-primary-darkest: rgb(26, 136, 112);
+  --ifm-color-primary-light: rgb(70, 203, 174);
+  --ifm-color-primary-lighter: rgb(102, 212, 189);
+  --ifm-color-primary-lightest: rgb(146, 224, 208);
+  --ifm-code-font-size: 95%;
+  --ifm-container-width: 1280px;
+  --ifm-container-width-xl: 1536px;
+}
+
+.docusaurus-highlight-code-line {
+  background-color: rgba(0, 0, 0, 0.1);
+  display: block;
+  margin: 0 calc(-1 * var(--ifm-pre-padding));
+  padding: 0 var(--ifm-pre-padding);
+}
+
+html[data-theme="dark"] .docusaurus-highlight-code-line {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.logo-box-background-for-white {
+  background-color: #0f1637;
+  border-radius: 5px;
+  padding: 20px;
+  font-size: 150%;
+  /* border: dashed blue 1px; */
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-box img {
+  max-height: 80px;
+  /* border: dashed green 1px; */
+}
+
+.logo-svg {
+  min-width: 200px;
+}
+
+.logo-wrapper {
+  display: grid;
+  grid-template-columns: 250px 250px 250px 250px 250px;
+  grid-gap: 30px;
+  /* background-color: #fff; */
+  /* color: #444; */
+  /* border: dashed red 1px; */
+  /* align-items: center; */
+  justify-content: center;
+}
+
+.logo-box {
+  /* background-color: #fafafa; */
+  /* color: #fff; */
+  border-radius: 5px;
+  padding: 20px;
+  font-size: 150%;
+  /* border: dashed blue 1px; */
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

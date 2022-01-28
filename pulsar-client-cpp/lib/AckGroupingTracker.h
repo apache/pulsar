@@ -35,10 +35,15 @@ namespace pulsar {
  * Default ACK grouping tracker, it actually neither tracks ACK requests nor sends them to brokers.
  * It can be directly used by consumers for non-persistent topics.
  */
-class AckGroupingTracker {
+class AckGroupingTracker : public std::enable_shared_from_this<AckGroupingTracker> {
    public:
     AckGroupingTracker() = default;
     virtual ~AckGroupingTracker() = default;
+
+    /**
+     * Start tracking the ACK requests.
+     */
+    virtual void start() {}
 
     /**
      * Since ACK requests are grouped and delayed, we need to do some best-effort duplicate check to
@@ -102,7 +107,7 @@ class AckGroupingTracker {
                         const std::set<MessageId>& msgIds);
 };  // class AckGroupingTracker
 
-using AckGroupingTrackerScopedPtr = std::unique_ptr<AckGroupingTracker>;
+using AckGroupingTrackerPtr = std::shared_ptr<AckGroupingTracker>;
 
 }  // namespace pulsar
 #endif /* LIB_ACKGROUPINGTRACKER_H_ */

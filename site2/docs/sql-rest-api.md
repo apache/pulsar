@@ -18,7 +18,7 @@ To request services, use explicit URL `http://presto.service:8081/v1`. You need 
 X-Presto-User: username
 ```
 
-For more information about headers, refer to [PrestoHeaders](https://github.com/prestosql/presto/blob/master/presto-client/src/main/java/io/prestosql/client/PrestoHeaders.java).
+For more information about headers, refer to [PrestoHeaders](https://github.com/trinodb/trino).
 
 ## Schema
 

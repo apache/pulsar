@@ -19,17 +19,21 @@
 #include <pulsar/Client.h>
 #include <pulsar/Reader.h>
 #include "ReaderTest.h"
+#include "HttpHelper.h"
 
 #include <gtest/gtest.h>
 
+#include <time.h>
 #include <string>
 
+#include <lib/Latch.h>
 #include <lib/LogUtils.h>
 DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
 static std::string serviceUrl = "pulsar://localhost:6650";
+static const std::string adminUrl = "http://localhost:8080/";
 
 TEST(ReaderTest, testSimpleReader) {
     Client client(serviceUrl);
@@ -461,4 +465,160 @@ TEST(ReaderTest, testReferenceLeak) {
     // will be released after exit this method.
     ASSERT_EQ(1, consumerPtr.use_count());
     ASSERT_EQ(1, readerPtr.use_count());
+}
+
+TEST(ReaderTest, testPartitionIndex) {
+    Client client(serviceUrl);
+
+    const std::string nonPartitionedTopic = "ReaderTestPartitionIndex-topic-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic =
+        "ReaderTestPartitionIndex-par-topic-" + std::to_string(time(nullptr));
+
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    const std::string partition0 = partitionedTopic + "-partition-0";
+    const std::string partition1 = partitionedTopic + "-partition-1";
+
+    ReaderConfiguration readerConf;
+    Reader readers[3];
+    ASSERT_EQ(ResultOk,
+              client.createReader(nonPartitionedTopic, MessageId::earliest(), readerConf, readers[0]));
+    ASSERT_EQ(ResultOk, client.createReader(partition0, MessageId::earliest(), readerConf, readers[1]));
+    ASSERT_EQ(ResultOk, client.createReader(partition1, MessageId::earliest(), readerConf, readers[2]));
+
+    Producer producers[3];
+    ASSERT_EQ(ResultOk, client.createProducer(nonPartitionedTopic, producers[0]));
+    ASSERT_EQ(ResultOk, client.createProducer(partition0, producers[1]));
+    ASSERT_EQ(ResultOk, client.createProducer(partition1, producers[2]));
+
+    for (auto& producer : producers) {
+        ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent("hello").build()));
+    }
+
+    Message msg;
+    readers[0].readNext(msg);
+    ASSERT_EQ(msg.getMessageId().partition(), -1);
+    readers[1].readNext(msg);
+    ASSERT_EQ(msg.getMessageId().partition(), 0);
+    readers[2].readNext(msg);
+    ASSERT_EQ(msg.getMessageId().partition(), 1);
+
+    client.close();
+}
+
+TEST(ReaderTest, testSubscriptionNameSetting) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://public/default/test-subscription-name-setting";
+    std::string subName = "test-sub";
+
+    ReaderConfiguration readerConf;
+    readerConf.setInternalSubscriptionName(subName);
+    Reader reader;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf, reader));
+
+    ASSERT_EQ(subName, ReaderTest::getConsumer(reader)->getSubscriptionName());
+
+    reader.close();
+    client.close();
+}
+
+TEST(ReaderTest, testSetSubscriptionNameAndPrefix) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://public/default/testSetSubscriptionNameAndPrefix";
+    std::string subName = "test-sub";
+
+    ReaderConfiguration readerConf;
+    readerConf.setInternalSubscriptionName(subName);
+    readerConf.setSubscriptionRolePrefix("my-prefix");
+    Reader reader;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf, reader));
+
+    ASSERT_EQ(subName, ReaderTest::getConsumer(reader)->getSubscriptionName());
+
+    reader.close();
+    client.close();
+}
+
+TEST(ReaderTest, testMultiSameSubscriptionNameReaderShouldFail) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://public/default/testMultiSameSubscriptionNameReaderShouldFail";
+    std::string subscriptionName = "test-sub";
+
+    ReaderConfiguration readerConf1;
+    readerConf1.setInternalSubscriptionName(subscriptionName);
+    Reader reader1;
+    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf1, reader1));
+
+    ReaderConfiguration readerConf2;
+    readerConf2.setInternalSubscriptionName(subscriptionName);
+    Reader reader2;
+    ASSERT_EQ(ResultConsumerBusy,
+              client.createReader(topicName, MessageId::earliest(), readerConf2, reader2));
+
+    reader1.close();
+    reader2.close();
+    client.close();
+}
+
+TEST(ReaderTest, testIsConnected) {
+    const std::string topic = "testReaderIsConnected-" + std::to_string(time(nullptr));
+    Client client(serviceUrl);
+
+    Reader reader;
+    ASSERT_FALSE(reader.isConnected());
+
+    ASSERT_EQ(ResultOk, client.createReader(topic, MessageId::earliest(), {}, reader));
+    ASSERT_TRUE(reader.isConnected());
+
+    ASSERT_EQ(ResultOk, reader.close());
+    ASSERT_FALSE(reader.isConnected());
+}
+
+TEST(ReaderTest, testHasMessageAvailableWhenCreated) {
+    const std::string topic = "testHasMessageAvailableWhenCreated-" + std::to_string(time(nullptr));
+    Client client(serviceUrl);
+
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingMaxMessages(3);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producerConf, producer));
+
+    std::vector<MessageId> messageIds;
+    constexpr int numMessages = 7;
+    Latch latch(numMessages);
+    for (int i = 0; i < numMessages; i++) {
+        producer.sendAsync(MessageBuilder().setContent("msg-" + std::to_string(i)).build(),
+                           [i, &messageIds, &latch](Result result, const MessageId& messageId) {
+                               if (result == ResultOk) {
+                                   LOG_INFO("Send " << i << " to " << messageId);
+                                   messageIds.emplace_back(messageId);
+                               } else {
+                                   LOG_ERROR("Failed to send " << i << ": " << messageId);
+                               }
+                               latch.countdown();
+                           });
+    }
+    latch.wait(std::chrono::seconds(3));
+    ASSERT_EQ(messageIds.size(), numMessages);
+
+    Reader reader;
+    bool hasMessageAvailable;
+
+    for (size_t i = 0; i < messageIds.size() - 1; i++) {
+        ASSERT_EQ(ResultOk, client.createReader(topic, messageIds[i], {}, reader));
+        ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+        EXPECT_TRUE(hasMessageAvailable);
+    }
+
+    // The start message ID is exclusive by default, so when we start at the last message, there should be no
+    // message available.
+    ASSERT_EQ(ResultOk, client.createReader(topic, messageIds.back(), {}, reader));
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+    EXPECT_FALSE(hasMessageAvailable);
+    client.close();
 }

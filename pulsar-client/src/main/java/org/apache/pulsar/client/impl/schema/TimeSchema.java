@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.sql.Time;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.sql.Time;
 
 /**
  * A schema for `java.sql.Time`.
@@ -33,7 +32,7 @@ public class TimeSchema extends AbstractSchema<Time> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfo()
+       SCHEMA_INFO = new SchemaInfoImpl()
              .setName("Time")
              .setType(SchemaType.TIME)
              .setSchema(new byte[0]);

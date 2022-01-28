@@ -34,13 +34,47 @@ In this mode, most of the settings are already inherited from your broker config
 Pay attention to the following required settings when configuring functions-worker in this mode.
 
 - `numFunctionPackageReplicas`: The number of replicas to store function packages. The default value is `1`, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than `2`.
-- `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
+- `initializedDlogMetadata`: Whether to initialize distributed log metadata in runtime. If it is set to `true`, you must ensure that it has been initialized by `bin/pulsar initialize-cluster-metadata` command.
 
 If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.
 
 - `bookkeeperClientAuthenticationPlugin`: the BookKeeper client authentication plugin name.
 - `bookkeeperClientAuthenticationParametersName`: the BookKeeper client authentication plugin parameters name.
 - `bookkeeperClientAuthenticationParameters`: the BookKeeper client authentication plugin parameters.
+
+### Configure Stateful-Functions to run with broker
+
+If you want to use Stateful-Functions related functions (for example,  `putState()` and `queryState()` related interfaces), follow steps below.
+
+1. Enable the **streamStorage** service in the BookKeeper.
+
+   Currently, the service uses the NAR package, so you need to set the configuration in `bookkeeper.conf`.
+
+    ```text
+    extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+    ```
+
+   After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
+
+   Input:
+   
+    ```shell
+    telnet localhost 4181
+    ```
+   Output:
+    ```text
+    Trying 127.0.0.1...
+    Connected to localhost.
+    Escape character is '^]'.
+    ```
+
+2. Turn on this function in `functions_worker.yml`.
+
+    ```text
+    stateStorageServiceUrl: bk://<bk-service-url>:4181
+    ```
+    
+    `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
 ### Start Functions-worker with broker
 
@@ -65,7 +99,7 @@ This section illustrates how to run `functions-worker` as a separate process in 
 ![assets/functions-worker-separated.png](assets/functions-worker-separated.png)
 
 > Note    
-> In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake.
+> In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake. Also, while accessing the `functions-worker` to manage any of the functions, the `pulsar-admin` CLI tool or any of the clients should use the `workerHostname` and `workerPort` that you set in [Worker parameters](#worker-parameters) to generate an `--admin-url`.
 
 ### Configure Functions-worker to run separately
 
@@ -85,7 +119,7 @@ To run function-worker separately, you have to configure the following parameter
 #### Function metadata parameter
 
 - `pulsarServiceUrl`: The Pulsar service URL for your broker cluster.
-- `pulsarWebServiceUrl`: The Pulser web service URL for your broker cluster.
+- `pulsarWebServiceUrl`: The Pulsar web service URL for your broker cluster.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
 
 If authentication is enabled for your broker cluster, you *should* configure the authentication plugin and parameters for the functions worker to communicate with the brokers.
@@ -93,12 +127,30 @@ If authentication is enabled for your broker cluster, you *should* configure the
 - `clientAuthenticationPlugin`
 - `clientAuthenticationParameters`
 
+#### Customize Java runtime options
+
+If you want to pass additional arguments to the JVM command line to every process started by a function worker,
+you can configure the `additionalJavaRuntimeArguments` parameter.
+
+```
+additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError','-Dfoo=bar']
+```
+
+This is very useful in case you want to:
+- add JMV flags, like `-XX:+ExitOnOutOfMemoryError`
+- pass custom system properties, like `-Dlog4j2.formatMsgNoLookups`
+
+> **Note**
+> 
+> This feature applies only to Process and Kubernetes runtimes.
+
 #### Security settings
 
 If you want to enable security on functions workers, you *should*:
 - [Enable TLS transport encryption](#enable-tls-transport-encryption)
 - [Enable Authentication Provider](#enable-authentication-provider)
 - [Enable Authorization Provider](#enable-authorization-provider)
+- [Enable End-to-End Encryption](#enable-end-to-end-encryption)
 
 ##### Enable TLS transport encryption
 
@@ -154,6 +206,7 @@ properties:
 
 For *Token Authentication* provider, add necessary settings for `properties` if needed.
 See [Token Authentication](security-jwt.md) for more details.
+Note: key files must be DER-encoded
 ```
 properties:
   tokenSecretKey:       file://my/secret.key 
@@ -180,6 +233,29 @@ superUserRoles:
   - role3
 ```
 
+##### Enable End-to-End Encryption
+
+You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
+
+To enable End-to-End encryption on Functions Worker, you can set it by specifying `--producer-config` in the command line terminal, for more information, please refer to [here](security-encryption.md).
+
+We include the relevant configuration information of `CryptoConfig` into `ProducerConfig`. The specific configurable field information about `CryptoConfig` is as follows:
+
+```text
+public class CryptoConfig {
+    private String cryptoKeyReaderClassName;
+    private Map<String, Object> cryptoKeyReaderConfig;
+
+    private String[] encryptionKeys;
+    private ProducerCryptoFailureAction producerCryptoFailureAction;
+
+    private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+}
+```
+
+- `producerCryptoFailureAction`: define the action if producer fail to encrypt data one of `FAIL`, `SEND`.
+- `consumerCryptoFailureAction`: define the action if consumer fail to decrypt data one of `FAIL`, `DISCARD`, `CONSUME`.
+
 #### BookKeeper Authentication
 
 If authentication is enabled on the BookKeeper cluster, you need configure the BookKeeper authentication settings as follows:
@@ -190,7 +266,13 @@ If authentication is enabled on the BookKeeper cluster, you need configure the B
 
 ### Start Functions-worker
 
-Once you have finished configuring the `functions_worker.yml` configuration file, you can use the following command to start a `functions-worker`:
+Once you have finished configuring the `functions_worker.yml` configuration file, you can start a `functions-worker` in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
+
+```bash
+bin/pulsar-daemon start functions-worker
+```
+
+You can also start `functions-worker` in the foreground by using `pulsar` CLI tool:
 
 ```bash
 bin/pulsar functions-worker
@@ -246,16 +328,20 @@ The error message prompts when either of the cases occurs:
 
 If any of these cases happens, follow the instructions below to fix the problem:
 
-1. Get the current clusters list of `public/functions` namespace.
+1. Disable Functions Worker by setting `functionsWorkerEnabled=false`, and restart brokers.
+
+2. Get the current clusters list of `public/functions` namespace.
 
 ```bash
 bin/pulsar-admin namespaces get-clusters public/functions
 ```
 
-2. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
+3. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
 
 ```bash
-bin/pulsar-admin namespaces set-clusters --cluster=<existing-clusters>,<new-cluster> public/functions
+bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-cluster> public/functions
 ```
 
-3. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file. 
+4. After setting the cluster successfully, enable functions worker by setting `functionsWorkerEnabled=true`. 
+
+5. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file, and restart brokers. 

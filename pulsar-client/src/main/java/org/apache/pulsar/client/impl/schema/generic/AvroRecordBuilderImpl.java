@@ -22,7 +22,6 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 
-import java.util.List;
 
 /**
  * Builder to build {@link org.apache.pulsar.client.api.schema.GenericRecord}.
@@ -49,7 +48,7 @@ class AvroRecordBuilderImpl implements GenericRecordBuilder {
     public GenericRecordBuilder set(String fieldName, Object value) {
         if (value instanceof GenericRecord) {
             if (value instanceof GenericAvroRecord) {
-                avroRecordBuilder.set(fieldName, ((GenericAvroRecord)value).getAvroRecord());
+                avroRecordBuilder.set(fieldName, ((GenericAvroRecord) value).getAvroRecord());
             } else {
                 throw new IllegalArgumentException("Avro Record Builder doesn't support non-avro record as a field");
             }

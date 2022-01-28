@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.python;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.Data;
 
@@ -53,7 +54,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
      * Publish from Java and consume from Python
      */
     @Test(dataProvider = "ServiceUrls")
-    public void testJavaPublishPythonConsume(String serviceUrl) throws Exception {
+    public void testJavaPublishPythonConsume(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
@@ -61,7 +62,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
+                .serviceUrl(serviceUrl.get())
                 .build();
 
         // Create subscription to retain data
@@ -92,7 +93,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
      * Publish from Java and consume from Python
      */
     @Test(dataProvider = "ServiceUrls")
-    public void testPythonPublishJavaConsume(String serviceUrl) throws Exception {
+    public void testPythonPublishJavaConsume(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
@@ -100,7 +101,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
+                .serviceUrl(serviceUrl.get())
                 .build();
 
         @Cleanup

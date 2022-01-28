@@ -37,6 +37,9 @@ class PULSAR_PUBLIC BinaryProtoLookupService : public LookupService {
      */
     BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& serviceUrl);
 
+    BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& serviceUrl,
+                             const std::string& listenerName);
+
     Future<Result, LookupDataResultPtr> lookupAsync(const std::string& topicName);
 
     Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr& topicName);
@@ -45,12 +48,14 @@ class PULSAR_PUBLIC BinaryProtoLookupService : public LookupService {
 
    private:
     std::mutex mutex_;
-    uint64_t requestIdGenerator_;
+    uint64_t requestIdGenerator_ = 0;
 
     std::string serviceUrl_;
+    std::string listenerName_;
     ConnectionPool& cnxPool_;
 
-    void sendTopicLookupRequest(const std::string& topicName, bool authoritative, Result result,
+    void sendTopicLookupRequest(const std::string& topicName, bool authoritative,
+                                const std::string& listenerName, Result result,
                                 const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
 
     void handleLookup(const std::string& topicName, Result result, LookupDataResultPtr data,

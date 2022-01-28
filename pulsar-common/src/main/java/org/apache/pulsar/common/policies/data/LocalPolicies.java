@@ -18,35 +18,35 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
-
-import com.google.common.base.Objects;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Local policies.
  */
+@ToString
+@EqualsAndHashCode
 public class LocalPolicies {
 
-    public BundlesData bundles;
-    public BookieAffinityGroupData bookieAffinityGroup;
+    public final BundlesData bundles;
+    // bookie affinity group for bookie-isolation
+    public final BookieAffinityGroupData bookieAffinityGroup;
+    // namespace anti-affinity-group
+    public final String namespaceAntiAffinityGroup;
 
     public LocalPolicies() {
         bundles = defaultBundle();
+        bookieAffinityGroup = null;
+        namespaceAntiAffinityGroup = null;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(bundles, bookieAffinityGroup);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof LocalPolicies) {
-            LocalPolicies other = (LocalPolicies) obj;
-            return Objects.equal(bundles, other.bundles)
-                    && Objects.equal(bookieAffinityGroup, other.bookieAffinityGroup);
-        }
-        return false;
+    public LocalPolicies(BundlesData data,
+                         BookieAffinityGroupData bookieAffinityGroup,
+                         String namespaceAntiAffinityGroup) {
+        bundles = data;
+        this.bookieAffinityGroup = bookieAffinityGroup;
+        this.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
     }
 
 }

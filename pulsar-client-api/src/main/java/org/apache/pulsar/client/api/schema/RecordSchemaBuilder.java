@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Building the schema for a {@link GenericRecord}.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface RecordSchemaBuilder {
 
     /**

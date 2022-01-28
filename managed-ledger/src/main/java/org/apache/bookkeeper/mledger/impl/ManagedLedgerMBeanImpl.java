@@ -30,11 +30,12 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public static final long[] ENTRY_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
             200_000, 1000_000 };
-    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = { 128, 512, 1024, 2048, 4096, 16_384, 102_400, 1_232_896 };
+    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = { 128, 512, 1024, 2048, 4096, 16_384, 102_400, 1_048_576 };
 
     private final ManagedLedgerImpl managedLedger;
 
     private final Rate addEntryOps = new Rate();
+    private final Rate addEntryWithReplicasOps = new Rate();
     private final Rate addEntryOpsFailed = new Rate();
     private final Rate readEntriesOps = new Rate();
     private final Rate readEntriesOpsFailed = new Rate();
@@ -49,7 +50,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final LongAdder cursorLedgerCreateOp = new LongAdder();
     private final LongAdder cursorLedgerDeleteOp = new LongAdder();
 
+    // addEntryLatencyStatsUsec measure total latency including time entry spent while waiting in queue
     private final StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
+    // ledgerAddEntryLatencyStatsUsec measure latency to persist entry into ledger
+    private final StatsBuckets ledgerAddEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
     private final StatsBuckets ledgerSwitchLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
     private final StatsBuckets entryStats = new StatsBuckets(ENTRY_SIZE_BUCKETS_BYTES);
 
@@ -60,12 +64,14 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     public void refreshStats(long period, TimeUnit unit) {
         double seconds = unit.toMillis(period) / 1000.0;
         addEntryOps.calculateRate(seconds);
+        addEntryWithReplicasOps.calculateRate(seconds);
         addEntryOpsFailed.calculateRate(seconds);
         readEntriesOps.calculateRate(seconds);
         readEntriesOpsFailed.calculateRate(seconds);
         markDeleteOps.calculateRate(seconds);
 
         addEntryLatencyStatsUsec.refresh();
+        ledgerAddEntryLatencyStatsUsec.refresh();
         ledgerSwitchLatencyStatsUsec.refresh();
         entryStats.refresh();
     }
@@ -73,6 +79,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     public void addAddEntrySample(long size) {
         addEntryOps.recordEvent(size);
         entryStats.addValue(size);
+        addEntryWithReplicasOps.recordEvent(size * managedLedger.getConfig().getWriteQuorumSize());
     }
 
     public void addMarkDeleteOp() {
@@ -89,6 +96,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void addAddEntryLatencySample(long latency, TimeUnit unit) {
         addEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
+    }
+
+    public void addLedgerAddEntryLatencySample(long latency, TimeUnit unit) {
+        ledgerAddEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
     }
 
     public void addLedgerSwitchLatencySample(long latency, TimeUnit unit) {
@@ -179,6 +190,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public double getAddEntryWithReplicasBytesRate() {
+        return addEntryWithReplicasOps.getValueRate();
+    }
+
+    @Override
     public double getReadEntriesRate() {
         return readEntriesOps.getRate();
     }
@@ -234,6 +250,16 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public double getLedgerAddEntryLatencyAverageUsec() {
+        return ledgerAddEntryLatencyStatsUsec.getAvg();
+    }
+
+    @Override
+    public long[] getLedgerAddEntryLatencyBuckets() {
+        return ledgerAddEntryLatencyStatsUsec.getBuckets();
+    }
+
+    @Override
     public long[] getLedgerSwitchLatencyBuckets() {
         return ledgerSwitchLatencyStatsUsec.getBuckets();
     }
@@ -241,6 +267,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public StatsBuckets getInternalAddEntryLatencyBuckets() {
         return addEntryLatencyStatsUsec;
+    }
+
+    @Override
+    public StatsBuckets getInternalLedgerAddEntryLatencyBuckets() {
+        return ledgerAddEntryLatencyStatsUsec;
     }
 
     @Override
@@ -256,6 +287,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public long getStoredMessagesSize() {
         return managedLedger.getTotalSize() * managedLedger.getConfig().getWriteQuorumSize();
+    }
+
+    @Override
+    public long getStoredMessagesLogicalSize() {
+        return managedLedger.getTotalSize();
     }
 
     @Override

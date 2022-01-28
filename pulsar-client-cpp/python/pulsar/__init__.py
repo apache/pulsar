@@ -21,7 +21,7 @@
 The Pulsar Python client library is based on the existing C++ client library.
 All the same features are exposed through the Python interface.
 
-Currently, the supported Python versions are 2.7, 3.4, 3.5, 3.6 and 3.7.
+Currently, the supported Python versions are 2.7, 3.5, 3.6, 3.7 and 3.8.
 
 ## Install from PyPI
 
@@ -99,9 +99,12 @@ To install the Python bindings:
     client.close()
 """
 
+import logging
 import _pulsar
 
-from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode  # noqa: F401
+from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
+
+from pulsar.exceptions import *
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
@@ -219,6 +222,12 @@ class Message:
         Get the redelivery count for this message
         """
         return self._message.redelivery_count()
+
+    def schema_version(self):
+        """
+        Get the schema version for this message
+        """
+        return self._message.schema_version()
 
     @staticmethod
     def _wrap(_message):
@@ -354,6 +363,8 @@ class Client:
                  tls_trust_certs_file_path=None,
                  tls_allow_insecure_connection=False,
                  tls_validate_hostname=False,
+                 logger=None,
+                 connection_timeout_ms=10000,
                  ):
         """
         Create a new Pulsar client instance.
@@ -397,10 +408,15 @@ class Client:
           Configure whether the Pulsar client validates that the hostname of the
           endpoint, matches the common name on the TLS certificate presented by
           the endpoint.
+        * `logger`:
+          Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
+        * `connection_timeout_ms`:
+          Set timeout in milliseconds on TCP connections.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
         _check_type(int, operation_timeout_seconds, 'operation_timeout_seconds')
+        _check_type(int, connection_timeout_ms, 'connection_timeout_ms')
         _check_type(int, io_threads, 'io_threads')
         _check_type(int, message_listener_threads, 'message_listener_threads')
         _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
@@ -409,16 +425,20 @@ class Client:
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
         _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
+        _check_type_or_none(logging.Logger, logger, 'logger')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
             conf.authentication(authentication.auth)
         conf.operation_timeout_seconds(operation_timeout_seconds)
+        conf.connection_timeout(connection_timeout_ms)
         conf.io_threads(io_threads)
         conf.message_listener_threads(message_listener_threads)
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
+        if logger:
+            conf.set_logger(logger)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:
@@ -444,7 +464,11 @@ class Client:
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                        lazy_start_partitioned_producers=False,
                         properties=None,
+                        batching_type=BatchingType.Default,
+                        encryption_key=None,
+                        crypto_key_reader=None
                         ):
         """
         Create a new producer on a given topic.
@@ -473,7 +497,7 @@ class Client:
            published by the producer. First message will be using
            `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
            be assigned incremental sequence ids, if not otherwise specified.
-        * `send_timeout_seconds`:
+        * `send_timeout_millis`:
           If a message is not acknowledged by the server before the
           `send_timeout` expires, an error will be reported.
         * `compression_type`:
@@ -495,9 +519,39 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
           other option is `PartitionsRoutingMode.UseSinglePartition`
+        * `lazy_start_partitioned_producers`:
+          This config affects producers of partitioned topics only. It controls whether
+          producers register and connect immediately to the owner broker of each partition
+          or start lazily on demand. The internal producer of one partition is always
+          started eagerly, chosen by the routing policy, but the internal producers of
+          any additional partitions are started on demand, upon receiving their first
+          message.
+          Using this mode can reduce the strain on brokers for topics with large numbers of
+          partitions and when the SinglePartition routing policy is used without keyed messages.
+          Because producer connection can be on demand, this can produce extra send latency
+          for the first messages of a given partition.
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
+        * `batching_type`:
+          Sets the batching type for the producer.
+          There are two batching type: DefaultBatching and KeyBasedBatching.
+            - Default batching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
+
+            - KeyBasedBatching
+            incoming single messages:
+            (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+            batched into single batch message:
+            [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
+        * encryption_key:
+           The key used for symmetric encryption, configured on the producer side
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -513,6 +567,10 @@ class Client:
         _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
         _check_type_or_none(dict, properties, 'properties')
+        _check_type(BatchingType, batching_type, 'batching_type')
+        _check_type_or_none(str, encryption_key, 'encryption_key')
+        _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
+        _check_type(bool, lazy_start_partitioned_producers, 'lazy_start_partitioned_producers')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -525,6 +583,8 @@ class Client:
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
+        conf.batching_type(batching_type)
+        conf.lazy_start_partitioned_producers(lazy_start_partitioned_producers)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -534,10 +594,15 @@ class Client:
                 conf.property(k, v)
 
         conf.schema(schema.schema_info())
+        if encryption_key:
+            conf.encryption_key(encryption_key)
+        if crypto_key_reader:
+            conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         p._schema = schema
+        p._client = self._client
         return p
 
     def subscribe(self, topic, subscription_name,
@@ -553,7 +618,9 @@ class Client:
                   is_read_compacted=False,
                   properties=None,
                   pattern_auto_discovery_period=60,
-                  initial_position=InitialPosition.Latest
+                  initial_position=InitialPosition.Latest,
+                  crypto_key_reader=None,
+                  replicate_subscription_state_enabled=False
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -626,6 +693,12 @@ class Client:
           Set the initial position of a consumer  when subscribing to the topic.
           It could be either: `InitialPosition.Earliest` or `InitialPosition.Latest`.
           Default: `Latest`.
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
+        * replicate_subscription_state_enabled:
+          Set whether the subscription status should be replicated.
+          Default: `False`.
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
@@ -641,6 +714,7 @@ class Client:
         _check_type(bool, is_read_compacted, 'is_read_compacted')
         _check_type_or_none(dict, properties, 'properties')
         _check_type(InitialPosition, initial_position, 'initial_position')
+        _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -662,6 +736,11 @@ class Client:
         conf.subscription_initial_position(initial_position)
 
         conf.schema(schema.schema_info())
+
+        if crypto_key_reader:
+            conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
+
+        conf.replicate_subscription_state_enabled(replicate_subscription_state_enabled)
 
         c = Consumer()
         if isinstance(topic, str):
@@ -687,7 +766,8 @@ class Client:
                       receiver_queue_size=1000,
                       reader_name=None,
                       subscription_role_prefix=None,
-                      is_read_compacted=False
+                      is_read_compacted=False,
+                      crypto_key_reader=None
                       ):
         """
         Create a reader on a particular topic
@@ -737,6 +817,9 @@ class Client:
           Sets the subscription role prefix.
         * `is_read_compacted`:
           Selects whether to read the compacted version of the topic
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
@@ -745,6 +828,7 @@ class Client:
         _check_type_or_none(str, reader_name, 'reader_name')
         _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -756,6 +840,8 @@ class Client:
             conf.subscription_role_prefix(subscription_role_prefix)
         conf.schema(schema.schema_info())
         conf.read_compacted(is_read_compacted)
+        if crypto_key_reader:
+            conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
@@ -778,6 +864,15 @@ class Client:
         """
         _check_type(str, topic, 'topic')
         return self._client.get_topic_partitions(topic)
+
+    def shutdown(self):
+        """
+        Perform immediate shutdown of Pulsar client.
+
+        Release all resources and close all producer, consumer, and readers without waiting
+        for ongoing operations to complete.
+        """
+        self._client.shutdown()
 
     def close(self):
         """
@@ -830,6 +925,8 @@ class Producer:
         """
         Publish a message on the topic. Blocks until the message is acknowledged
 
+        Returns a `MessageId` object that represents where the message is persisted.
+
         **Args**
 
         * `content`:
@@ -864,7 +961,7 @@ class Producer:
         msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication, event_timestamp,
                               deliver_at, deliver_after)
-        return self._producer.send(msg)
+        return MessageId.deserialize(self._producer.send(msg))
 
     def send_async(self, content, callback,
                    properties=None,
@@ -977,8 +1074,14 @@ class Producer:
             mb.deliver_at(deliver_at)
         if deliver_after:
             mb.deliver_after(deliver_after)
-        
+
         return mb.build()
+
+    def is_connected(self):
+        """
+        Check if the producer is connected or not.
+        """
+        return self._producer.is_connected()
 
 
 class Consumer:
@@ -1136,6 +1239,13 @@ class Consumer:
         self._consumer.close()
         self._client._consumers.remove(self)
 
+    def is_connected(self):
+        """
+        Check if the consumer is connected or not.
+        """
+        return self._consumer.is_connected()
+
+
 
 class Reader:
     """
@@ -1199,6 +1309,29 @@ class Reader:
         self._reader.close()
         self._client._consumers.remove(self)
 
+    def is_connected(self):
+        """
+        Check if the reader is connected or not.
+        """
+        return self._reader.is_connected()
+
+
+class CryptoKeyReader:
+    """
+    Default crypto key reader implementation
+    """
+    def __init__(self, public_key_path, private_key_path):
+        """
+        Create crypto key reader.
+
+        **Args**
+
+        * `public_key_path`: Path to the public key
+        * `private_key_path`: Path to private key
+        """
+        _check_type(str, public_key_path, 'public_key_path')
+        _check_type(str, private_key_path, 'private_key_path')
+        self.cryptoKeyReader = _pulsar.CryptoKeyReader(public_key_path, private_key_path)
 
 def _check_type(var_type, var, name):
     if not isinstance(var, var_type):

@@ -18,7 +18,7 @@ To run Pulsar on Docker, you need to create a container for each Pulsar componen
 You can pull a Pulsar image from [Docker Hub](https://hub.docker.com/r/apachepulsar/pulsar-all/tags) with the following command.
 
 ```
-docker run -it apachepulsar/pulsar-all:latest
+docker pull apachepulsar/pulsar-all:latest
 ```
 
 ### Create three containers

@@ -18,26 +18,35 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
-import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -47,43 +56,50 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
-import lombok.Cleanup;
-
-/**
- */
+@Slf4j
+@Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
@@ -97,10 +113,18 @@ public class BrokerServiceTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
+    }
+
+    // method for resetting state explicitly
+    // this is required since setup & cleanup are using BeforeClass & AfterClass
+    private void resetState() throws Exception {
+        cleanup();
+        setup();
     }
 
     @Test
@@ -139,6 +163,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testBrokerServicePersistentTopicStats() throws Exception {
+        // this test might fail if there are stats from other tests
+        resetState();
+
         final String topicName = "persistent://prop/ns-abc/successTopic";
         final String subName = "successSub";
 
@@ -153,13 +180,16 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
-        subStats = stats.subscriptions.values().iterator().next();
+        stats = topicRef.getStats(false, false, false);
+        subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
-        assertEquals(stats.subscriptions.keySet().size(), 1);
-        assertEquals(subStats.msgBacklog, 0);
-        assertEquals(subStats.consumers.size(), 1);
+        assertEquals(stats.getSubscriptions().keySet().size(), 1);
+        assertEquals(subStats.getMsgBacklog(), 0);
+        assertEquals(subStats.getConsumers().size(), 1);
+
+        // storage stats
+        assertEquals(stats.getOffloadedStorageSize(), 0);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
@@ -171,33 +201,34 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
-        subStats = stats.subscriptions.values().iterator().next();
+        stats = topicRef.getStats(false, false, false);
+        subStats = stats.getSubscriptions().values().iterator().next();
 
         // publisher stats
-        assertEquals(subStats.msgBacklog, 10);
-        assertEquals(stats.publishers.size(), 1);
-        assertTrue(stats.publishers.get(0).msgRateIn > 0.0);
-        assertTrue(stats.publishers.get(0).msgThroughputIn > 0.0);
-        assertTrue(stats.publishers.get(0).averageMsgSize > 0.0);
-        assertNotNull(stats.publishers.get(0).getClientVersion());
+        assertEquals(subStats.getMsgBacklog(), 10);
+        assertEquals(stats.getPublishers().size(), 1);
+        assertTrue(stats.getPublishers().get(0).getMsgRateIn() > 0.0);
+        assertTrue(stats.getPublishers().get(0).getMsgThroughputIn() > 0.0);
+        assertTrue(stats.getPublishers().get(0).getAverageMsgSize() > 0.0);
+        assertNotNull(stats.getPublishers().get(0).getClientVersion());
 
         // aggregated publish stats
-        assertEquals(stats.msgRateIn, stats.publishers.get(0).msgRateIn);
-        assertEquals(stats.msgThroughputIn, stats.publishers.get(0).msgThroughputIn);
-        double diff = stats.averageMsgSize - stats.publishers.get(0).averageMsgSize;
+        assertEquals(stats.getMsgRateIn(), stats.getPublishers().get(0).getMsgRateIn());
+        assertEquals(stats.getMsgThroughputIn(), stats.getPublishers().get(0).getMsgThroughputIn());
+        double diff = stats.getAverageMsgSize() - stats.getPublishers().get(0).getAverageMsgSize();
         assertTrue(Math.abs(diff) < 0.000001);
 
         // consumer stats
-        assertTrue(subStats.consumers.get(0).msgRateOut > 0.0);
-        assertTrue(subStats.consumers.get(0).msgThroughputOut > 0.0);
+        assertTrue(subStats.getConsumers().get(0).getMsgRateOut() > 0.0);
+        assertTrue(subStats.getConsumers().get(0).getMsgThroughputOut() > 0.0);
 
         // aggregated consumer stats
-        assertEquals(subStats.msgRateOut, subStats.consumers.get(0).msgRateOut);
-        assertEquals(subStats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
-        assertEquals(stats.msgRateOut, subStats.consumers.get(0).msgRateOut);
-        assertEquals(stats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
-        assertNotNull(subStats.consumers.get(0).getClientVersion());
+        assertEquals(subStats.getMsgRateOut(), subStats.getConsumers().get(0).getMsgRateOut());
+        assertEquals(subStats.getMsgThroughputOut(), subStats.getConsumers().get(0).getMsgThroughputOut());
+        assertEquals(stats.getMsgRateOut(), subStats.getConsumers().get(0).getMsgRateOut());
+        assertEquals(stats.getMsgThroughputOut(), subStats.getConsumers().get(0).getMsgThroughputOut());
+        assertNotNull(subStats.getConsumers().get(0).getClientVersion());
+        assertEquals(stats.getOffloadedStorageSize(), 0);
 
         Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
@@ -208,10 +239,126 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
-        subStats = stats.subscriptions.values().iterator().next();
+        stats = topicRef.getStats(false, false, false);
+        subStats = stats.getSubscriptions().values().iterator().next();
+        assertEquals(stats.getOffloadedStorageSize(), 0);
 
-        assertEquals(subStats.msgBacklog, 0);
+        assertEquals(subStats.getMsgBacklog(), 0);
+    }
+
+    @Test
+    public void testConnectionController() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(3);
+        conf.setBrokerMaxConnectionsPerIp(2);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(2);
+        conf.setBrokerMaxConnectionsPerIp(3);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+    }
+
+    @Test
+    public void testConnectionController2() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        startTime = System.currentTimeMillis();
+        for (int i = 0; i < 10; i++) {
+            clients.add(createNewConnection(topicName, clientBuilder));
+        }
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+    }
+
+    private void createNewConnectionAndCheckFail(String topicName, ClientBuilder builder) throws Exception {
+        try {
+            createNewConnection(topicName, builder);
+            fail("should fail");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
+        }
+    }
+
+    private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder) throws PulsarClientException {
+        PulsarClient client1 = clientBuilder.build();
+        client1.newProducer().topic(topicName).create().close();
+        return client1;
+    }
+
+    private void cleanClient(List<PulsarClient> clients) throws Exception {
+        for (PulsarClient client : clients) {
+            if (client != null) {
+                client.close();
+            }
+        }
     }
 
     @Test
@@ -221,17 +368,20 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getStats(false).storageSize, 0);
+        assertEquals(topicRef.getStats(false, false, false).storageSize, 0);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new byte[10]);
         }
 
-        assertTrue(topicRef.getStats(false).storageSize > 0);
+        assertTrue(topicRef.getStats(false, false, false).storageSize > 0);
     }
 
     @Test
     public void testBrokerServicePersistentRedeliverTopicStats() throws Exception {
+        // this test might fail if there are stats from other tests
+        resetState();
+
         final String topicName = "persistent://prop/ns-abc/successSharedTopic";
         final String subName = "successSharedSub";
 
@@ -246,13 +396,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
-        subStats = stats.subscriptions.values().iterator().next();
+        stats = topicRef.getStats(false, false, false);
+        subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
-        assertEquals(stats.subscriptions.keySet().size(), 1);
-        assertEquals(subStats.msgBacklog, 0);
-        assertEquals(subStats.consumers.size(), 1);
+        assertEquals(stats.getSubscriptions().keySet().size(), 1);
+        assertEquals(subStats.getMsgBacklog(), 0);
+        assertEquals(subStats.getConsumers().size(), 1);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
@@ -264,45 +414,45 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
-        subStats = stats.subscriptions.values().iterator().next();
+        stats = topicRef.getStats(false, false, false);
+        subStats = stats.getSubscriptions().values().iterator().next();
 
         // publisher stats
-        assertEquals(subStats.msgBacklog, 10);
-        assertEquals(stats.publishers.size(), 1);
-        assertTrue(stats.publishers.get(0).msgRateIn > 0.0);
-        assertTrue(stats.publishers.get(0).msgThroughputIn > 0.0);
-        assertTrue(stats.publishers.get(0).averageMsgSize > 0.0);
+        assertEquals(subStats.getMsgBacklog(), 10);
+        assertEquals(stats.getPublishers().size(), 1);
+        assertTrue(stats.getPublishers().get(0).getMsgRateIn() > 0.0);
+        assertTrue(stats.getPublishers().get(0).getMsgThroughputIn() > 0.0);
+        assertTrue(stats.getPublishers().get(0).getAverageMsgSize() > 0.0);
 
         // aggregated publish stats
-        assertEquals(stats.msgRateIn, stats.publishers.get(0).msgRateIn);
-        assertEquals(stats.msgThroughputIn, stats.publishers.get(0).msgThroughputIn);
-        double diff = stats.averageMsgSize - stats.publishers.get(0).averageMsgSize;
+        assertEquals(stats.getMsgRateIn(), stats.getPublishers().get(0).getMsgRateIn());
+        assertEquals(stats.getMsgThroughputIn(), stats.getPublishers().get(0).getMsgThroughputIn());
+        double diff = stats.getAverageMsgSize() - stats.getPublishers().get(0).getAverageMsgSize();
         assertTrue(Math.abs(diff) < 0.000001);
 
         // consumer stats
-        assertTrue(subStats.consumers.get(0).msgRateOut > 0.0);
-        assertTrue(subStats.consumers.get(0).msgThroughputOut > 0.0);
-        assertEquals(subStats.msgRateRedeliver, 0.0);
-        assertEquals(subStats.consumers.get(0).unackedMessages, 10);
+        assertTrue(subStats.getConsumers().get(0).getMsgRateOut() > 0.0);
+        assertTrue(subStats.getConsumers().get(0).getMsgThroughputOut() > 0.0);
+        assertEquals(subStats.getMsgRateRedeliver(), 0.0);
+        assertEquals(subStats.getConsumers().get(0).getUnackedMessages(), 10);
 
         // aggregated consumer stats
-        assertEquals(subStats.msgRateOut, subStats.consumers.get(0).msgRateOut);
-        assertEquals(subStats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
-        assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
-        assertEquals(stats.msgRateOut, subStats.consumers.get(0).msgRateOut);
-        assertEquals(stats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
-        assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
-        assertEquals(subStats.unackedMessages, subStats.consumers.get(0).unackedMessages);
+        assertEquals(subStats.getMsgRateOut(), subStats.getConsumers().get(0).getMsgRateOut());
+        assertEquals(subStats.getMsgThroughputOut(), subStats.getConsumers().get(0).getMsgThroughputOut());
+        assertEquals(subStats.getMsgRateRedeliver(), subStats.getConsumers().get(0).getMsgRateRedeliver());
+        assertEquals(stats.getMsgRateOut(), subStats.getConsumers().get(0).getMsgRateOut());
+        assertEquals(stats.getMsgThroughputOut(), subStats.getConsumers().get(0).getMsgThroughputOut());
+        assertEquals(subStats.getMsgRateRedeliver(), subStats.getConsumers().get(0).getMsgRateRedeliver());
+        assertEquals(subStats.getUnackedMessages(), subStats.getConsumers().get(0).getUnackedMessages());
 
         consumer.redeliverUnacknowledgedMessages();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
-        subStats = stats.subscriptions.values().iterator().next();
-        assertTrue(subStats.msgRateRedeliver > 0.0);
-        assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
+        stats = topicRef.getStats(false, false, false);
+        subStats = stats.getSubscriptions().values().iterator().next();
+        assertTrue(subStats.getMsgRateRedeliver() > 0.0);
+        assertEquals(subStats.getMsgRateRedeliver(), subStats.getConsumers().get(0).getMsgRateRedeliver());
 
         Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
@@ -313,10 +463,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
-        subStats = stats.subscriptions.values().iterator().next();
+        stats = topicRef.getStats(false, false, false);
+        subStats = stats.getSubscriptions().values().iterator().next();
 
-        assertEquals(subStats.msgBacklog, 0);
+        assertEquals(subStats.getMsgBacklog(), 0);
     }
 
     @Test
@@ -343,7 +493,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
         consumer.close();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        JsonArray metrics = brokerStatsClient.getMetrics();
+        String json = brokerStatsClient.getMetrics();
+        JsonArray metrics = new Gson().fromJson(json, JsonArray.class);
 
         // these metrics seem to be arriving in different order at different times...
         // is the order really relevant here?
@@ -369,6 +520,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testBrokerServiceNamespaceStats() throws Exception {
+        // this test fails if there is state from other tests
+        resetState();
+
         final int numBundles = 4;
         final String ns1 = "prop/stats1";
         final String ns2 = "prop/stats2";
@@ -388,7 +542,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        JsonObject topicStats = brokerStatsClient.getTopics();
+        String json = brokerStatsClient.getTopics();
+        JsonObject topicStats = new Gson().fromJson(json, JsonObject.class);
         assertEquals(topicStats.size(), 2, topicStats.toString());
 
         for (String ns : nsList) {
@@ -531,6 +686,38 @@ public class BrokerServiceTest extends BrokerTestBase {
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscribe();
+        } catch (Exception e) {
+            fail("should not fail");
+        } finally {
+            pulsarClient.close();
+        }
+    }
+
+    @Test
+    public void testTlsEnabledWithoutNonTlsServicePorts() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic";
+        final String subName = "newSub";
+
+        conf.setAuthenticationEnabled(false);
+        conf.setBrokerServicePort(Optional.empty());
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePort(Optional.empty());
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
+        restartBroker();
+
+        // Access with TLS (Allow insecure TLS connection)
+        try {
+            pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscribe();
+
         } catch (Exception e) {
             fail("should not fail");
         } finally {
@@ -731,48 +918,125 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
+        // This test looks like it could be flakey, if the broker responds
+        // quickly enough, there may never be concurrency in requests
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(1)
-                .maxLookupRequests(2)
-                .build();
+        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+        resolver.updateServiceUrl(pulsar.getBrokerServiceUrl());
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setConcurrentLookupRequest(1);
+        conf.setMaxLookupRequest(2);
 
-        // 2 lookup will success.
-        try {
-            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub1").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub2").subscribeAsync();
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
+                new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
+        long reqId = 0xdeadbeef;
+        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop)) {
+            // for PMR
+            // 2 lookup will succeed
+            long reqId1 = reqId++;
+            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
+            CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
-            consumer1.get().close();
-            consumer2.get().close();
-        } catch (Exception e) {
-            fail("Subscribe should success with 2 requests");
-        }
+            long reqId2 = reqId++;
+            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
+            CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request2, reqId2));
 
-        // 3 lookup will fail
-        try {
-            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub11").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub22").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub33").subscribeAsync();
+            f1.get();
+            f2.get();
 
-            consumer1.get().close();
-            consumer2.get().close();
-            consumer3.get().close();
-            fail("It should fail as throttling should only receive 2 requests");
-        } catch (Exception e) {
-            if (!(e.getCause() instanceof
-                org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
-                fail("Subscribe should fail with TooManyRequestsException");
+            // 3 lookup will fail
+            long reqId3 = reqId++;
+            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
+
+            long reqId4 = reqId++;
+            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
+
+            long reqId5 = reqId++;
+            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
+            CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request5, reqId5));
+
+            try {
+                f1.get();
+                f2.get();
+                f3.get();
+                fail("At least one should fail");
+            } catch (ExecutionException e) {
+                Throwable rootCause = e;
+                while (rootCause instanceof ExecutionException) {
+                    rootCause = rootCause.getCause();
+                }
+                if (!(rootCause instanceof
+                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                    throw e;
+                }
             }
+
+            // for Lookup
+            // 2 lookup will succeed
+            long reqId6 = reqId++;
+            ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request6, reqId6));
+
+            long reqId7 = reqId++;
+            ByteBuf request7 = Commands.newLookup(topicName, true, reqId7);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request7, reqId7));
+
+            f1.get();
+            f2.get();
+
+            // 3 lookup will fail
+            long reqId8 = reqId++;
+            ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request8, reqId8));
+
+            long reqId9 = reqId++;
+            ByteBuf request9 = Commands.newLookup(topicName, true, reqId9);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request9, reqId9));
+
+            long reqId10 = reqId++;
+            ByteBuf request10 = Commands.newLookup(topicName, true, reqId10);
+            f3 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request10, reqId10));
+
+            try {
+                f1.get();
+                f2.get();
+                f3.get();
+                fail("At least one should fail");
+            } catch (ExecutionException e) {
+                Throwable rootCause = e;
+                while (rootCause instanceof ExecutionException) {
+                    rootCause = rootCause.getCause();
+                }
+                if (!(rootCause instanceof
+                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                    throw e;
+                }
+            }
+
         }
     }
 
     @Test
     public void testTopicLoadingOnDisableNamespaceBundle() throws Exception {
         final String namespace = "prop/disableBundle";
-        admin.namespaces().createNamespace(namespace);
+        try {
+            admin.namespaces().createNamespace(namespace);
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok.. (if test fails intermittently and namespace is already created)
+        }
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
 
         // own namespace bundle
@@ -787,7 +1051,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true);
+                .loadOrCreatePersistentTopic(topicName, true, null);
 
         try {
             futureResult.get();
@@ -819,6 +1083,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail(e.getMessage());
         }
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         BrokerService service = spy(pulsar.getBrokerService());
         // create topic will fail to get managedLedgerConfig
@@ -843,8 +1108,6 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail("there is a dead-lock and it should have been prevented");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof NullPointerException);
-        } finally {
-            executor.shutdownNow();
         }
     }
 
@@ -862,6 +1125,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             fail(e.getMessage());
         }
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
         BrokerService service = spy(pulsar.getBrokerService());
         // create topic will fail to get managedLedgerConfig
@@ -896,7 +1160,6 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (ExecutionException e) {
             assertEquals(e.getCause().getClass(), PersistenceException.class);
         } finally {
-            executor.shutdownNow();
             ledgers.clear();
         }
     }
@@ -911,13 +1174,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String namespace = "prop/testPolicy";
         final int totalBundle = 3;
         System.err.println("----------------");
-        admin.namespaces().createNamespace(namespace, new BundlesData(totalBundle));
+        admin.namespaces().createNamespace(namespace, BundlesData.builder().numBundles(totalBundle).build());
+        admin.topics().createNonPartitionedTopic(namespace + "/test");
 
-        String globalPath = joinPath(LOCAL_POLICIES_ROOT, namespace);
-        pulsar.getLocalZkCacheService().policiesCache().clear();
-        Optional<LocalPolicies> policy = pulsar.getLocalZkCacheService().policiesCache().get(globalPath);
+        Optional<LocalPolicies> policy = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(
+                NamespaceName.get(namespace));
         assertTrue(policy.isPresent());
-        assertEquals(policy.get().bundles.numBundles, totalBundle);
+        assertEquals(policy.get().bundles.getNumBundles(), totalBundle);
     }
 
     /**
@@ -964,5 +1227,52 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
         }
         assertNull(ledgers.get(topicMlName));
+    }
+
+    @Test
+    public void testMetricsProvider() throws IOException {
+        PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
+        getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
+        HttpClient httpClient = HttpClientBuilder.create().build();
+        final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
+        HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+        InputStream inputStream = response.getEntity().getContent();
+        InputStreamReader isReader = new InputStreamReader(inputStream);
+        BufferedReader reader = new BufferedReader(isReader);
+        StringBuffer sb = new StringBuffer();
+        String str;
+        while((str = reader.readLine()) != null){
+            sb.append(str);
+        }
+        Assert.assertTrue(sb.toString().contains("test_metrics"));
+    }
+
+    @Test
+    public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
+        // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
+        for (int i = 0; i < 100; i++) {
+            final String topicName = "persistent://prop/ns-abc/topic-caching-test-topic" + i;
+            CountDownLatch latch = new CountDownLatch(1);
+            Thread getStatsThread = new Thread(() -> {
+                try {
+                    latch.countDown();
+                    // create race condition with a short delay
+                    // the bug might not reproduce in all environments, this works at least on i7-10750H CPU
+                    Thread.sleep(1);
+                    admin.topics().getStats(topicName);
+                    fail("The topic should not exist yet.");
+                } catch (PulsarAdminException.NotFoundException e) {
+                    // expected exception
+                } catch (PulsarAdminException | InterruptedException e) {
+                    log.error("Exception in {}", Thread.currentThread().getName(), e);
+                }
+            }, "getStatsThread#" + i);
+            getStatsThread.start();
+            latch.await();
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+            assertNotNull(producer);
+            getStatsThread.join();
+        }
     }
 }

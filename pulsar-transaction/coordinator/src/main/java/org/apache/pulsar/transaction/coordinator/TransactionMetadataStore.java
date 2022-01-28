@@ -19,12 +19,12 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
+import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreStats;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
  * A store for storing all the transaction metadata.
@@ -40,7 +40,7 @@ public interface TransactionMetadataStore {
      *         it returns {@link TxnStatus} of the given transaction.
      */
     default CompletableFuture<TxnStatus> getTxnStatus(TxnID txnid) {
-        return getTxnMeta(txnid).thenApply(txnMeta -> txnMeta.status());
+        return getTxnMeta(txnid).thenApply(TxnMeta::status);
     }
 
     /**
@@ -55,11 +55,12 @@ public interface TransactionMetadataStore {
     /**
      * Create a new transaction in the transaction metadata store.
      *
+     * @param timeoutInMills the timeout duration of the transaction in mills
      * @return a future represents the result of creating a new transaction.
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
      */
-    CompletableFuture<TxnID> newTransaction();
+    CompletableFuture<TxnID> newTransaction(long timeoutInMills);
 
     /**
      * Add the produced partitions to transaction identified by <tt>txnid</tt>.
@@ -79,7 +80,7 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> addAckedPartitionToTxn(
-        TxnID txnid, List<String> partitions);
+        TxnID txnid, List<TransactionSubscription> partitions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.
@@ -87,16 +88,54 @@ public interface TransactionMetadataStore {
      * <p>If the current transaction status is not <tt>expectedStatus</tt>, the
      * update will be failed.
      *
+     * @param txnid {@link TxnID} for update txn status
      * @param newStatus the new txn status that the transaction should be updated to
      * @param expectedStatus the expected status that the transaction should be
+     * @param isTimeout the update txn status operation is it timeout
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> updateTxnStatus(
-        TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus);
+        TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus, boolean isTimeout);
+
+    /**
+     * Get the low water mark of this tc, in order to delete unless transaction in transaction buffer and pending ack.
+     * @return long {@link long} the lowWaterMark
+     */
+    default long getLowWaterMark() {
+        return Long.MIN_VALUE;
+    }
+
+    /**
+     * Get the transaction coordinator id.
+     * @return transaction coordinator id
+     */
+    TransactionCoordinatorID getTransactionCoordinatorID();
+
+    /**
+     * Get the transaction metadata store stats.
+     *
+     * @return TransactionCoordinatorStats {@link TransactionCoordinatorStats}
+     */
+    TransactionCoordinatorStats getCoordinatorStats();
 
     /**
      * Close the transaction metadata store.
+     *
+     * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
 
+    /**
+     * Get the transaction metadata store stats.
+     *
+     * @return TransactionMetadataStoreStats {@link TransactionMetadataStoreStats}
+     */
+    TransactionMetadataStoreStats getMetadataStoreStats();
+
+    /**
+     * Get the transactions witch timeout is bigger than given timeout.
+     *
+     * @return {@link TxnMeta} the txnMetas of slow transactions
+     */
+    List<TxnMeta> getSlowTransactions(long timeout);
 }

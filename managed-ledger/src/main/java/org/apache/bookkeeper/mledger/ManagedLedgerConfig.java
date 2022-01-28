@@ -19,25 +19,24 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
-import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
-
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public class ManagedLedgerConfig {
 
     private boolean createIfMissing = true;
@@ -61,6 +60,7 @@ public class ManagedLedgerConfig {
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
+    private boolean lazyCursorRecovery = false;
     private long metadataOperationsTimeoutSeconds = 60;
     private long readEntryTimeoutSeconds = 120;
     private long addEntryTimeoutSeconds = 120;
@@ -69,9 +69,11 @@ public class ManagedLedgerConfig {
     private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
-    private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private LedgerOffloader ledgerOffloader = NullLedgerOffloader.instance_;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
+    private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private Map<String, String> properties;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -79,6 +81,25 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
+        return this;
+    }
+
+    /**
+     * @return the lazyCursorRecovery
+     */
+    public boolean isLazyCursorRecovery() {
+        return lazyCursorRecovery;
+    }
+
+    /**
+     * Whether to recover cursors lazily when trying to recover a
+     * managed ledger backing a persistent topic. It can improve write availability of topics.
+     * The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark
+     * delete position can be recovered or not.
+     * @param lazyCursorRecovery if enable lazy cursor recovery.
+     */
+    public ManagedLedgerConfig setLazyCursorRecovery(boolean lazyCursorRecovery) {
+        this.lazyCursorRecovery = lazyCursorRecovery;
         return this;
     }
 
@@ -358,15 +379,16 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Set the retention time for the ManagedLedger
+     * Set the retention time for the ManagedLedger.
      * <p>
-     * Retention time will prevent data from being deleted for at least the specified amount of time, even if no cursors
-     * are created, or if all the cursors have marked the data for deletion.
+     * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
+     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
+     * the data marked for deletion.
      * <p>
-     * A retention time of 0 (the default), will to have no time based retention.
+     * A retention time of 0 (default) will make data to be deleted immediately.
      * <p>
-     * Specifying a negative retention time will make the data to be retained indefinitely, based on the
-     * {@link #setRetentionSizeInMB(long)} value.
+     * A retention time of -1, means to have an unlimited retention time.
      *
      * @param retentionTime
      *            duration for which messages should be retained
@@ -389,10 +411,12 @@ public class ManagedLedgerConfig {
     /**
      * The retention size is used to set a maximum retention size quota on the ManagedLedger.
      * <p>
-     * This setting works in conjuction with {@link #setRetentionSizeInMB(long)} and places a max size for retention,
-     * after which the data is deleted.
+     * Retention size and retention time ({@link #setRetentionTime(int, TimeUnit)}) are together used to retain the
+     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
+     * the data marked for deletion.
      * <p>
-     * A retention size of 0, will make data to be deleted immediately.
+     * A retention size of 0 (default) will make data to be deleted immediately.
      * <p>
      * A retention size of -1, means to have an unlimited retention size.
      *
@@ -483,7 +507,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Get clock to use to time operations
+     * Get clock to use to time operations.
      *
      * @return a clock
      */
@@ -492,7 +516,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Set clock to use for time operations
+     * Set clock to use for time operations.
      *
      * @param clock the clock to use
      */
@@ -503,7 +527,7 @@ public class ManagedLedgerConfig {
 
     /**
      *
-     * Ledger-Op (Create/Delete) timeout
+     * Ledger-Op (Create/Delete) timeout.
      *
      * @return
      */
@@ -512,7 +536,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
+     * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure.
      *
      * @param metadataOperationsTimeoutSeconds
      */
@@ -522,7 +546,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger read-entry timeout
+     * Ledger read-entry timeout.
      *
      * @return
      */
@@ -531,7 +555,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
+     * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting.
      * readTimeoutSeconds <= 0)
      *
      * @param readEntryTimeoutSeconds
@@ -559,7 +583,7 @@ public class ManagedLedgerConfig {
     /**
      * Managed-ledger can setup different custom EnsemblePlacementPolicy (eg: affinity to write ledgers to only setup of
      * group of bookies).
-     * 
+     *
      * @return
      */
     public Class<? extends EnsemblePlacementPolicy> getBookKeeperEnsemblePlacementPolicyClassName() {
@@ -568,7 +592,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Returns EnsemblePlacementPolicy configured for the Managed-ledger.
-     * 
+     *
      * @param bookKeeperEnsemblePlacementPolicyClassName
      */
     public void setBookKeeperEnsemblePlacementPolicyClassName(
@@ -578,7 +602,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Returns properties required by configured bookKeeperEnsemblePlacementPolicy.
-     * 
+     *
      * @return
      */
     public Map<String, Object> getBookKeeperEnsemblePlacementPolicyProperties() {
@@ -588,12 +612,22 @@ public class ManagedLedgerConfig {
     /**
      * Managed-ledger can setup different custom EnsemblePlacementPolicy which needs
      * bookKeeperEnsemblePlacementPolicy-Properties.
-     * 
+     *
      * @param bookKeeperEnsemblePlacementPolicyProperties
      */
     public void setBookKeeperEnsemblePlacementPolicyProperties(
             Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties) {
         this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+
+    public Map<String, String> getProperties() {
+        return properties;
+    }
+
+
+    public void setProperties(Map<String, String> properties) {
+        this.properties = properties;
     }
 
     public boolean isDeletionAtBatchIndexLevelEnabled() {
@@ -610,5 +644,13 @@ public class ManagedLedgerConfig {
 
     public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
         this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
+    }
+
+    public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
+        return managedLedgerInterceptor;
+    }
+
+    public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
+        this.managedLedgerInterceptor = managedLedgerInterceptor;
     }
 }

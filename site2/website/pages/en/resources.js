@@ -31,6 +31,7 @@ class Resources extends React.Component {
               <thead>
                 <tr>
                   <th><translate>Forum</translate></th>
+                  <th><translate>Date</translate></th>
                   <th><translate>Link</translate></th>
                 </tr>
               </thead>
@@ -39,6 +40,7 @@ class Resources extends React.Component {
                   (a, i) => (
                     <tr key={i}>
                       <td><a href={a.forum_link}>{a.forum}</a></td>
+                      <td>{a.date}</td>
                       <td><a href={a.link}>{a.title}</a></td>
                     </tr>
                   )
@@ -51,7 +53,7 @@ class Resources extends React.Component {
               <thead>
                 <tr>
                   <th><translate>Forum</translate></th>
-                  <th><translate>Data</translate></th>
+                  <th><translate>Date</translate></th>
                   <th><translate>Presenter</translate></th>
                   <th><translate>Link</translate></th>
                 </tr>
@@ -69,6 +71,56 @@ class Resources extends React.Component {
                 )}
               </tbody>
             </table>
+
+            <h2><translate>Older Articles</translate></h2>
+            <table className="versions">
+              <thead>
+                <tr>
+                  <th><translate>Forum</translate></th>
+                  <th><translate>Date</translate></th>
+                  <th><translate>Link</translate></th>
+                </tr>
+              </thead>
+              <tbody>
+                {resources.older_articles.map(
+                  (oa, i) => (
+                    <tr key={i}>
+                      <td><a href={oa.forum_link}>{oa.forum}</a></td>
+                      <td>{oa.date}</td>
+                      <td><a href={oa.link}>{oa.title}</a><br></br>
+                          <a href={oa.link2}>{oa.title2}</a><br></br>
+                          <a href={oa.link3}>{oa.title3}</a>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+
+            <h2><translate>Older Presentations</translate></h2>
+            <table className="versions">
+              <thead>
+                <tr>
+                  <th><translate>Forum</translate></th>
+                  <th><translate>Date</translate></th>
+                  <th><translate>Presenter</translate></th>
+                  <th><translate>Link</translate></th>
+                </tr>
+              </thead>
+              <tbody>
+                {resources.older_presentations.map(
+                  (op, i) => (
+                    <tr key={i}>
+                      <td><a href={op.forum_link}>{op.forum}</a></td>
+                      <td>{op.date}</td>
+                      <td>{op.presenter}</td>
+                      <td><a href={op.link}>{op.title}</a></td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+
 
           </div>
         </Container>

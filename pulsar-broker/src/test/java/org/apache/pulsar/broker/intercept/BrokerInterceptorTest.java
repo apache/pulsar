@@ -18,8 +18,16 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
+import lombok.Cleanup;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -29,14 +37,18 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 
+@Test(groups = "broker")
 public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     private static final String listenerName1 = "listener1";
@@ -51,6 +63,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @BeforeMethod
     public void setup() throws Exception {
+        this.conf.setDisableBrokerInterceptors(false);
+
         this.listener1 = mock(BrokerInterceptor.class);
         this.ncl1 = mock(NarClassLoader.class);
         this.listener2 = mock(BrokerInterceptor.class);
@@ -64,6 +78,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 listenerName2,
                 new BrokerInterceptorWithClassLoader(listener2, ncl2));
         this.listeners = new BrokerInterceptors(this.listenerMap);
+        this.enableBrokerInterceptor = true;
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -73,7 +88,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         teardown();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         this.listeners.close();
 
@@ -86,10 +101,9 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @Test
     public void testInitialize() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        listeners.initialize(conf);
-        verify(listener1, times(1)).initialize(same(conf));
-        verify(listener2, times(1)).initialize(same(conf));
+        listeners.initialize(pulsar);
+        verify(listener1, times(1)).initialize(same(pulsar));
+        verify(listener2, times(1)).initialize(same(pulsar));
     }
 
     @Test
@@ -108,4 +122,93 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         // CONNECT and PRODUCER
         Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 2);
     }
+
+    @Test
+    public void testConnectionCreation() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        pulsarClient.newProducer(Schema.BOOL).topic("test").create();
+        pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
+        // single connection for both producer and consumer
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConnectionCreationCount() == 1);
+    }
+
+    @Test
+    public void testProducerCreation() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getProducerCount() == 0);
+        pulsarClient.newProducer(Schema.BOOL).topic("test").create();
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getProducerCount() == 1);
+    }
+
+    @Test
+    public void testConsumerCreation() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConsumerCount() == 0);
+        pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConsumerCount() == 1);
+    }
+
+    @Test
+    public void testBeforeSendMessage() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .topic("test-before-send-message")
+            .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+            .topic("test-before-send-message")
+            .subscriptionName("test")
+            .subscribe();
+
+        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),0);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),0);
+        producer.send("hello world");
+        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),1);
+
+        Message<String> msg = consumer.receive();
+
+        assertEquals(msg.getValue(), "hello world");
+
+        assertEquals(((CounterBrokerInterceptor) listener).getBeforeSendCount(), 1);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),1);
+    }
+
+    @Test
+    public void asyncResponseFilterTest() throws Exception {
+        Assert.assertTrue(pulsar.getBrokerInterceptor() instanceof CounterBrokerInterceptor);
+        CounterBrokerInterceptor interceptor = (CounterBrokerInterceptor) pulsar.getBrokerInterceptor();
+        interceptor.clearResponseList();
+
+        OkHttpClient client = new OkHttpClient();
+        String url = "http://127.0.0.1:" + conf.getWebServicePort().get() + "/admin/v3/test/asyncGet/my-topic/1000";
+        final Request request = new Request.Builder()
+                .url(url)
+                .get()
+                .build();
+        Call call = client.newCall(request);
+        CompletableFuture<Response> future = new CompletableFuture<>();
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                future.completeExceptionally(e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                future.complete(response);
+            }
+        });
+        future.get();
+        CounterBrokerInterceptor.ResponseEvent responseEvent = interceptor.getResponseList().get(0);
+        Assert.assertEquals(responseEvent.getRequestUri(), "/admin/v3/test/asyncGet/my-topic/1000");
+        Assert.assertEquals(responseEvent.getResponseStatus(),
+                javax.ws.rs.core.Response.noContent().build().getStatus());
+    }
+
 }

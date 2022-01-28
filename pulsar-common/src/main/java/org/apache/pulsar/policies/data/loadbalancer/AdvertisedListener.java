@@ -19,12 +19,12 @@
 package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.net.URI;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 
 /**
  * The advertisedListener for broker with brokerServiceUrl and brokerServiceUrlTls.
@@ -32,6 +32,7 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 public class AdvertisedListener {
     //
     @Getter
@@ -43,5 +44,4 @@ public class AdvertisedListener {
     @Setter
     // the broker service uri with ssl
     private URI brokerServiceUrlTls;
-
 }

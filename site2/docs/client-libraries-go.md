@@ -8,7 +8,7 @@ sidebar_label: Go
 
 You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
-> #### API docs available as well
+> **API docs available as well**  
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar-client-go/pulsar).
 
 
@@ -36,6 +36,12 @@ Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme 
 
 ```http
 pulsar://localhost:6650
+```
+
+If you have multiple brokers, you can set the URL as below.
+
+```
+pulsar://localhost:6550,localhost:6651,localhost:6652
 ```
 
 A URL for a production Pulsar cluster may look something like this:
@@ -77,17 +83,44 @@ func main() {
 }
 ```
 
+If you have multiple brokers, you can initiate a client object as below.
+
+```
+import (
+    "log"
+    "time"
+    "github.com/apache/pulsar-client-go/pulsar"
+)
+
+func main() {
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+        URL: "pulsar://localhost:6650,localhost:6651,localhost:6652",
+        OperationTimeout:  30 * time.Second,
+        ConnectionTimeout: 30 * time.Second,
+    })
+    if err != nil {
+        log.Fatalf("Could not instantiate Pulsar client: %v", err)
+    }
+
+    defer client.Close()
+}
+```
+
 The following configurable parameters are available for Pulsar clients:
 
  Name | Description | Default
 | :-------- | :---------- |:---------- |
-| URL | Configure the service URL for the Pulsar service. This parameter is required | |
+| URL | Configure the service URL for the Pulsar service.<br><br>If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br><br>This parameter is **required**. |None |
 | ConnectionTimeout | Timeout for the establishment of a TCP connection | 30s |
 | OperationTimeout| Set the operation timeout. Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the operation will be marked as failed| 30s|
 | Authentication | Configure the authentication provider. Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")` | no authentication |
 | TLSTrustCertsFilePath | Set the path to the trusted TLS certificate file | |
 | TLSAllowInsecureConnection | Configure whether the Pulsar client accept untrusted TLS certificate from broker | false |
 | TLSValidateHostname | Configure whether the Pulsar client verify the validity of the host name from broker | false |
+| ListenerName | Configure the net model for VPC users to connect to the Pulsar broker |  |
+| MaxConnectionsPerBroker | Max number of connections to a single broker that is kept in the pool | 1 |
+| CustomMetricsLabels | Add custom labels to all the metrics reported by this client instance |  |
+| Logger | Configure the logger used by the client | logrus.StandardLogger |
 
 ## Producers
 
@@ -97,6 +130,10 @@ Pulsar producers publish messages to Pulsar topics. You can [configure](#produce
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic: "my-topic",
 })
+
+if err != nil {
+	log.Fatal(err)
+}
 
 _, err = producer.Send(context.Background(), &pulsar.ProducerMessage{
 	Payload: []byte("hello"),
@@ -129,7 +166,7 @@ Method | Description | Return type
 #### How to use message router in producer
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: serviceURL,
 })
 
@@ -139,7 +176,7 @@ if err != nil {
 defer client.Close()
 
 // Only subscribe on the specific partition
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            "my-partitioned-topic-partition-2",
 	SubscriptionName: "my-sub",
 })
@@ -149,7 +186,7 @@ if err != nil {
 }
 defer consumer.Close()
 
-producer, err := client.CreateProducer(ProducerOptions{
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic: "my-partitioned-topic",
 	MessageRouter: func(msg *ProducerMessage, tm TopicMetadata) int {
 		fmt.Println("Routing message ", msg, " -- Partitions: ", tm.NumPartitions())
@@ -163,10 +200,56 @@ if err != nil {
 defer producer.Close()
 ```
 
+#### How to use schema interface in producer
+
+```go
+type testJSON struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+```
+
+```go
+var (
+	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
+)
+```
+
+```go
+client, err := NewClient(pulsar.ClientOptions{
+	URL: "pulsar://localhost:6650",
+})
+if err != nil {
+	log.Fatal(err)
+}
+defer client.Close()
+
+properties := make(map[string]string)
+properties["pulsar"] = "hello"
+jsonSchemaWithProperties := NewJSONSchema(exampleSchemaDef, properties)
+producer, err := client.CreateProducer(ProducerOptions{
+	Topic:  "jsonTopic",
+	Schema: jsonSchemaWithProperties,
+})
+assert.Nil(t, err)
+
+_, err = producer.Send(context.Background(), &ProducerMessage{
+	Value: &testJSON{
+		ID:   100,
+		Name: "pulsar",
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+producer.Close()
+```
+
 #### How to use delay relative in producer
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
@@ -175,15 +258,16 @@ if err != nil {
 defer client.Close()
 
 topicName := newTopicName()
-producer, err := client.CreateProducer(ProducerOptions{
-	Topic: topicName,
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic:           topicName,
+    DisableBatching: true,
 })
 if err != nil {
 	log.Fatal(err)
 }
 defer producer.Close()
 
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            topicName,
 	SubscriptionName: "subName",
 	Type:             Shared,
@@ -193,7 +277,7 @@ if err != nil {
 }
 defer consumer.Close()
 
-ID, err := producer.Send(context.Background(), &ProducerMessage{
+ID, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
 	Payload:      []byte(fmt.Sprintf("test")),
 	DeliverAfter: 3 * time.Second,
 })
@@ -219,6 +303,80 @@ fmt.Println(msg.Payload())
 canc()
 ```
 
+#### How to use Prometheus metrics in producer
+
+Pulsar Go client registers client metrics using Prometheus. This section demonstrates how to create a simple Pulsar producer application that exposes Prometheus metrics via HTTP.
+
+1. Write a simple producer application.
+
+```go
+// Create a Pulsar client
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+	URL: "pulsar://localhost:6650",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer client.Close()
+
+// Start a separate goroutine for Prometheus metrics
+// In this case, Prometheus metrics can be accessed via http://localhost:2112/metrics
+go func() {
+    prometheusPort := 2112
+    log.Printf("Starting Prometheus metrics at http://localhost:%v/metrics\n", prometheusPort)
+    http.Handle("/metrics", promhttp.Handler())
+    err = http.ListenAndServe(":"+strconv.Itoa(prometheusPort), nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+}()
+
+// Create a producer
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic: "topic-1",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer producer.Close()
+
+ctx := context.Background()
+
+// Write your business logic here
+// In this case, you build a simple Web server. You can produce messages by requesting http://localhost:8082/produce
+webPort := 8082
+http.HandleFunc("/produce", func(w http.ResponseWriter, r *http.Request) {
+    msgId, err := producer.Send(ctx, &pulsar.ProducerMessage{
+        Payload: []byte(fmt.Sprintf("hello world")),
+    })
+    if err != nil {
+        log.Fatal(err)
+    } else {
+        log.Printf("Published message: %v", msgId)
+        fmt.Fprintf(w, "Published message: %v", msgId)
+    }
+})
+
+err = http.ListenAndServe(":"+strconv.Itoa(webPort), nil)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+2. To scrape metrics from applications, configure a local running Prometheus instance using a configuration file (`prometheus.yml`).
+
+```yaml
+scrape_configs:
+- job_name: pulsar-client-go-metrics
+  scrape_interval: 10s
+  static_configs:
+  - targets:
+    - localhost:2112
+```
+
+Now you can query Pulsar client metrics on Prometheus.
 
 ### Producer configuration
 
@@ -227,13 +385,21 @@ canc()
 | Topic | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader. | |
 | Name | Name specify a name for the producer. If not assigned, the system will generate a globally unique name which can be access with Producer.ProducerName(). | | 
 | Properties | Properties attach a set of application defined properties to the producer This properties will be visible in the topic stats | |
+| SendTimeout | SendTimeout set the timeout for a message that is not acknowledged by the server | 30s |
+| DisableBlockIfQueueFull | DisableBlockIfQueueFull control whether Send and SendAsync block if producer's message queue is full | false |
 | MaxPendingMessages| MaxPendingMessages set the max size of the queue holding the messages pending to receive an acknowledgment from the broker. | |
 | HashingScheme | HashingScheme change the `HashingScheme` used to chose the partition on where to publish a particular message. | JavaStringHash |
 | CompressionType | CompressionType set the compression type for the producer. | not compressed | 
+| CompressionLevel | Define the desired compression level. Options: Default, Faster and Better | Default  | 
 | MessageRouter | MessageRouter set a custom message routing policy by passing an implementation of MessageRouter | |
 | DisableBatching | DisableBatching control whether automatic batching of messages is enabled for the producer. | false |
-| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 10ms |
+| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched | 1ms |
 | BatchingMaxMessages | BatchingMaxMessages set the maximum number of messages permitted in a batch. | 1000 | 
+| BatchingMaxSize | BatchingMaxSize sets the maximum number of bytes permitted in a batch. | 128KB | 
+| Schema |  Schema set a custom schema type by passing an implementation of `Schema` | bytes[] | 
+| Interceptors | A chain of interceptors. These interceptors are called at some points defined in the `ProducerInterceptor` interface. | None | 
+| MaxReconnectToBroker | MaxReconnectToBroker set the maximum retry number of reconnectToBroker | ultimate | 
+| BatcherBuilderType | BatcherBuilderType sets the batch builder type. This is used to create a batch container when batching is enabled. Options: DefaultBatchBuilder and KeyBasedBatchBuilder | DefaultBatchBuilder | 
 
 ## Consumers
 
@@ -276,17 +442,20 @@ Method | Description | Return type
 `Subscription()` | Returns the consumer's subscription name | `string`
 `Unsubcribe()` | Unsubscribes the consumer from the assigned topic. Throws an error if the unsubscribe operation is somehow unsuccessful. | `error`
 `Receive(context.Context)` | Receives a single message from the topic. This method blocks until a message is available. | `(Message, error)`
+`Chan()` | Chan returns a channel from which to consume messages. | `<-chan ConsumerMessage`
 `Ack(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) | 
 `AckID(MessageID)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message ID | 
+`ReconsumeLater(msg Message, delay time.Duration)` | ReconsumeLater mark a message for redelivery after custom delay | 
 `Nack(Message)` | Acknowledge the failure to process a single message. | 
 `NackID(MessageID)` | Acknowledge the failure to process a single message. | 
 `Seek(msgID MessageID)` | Reset the subscription associated with this consumer to a specific message id. The message id can either be a specific message or represent the first or last messages in the topic. | `error`
 `SeekByTime(time time.Time)` | Reset the subscription associated with this consumer to a specific message publish time. | `error`
 `Close()` | Closes the consumer, disabling its ability to receive messages from the broker | 
+`Name()` | Name returns the name of consumer | `string`
 
 ### Receive example
 
-#### How to use regx consumer
+#### How to use regex consumer
 
 ```go
 client, err := pulsar.NewClient(pulsar.ClientOptions{
@@ -295,7 +464,7 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 
 defer client.Close()
 
-p, err := client.CreateProducer(ProducerOptions{
+p, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic:           topicInRegex,
 	DisableBatching: true,
 })
@@ -305,7 +474,7 @@ if err != nil {
 defer p.Close()
 
 topicsPattern := fmt.Sprintf("persistent://%s/foo.*", namespace)
-opts := ConsumerOptions{
+opts := pulsar.ConsumerOptions{
 	TopicsPattern:    topicsPattern,
 	SubscriptionName: "regex-sub",
 }
@@ -327,14 +496,14 @@ func newTopicName() string {
 topic1 := "topic-1"
 topic2 := "topic-2"
 
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
 	log.Fatal(err)
 }
 topics := []string{topic1, topic2}
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topics:           topics,
 	SubscriptionName: "multi-topic-sub",
 })
@@ -395,7 +564,7 @@ func main() {
 #### How to use consumer receive timeout
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
@@ -408,7 +577,7 @@ ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 defer cancel()
 
 // create consumer
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            topic,
 	SubscriptionName: "my-sub1",
 	Type:             Shared,
@@ -425,6 +594,124 @@ if err != nil {
 }
 ```
 
+#### How to use schema in consumer
+
+```go
+type testJSON struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+```
+
+```go
+var (
+	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
+)
+```
+
+```go
+client, err := NewClient(pulsar.ClientOptions{
+	URL: "pulsar://localhost:6650",
+})
+if err != nil {
+	log.Fatal(err)
+}
+defer client.Close()
+
+var s testJSON
+
+consumerJS := NewJSONSchema(exampleSchemaDef, nil)
+consumer, err := client.Subscribe(ConsumerOptions{
+	Topic:                       "jsonTopic",
+	SubscriptionName:            "sub-1",
+	Schema:                      consumerJS,
+	SubscriptionInitialPosition: SubscriptionPositionEarliest,
+})
+assert.Nil(t, err)
+msg, err := consumer.Receive(context.Background())
+assert.Nil(t, err)
+err = msg.GetSchemaValue(&s)
+if err != nil {
+	log.Fatal(err)
+}
+
+defer consumer.Close()
+```
+
+#### How to use Prometheus metrics in consumer
+
+In this guide, This section demonstrates how to create a simple Pulsar consumer application that exposes Prometheus metrics via HTTP.
+1. Write a simple consumer application.
+```go
+// Create a Pulsar client
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: "pulsar://localhost:6650",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer client.Close()
+
+// Start a separate goroutine for Prometheus metrics
+// In this case, Prometheus metrics can be accessed via http://localhost:2112/metrics
+go func() {
+    prometheusPort := 2112
+    log.Printf("Starting Prometheus metrics at http://localhost:%v/metrics\n", prometheusPort)
+    http.Handle("/metrics", promhttp.Handler())
+    err = http.ListenAndServe(":"+strconv.Itoa(prometheusPort), nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+}()
+
+// Create a consumer
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+    Topic:            "topic-1",
+    SubscriptionName: "sub-1",
+    Type:             pulsar.Shared,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer consumer.Close()
+
+ctx := context.Background()
+
+// Write your business logic here
+// In this case, you build a simple Web server. You can consume messages by requesting http://localhost:8083/consume
+webPort := 8083
+http.HandleFunc("/consume", func(w http.ResponseWriter, r *http.Request) {
+    msg, err := consumer.Receive(ctx)
+    if err != nil {
+        log.Fatal(err)
+    } else {
+        log.Printf("Received message msgId: %v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
+        fmt.Fprintf(w, "Received message msgId: %v -- content: '%s'\n", msg.ID(), string(msg.Payload()))
+        consumer.Ack(msg)
+    }
+})
+
+err = http.ListenAndServe(":"+strconv.Itoa(webPort), nil)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+2. To scrape metrics from applications, configure a local running Prometheus instance using a configuration file (`prometheus.yml`).
+
+```yaml
+scrape_configs:
+- job_name: pulsar-client-go-metrics
+  scrape_interval: 10s
+  static_configs:
+  - targets:
+    - localhost:2112
+```
+
+Now you can query Pulsar client metrics on Prometheus.
 
 ### Consumer configuration
 
@@ -445,6 +732,11 @@ if err != nil {
 | NackRedeliveryDelay | The delay after which to redeliver the messages that failed to be processed | 1min |
 | ReadCompacted | If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog of the topic | false |
 | ReplicateSubscriptionState | Mark the subscription as replicated to keep it in sync across clusters | false |
+| KeySharedPolicy | Configuration for Key Shared consumer policy. |  |
+| RetryEnable | Auto retry send messages to default filled DLQPolicy topics | false |
+| Interceptors | A chain of interceptors. These interceptors are called at some points defined in the `ConsumerInterceptor` interface. |  |
+| MaxReconnectToBroker | MaxReconnectToBroker set the maximum retry number of reconnectToBroker. | ultimate |
+| Schema | Schema set a custom schema type by passing an implementation of `Schema` | bytes[] |
 
 ## Readers
 
@@ -471,6 +763,8 @@ Method | Description | Return type
 `Next(context.Context)` | Receives the next message on the topic (analogous to the `Receive` method for [consumers](#consumer-operations)). This method blocks until a message is available. | `(Message, error)`
 `HasNext()` | Check if there is any message available to read from the current position| (bool, error)
 `Close()` | Closes the reader, disabling its ability to receive messages from the broker | `error`
+`Seek(MessageID)` | Reset the subscription associated with this reader to a specific message ID | `error`
+`SeekByTime(time time.Time)` | Reset the subscription associated with this reader to a specific message publish time | `error`
 
 ### Reader example
 
@@ -530,7 +824,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 #### How to use reader to read specific message
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: lookupURL,
 })
 
@@ -543,7 +837,7 @@ topic := "topic-1"
 ctx := context.Background()
 
 // create producer
-producer, err := client.CreateProducer(ProducerOptions{
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic:           topic,
 	DisableBatching: true,
 })
@@ -555,7 +849,7 @@ defer producer.Close()
 // send 10 messages
 msgIDs := [10]MessageID{}
 for i := 0; i < 10; i++ {
-	msgID, err := producer.Send(ctx, &ProducerMessage{
+	msgID, err := producer.Send(ctx, &pulsar.ProducerMessage{
 		Payload: []byte(fmt.Sprintf("hello-%d", i)),
 	})
 	assert.NoError(t, err)
@@ -564,7 +858,7 @@ for i := 0; i < 10; i++ {
 }
 
 // create reader on 5th message (not included)
-reader, err := client.CreateReader(ReaderOptions{
+reader, err := client.CreateReader(pulsar.ReaderOptions{
 	Topic:          topic,
 	StartMessageID: msgIDs[4],
 })
@@ -582,7 +876,7 @@ for i := 5; i < 10; i++ {
 }
 
 // create reader on 5th message (included)
-readerInclusive, err := client.CreateReader(ReaderOptions{
+readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
 	Topic:                   topic,
 	StartMessageID:          msgIDs[4],
 	StartMessageIDInclusive: true,
@@ -633,7 +927,9 @@ The following methods parameters are available for `ProducerMessage` objects:
 Parameter | Description
 :---------|:-----------
 `Payload` | The actual data payload of the message
+`Value` | Value and payload is mutually exclusive, `Value interface{}` for schema message.
 `Key` | The optional key associated with the message (particularly useful for things like topic compaction)
+`OrderingKey` | OrderingKey sets the ordering key of the message.
 `Properties` | A key-value map (both keys and values must be strings) for any application-specific metadata attached to the message
 `EventTime` | The timestamp associated with the message
 `ReplicationClusters` | The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default.
@@ -667,13 +963,13 @@ This example shows how to configure OAuth2 authentication.
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
-		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
 		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
 		"privateKey": "/path/to/privateKey",
 		"clientId":   "0Xx...Yyxeny",
 	})
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:              "puslar://my-cluster:6650",
+		URL:              "pulsar://my-cluster:6650",
 		Authentication:   oauth,
 })
 ```

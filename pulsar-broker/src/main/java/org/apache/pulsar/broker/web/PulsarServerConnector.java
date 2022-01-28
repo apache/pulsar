@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
 import java.util.concurrent.Semaphore;
-
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;

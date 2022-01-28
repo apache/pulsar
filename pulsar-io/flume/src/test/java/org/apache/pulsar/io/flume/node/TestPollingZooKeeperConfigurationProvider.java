@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import junit.framework.Assert;
-
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import org.apache.flume.conf.FlumeConfiguration;
 import org.apache.flume.conf.FlumeConfiguration.AgentConfiguration;
 import org.apache.flume.lifecycle.LifecycleController;
 import org.apache.flume.lifecycle.LifecycleState;
-import org.junit.Test;
-
-import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class TestPollingZooKeeperConfigurationProvider extends
         TestAbstractZooKeeperConfigurationProvider {
@@ -72,7 +70,7 @@ public class TestPollingZooKeeperConfigurationProvider extends
     }
 
     @Override
-    protected void doTearDown() throws Exception {
+    protected void doTearDown() {
         // do nothing
     }
 

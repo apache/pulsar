@@ -20,9 +20,7 @@
 
 from abc import abstractmethod
 import json
-import fastavro
 import _pulsar
-import io
 import enum
 
 
@@ -60,6 +58,9 @@ class BytesSchema(Schema):
     def decode(self, data):
         return data
 
+    def __str__(self):
+        return 'BytesSchema'
+
 
 class StringSchema(Schema):
     def __init__(self):
@@ -71,6 +72,10 @@ class StringSchema(Schema):
 
     def decode(self, data):
         return data.decode('utf-8')
+
+    def __str__(self):
+        return 'StringSchema'
+
 
 
 class JsonSchema(Schema):
@@ -87,32 +92,16 @@ class JsonSchema(Schema):
 
     def encode(self, obj):
         self._validate_object_type(obj)
-        return json.dumps(obj.__dict__, default=self._get_serialized_value, indent=True).encode('utf-8')
+        # Copy the dict of the object as to not modify the provided object via the reference provided
+        data = obj.__dict__.copy()
+        if '_default' in data:
+            del data['_default']
+        if '_required' in data:
+            del data['_required']
+        if '_required_default' in data:
+            del data['_required_default']
+
+        return json.dumps(data, default=self._get_serialized_value, indent=True).encode('utf-8')
 
     def decode(self, data):
         return self._record_cls(**json.loads(data))
-
-
-class AvroSchema(Schema):
-    def __init__(self, record_cls):
-        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                         record_cls.schema(), 'AVRO')
-        self._schema = record_cls.schema()
-
-    def _get_serialized_value(self, x):
-        if isinstance(x, enum.Enum):
-            return x.name
-        else:
-            return x
-
-    def encode(self, obj):
-        self._validate_object_type(obj)
-        buffer = io.BytesIO()
-        m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
-        fastavro.schemaless_writer(buffer, self._schema, m)
-        return buffer.getvalue()
-
-    def decode(self, data):
-        buffer = io.BytesIO(data)
-        d = fastavro.schemaless_reader(buffer, self._schema)
-        return self._record_cls(**d)

@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-
+import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -29,12 +31,18 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-
-import org.apache.commons.lang3.StringUtils;
+import java.util.function.Supplier;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 public class PulsarAdminTool {
+
+    private static boolean allowSystemExit = true;
+
+    private static int lastExitCode = Integer.MIN_VALUE;
+
     protected final Map<String, Class<?>> commandMap;
     private final JCommander jcommander;
     protected final PulsarAdminBuilder adminBuilder;
@@ -47,13 +55,13 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--request-timeout" }, description = "Request time out in seconds for "
             + "the pulsar admin client for any request")
-    int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+    int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
 
     @Parameter(
         names = { "--auth-params" },
-        description = "Authentication parameters, whose format is determined by the implementation " +
-            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+            description = "Authentication parameters, whose format is determined by the implementation "
+                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
@@ -65,18 +73,21 @@ public class PulsarAdminTool {
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
 
+    @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar admin client")
+    boolean version;
+
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
 
     // for tls with keystore type config
-    boolean useKeyStoreTls = false;
-    String tlsTrustStoreType = "JKS";
-    String tlsTrustStorePath = null;
-    String tlsTrustStorePassword = null;
+    boolean useKeyStoreTls;
+    String tlsTrustStoreType;
+    String tlsTrustStorePath;
+    String tlsTrustStorePassword;
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
-        serviceUrl = StringUtils.isNotBlank(properties.getProperty("webServiceUrl"))
+        serviceUrl = isNotBlank(properties.getProperty("webServiceUrl"))
                 ? properties.getProperty("webServiceUrl")
                 : properties.getProperty("serviceUrl");
         authPluginClassName = properties.getProperty("authPlugin");
@@ -87,7 +98,7 @@ public class PulsarAdminTool {
         boolean tlsEnableHostnameVerification = this.tlsEnableHostnameVerification != null
                 ? this.tlsEnableHostnameVerification
                 : Boolean.parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        final String tlsTrustCertsFilePath = StringUtils.isNotBlank(this.tlsTrustCertsFilePath)
+        final String tlsTrustCertsFilePath = isNotBlank(this.tlsTrustCertsFilePath)
                 ? this.tlsTrustCertsFilePath
                 : properties.getProperty("tlsTrustCertsFilePath");
 
@@ -115,9 +126,11 @@ public class PulsarAdminTool {
         commandMap.put("brokers", CmdBrokers.class);
         commandMap.put("broker-stats", CmdBrokerStats.class);
         commandMap.put("tenants", CmdTenants.class);
+        commandMap.put("resourcegroups", CmdResourceGroups.class);
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
+        commandMap.put("topicPolicies", CmdTopicPolicies.class);
         commandMap.put("schemas", CmdSchemas.class);
         commandMap.put("bookies", CmdBookies.class);
 
@@ -142,6 +155,29 @@ public class PulsarAdminTool {
         // TODO eventually remove this
         commandMap.put("source", CmdSources.class);
         commandMap.put("sink", CmdSinks.class);
+
+        commandMap.put("packages", CmdPackages.class);
+        commandMap.put("transactions", CmdTransactions.class);
+    }
+
+    private static class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
+
+        private final PulsarAdminBuilder pulsarAdminBuilder;
+        private final Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
+        private PulsarAdmin admin;
+        private PulsarAdminSupplier(PulsarAdminBuilder pulsarAdminBuilder,
+                                    Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
+            this.pulsarAdminBuilder = pulsarAdminBuilder;
+            this.adminFactory = adminFactory;
+        }
+
+        @Override
+        public PulsarAdmin get() {
+            if (admin == null) {
+                admin = adminFactory.apply(pulsarAdminBuilder);
+            }
+            return admin;
+        }
     }
 
     private void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
@@ -149,7 +185,7 @@ public class PulsarAdminTool {
             adminBuilder.serviceHttpUrl(serviceUrl);
             adminBuilder.authentication(authPluginClassName, authParams);
             adminBuilder.requestTimeout(requestTimeout, TimeUnit.SECONDS);
-            PulsarAdmin admin = adminFactory.apply(adminBuilder);
+            Supplier<PulsarAdmin> admin = new PulsarAdminSupplier(adminBuilder, adminFactory);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
                 addCommand(c, admin);
             }
@@ -165,20 +201,18 @@ public class PulsarAdminTool {
         }
     }
 
-    private void addCommand(Map.Entry<String, Class<?>> c, PulsarAdmin admin) throws Exception {
+    private void addCommand(Map.Entry<String, Class<?>> c, Supplier<PulsarAdmin> admin) throws Exception {
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
         if (c.getKey().equals("sources") || c.getKey().equals("source")) {
-            jcommander.addCommand("sources", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "source");
+            jcommander.addCommand("sources", c.getValue().getConstructor(Supplier.class).newInstance(admin), "source");
         } else if (c.getKey().equals("sinks") || c.getKey().equals("sink")) {
-            jcommander.addCommand("sinks", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "sink");
+            jcommander.addCommand("sinks", c.getValue().getConstructor(Supplier.class).newInstance(admin), "sink");
         } else if (c.getKey().equals("functions")) {
-            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
         } else {
-            if (admin != null) {
-                // Other mode, all components are initialized.
-                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
-            }
+            // Other mode, all components are initialized.
+            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
         }
     }
 
@@ -218,6 +252,16 @@ public class PulsarAdminTool {
             return false;
         }
 
+        if (isBlank(serviceUrl)) {
+            jcommander.usage();
+            return false;
+        }
+
+        if (version) {
+            System.out.println("Current version of pulsar admin client is: " + PulsarVersion.getVersion());
+            return true;
+        }
+
         if (help) {
             setupCommands(adminFactory);
             jcommander.usage();
@@ -248,6 +292,12 @@ public class PulsarAdminTool {
     }
 
     public static void main(String[] args) throws Exception {
+        lastExitCode = 0;
+        if (args.length == 0) {
+            System.out.println("Usage: pulsar-admin CONF_FILE_PATH [options] [command] [command options]");
+            exit(0);
+            return;
+        }
         String configFile = args[0];
         Properties properties = new Properties();
 
@@ -260,14 +310,15 @@ public class PulsarAdminTool {
         PulsarAdminTool tool = new PulsarAdminTool(properties);
 
         int cmdPos;
-        for (cmdPos = 1; cmdPos < args.length; cmdPos++) {
+        args = Arrays.copyOfRange(args, 1, args.length);
+        for (cmdPos = 0; cmdPos < args.length; cmdPos++) {
             if (tool.commandMap.containsKey(args[cmdPos])) {
                 break;
             }
         }
 
         ++cmdPos;
-        boolean isLocalRun = cmdPos < args.length && "localrun".equals(args[cmdPos].toLowerCase());
+        boolean isLocalRun = cmdPos < args.length && "localrun".equalsIgnoreCase(args[cmdPos]);
 
         Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {
@@ -279,16 +330,41 @@ public class PulsarAdminTool {
                     return adminBuilder.build();
                 } catch (Exception ex) {
                     System.err.println(ex.getClass() + ": " + ex.getMessage());
-                    System.exit(1);
+                    exit(1);
                     return null;
                 }
             };
         }
 
-        if (tool.run(Arrays.copyOfRange(args, 1, args.length), adminFactory)) {
-            System.exit(0);
+        if (tool.run(args, adminFactory)) {
+            exit(0);
         } else {
-            System.exit(1);
+            exit(1);
         }
     }
+
+    private static void exit(int code) {
+        lastExitCode = code;
+        if (allowSystemExit) {
+            // we are using halt and not System.exit, we do not mind about shutdown hooks
+            // they are only slowing down the tool
+            Runtime.getRuntime().halt(code);
+        } else {
+            System.out.println("Exit code is " + code + " (System.exit not called, as we are in test mode)");
+        }
+    }
+
+    static void setAllowSystemExit(boolean allowSystemExit) {
+        PulsarAdminTool.allowSystemExit = allowSystemExit;
+    }
+
+    static int getLastExitCode() {
+        return lastExitCode;
+    }
+
+    @VisibleForTesting
+    static void resetLastExitCode() {
+        lastExitCode = Integer.MIN_VALUE;
+    }
+
 }

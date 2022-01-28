@@ -25,17 +25,20 @@ import static org.testng.Assert.fail;
 import java.util.EnumSet;
 
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "flaky")
 public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
     public AuthorizationTest() {
@@ -46,13 +49,21 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setClusterName("c1");
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(
+                Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
-        conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
+        conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user", "pass.pass"));
         internalSetup();
     }
 
-    @AfterClass
+    @Override
+    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
+        pulsarAdminBuilder.authentication(new MockAuthentication("pass.pass"));
+    }
+
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         internalCleanup();
@@ -64,8 +75,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
-        admin.clusters().createCluster("c1", new ClusterData());
-        admin.tenants().createTenant("p1", new TenantInfo(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
+        admin.clusters().createCluster("c1", ClusterData.builder().build());
+        admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");
         waitForChange();
@@ -190,7 +201,12 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         // tests for subscription auth mode
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "*", EnumSet.of(AuthAction.consume));
+        admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.None);
+        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
+                SubscriptionAuthMode.None);
         admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.Prefix);
+        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
+                SubscriptionAuthMode.Prefix);
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null));
@@ -198,11 +214,11 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         try {
             assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"));
             fail();
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
         try {
             assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"));
             fail();
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
 
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
@@ -216,7 +232,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     private static void waitForChange() {
         try {
             Thread.sleep(100);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ignored) {
         }
     }
 }

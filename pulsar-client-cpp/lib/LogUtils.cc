@@ -20,8 +20,8 @@
 
 #include <atomic>
 #include <iostream>
+#include <pulsar/ConsoleLoggerFactory.h>
 
-#include "SimpleLoggerImpl.h"
 #include "Log4CxxLogger.h"
 
 namespace pulsar {
@@ -50,7 +50,7 @@ void LogUtils::setLoggerFactory(std::unique_ptr<LoggerFactory> loggerFactory) {
 
 LoggerFactory* LogUtils::getLoggerFactory() {
     if (s_loggerFactory.load() == nullptr) {
-        std::unique_ptr<LoggerFactory> newFactory(new SimpleLoggerFactory());
+        std::unique_ptr<LoggerFactory> newFactory(new ConsoleLoggerFactory());
         setLoggerFactory(std::move(newFactory));
     }
     return s_loggerFactory.load();
@@ -62,5 +62,7 @@ std::string LogUtils::getLoggerName(const std::string& path) {
     int endIdx = path.find_last_of(".");
     return path.substr(startIdx + 1, endIdx - startIdx - 1);
 }
+
+void LogUtils::resetLoggerFactory() { s_loggerFactory.exchange(nullptr, std::memory_order_release); }
 
 }  // namespace pulsar

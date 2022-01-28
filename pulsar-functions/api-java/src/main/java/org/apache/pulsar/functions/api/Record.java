@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.functions.api;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Schema;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Pulsar Connect's Record interface. Record encapsulates the information about a record being read from a Source.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Record<T> {
 
     /**
@@ -70,6 +73,15 @@ public interface Record<T> {
      * @return The partition id where the
      */
     default Optional<String> getPartitionId() {
+        return Optional.empty();
+    }
+
+    /**
+     * Retrieves the partition index if any of the record.
+     *
+     * @return The partition index
+     */
+    default Optional<Integer> getPartitionIndex() {
         return Optional.empty();
     }
 

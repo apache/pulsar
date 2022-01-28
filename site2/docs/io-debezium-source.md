@@ -26,7 +26,6 @@ The configuration of Debezium source connector has the following properties.
 | `database.history` | true | null | The name of the database history class. |
 | `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br/><br/>**Note: this topic is for internal use only and should not be used by consumers.** |
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
-| `pulsar.service.url` | true | null | Pulsar cluster service URL. |
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
 | `json-with-envelope` | false | false | Present the message only consist of payload.
 
@@ -69,20 +68,21 @@ You can use one of the following methods to create a configuration file.
 
     ```json
     {
-        "database.hostname": "localhost",
-        "database.port": "3306",
-        "database.user": "debezium",
-        "database.password": "dbz",
-        "database.server.id": "184054",
-        "database.server.name": "dbserver1",
-        "database.whitelist": "inventory",
-        "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
-        "database.history.pulsar.topic": "history-topic",
-        "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
-        "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-        "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650",
-        "offset.storage.topic": "offset-topic"
+       "configs": {
+          "database.hostname": "localhost",
+          "database.port": "3306",
+          "database.user": "debezium",
+          "database.password": "dbz",
+          "database.server.id": "184054",
+          "database.server.name": "dbserver1",
+          "database.whitelist": "inventory",
+          "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+          "database.history.pulsar.topic": "history-topic",
+          "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
+          "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+          "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+          "offset.storage.topic": "offset-topic"
+       }
     }
     ```
 
@@ -115,9 +115,6 @@ You can use one of the following methods to create a configuration file.
         ## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG
         key.converter: "org.apache.kafka.connect.json.JsonConverter"
         value.converter: "org.apache.kafka.connect.json.JsonConverter"
-
-        ## PULSAR_SERVICE_URL_CONFIG
-        pulsar.service.url: "pulsar://127.0.0.1:6650"
 
         ## OFFSET_STORAGE_TOPIC_CONFIG
         offset.storage.topic: "offset-topic"
@@ -211,11 +208,13 @@ You can use one of the following methods to create a configuration file.
         "database.hostname": "localhost",
         "database.port": "5432",
         "database.user": "postgres",
-        "database.password": "postgres",
+        "database.password": "changeme",
         "database.dbname": "postgres",
         "database.server.name": "dbserver1",
-        "schema.whitelist": "inventory",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+        "plugin.name": "pgoutput",
+        "schema.whitelist": "public",
+        "table.whitelist": "public.users",
+        "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
     ```
 
@@ -233,18 +232,22 @@ You can use one of the following methods to create a configuration file.
 
     configs:
 
-        ## config for pg, docker image: debezium/example-postgress:0.8
+        ## config for postgres version 10+, official docker image: postgres:<10+>
         database.hostname: "localhost"
         database.port: "5432"
         database.user: "postgres"
-        database.password: "postgres"
+        database.password: "changeme"
         database.dbname: "postgres"
         database.server.name: "dbserver1"
-        schema.whitelist: "inventory"
+        plugin.name: "pgoutput"
+        schema.whitelist: "public"
+        table.whitelist: "public.users"
 
         ## PULSAR_SERVICE_URL_CONFIG
-        pulsar.service.url: "pulsar://127.0.0.1:6650"
+        database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
+    
+Notice that `pgoutput` is a standard plugin of Postgres introduced in version 10 - [see Postgres architecture docu](https://www.postgresql.org/docs/10/logical-replication-architecture.html). You don't need to install anything, just make sure the WAL level is set to `logical` (see docker command below and [Postgres docu](https://www.postgresql.org/docs/current/runtime-config-wal.html)).
 
 ### Usage
 
@@ -254,8 +257,11 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 1. Start a PostgreSQL server with a database from which Debezium can capture changes.
 
     ```bash
-    $ docker pull debezium/example-postgres:0.8
-    $ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example-postgres:0.8
+    $ docker run -d -it --rm \
+    --name pulsar-postgres \
+    -p 5432:5432 \
+    -e POSTGRES_PASSWORD=changeme \
+    postgres:13.3 -c wal_level=logical
     ```
 
 2. Start a Pulsar service locally in standalone mode.
@@ -277,7 +283,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
         --destination-topic-name debezium-postgres-topic \
         --tenant public \
         --namespace default \
-        --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "postgres","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
+        --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "changeme","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "public","table.whitelist": "public.users","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
         ```
    
    * Use the **YAML** configuration file as shown previously.
@@ -287,10 +293,10 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
         --source-config-file debezium-postgres-source-config.yaml
         ```
 
-4. Subscribe the topic _sub-products_ for the _inventory.products_ table.
+4. Subscribe the topic _sub-users_ for the _public.users_ table.
 
     ```
-    $ bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
+    $ bin/pulsar-client consume -s "sub-users" public/default/dbserver1.public.users -n 0
     ```
 
 5. Start a PostgreSQL client in docker.
@@ -301,29 +307,33 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
 6. A PostgreSQL client pops out. 
    
-   Use the following commands to change the data of the table _products_.
+   Use the following commands to create sample data in the table _users_.
 
     ```
-    psql -U postgres postgres
-    postgres=# \c postgres;
-    You are now connected to database "postgres" as user "postgres".
-    postgres=# SET search_path TO inventory;
-    SET
-    postgres=# select * from products;
-     id  |        name        |                       description                       | weight
-    -----+--------------------+---------------------------------------------------------+--------
-     102 | car battery        | 12V car battery                                         |    8.1
-     103 | 12-pack drill bits | 12-pack of drill bits with sizes ranging from #40 to #3 |    0.8
-     104 | hammer             | 12oz carpenter's hammer                                 |   0.75
-     105 | hammer             | 14oz carpenter's hammer                                 |  0.875
-     106 | hammer             | 16oz carpenter's hammer                                 |      1
-     107 | rocks              | box of assorted rocks                                   |    5.3
-     108 | jacket             | water resistent black wind breaker                      |    0.1
-     109 | spare tire         | 24 inch spare tire                                      |   22.2
-     101 | 1111111111         | Small 2-wheel scooter                                   |   3.14
-    (9 rows)
+    psql -U postgres -h localhost -p 5432
+    Password for user postgres:
     
-    postgres=# UPDATE products SET name='1111111111' WHERE id=107;
+    CREATE TABLE users(
+      id BIGINT GENERATED ALWAYS AS IDENTITY, PRIMARY KEY(id),
+      hash_firstname TEXT NOT NULL,
+      hash_lastname TEXT NOT NULL,
+      gender VARCHAR(6) NOT NULL CHECK (gender IN ('male', 'female'))
+    );
+    
+    INSERT INTO users(hash_firstname, hash_lastname, gender)
+      SELECT md5(RANDOM()::TEXT), md5(RANDOM()::TEXT), CASE WHEN RANDOM() < 0.5 THEN 'male' ELSE 'female' END FROM generate_series(1, 100);
+    
+    postgres=# select * from users;
+    
+      id   |          hash_firstname          |          hash_lastname           | gender 
+    -------+----------------------------------+----------------------------------+--------
+         1 | 02bf7880eb489edc624ba637f5ab42bd | 3e742c2cc4217d8e3382cc251415b2fb | female
+         2 | dd07064326bb9119189032316158f064 | 9c0e938f9eddbd5200ba348965afbc61 | male
+         3 | 2c5316fdd9d6595c1cceb70eed12e80c | 8a93d7d8f9d76acfaaa625c82a03ea8b | female
+         4 | 3dfa3b4f70d8cd2155567210e5043d2b | 32c156bc28f7f03ab5d28e2588a3dc19 | female
+
+    
+    postgres=# UPDATE users SET hash_firstname='maxim' WHERE id=1;
     UPDATE 1
     ```
 
@@ -331,7 +341,8 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
         
     ```bash
     ----- got message -----
-    {"schema":{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":107}}�{"schema":{"type":"struct","fields":[{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"},{"type":"string","optional":false,"field":"name"},{"type":"string","optional":true,"field":"description"},{"type":"double","optional":true,"field":"weight"}],"optional":true,"name":"dbserver1.inventory.products.Value","field":"before"},{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"},{"type":"string","optional":false,"field":"name"},{"type":"string","optional":true,"field":"description"},{"type":"double","optional":true,"field":"weight"}],"optional":true,"name":"dbserver1.inventory.products.Value","field":"after"},{"type":"struct","fields":[{"type":"string","optional":true,"field":"version"},{"type":"string","optional":true,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"string","optional":false,"field":"db"},{"type":"int64","optional":true,"field":"ts_usec"},{"type":"int64","optional":true,"field":"txId"},{"type":"int64","optional":true,"field":"lsn"},{"type":"string","optional":true,"field":"schema"},{"type":"string","optional":true,"field":"table"},{"type":"boolean","optional":true,"default":false,"field":"snapshot"},{"type":"boolean","optional":true,"field":"last_snapshot_record"}],"optional":false,"name":"io.debezium.connector.postgresql.Source","field":"source"},{"type":"string","optional":false,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"before":{"id":107,"name":"rocks","description":"box of assorted rocks","weight":5.3},"after":{"id":107,"name":"1111111111","description":"box of assorted rocks","weight":5.3},"source":{"version":"0.9.2.Final","connector":"postgresql","name":"dbserver1","db":"postgres","ts_usec":1559208957661080,"txId":577,"lsn":23862872,"schema":"inventory","table":"products","snapshot":false,"last_snapshot_record":null},"op":"u","ts_ms":1559208957692}}
+    {"before":null,"after":{"id":1,"hash_firstname":"maxim","hash_lastname":"292113d30a3ccee0e19733dd7f88b258","gender":"male"},"source:{"version":"1.0.0.Final","connector":"postgresql","name":"foobar","ts_ms":1624045862644,"snapshot":"false","db":"postgres","schema":"public","table":"users","txId":595,"lsn":24419784,"xmin":null},"op":"u","ts_ms":1624045862648}
+    ...many more
     ```
 ## Example of MongoDB
 
@@ -347,7 +358,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
         "mongodb.password": "dbz",
         "mongodb.task.id": "1",
         "database.whitelist": "inventory",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+        "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
     ```
 
@@ -366,15 +377,13 @@ You need to create a configuration file before using the Pulsar Debezium connect
     configs:
 
         ## config for pg, docker image: debezium/example-mongodb:0.10
-        mongodb.hosts: "rs0/mongodb:27017",
-        mongodb.name: "dbserver1",
-        mongodb.user: "debezium",
-        mongodb.password: "dbz",
-        mongodb.task.id: "1",
-        database.whitelist: "inventory",
-
-        ## PULSAR_SERVICE_URL_CONFIG
-        pulsar.service.url: "pulsar://127.0.0.1:6650"
+        mongodb.hosts: "rs0/mongodb:27017"
+        mongodb.name: "dbserver1"
+        mongodb.user: "debezium"
+        mongodb.password: "dbz"
+        mongodb.task.id: "1"
+        database.whitelist: "inventory"
+        database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
 
 ### Usage
@@ -415,7 +424,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
         --destination-topic-name debezium-mongodb-topic \
         --tenant public \
         --namespace default \
-        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
+        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'
         ```
    
    * Use the **YAML** configuration file as shown previously.
@@ -451,6 +460,150 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
     {"schema":{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":"104"}}, value = {"schema":{"type":"struct","fields":[{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"after"},{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"patch"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":false,"field":"rs"},{"type":"string","optional":false,"field":"collection"},{"type":"int32","optional":false,"field":"ord"},{"type":"int64","optional":true,"field":"h"}],"optional":false,"name":"io.debezium.connector.mongo.Source","field":"source"},{"type":"string","optional":true,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"after":"{\"_id\": {\"$numberLong\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 1.25,\"quantity\": 4}","patch":null,"source":{"version":"0.10.0.Final","connector":"mongodb","name":"dbserver1","ts_ms":1573541905000,"snapshot":"true","db":"inventory","rs":"rs0","collection":"products","ord":1,"h":4983083486544392763},"op":"r","ts_ms":1573541909761}}.
     ```
    
+## Example of Oracle
+
+### Packaging
+
+Oracle connector does not include Oracle JDBC driver and you need to package it with the connector.
+Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended to use the driver provided with your Oracle DB installation, or you can [download](https://www.oracle.com/database/technologies/appdev/jdbc.html) one.
+Integration test have an [example](https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122) of packaging the driver into the connector nar file. 
+
+### Configuration
+
+Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) Oracle DB with LogMiner or XStream API enabled. 
+Supported options and steps for enabling them vary from version to version of Oracle DB.
+Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java) may or may not work for the version and edition of Oracle DB you are using.
+Please refer to the [documentation for Oracle DB](https://docs.oracle.com/en/database/oracle/oracle-database/) as needed.
+
+Similarly to other connectors, you can use JSON or YAMl to configure the connector.
+Using yaml as an example, you can create a debezium-oracle-source-config.yaml file like:
+
+* JSON
+
+```json
+{
+  "database.hostname": "localhost",
+  "database.port": "1521",
+  "database.user": "dbzuser",
+  "database.password": "dbz",
+  "database.dbname": "XE",
+  "database.server.name": "XE",
+  "schema.exclude.list": "system,dbzuser",
+  "snapshot.mode": "initial",
+  "topic.namespace": "public/default",
+  "task.class": "io.debezium.connector.oracle.OracleConnectorTask",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "typeClassName": "org.apache.pulsar.common.schema.KeyValue",
+  "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+  "database.tcpKeepAlive": "true",
+  "decimal.handling.mode": "double",
+  "database.history.pulsar.topic": "debezium-oracle-source-history-topic",
+  "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
+}
+```
+* YAML
+
+```yaml
+tenant: "public"
+namespace: "default"
+name: "debezium-oracle-source"
+topicName: "debezium-oracle-topic"
+parallelism: 1
+
+className: "org.apache.pulsar.io.debezium.oracle.DebeziumOracleSource"
+database.dbname: "XE"
+
+configs:
+    database.hostname: "localhost"
+    database.port: "1521"
+    database.user: "dbzuser"
+    database.password: "dbz"
+    database.dbname: "XE"
+    database.server.name: "XE"
+    schema.exclude.list: "system,dbzuser"
+    snapshot.mode: "initial"
+    topic.namespace: "public/default"
+    task.class: "io.debezium.connector.oracle.OracleConnectorTask"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
+    typeClassName: "org.apache.pulsar.common.schema.KeyValue"
+    database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
+    database.tcpKeepAlive: "true"
+    decimal.handling.mode: "double"
+    database.history.pulsar.topic: "debezium-oracle-source-history-topic"
+    database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+```
+
+For the full list of configuration properties supported by Debezium, see [Debezium Connector for Oracle](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties).
+
+## Example of Microsoft SQL
+
+### Configuration
+
+Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview) SQL Server with CDC enabled.
+Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
+For more information, see [Enable and disable change data capture in Microsoft SQL Server](https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server).
+
+Similarly to other connectors, you can use JSON or YAMl to configure the connector.
+
+* JSON
+
+```json
+{
+  "database.hostname": "localhost",
+  "database.port": "1433",
+  "database.user": "sa",
+  "database.password": "MyP@ssw0rd!",
+  "database.dbname": "MyTestDB",
+  "database.server.name": "mssql",
+  "snapshot.mode": "schema_only",
+  "topic.namespace": "public/default",
+  "task.class": "io.debezium.connector.sqlserver.SqlServerConnectorTask",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "typeClassName": "org.apache.pulsar.common.schema.KeyValue",
+  "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+  "database.tcpKeepAlive": "true",
+  "decimal.handling.mode": "double",
+  "database.history.pulsar.topic": "debezium-mssql-source-history-topic",
+  "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
+}
+```
+* YAML
+
+```yaml
+tenant: "public"
+namespace: "default"
+name: "debezium-mssql-source"
+topicName: "debezium-mssql-topic"
+parallelism: 1
+
+className: "org.apache.pulsar.io.debezium.mssql.DebeziumMsSqlSource"
+database.dbname: "mssql"
+
+configs:
+    database.hostname: "localhost"
+    database.port: "1433"
+    database.user: "sa"
+    database.password: "MyP@ssw0rd!"
+    database.dbname: "MyTestDB"
+    database.server.name: "mssql"
+    snapshot.mode: "schema_only"
+    topic.namespace: "public/default"
+    task.class: "io.debezium.connector.sqlserver.SqlServerConnectorTask"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
+    typeClassName: "org.apache.pulsar.common.schema.KeyValue"
+    database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
+    database.tcpKeepAlive: "true"
+    decimal.handling.mode: "double"
+    database.history.pulsar.topic: "debezium-mssql-source-history-topic"
+    database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+```
+
+For the full list of configuration properties supported by Debezium, see [Debezium Connector for MS SQL](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-connector-properties).
+
 ## FAQ
  
 ### Debezium postgres connector will hang when create snap

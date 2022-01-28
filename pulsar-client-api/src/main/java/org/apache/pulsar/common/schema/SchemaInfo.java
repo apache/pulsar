@@ -18,70 +18,81 @@
  */
 package org.apache.pulsar.common.schema;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.experimental.Accessors;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Information about the schema.
  */
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Accessors(chain = true)
-@Builder
-public class SchemaInfo {
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public interface SchemaInfo {
 
-    @EqualsAndHashCode.Exclude
-    private String name;
+    String getName();
 
     /**
      * The schema data in AVRO JSON format.
      */
-    private byte[] schema;
+    byte[] getSchema();
 
     /**
      * The type of schema (AVRO, JSON, PROTOBUF, etc..).
      */
-    private SchemaType type;
+    SchemaType getType();
 
     /**
      * Additional properties of the schema definition (implementation defined).
      */
-    private Map<String, String> properties = Collections.emptyMap();
+    Map<String, String> getProperties();
 
-    public String getSchemaDefinition() {
-        if (null == schema) {
-            return "";
-        }
+    String getSchemaDefinition();
 
-        switch (type) {
-            case AVRO:
-            case JSON:
-            case PROTOBUF:
-                return new String(schema, UTF_8);
-            case KEY_VALUE:
-                KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
-                    DefaultImplementation.decodeKeyValueSchemaInfo(this);
-                return DefaultImplementation.jsonifyKeyValueSchemaInfo(schemaInfoKeyValue);
-            default:
-                return Base64.getEncoder().encodeToString(schema);
-        }
+    static SchemaInfoBuilder builder() {
+        return new SchemaInfoBuilder();
     }
 
-    @Override
-    public String toString(){
-        return DefaultImplementation.jsonifySchemaInfo(this);
-    }
+    class SchemaInfoBuilder {
+        private String name;
+        private byte[] schema;
+        private SchemaType type;
+        private Map<String, String> properties;
+        private boolean propertiesSet;
 
+        SchemaInfoBuilder() {
+        }
+
+        public SchemaInfoBuilder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public SchemaInfoBuilder schema(byte[] schema) {
+            this.schema = schema;
+            return this;
+        }
+
+        public SchemaInfoBuilder type(SchemaType type) {
+            this.type = type;
+            return this;
+        }
+
+        public SchemaInfoBuilder properties(Map<String, String> properties) {
+            this.properties = properties;
+            this.propertiesSet = true;
+            return this;
+        }
+
+        public SchemaInfo build() {
+            Map<String, String> propertiesValue = this.properties;
+            if (!this.propertiesSet) {
+                propertiesValue = Collections.emptyMap();
+            }
+            return DefaultImplementation
+                    .getDefaultImplementation()
+                    .newSchemaInfoImpl(name, schema, type, propertiesValue);
+        }
+    }
 }

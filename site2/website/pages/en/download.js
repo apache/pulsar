@@ -12,6 +12,7 @@ const translate = require('../../server/translate.js').translate;
 const siteConfig = require(`${CWD}/siteConfig.js`);
 const releases = require(`${CWD}/releases.json`);
 const pulsarManagerReleases = require(`${CWD}/pulsar-manager-release.json`)
+const pulsarAdaptersReleases = require(`${CWD}/pulsar-adapters-release.json`)
 const connectors = require(`${CWD}/data/connectors.js`);
 
 function getLatestArchiveMirrorUrl(version, type) {
@@ -22,6 +23,10 @@ function getLatestOffloadersMirrorUrl(version) {
     return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/apache-pulsar-offloaders-${version}-bin.tar.gz`
 }
 
+function getLatestAdaptersMirrorUrl(version) {
+    return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-adapters-${version}/apache-pulsar-adapters-${version}-src.tar.gz`
+}
+
 function distUrl(version, type) {
     return `https://www.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
@@ -30,12 +35,20 @@ function distOffloadersUrl(version) {
     return `https://www.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-offloaders-${version}-bin.tar.gz`
 }
 
+function distAdaptersUrl(version) {
+    return `https://downloads.apache.org/pulsar/pulsar-adapters-${version}/apache-pulsar-adapters-${version}-src.tar.gz`
+}
+
 function archiveUrl(version, type) {
     if (version.includes('incubating')) {
         return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
     } else {
         return `https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
     }
+}
+
+function pularManagerArchiveUrl(version, type) {
+    return `https://archive.apache.org/dist/pulsar/pulsar-manager/pulsar-manager-${version}/apache-pulsar-manager-${version}-${type}.tar.gz`
 }
 
 function connectorDistUrl(name, version) {
@@ -58,6 +71,7 @@ class Download extends React.Component {
   render() {
     const latestVersion = releases[0];
     const latestPulsarManagerVersion = pulsarManagerReleases[0];
+    const latestPulsarAdaptersVersion = pulsarAdaptersReleases[0];
     const latestArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'bin');
     const latestSrcArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'src');
     const latestPulsarManagerArchiveMirrorUrl = getLatestPulsarManagerArchiveMirrorUrl(latestPulsarManagerVersion, 'bin');
@@ -74,6 +88,15 @@ class Download extends React.Component {
         srcArchiveUrl: archiveUrl(version, 'src')
       }
     });
+
+    const pulsarManagerReleaseInfo = pulsarManagerReleases.map(version => {
+      return {
+        version: version,
+        binArchiveUrl: pularManagerArchiveUrl(version, 'bin'),
+        srcArchiveUrl: pularManagerArchiveUrl(version, 'src')
+      }
+    });
+
 
     return (
       <div className="pageContainer">
@@ -262,7 +285,7 @@ class Download extends React.Component {
                           <a href={`${info.srcArchiveUrl}.${sha}`}>{`${sha}`}</a>)
                           </td>
                           <td>
-                          <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version}`}><translate>Release Notes</translate></a>
+                          <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version.replace(/\./g,'')}`}><translate>Release Notes</translate></a>
                           </td>
                           </tr>
                       )
@@ -270,6 +293,35 @@ class Download extends React.Component {
                 )}
               </tbody>
             </table>
+
+            <header className="postHeader">
+              <h1><translate>Pulsar Adapters</translate></h1>
+              <hr />
+            </header>
+            <h2 id="latest"><translate>Current version (Stable)</translate> {latestPulsarAdaptersVersion}</h2>
+              <table className="versions" style={{width:'100%'}}>
+                <thead>
+                  <tr>
+                    <th><translate>Release</translate></th>
+                    <th><translate>Link</translate></th>
+                    <th><translate>Crypto files</translate></th>
+                  </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <th><translate>Source</translate></th>
+                    <td>
+                      <a href={getLatestAdaptersMirrorUrl(latestPulsarAdaptersVersion)}>apache-pulsar-adapters-{latestPulsarAdaptersVersion}-src.tar.gz</a>
+                    </td>
+                    <td>
+                      <a href={`${distAdaptersUrl(latestPulsarAdaptersVersion)}.asc`}>asc</a>,&nbsp;
+                      <a href={`${distAdaptersUrl(latestPulsarAdaptersVersion)}.sha512`}>sha512</a>
+                    </td>
+                </tr>
+              </tbody>
+            </table>
+            <translate>Pulsar Adapters are available on Maven Central, there is no binary package.</translate>
+
             <header className="postHeader">
               <h1><translate>Apache Pulsar Manager downloads</translate></h1>
               <hr />
@@ -310,6 +362,43 @@ class Download extends React.Component {
                     <a href={`${pulsarManagerLatestSrcArchiveUrl}.sha512`}>sha512</a>
                   </td>
                 </tr>
+                </tbody>
+              </table>
+              <h2 id="pulsar-manager-archive"><translate>Pulsar Manager older releases</translate></h2>
+              <table className="versions">
+                <thead>
+                  <tr>
+                    <th><translate>Release</translate></th>
+                    <th><translate>Binary</translate></th>
+                    <th><translate>Source</translate></th>
+                    <th><translate>Release notes</translate></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pulsarManagerReleaseInfo.map(
+                    info => {
+                          var sha = "sha512"
+                          return info.version !== latestPulsarManagerVersion && (
+                              <tr key={info.version}>
+                          <th>{info.version}</th>
+                          <td>
+                          <a href={info.binArchiveUrl}>apache-pulsar-manager-{info.version}-bin.tar.gz</a> &nbsp;
+                            (<a href={`${info.binArchiveUrl}.asc`}>asc</a>,&nbsp;
+                            <a href={`${info.binArchiveUrl}.${sha}`}>{`${sha}`}</a>)
+                            </td>
+                            <td>
+                            <a href={info.srcArchiveUrl}>apache-pulsar-manager-{info.version}-src.tar.gz</a>
+                                &nbsp;
+                            (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>,&nbsp;
+                            <a href={`${info.srcArchiveUrl}.${sha}`}>{`${sha}`}</a>)
+                            </td>
+                            <td>
+                            <a href={`${siteConfig.baseUrl}${this.props.language}/release-notes#${info.version.replace(/\./g,'')}`}><translate>Release Notes</translate></a>
+                            </td>
+                            </tr>
+                        )
+                      }
+                  )}
                 </tbody>
               </table>
           </div>

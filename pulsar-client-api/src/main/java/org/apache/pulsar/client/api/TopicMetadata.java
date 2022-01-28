@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * Metadata of a topic that can be used for message routing.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface TopicMetadata {
 
     /**

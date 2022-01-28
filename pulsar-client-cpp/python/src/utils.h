@@ -27,8 +27,7 @@ namespace py = boost::python;
 
 struct PulsarException {
     Result _result;
-    PulsarException(Result res) :
-            _result(res) {}
+    PulsarException(Result res) : _result(res) {}
 };
 
 inline void CHECK_RESULT(Result res) {
@@ -42,4 +41,11 @@ struct AuthenticationWrapper {
 
     AuthenticationWrapper();
     AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
+};
+
+struct CryptoKeyReaderWrapper {
+    CryptoKeyReaderPtr cryptoKeyReader;
+
+    CryptoKeyReaderWrapper();
+    CryptoKeyReaderWrapper(const std::string& publicKeyPath, const std::string& privateKeyPath);
 };

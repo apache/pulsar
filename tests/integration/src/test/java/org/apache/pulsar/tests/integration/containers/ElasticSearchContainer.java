@@ -20,23 +20,27 @@ package org.apache.pulsar.tests.integration.containers;
 
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
+import java.util.Optional;
+
 public class ElasticSearchContainer extends ChaosContainer<ElasticSearchContainer> {
-    
+
     public static final String NAME = "ElasticSearch";
     static final Integer[] PORTS = { 9200, 9300 };
-    
-    private static final String IMAGE_NAME = "docker.elastic.co/elasticsearch/elasticsearch:6.4.0";
+
+    public static final String IMAGE_NAME = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.15.0");
 
     public ElasticSearchContainer(String clusterName) {
-        super(clusterName, IMAGE_NAME);       
+        super(clusterName, IMAGE_NAME);
     }
-    
+
     @Override
     protected void configure() {
         super.configure();
         this.withNetworkAliases(NAME)
             .withExposedPorts(PORTS)
             .withEnv("discovery.type", "single-node")
+            .withEnv("ES_JAVA_OPTS", "-Xms512m -Xmx1500m")
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(clusterName + "-" + NAME);

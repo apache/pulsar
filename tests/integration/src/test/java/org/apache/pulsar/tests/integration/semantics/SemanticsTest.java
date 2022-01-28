@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -56,12 +57,12 @@ public class SemanticsTest extends PulsarTestSuite {
     //
 
     @Test(dataProvider = "ServiceUrlAndTopics")
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testPublishAndConsume(serviceUrl, isPersistent);
+    public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
+        super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testEffectivelyOnceDisabled(String serviceUrl) throws Exception {
+    public void testEffectivelyOnceDisabled(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
@@ -69,7 +70,7 @@ public class SemanticsTest extends PulsarTestSuite {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
+            .serviceUrl(serviceUrl.get())
             .build();
 
         @Cleanup
@@ -131,7 +132,7 @@ public class SemanticsTest extends PulsarTestSuite {
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testEffectivelyOnceEnabled(String serviceUrl) throws Exception {
+    public void testEffectivelyOnceEnabled(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
         pulsarCluster.enableDeduplication(nsName, true);
@@ -140,7 +141,7 @@ public class SemanticsTest extends PulsarTestSuite {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
+            .serviceUrl(serviceUrl.get())
             .build();
 
         @Cleanup
@@ -234,7 +235,7 @@ public class SemanticsTest extends PulsarTestSuite {
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testBatchProducing(String serviceUrl) throws Exception {
+    public void testBatchProducing(Supplier<String> serviceUrl) throws Exception {
         String topicName = generateTopicName("testbatchproducing", true);
 
         int numMessages = 10;
@@ -242,7 +243,7 @@ public class SemanticsTest extends PulsarTestSuite {
         List<MessageId> producedMsgIds;
 
         try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(serviceUrl)
+            .serviceUrl(serviceUrl.get())
             .build()) {
 
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)

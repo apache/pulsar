@@ -43,6 +43,7 @@ import static org.testng.AssertJUnit.assertTrue;
         BrokerInterceptorUtils.class, NarClassLoader.class
 })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
+@Test(groups = "broker")
 public class BrokerInterceptorUtilsTest {
 
     // Necessary to make PowerMockito.mockStatic work with TestNG.

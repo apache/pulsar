@@ -480,7 +480,7 @@ In this section, you need to configure a JDBC sink connector.
     configs:
       userName: "postgres"
       password: "password"
-      jdbcUrl: "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"
+      jdbcUrl: "jdbc:postgresql://localhost:5432/postgres"
       tableName: "pulsar_postgres_jdbc_sink"
     ```
 
@@ -558,7 +558,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 The sink has been created successfully if the following message appears.
 
 ```bash
-"Created successfully"
+Created successfully
 ```
 
 ### Inspect a JDBC sink
@@ -682,7 +682,7 @@ $ bin/pulsar-admin sinks stop \
 The sink instance has been stopped successfully if the following message disappears.
 
 ```bash
-"Stopped successfully"
+Stopped successfully
 ```
 
 ### Restart a JDBC sink
@@ -704,7 +704,7 @@ $ bin/pulsar-admin sinks restart \
 The sink instance has been started successfully if the following message disappears.
 
 ```bash
-"Started successfully"
+Started successfully
 ```
 
 > #### Tip
@@ -735,7 +735,7 @@ $ bin/pulsar-admin sinks update \
 The sink connector has been updated successfully if the following message disappears.
 
 ```bash
-"Updated successfully"
+Updated successfully
 ```
 
 This example double-checks the information.
@@ -794,7 +794,7 @@ $ bin/pulsar-admin sinks delete \
 The sink connector has been deleted successfully if the following message appears.
 
 ```text
-"Deleted successfully"
+Deleted successfully
 ```
 
 This example double-checks the status of the sink connector.

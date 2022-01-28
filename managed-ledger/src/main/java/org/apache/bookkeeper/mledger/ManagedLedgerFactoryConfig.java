@@ -19,10 +19,15 @@
 package org.apache.bookkeeper.mledger;
 
 import lombok.Data;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 @Data
 public class ManagedLedgerFactoryConfig {
     private static final long MB = 1024 * 1024;
@@ -43,27 +48,42 @@ public class ManagedLedgerFactoryConfig {
     private double cacheEvictionFrequency = 100;
 
     /**
-     * All entries that have stayed in cache for more than the configured time, will be evicted
+     * All entries that have stayed in cache for more than the configured time, will be evicted.
      */
     private long cacheEvictionTimeThresholdMillis = 1000;
 
     /**
-     * Whether we should make a copy of the entry payloads when inserting in cache
+     * Whether we should make a copy of the entry payloads when inserting in cache.
      */
     private boolean copyEntriesInCache = false;
 
     /**
-     * Whether trace managed ledger task execution time
+     * Whether trace managed ledger task execution time.
      */
     private boolean traceTaskExecution = true;
 
     /**
-     * Managed ledger prometheus stats Latency Rollover Seconds
+     * Managed ledger prometheus stats Latency Rollover Seconds.
      */
     private int prometheusStatsLatencyRolloverSeconds = 60;
 
     /**
-     * cluster name for prometheus stats
+     * How frequently to flush the cursor positions that were accumulated due to rate limiting.
+     */
+    private int cursorPositionFlushSeconds = 60;
+
+    /**
+     * How frequently to refresh the stats.
+     */
+    private int statsPeriodSeconds = 60;
+
+    /**
+     * cluster name for prometheus stats.
      */
     private String clusterName;
+
+    /**
+     * ManagedLedgerInfo compression type. If the compression type is null or invalid, don't compress data.
+     */
+    private String managedLedgerInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
 }

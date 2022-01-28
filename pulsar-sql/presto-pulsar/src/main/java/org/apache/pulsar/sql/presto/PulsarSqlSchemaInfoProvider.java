@@ -19,27 +19,25 @@
 package org.apache.pulsar.sql.presto;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.glassfish.jersey.internal.inject.InjectionManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * Multi version schema info provider for Pulsar SQL leverage guava cache.
@@ -60,7 +58,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
                 }
             });
 
-    PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
+    public PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
         this.topicName = topicName;
         this.pulsarAdmin = pulsarAdmin;
     }
@@ -97,8 +95,24 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     }
 
     private SchemaInfo loadSchema(BytesSchemaVersion bytesSchemaVersion) throws PulsarAdminException {
-        return pulsarAdmin.schemas()
-                .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        ClassLoader originalContextLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(InjectionManagerFactory.class.getClassLoader());
+            long version = ByteBuffer.wrap(bytesSchemaVersion.get()).getLong();
+            SchemaInfo schemaInfo = pulsarAdmin.schemas().getSchemaInfo(topicName.toString(), version);
+            if (schemaInfo == null) {
+                throw new RuntimeException(
+                        "The specific version (" + version + ") schema of the topic " + topicName + " is null");
+            }
+            return schemaInfo;
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalContextLoader);
+        }
+    }
+
+
+    public static SchemaInfo defaultSchema(){
+        return Schema.BYTES.getSchemaInfo();
     }
 
 }

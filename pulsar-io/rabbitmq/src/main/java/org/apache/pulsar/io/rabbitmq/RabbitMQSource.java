@@ -25,13 +25,10 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.Data;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -41,7 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A simple connector to consume messages from a RabbitMQ queue
+ * A simple connector to consume messages from a RabbitMQ queue.
  */
 @Connector(
     name = "rabbitmq",
@@ -68,7 +65,11 @@ public class RabbitMQSource extends PushSource<byte[]> {
                 rabbitMQConnection.getPort()
         );
         rabbitMQChannel = rabbitMQConnection.createChannel();
-        rabbitMQChannel.queueDeclare(rabbitMQSourceConfig.getQueueName(), false, false, false, null);
+        if (rabbitMQSourceConfig.isPassive()) {
+            rabbitMQChannel.queueDeclarePassive(rabbitMQSourceConfig.getQueueName());
+        } else {
+            rabbitMQChannel.queueDeclare(rabbitMQSourceConfig.getQueueName(), false, false, false, null);
+        }
         logger.info("Setting channel.basicQos({}, {}).",
                 rabbitMQSourceConfig.getPrefetchCount(),
                 rabbitMQSourceConfig.isPrefetchGlobal()
@@ -94,7 +95,8 @@ public class RabbitMQSource extends PushSource<byte[]> {
         }
 
         @Override
-        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                throws IOException {
             source.consume(new RabbitMQRecord(Optional.ofNullable(envelope.getRoutingKey()), body));
             long deliveryTag = envelope.getDeliveryTag();
             // positively acknowledge all deliveries up to this delivery tag to reduce network traffic
@@ -104,7 +106,7 @@ public class RabbitMQSource extends PushSource<byte[]> {
     }
 
     @Data
-    static private class RabbitMQRecord implements Record<byte[]> {
+    private static class RabbitMQRecord implements Record<byte[]> {
         private final Optional<String> key;
         private final byte[] value;
     }

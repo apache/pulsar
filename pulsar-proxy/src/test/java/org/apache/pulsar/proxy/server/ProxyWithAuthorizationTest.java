@@ -26,8 +26,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -45,7 +47,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +75,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private final String TLS_SUPERUSER_CLIENT_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private ProxyService proxyService;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @DataProvider(name = "hostnameVerification")
     public Object[][] hostnameVerificationCodecProvider() {
@@ -86,48 +88,47 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     @DataProvider(name = "protocolsCiphersProvider")
     public Object[][] protocolsCiphersProviderCodecProvider() {
         // Test using defaults
-        Set<String> ciphers_1 = Sets.newTreeSet();
-        Set<String> protocols_1 = Sets.newTreeSet();
+        Set<String> ciphers_1 = new TreeSet<>();
+        Set<String> protocols_1 = new TreeSet<>();
 
         // Test explicitly specifying protocols defaults
-        Set<String> ciphers_2 = Sets.newTreeSet();
-        Set<String> protocols_2 = Sets.newTreeSet();
+        Set<String> ciphers_2 = new TreeSet<>();
+        Set<String> protocols_2 = new TreeSet<>();
+        protocols_2.add("TLSv1.3");
         protocols_2.add("TLSv1.2");
-        protocols_2.add("TLSv1.1");
-        protocols_2.add("TLSv1");
 
         // Test for invalid ciphers
-        Set<String> ciphers_3 = Sets.newTreeSet();
-        Set<String> protocols_3 = Sets.newTreeSet();
+        Set<String> ciphers_3 = new TreeSet<>();
+        Set<String> protocols_3 = new TreeSet<>();
         ciphers_3.add("INVALID_PROTOCOL");
 
         // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
-        Set<String> ciphers_4 = Sets.newTreeSet();
-        Set<String> protocols_4 = Sets.newTreeSet();
+        Set<String> ciphers_4 = new TreeSet<>();
+        Set<String> protocols_4 = new TreeSet<>();
         ciphers_4.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
         protocols_4.add("TLSv1.1");
 
         // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
-        Set<String> ciphers_5 = Sets.newTreeSet();
-        Set<String> protocols_5 = Sets.newTreeSet();
+        Set<String> ciphers_5 = new TreeSet<>();
+        Set<String> protocols_5 = new TreeSet<>();
         ciphers_5.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
         protocols_5.add("TLSv1");
 
         // Correct Config
-        Set<String> ciphers_6 = Sets.newTreeSet();
-        Set<String> protocols_6 = Sets.newTreeSet();
+        Set<String> ciphers_6 = new TreeSet<>();
+        Set<String> protocols_6 = new TreeSet<>();
         ciphers_6.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
         protocols_6.add("TLSv1.2");
 
         // In correct config - JDK 8 doesn't support TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-        Set<String> ciphers_7 = Sets.newTreeSet();
-        Set<String> protocols_7 = Sets.newTreeSet();
+        Set<String> ciphers_7 = new TreeSet<>();
+        Set<String> protocols_7 = new TreeSet<>();
         protocols_7.add("TLSv1.2");
         ciphers_7.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         // Correct config - Atlease one of the Cipher Suite is supported
-        Set<String> ciphers_8 = Sets.newTreeSet();
-        Set<String> protocols_8 = Sets.newTreeSet();
+        Set<String> ciphers_8 = new TreeSet<>();
+        Set<String> protocols_8 = new TreeSet<>();
         protocols_8.add("TLSv1.2");
         ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
         ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
@@ -203,14 +204,14 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                                                    PulsarConfigurationLoader.convertFrom(proxyConfig))));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
     }
 
-    void startProxy() throws Exception {
+    private void startProxy() throws Exception {
         proxyService.start();
     }
 
@@ -235,14 +236,15 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         startProxy();
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
@@ -263,7 +265,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         int count = 0;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -287,15 +289,16 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         startProxy();
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().enableTlsHostnameVerification(hostnameVerificationEnabled));
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
@@ -338,15 +341,16 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         startProxy();
         createAdminClient();
         // create a client which connects to proxy over tls and pass authData
+        @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().operationTimeout(1, TimeUnit.SECONDS));
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
@@ -380,10 +384,10 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         String namespaceName = "my-property/proxy-authorization/my-ns";
         createAdminClient();
 
-        admin.clusters().createCluster("proxy-authorization", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
@@ -438,7 +442,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }, 3, 1000);
         try {
-
+            @Cleanup
             PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + proxyService.getListenPortTls().get(), PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
@@ -448,7 +452,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Assert.fail("Failure expected for this test case");
             }
             consumer.close();
-            proxyClient.close();
         } catch (Exception ex) {
             if (!expectFailure) {
                 Assert.fail("This test case should not fail");
@@ -458,7 +461,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected final void createAdminClient() throws Exception {
+    private void createAdminClient() throws Exception {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);

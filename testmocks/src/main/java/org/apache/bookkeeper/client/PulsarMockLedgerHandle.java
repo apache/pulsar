@@ -19,10 +19,8 @@
 package org.apache.bookkeeper.client;
 
 import com.google.common.collect.Lists;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,7 +29,6 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
@@ -43,7 +40,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.api.WriteFlag;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.slf4j.Logger;
@@ -65,7 +62,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
                            DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(digest, passwd), new LongVersion(0L)),
+        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
               digest, passwd, WriteFlag.NONE);
         this.bk = bk;
         this.id = id;
@@ -78,23 +75,23 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncClose(CloseCallback cb, Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
-                fenced = true;
+            fenced = true;
 
-                Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
-                Versioned<LedgerMetadata> newMetadata = new Versioned<>(
-                        LedgerMetadataBuilder.from(current.getValue())
-                        .withClosedState().withLastEntryId(getLastAddConfirmed())
-                        .withLength(getLength()).build(),
-                        new LongVersion(((LongVersion)current.getVersion()).getLongVersion() + 1));
-                setLedgerMetadata(current, newMetadata);
-                return FutureUtils.value(null);
-            }, bk.executor).whenCompleteAsync((res, exception) -> {
-                    if (exception != null) {
-                        cb.closeComplete(PulsarMockBookKeeper.getExceptionCode(exception), null, ctx);
-                    } else {
-                        cb.closeComplete(BKException.Code.OK, this, ctx);
-                    }
-                }, bk.executor);
+            Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
+            Versioned<LedgerMetadata> newMetadata = new Versioned<>(
+                    LedgerMetadataBuilder.from(current.getValue())
+                            .withClosedState().withLastEntryId(getLastAddConfirmed())
+                            .withLength(getLength()).build(),
+                    new LongVersion(((LongVersion) current.getVersion()).getLongVersion() + 1));
+            setLedgerMetadata(current, newMetadata);
+            return FutureUtils.value(null);
+        }, bk.executor).whenCompleteAsync((res, exception) -> {
+            if (exception != null) {
+                cb.closeComplete(PulsarMockBookKeeper.getExceptionCode(exception), null, ctx);
+            } else {
+                cb.closeComplete(BKException.Code.OK, this, ctx);
+            }
+        }, bk.executor);
     }
 
     @Override
@@ -128,7 +125,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                 return FutureUtils.value(entries);
             }).whenCompleteAsync((res, exception) -> {
                     if (exception != null) {
-                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception), PulsarMockLedgerHandle.this, null, ctx);
+                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception),
+                                PulsarMockLedgerHandle.this, null, ctx);
                     } else {
                         cb.readComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, res, ctx);
                     }
@@ -167,8 +165,13 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
+                Long delayMillis = bk.addEntryDelaysMillis.poll();
+                if (delayMillis == null) {
+                    delayMillis = 1L;
+                }
+
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(delayMillis);
                 } catch (InterruptedException e) {
                 }
 
@@ -253,14 +256,12 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
-    private static LedgerMetadata createMetadata(DigestType digest, byte[] passwd) {
-        List<BookieSocketAddress> ensemble = Lists.newArrayList(
-                new BookieSocketAddress("192.0.2.1", 1234),
-                new BookieSocketAddress("192.0.2.2", 1234),
-                new BookieSocketAddress("192.0.2.3", 1234));
+    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
+        List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
         return LedgerMetadataBuilder.create()
             .withDigestType(digest.toApiDigestType())
             .withPassword(passwd)
+            .withId(id)
             .newEnsembleEntry(0L, ensemble)
             .build();
     }

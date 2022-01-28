@@ -26,7 +26,6 @@ package org.apache.bookkeeper.test;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -116,7 +115,7 @@ public class ZooKeeperUtil {
         // create a zookeeper client
         LOG.debug("Instantiate ZK Client");
         zkc = ZooKeeperClient.newBuilder().connectString(getZooKeeperConnectString()).build();
-        if (path != "") {
+        if (!"".equals(path)) {
             zkc.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
         // initialize the zk client with values

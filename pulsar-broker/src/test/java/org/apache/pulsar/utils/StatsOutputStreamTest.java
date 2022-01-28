@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "utils")
 public class StatsOutputStreamTest {
 
     private ByteBuf buf;

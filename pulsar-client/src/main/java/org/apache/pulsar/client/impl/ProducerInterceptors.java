@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.List;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
 
 /**
  * A container that holds the list{@link ProducerInterceptor}
@@ -68,7 +67,8 @@ public class ProducerInterceptors implements Closeable {
                 interceptorMessage = interceptor.beforeSend(producer, interceptorMessage);
             } catch (Throwable e) {
                 if (producer != null) {
-                    log.warn("Error executing interceptor beforeSend callback for topicName:{} ", producer.getTopic(), e);
+                    log.warn("Error executing interceptor beforeSend callback for topicName:{} ",
+                            producer.getTopic(), e);
                 } else {
                     log.warn("Error Error executing interceptor beforeSend callback ", e);
                 }
@@ -80,13 +80,14 @@ public class ProducerInterceptors implements Closeable {
     /**
      * This method is called when the message send to the broker has been acknowledged, or when sending the record fails
      * before it gets send to the broker.
-     * This method calls {@link ProducerInterceptor#onSendAcknowledgement(Producer, Message, MessageId, Throwable)} method for
-     * each interceptor.
+     * This method calls {@link ProducerInterceptor#onSendAcknowledgement(Producer, Message, MessageId, Throwable)}
+     * method for each interceptor.
      *
      * This method does not throw exceptions. Exceptions thrown by any of interceptor methods are caught and ignored.
      *
      * @param producer the producer which contains the interceptor.
-     * @param message The message returned from the last interceptor is returned from {@link ProducerInterceptor#beforeSend(Producer, Message)}
+     * @param message The message returned from the last interceptor is returned from
+     *   {@link ProducerInterceptor#beforeSend(Producer, Message)}
      * @param msgId The message id that broker returned. Null if has error occurred.
      * @param exception The exception thrown during processing of this message. Null if no error occurred.
      */
@@ -99,6 +100,16 @@ public class ProducerInterceptors implements Closeable {
                 interceptor.onSendAcknowledgement(producer, message, msgId, exception);
             } catch (Throwable e) {
                 log.warn("Error executing interceptor onSendAcknowledgement callback ", e);
+            }
+        }
+    }
+
+    public void onPartitionsChange(String topicName, int partitions) {
+        for (ProducerInterceptor interceptor : interceptors) {
+            try {
+                interceptor.onPartitionsChange(topicName, partitions);
+            } catch (Throwable e) {
+                log.warn("Error executing interceptor onPartitionsChange callback ", e);
             }
         }
     }

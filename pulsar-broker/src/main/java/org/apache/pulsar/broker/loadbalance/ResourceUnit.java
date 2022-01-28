@@ -22,9 +22,9 @@ package org.apache.pulsar.broker.loadbalance;
     ResourceUnit represents any machine/unit which has resources that broker can use to serve its service units
  */
 public interface ResourceUnit extends Comparable<ResourceUnit> {
-    public String getResourceId();
+    String getResourceId();
 
-    public ResourceDescription getAvailableResource();
+    ResourceDescription getAvailableResource();
 
-    public boolean canFit(ResourceDescription resourceDescription);
+    boolean canFit(ResourceDescription resourceDescription);
 }

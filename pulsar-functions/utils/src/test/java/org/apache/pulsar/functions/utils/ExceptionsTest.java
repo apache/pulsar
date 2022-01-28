@@ -21,7 +21,9 @@ package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.functions.utils.Exceptions.rethrowIOException;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
@@ -75,6 +77,31 @@ public class ExceptionsTest {
             assertEquals("test", ioe.getMessage());
             assertSame(e, ioe.getCause());
         }
+    }
+
+    @Test
+    public void testAreExceptionsPresentInChain() {
+        assertFalse(Exceptions.areExceptionsPresentInChain(null, IllegalStateException.class));
+    }
+
+    @Test
+    public void testAreExceptionsPresentInChain2() {
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalStateException(), IllegalStateException.class));
+    }
+
+    @Test
+    public void testAreExceptionsPresentInChain3() {
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), IllegalStateException.class));
+    }
+
+    @Test
+    public void testAreExceptionsPresentInChain4() {
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), UnsupportedOperationException.class, IllegalStateException.class));
+    }
+
+    @Test
+    public void testAreExceptionsPresentInChain5() {
+        assertFalse(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalArgumentException()), IllegalStateException.class));
     }
 
 }

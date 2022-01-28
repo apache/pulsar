@@ -1,0 +1,54 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+syntax = "proto2";
+
+import "pulsar-common/src/main/proto/PulsarApi.proto";
+package pulsar.proto;
+option java_package = "org.apache.pulsar.transaction.coordinator.proto";
+option optimize_for = LITE_RUNTIME;
+
+enum TxnStatus {
+  OPEN       = 0;
+  COMMITTING = 1;
+  COMMITTED  = 2;
+  ABORTING   = 3;
+  ABORTED    = 4;
+}
+
+message TransactionMetadataEntry {
+
+  enum TransactionMetadataOp {
+    NEW                 = 0;
+    ADD_PARTITION       = 1;
+    ADD_SUBSCRIPTION    = 2;
+    UPDATE              = 3;
+  }
+
+  optional TransactionMetadataOp metadata_op   = 1;
+  optional uint64 txnid_least_bits    = 2 [default = 0];
+  optional uint64 txnid_most_bits     = 3 [default = 0];
+  optional TxnStatus expected_status  = 4;
+  optional TxnStatus new_status       = 5;
+  repeated string partitions          = 6;
+  repeated pulsar.proto.Subscription subscriptions = 7;
+  optional uint64 timeout_ms      = 8;
+  optional uint64 start_time      = 9;
+  optional uint64 last_modification_time = 10;
+  optional uint64 max_local_txn_id = 11;
+}

@@ -25,7 +25,12 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.common.functions.*;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
@@ -40,16 +45,18 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.common.util.ClassLoaderUtils.loadJar;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 
 @Slf4j
 public class FunctionConfigUtils {
 
-	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = Integer.valueOf(1000);
+	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = 1000;
 	static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
@@ -110,7 +117,7 @@ public class FunctionConfigUtils {
                                     .setIsRegexPattern(false)
                                     .build());
                 } catch (JsonProcessingException e) {
-                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs ,Topic %s ", topicName));
+                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs,Topic %s ", topicName));
                 }
             });
         }
@@ -118,9 +125,9 @@ public class FunctionConfigUtils {
             functionConfig.getInputSpecs().forEach((topicName, consumerConf) -> {
                 Function.ConsumerSpec.Builder bldr = Function.ConsumerSpec.newBuilder()
                         .setIsRegexPattern(consumerConf.isRegexPattern());
-                if (!StringUtils.isBlank(consumerConf.getSchemaType())) {
+                if (isNotBlank(consumerConf.getSchemaType())) {
                     bldr.setSchemaType(consumerConf.getSchemaType());
-                } else if (!StringUtils.isBlank(consumerConf.getSerdeClassName())) {
+                } else if (isNotBlank(consumerConf.getSerdeClassName())) {
                     bldr.setSerdeClassName(consumerConf.getSerdeClassName());
                 }
                 if (consumerConf.getReceiverQueueSize() != null) {
@@ -130,7 +137,11 @@ public class FunctionConfigUtils {
                 if (consumerConf.getSchemaProperties() != null) {
                     bldr.putAllSchemaProperties(consumerConf.getSchemaProperties());
                 }
+                if (consumerConf.getCryptoConfig() != null) {
+                    bldr.setCryptoSpec(CryptoUtils.convert(consumerConf.getCryptoConfig()));
+                }
                 bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
+                bldr.setPoolMessages(consumerConf.isPoolMessages());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
@@ -147,8 +158,20 @@ public class FunctionConfigUtils {
         }
         sourceSpecBuilder.setSubscriptionType(subType);
 
+        // Set subscription name
         if (isNotBlank(functionConfig.getSubName())) {
             sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
+        }
+
+        // Set subscription position
+        if (functionConfig.getSubscriptionPosition() != null) {
+            Function.SubscriptionPosition subPosition = null;
+            if (SubscriptionInitialPosition.Earliest == functionConfig.getSubscriptionPosition()) {
+                subPosition = Function.SubscriptionPosition.EARLIEST;
+            } else {
+                subPosition = Function.SubscriptionPosition.LATEST;
+            }
+            sourceSpecBuilder.setSubscriptionPosition(subPosition);
         }
 
         if (typeArgs != null) {
@@ -177,7 +200,7 @@ public class FunctionConfigUtils {
         if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
             sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
         }
-        if (functionConfig.getForwardSourceMessageProperty() != null) {
+        if (functionConfig.getForwardSourceMessageProperty() == Boolean.TRUE) {
             sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
         }
         if (functionConfig.getCustomSchemaOutputs() != null && functionConfig.getOutput() != null) {
@@ -189,22 +212,29 @@ public class FunctionConfigUtils {
                     sinkSpecBuilder.putAllConsumerProperties(consumerConfig.getConsumerProperties());
                 }
             } catch (JsonProcessingException e) {
-                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));
+                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs,Topic %s ", functionConfig.getOutput()));
             }
         }
         if (typeArgs != null) {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
         if (functionConfig.getProducerConfig() != null) {
+            ProducerConfig producerConf = functionConfig.getProducerConfig();
             Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (functionConfig.getProducerConfig().getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(functionConfig.getProducerConfig().getMaxPendingMessages());
+            if (producerConf.getMaxPendingMessages() != null) {
+                pbldr.setMaxPendingMessages(producerConf.getMaxPendingMessages());
             }
-            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
+            if (producerConf.getMaxPendingMessagesAcrossPartitions() != null) {
+                pbldr.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
             }
-            if (functionConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(functionConfig.getProducerConfig().getUseThreadLocalProducers());
+            if (producerConf.getUseThreadLocalProducers() != null) {
+                pbldr.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
+            }
+            if (producerConf.getCryptoConfig() != null) {
+                pbldr.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
+            }
+            if (producerConf.getBatchBuilder() != null) {
+                pbldr.setBatchBuilder(producerConf.getBatchBuilder());
             }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
@@ -319,17 +349,21 @@ public class FunctionConfigUtils {
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
         for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap().entrySet()) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
-            if (!isEmpty(input.getValue().getSerdeClassName())) {
+            if (isNotEmpty(input.getValue().getSerdeClassName())) {
                 consumerConfig.setSerdeClassName(input.getValue().getSerdeClassName());
             }
-            if (!isEmpty(input.getValue().getSchemaType())) {
+            if (isNotEmpty(input.getValue().getSchemaType())) {
                 consumerConfig.setSchemaType(input.getValue().getSchemaType());
             }
             if (input.getValue().hasReceiverQueueSize()) {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
+            if (input.getValue().hasCryptoSpec()) {
+                consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
+            }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
+            consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         functionConfig.setInputSpecs(consumerConfigMap);
@@ -341,6 +375,11 @@ public class FunctionConfigUtils {
 
         functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());
+
+        // Set subscription position
+        functionConfig.setSubscriptionPosition(
+                convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
+
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
         }
@@ -354,20 +393,29 @@ public class FunctionConfigUtils {
             functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
         }
         if (functionDetails.getSink().getProducerSpec() != null) {
+            Function.ProducerSpec spec = functionDetails.getSink().getProducerSpec();
             ProducerConfig producerConfig = new ProducerConfig();
-            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(functionDetails.getSink().getProducerSpec().getMaxPendingMessages());
+            if (spec.getMaxPendingMessages() != 0) {
+                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
             }
-            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
+                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
             }
-            producerConfig.setUseThreadLocalProducers(functionDetails.getSink().getProducerSpec().getUseThreadLocalProducers());
+            if (spec.hasCryptoSpec()) {
+                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
+            }
+            if (spec.getBatchBuilder() != null) {
+                producerConfig.setBatchBuilder(spec.getBatchBuilder());
+            }
+            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
             functionConfig.setProducerConfig(producerConfig);
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
-        functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
+        if (functionDetails.getSink().getForwardSourceMessageProperty()) {
+            functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
+        }
         functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
         if (functionDetails.hasRetryDetails()) {
             functionConfig.setMaxMessageRetries(functionDetails.getRetryDetails().getMaxMessageRetries());
@@ -421,7 +469,8 @@ public class FunctionConfigUtils {
         return functionConfig;
     }
 
-    public static void inferMissingArguments(FunctionConfig functionConfig) {
+    public static void inferMissingArguments(FunctionConfig functionConfig,
+                                             boolean forwardSourceMessagePropertyEnabled) {
         if (StringUtils.isEmpty(functionConfig.getName())) {
             org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
         }
@@ -440,8 +489,13 @@ public class FunctionConfigUtils {
         	functionConfig.setMaxPendingAsyncRequests(MAX_PENDING_ASYNC_REQUESTS_DEFAULT);
         }
 
-        if (functionConfig.getForwardSourceMessageProperty() == null) {
-        	functionConfig.setForwardSourceMessageProperty(FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT);
+        if (forwardSourceMessagePropertyEnabled) {
+            if (functionConfig.getForwardSourceMessageProperty() == null) {
+                functionConfig.setForwardSourceMessageProperty(FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT);
+            }
+        } else {
+            // if worker disables forward source message property, we don't need to set the default value.
+            functionConfig.setForwardSourceMessageProperty(null);
         }
 
         if (functionConfig.getJar() != null) {
@@ -524,6 +578,9 @@ public class FunctionConfigUtils {
                 if (!isEmpty(conf.getSchemaType())) {
                     ValidatorUtils.validateSchema(conf.getSchemaType(), typeArgs[0], clsLoader, true);
                 }
+                if (conf.getCryptoConfig() != null) {
+                    ValidatorUtils.validateCryptoKeyReader(conf.getCryptoConfig(), clsLoader, false);
+                }
             });
         }
 
@@ -545,6 +602,9 @@ public class FunctionConfigUtils {
             ValidatorUtils.validateSerde(functionConfig.getOutputSerdeClassName(), typeArgs[1], clsLoader, false);
         }
 
+        if (functionConfig.getProducerConfig() != null && functionConfig.getProducerConfig().getCryptoConfig() != null) {
+            ValidatorUtils.validateCryptoKeyReader(functionConfig.getProducerConfig().getCryptoConfig(), clsLoader, true);
+        }
     }
 
     private static void doPythonChecks(FunctionConfig functionConfig) {
@@ -705,7 +765,23 @@ public class FunctionConfigUtils {
                     throw new IllegalArgumentException(
                         "Receiver queue size should be >= zero");
                 }
+
+                if (conf.getCryptoConfig() != null && isBlank(conf.getCryptoConfig().getCryptoKeyReaderClassName())) {
+                    throw new IllegalArgumentException(
+                            "CryptoKeyReader class name required");
+                }
             });
+        }
+
+        if (functionConfig.getProducerConfig() != null && functionConfig.getProducerConfig().getCryptoConfig() != null) {
+            if (isBlank(functionConfig.getProducerConfig().getCryptoConfig().getCryptoKeyReaderClassName())) {
+                throw new IllegalArgumentException("CryptoKeyReader class name required");
+            }
+
+            if (functionConfig.getProducerConfig().getCryptoConfig().getEncryptionKeys() == null
+                    || functionConfig.getProducerConfig().getCryptoConfig().getEncryptionKeys().length == 0) {
+                throw new IllegalArgumentException("Must provide encryption key name for crypto key reader");
+            }
         }
     }
 
@@ -764,6 +840,11 @@ public class FunctionConfigUtils {
         } else {
             throw new IllegalArgumentException("Function language runtime is either not set or cannot be determined");
         }
+    }
+
+    public static void validateJavaFunction(FunctionConfig functionConfig, ClassLoader classLoader) {
+        doCommonChecks(functionConfig);
+        doJavaChecks(functionConfig, classLoader);
     }
 
     public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {

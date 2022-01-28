@@ -19,16 +19,24 @@
 package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +45,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
@@ -54,15 +63,35 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         prepareData();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @Test
+    public void testSchemaCompatibility() throws Exception {
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+        String topicName = systemTopicClientForNamespace1.getTopicName().toString();
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader(Schema.BYTES)
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        PersistentTopic topic =
+                (PersistentTopic) pulsar.getBrokerService()
+                        .getTopic(topicName, false)
+                        .join().get();
+
+        Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
+    }
+
+    @Test
     public void testSendAndReceiveNamespaceEvents() throws Exception {
-        SystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE1), EventType.TOPIC_POLICY);
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
         TopicPolicies policies = TopicPolicies.builder()
             .maxProducerPerTopic(10)
             .build();
@@ -106,10 +135,22 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 0);
     }
 
+    @Test(timeOut = 30000)
+    public void checkSystemTopic() throws PulsarAdminException {
+        final String systemTopic = "persistent://" + NAMESPACE1 + "/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        final String normalTopic = "persistent://" + NAMESPACE1 + "/normal_topic";
+        admin.topics().createPartitionedTopic(normalTopic, 3);
+        TopicName systemTopicName = TopicName.get(systemTopic);
+        TopicName normalTopicName = TopicName.get(normalTopic);
+
+        Assert.assertEquals(SystemTopicClient.isSystemTopic(systemTopicName), true);
+        Assert.assertEquals(SystemTopicClient.isSystemTopic(normalTopicName), false);
+    }
+
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("system-topic",
-            new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
+            new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);

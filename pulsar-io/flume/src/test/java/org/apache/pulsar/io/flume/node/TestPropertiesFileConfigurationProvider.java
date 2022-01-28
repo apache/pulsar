@@ -18,22 +18,22 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import junit.framework.Assert;
-import org.apache.flume.conf.FlumeConfiguration;
-import org.apache.flume.conf.FlumeConfiguration.AgentConfiguration;
-import org.apache.flume.conf.FlumeConfigurationError;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.apache.flume.conf.FlumeConfiguration;
+import org.apache.flume.conf.FlumeConfiguration.AgentConfiguration;
+import org.apache.flume.conf.FlumeConfigurationError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TestPropertiesFileConfigurationProvider {
 
@@ -46,21 +46,21 @@ public class TestPropertiesFileConfigurationProvider {
 
     private PropertiesFileConfigurationProvider provider;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeMethod
+    public void setUp() {
         provider = new PropertiesFileConfigurationProvider("test", TESTFILE);
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterMethod(alwaysRun = true)
+    public void tearDown() {
 
     }
 
     @Test
-    public void testPropertyRead() throws Exception {
+    public void testPropertyRead() {
 
         FlumeConfiguration configuration = provider.getFlumeConfiguration();
-        Assert.assertNotNull(configuration);
+        assertNotNull(configuration);
 
     /*
      * Test the known errors in the file
@@ -86,11 +86,11 @@ public class TestPropertiesFileConfigurationProvider {
         }
         Collections.sort(expected);
         Collections.sort(actual);
-        Assert.assertEquals(expected, actual);
+        assertEquals(actual, expected);
 
         AgentConfiguration agentConfiguration =
                 configuration.getConfigurationFor("host1");
-        Assert.assertNotNull(agentConfiguration);
+        assertNotNull(agentConfiguration);
 
         LOGGER.info(agentConfiguration.getPrevalidationConfig());
         LOGGER.info(agentConfiguration.getPostvalidationConfig());
@@ -99,8 +99,8 @@ public class TestPropertiesFileConfigurationProvider {
         Set<String> sinks = Sets.newHashSet("sink1");
         Set<String> channels = Sets.newHashSet("channel1");
 
-        Assert.assertEquals(sources, agentConfiguration.getSourceSet());
-        Assert.assertEquals(sinks, agentConfiguration.getSinkSet());
-        Assert.assertEquals(channels, agentConfiguration.getChannelSet());
+        assertEquals(agentConfiguration.getSourceSet(), sources);
+        assertEquals(agentConfiguration.getSinkSet(), sinks);
+        assertEquals(agentConfiguration.getChannelSet(), channels);
     }
 }

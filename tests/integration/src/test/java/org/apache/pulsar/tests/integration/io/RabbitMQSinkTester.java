@@ -25,8 +25,9 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester.SinkType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 import java.io.IOException;
@@ -38,7 +39,6 @@ import java.util.concurrent.TimeoutException;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
-@Slf4j
 public class RabbitMQSinkTester extends SinkTester<RabbitMQContainer> {
     private final String exchangeName = "test-sink-exchange";
     private final String queueName = "test-sink-queue";

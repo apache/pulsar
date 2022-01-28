@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
@@ -30,7 +29,7 @@ public class ClusterReplicationMetrics {
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final ConcurrentOpenHashMap<String, ReplicationMetrics> metricsMap;
-    public final static String SEPARATOR = "_";
+    public static final String SEPARATOR = "_";
     public final boolean metricsEnabled;
 
     public ClusterReplicationMetrics(String localCluster, boolean metricsEnabled) {

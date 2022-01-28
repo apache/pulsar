@@ -23,14 +23,13 @@ import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
 import io.netty.util.concurrent.FastThreadLocal;
-import org.apache.bookkeeper.stats.OpStatsData;
-import org.apache.bookkeeper.stats.OpStatsLogger;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.StampedLock;
+import org.apache.bookkeeper.stats.OpStatsData;
+import org.apache.bookkeeper.stats.OpStatsLogger;
 
 /**
  * OpStatsLogger implementation that uses DataSketches library to calculate the approximated latency quantiles.
@@ -55,7 +54,7 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     private final LongAdder successSumAdder = new LongAdder();
     private final LongAdder failSumAdder = new LongAdder();
 
-    DataSketchesOpStatsLogger() {
+    public DataSketchesOpStatsLogger() {
         this.current = new ThreadLocalAccessor();
         this.replacement = new ThreadLocalAccessor();
     }

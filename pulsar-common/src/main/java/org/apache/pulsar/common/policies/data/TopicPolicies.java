@@ -18,14 +18,19 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Maps;
-
+import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
 
 /**
@@ -37,18 +42,63 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TopicPolicies {
 
-    private Map<String, BacklogQuota> backLogQuotaMap = Maps.newHashMap();
-    private PersistencePolicies persistence = null;
-    private RetentionPolicies retentionPolicies = null;
-    private Boolean deduplicationEnabled = null;
-    private Integer messageTTLInSeconds = null;
-    private Integer maxProducerPerTopic = null;
-    private Integer maxConsumerPerTopic = null;
-    private Integer maxConsumersPerSubscription = null;
-    private Integer maxUnackedMessagesOnConsumer = null;
-    private Integer maxUnackedMessagesOnSubscription = null;
-    private Long delayedDeliveryTickTimeMillis = null;
-    private Boolean delayedDeliveryEnabled = null;
+    @Builder.Default
+    private Map<String, BacklogQuotaImpl> backLogQuotaMap = new HashMap<>();
+    @Builder.Default
+    private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
+    private List<String> replicationClusters;
+    private Boolean isGlobal = false;
+    private PersistencePolicies persistence;
+    private RetentionPolicies retentionPolicies;
+    private Boolean deduplicationEnabled;
+    private Integer messageTTLInSeconds;
+    private Integer maxProducerPerTopic;
+    private Integer maxConsumerPerTopic;
+    private Integer maxConsumersPerSubscription;
+    private Integer maxUnackedMessagesOnConsumer;
+    private Integer maxUnackedMessagesOnSubscription;
+    private Long delayedDeliveryTickTimeMillis;
+    private Boolean delayedDeliveryEnabled;
+    private OffloadPoliciesImpl offloadPolicies;
+    private InactiveTopicPolicies inactiveTopicPolicies;
+    private DispatchRateImpl dispatchRate;
+    private DispatchRateImpl subscriptionDispatchRate;
+    private Long compactionThreshold;
+    private PublishRate publishRate;
+    private SubscribeRate subscribeRate;
+    private Integer deduplicationSnapshotIntervalSeconds;
+    private Integer maxMessageSize;
+    private Integer maxSubscriptionsPerTopic;
+    private DispatchRateImpl replicatorDispatchRate;
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
+
+    public boolean isGlobalPolicies() {
+        return isGlobal != null && isGlobal;
+    }
+
+    public boolean isReplicatorDispatchRateSet() {
+        return replicatorDispatchRate != null;
+    }
+
+    public boolean isMaxSubscriptionsPerTopicSet() {
+        return maxSubscriptionsPerTopic != null;
+    }
+
+    public boolean isMaxMessageSizeSet() {
+        return maxMessageSize != null;
+    }
+
+    public boolean isDeduplicationSnapshotIntervalSecondsSet(){
+        return deduplicationSnapshotIntervalSeconds != null;
+    }
+
+    public boolean isInactiveTopicPoliciesSet() {
+        return inactiveTopicPolicies != null;
+    }
+
+    public boolean isOffloadPoliciesSet() {
+        return offloadPolicies != null;
+    }
 
     public boolean isMaxUnackedMessagesOnConsumerSet() {
         return maxUnackedMessagesOnConsumer != null;
@@ -96,5 +146,29 @@ public class TopicPolicies {
 
     public boolean isMaxConsumersPerSubscriptionSet() {
         return maxConsumersPerSubscription != null;
+    }
+
+    public boolean isDispatchRateSet() {
+        return dispatchRate != null;
+    }
+
+    public boolean isSubscriptionDispatchRateSet() {
+        return subscriptionDispatchRate != null;
+    }
+
+    public boolean isCompactionThresholdSet() {
+        return compactionThreshold != null;
+    }
+
+    public boolean isPublishRateSet() {
+        return publishRate != null;
+    }
+
+    public boolean isSubscribeRateSet() {
+        return subscribeRate != null;
+    }
+
+    public Set<String> getReplicationClustersSet() {
+        return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
 }

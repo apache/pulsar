@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 
@@ -35,8 +34,9 @@ public class PulsarResourceDescription extends ResourceDescription {
 
     @Override
     public int compareTo(ResourceDescription o) {
-        if (o.getResourceUsage().size() > resourceUsageByName.size())
+        if (o.getResourceUsage().size() > resourceUsageByName.size()) {
             return -1;
+        }
         // TODO need to return zero if two resourceDescription match exactly
         for (Map.Entry<String, ResourceUsage> entry : o.getResourceUsage().entrySet()) {
             // if we don't have any entry which is in other but not in our set, we fail
@@ -92,17 +92,20 @@ public class PulsarResourceDescription extends ResourceDescription {
         int throttle = 75;
         for (Map.Entry<String, ResourceUsage> entry : resourceUsageByName.entrySet()) {
             double percentageUsage = 0;
-            if (entry.getValue().limit > 0)
+            if (entry.getValue().limit > 0) {
                 percentageUsage = (entry.getValue().usage / entry.getValue().limit) * 100;
+            }
             // give equal weight to each resource
             double resourceWeight = weight * percentageUsage;
             // any resource usage over 75% doubles the whole weight per resource
-            if (percentageUsage > throttle)
-                resourcesWithHighUsage++;
+            if (percentageUsage > throttle) {
+                final int i = resourcesWithHighUsage++;
+            }
             rank += resourceWeight;
         }
-        if (resourcesWithHighUsage > 0)
+        if (resourcesWithHighUsage > 0) {
             rank = rank * resourcesWithHighUsage * 2;
+        }
         return rank;
     }
 }

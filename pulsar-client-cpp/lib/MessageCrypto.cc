@@ -111,8 +111,7 @@ void MessageCrypto::removeExpiredDataKey() {
 
     auto dataKeyCacheIter = dataKeyCache_.begin();
     while (dataKeyCacheIter != dataKeyCache_.end()) {
-        auto dataKeyEntry = dataKeyCacheIter->second;
-        boost::posix_time::time_duration td = now - dataKeyEntry.second;
+        const auto dataKeyEntry = dataKeyCacheIter->second;
 
         if ((now - dataKeyEntry.second) > expireTime) {
             dataKeyCache_.erase(dataKeyCacheIter++);
@@ -141,7 +140,7 @@ std::string MessageCrypto::stringToHex(const std::string& inputStr, size_t len) 
     return stringToHex(inputStr.c_str(), len);
 }
 
-Result MessageCrypto::addPublicKeyCipher(std::set<std::string>& keyNames,
+Result MessageCrypto::addPublicKeyCipher(const std::set<std::string>& keyNames,
                                          const CryptoKeyReaderPtr keyReader) {
     Lock lock(mutex_);
 
@@ -219,7 +218,7 @@ bool MessageCrypto::removeKeyCipher(const std::string& keyName) {
     return true;
 }
 
-bool MessageCrypto::encrypt(std::set<std::string>& encKeys, const CryptoKeyReaderPtr keyReader,
+bool MessageCrypto::encrypt(const std::set<std::string>& encKeys, const CryptoKeyReaderPtr keyReader,
                             proto::MessageMetadata& msgMetadata, SharedBuffer& payload,
                             SharedBuffer& encryptedPayload) {
     if (!encKeys.size()) {

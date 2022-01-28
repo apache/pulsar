@@ -426,7 +426,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         }
     }
 
-    final static class PaddedInt {
+    static final class PaddedInt {
         private int value;
 
         // Padding to avoid false sharing

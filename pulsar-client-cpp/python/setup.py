@@ -22,7 +22,6 @@ from distutils.core import Extension
 from distutils.util import strtobool
 from os import environ
 import subprocess
-import sys
 
 from distutils.command import build_ext
 
@@ -57,11 +56,6 @@ NAME = get_name()
 print(VERSION)
 print(NAME)
 
-if sys.version_info[0] == 2:
-    PY2 = True
-else:
-    PY2 = False
-
 # This is a workaround to have setuptools to include
 # the already compiled _pulsar.so library
 class my_build_ext(build_ext.build_ext):
@@ -76,23 +70,35 @@ class my_build_ext(build_ext.build_ext):
                 raise
         shutil.copyfile('_pulsar.so', self.get_ext_fullpath(ext.name))
 
-
+# Core Client dependencies
 dependencies = [
-    'fastavro==0.24.0',
-    'grpcio',
-    'protobuf>=3.6.1',
     'six',
     'certifi',
-
-    # functions dependencies
-    "apache-bookkeeper-client>=4.9.2",
-    "prometheus_client",
-    "ratelimit"
+    'enum34>=1.1.9; python_version < "3.4"'
 ]
 
-if PY2:
-    # Python 2 compat dependencies
-    dependencies += ['enum34>=1.1.9']
+extras_require = {}
+
+# functions dependencies
+extras_require["functions"] = sorted(
+    {
+      "protobuf>=3.6.1",
+      "grpcio<1.28,>=1.8.2",
+      "apache-bookkeeper-client>=4.9.2",
+      "prometheus_client",
+      "ratelimit"
+    }
+)
+
+# avro dependencies
+extras_require["avro"] = sorted(
+    {
+      "fastavro==0.24.0"
+    }
+)
+
+# all dependencies
+extras_require["all"] = sorted(set(sum(extras_require.values(), [])))
 
 setup(
     name=NAME,
@@ -107,4 +113,5 @@ setup(
     license="Apache License v2.0",
     url="https://pulsar.apache.org/",
     install_requires=dependencies,
+    extras_require=extras_require,
 )

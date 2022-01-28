@@ -18,7 +18,7 @@
 //
 
 //
-// This file borrows some of the implementations from
+// This file borrows some implementations from
 // {@link https://github.com/aws/aws-lambda-go/blob/master/lambda/handler.go}
 //  - errorHandler
 //  - validateArguments
@@ -173,4 +173,16 @@ func Start(funcName interface{}) {
 		log.Fatal(err)
 		panic("start function failed, please check.")
 	}
+}
+
+// GetUserConfMap provides a means to access the pulsar function's user config
+// map before initializing the pulsar function
+func GetUserConfMap() map[string]interface{} {
+	return NewFuncContext().userConfigs
+}
+
+// GetUserConfValue provides access to a user configuration value before
+// initializing the pulsar function
+func GetUserConfValue(key string) interface{} {
+	return NewFuncContext().userConfigs[key]
 }

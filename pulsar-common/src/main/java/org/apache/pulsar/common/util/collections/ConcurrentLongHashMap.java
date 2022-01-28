@@ -19,8 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import static java.util.Objects.requireNonNull;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
@@ -119,19 +118,19 @@ public class ConcurrentLongHashMap<V> {
     }
 
     public V put(long key, V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).put(key, value, (int) h, false, null);
     }
 
     public V putIfAbsent(long key, V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).put(key, value, (int) h, true, null);
     }
 
     public V computeIfAbsent(long key, LongFunction<V> provider) {
-        checkNotNull(provider);
+        requireNonNull(provider);
         long h = hash(key);
         return getSection(h).put(key, null, (int) h, true, provider);
     }
@@ -142,7 +141,7 @@ public class ConcurrentLongHashMap<V> {
     }
 
     public boolean remove(long key, Object value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).remove(key, value, (int) h) != null;
     }
@@ -154,14 +153,14 @@ public class ConcurrentLongHashMap<V> {
     }
 
     public void clear() {
-        for (Section<V> s : sections) {
-            s.clear();
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].clear();
         }
     }
 
     public void forEach(EntryProcessor<V> processor) {
-        for (Section<V> s : sections) {
-            s.forEach(processor);
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].forEach(processor);
         }
     }
 
@@ -394,46 +393,48 @@ public class ConcurrentLongHashMap<V> {
         public void forEach(EntryProcessor<V> processor) {
             long stamp = tryOptimisticRead();
 
+            // We need to make sure that we read these 3 variables in a consistent way
             int capacity = this.capacity;
             long[] keys = this.keys;
             V[] values = this.values;
 
-            boolean acquiredReadLock = false;
+            // Validate no rehashing
+            if (!validate(stamp)) {
+                // Fallback to read lock
+                stamp = readLock();
 
-            try {
+                capacity = this.capacity;
+                keys = this.keys;
+                values = this.values;
+                unlockRead(stamp);
+            }
 
-                // Validate no rehashing
-                if (!validate(stamp)) {
-                    // Fallback to read lock
-                    stamp = readLock();
-                    acquiredReadLock = true;
-
-                    capacity = this.capacity;
-                    keys = this.keys;
-                    values = this.values;
+            // Go through all the buckets for this section. We try to renew the stamp only after a validation
+            // error, otherwise we keep going with the same.
+            for (int bucket = 0; bucket < capacity; bucket++) {
+                if (stamp == 0) {
+                    stamp = tryOptimisticRead();
                 }
 
-                // Go through all the buckets for this section
-                for (int bucket = 0; bucket < capacity; bucket++) {
-                    long storedKey = keys[bucket];
-                    V storedValue = values[bucket];
+                long storedKey = keys[bucket];
+                V storedValue = values[bucket];
 
-                    if (!acquiredReadLock && !validate(stamp)) {
-                        // Fallback to acquiring read lock
-                        stamp = readLock();
-                        acquiredReadLock = true;
+                if (!validate(stamp)) {
+                    // Fallback to acquiring read lock
+                    stamp = readLock();
 
+                    try {
                         storedKey = keys[bucket];
                         storedValue = values[bucket];
+                    } finally {
+                        unlockRead(stamp);
                     }
 
-                    if (storedValue != DeletedValue && storedValue != EmptyValue) {
-                        processor.accept(storedKey, storedValue);
-                    }
+                    stamp = 0;
                 }
-            } finally {
-                if (acquiredReadLock) {
-                    unlockRead(stamp);
+
+                if (storedValue != DeletedValue && storedValue != EmptyValue) {
+                    processor.accept(storedKey, storedValue);
                 }
             }
         }

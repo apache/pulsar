@@ -19,23 +19,26 @@
 
 package org.apache.pulsar.broker.authentication;
 
-import org.apache.commons.codec.digest.Crypt;
-import org.apache.commons.codec.digest.Md5Crypt;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
-
-import lombok.Cleanup;
-
-import javax.naming.AuthenticationException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.naming.AuthenticationException;
+import lombok.Cleanup;
+import org.apache.commons.codec.digest.Crypt;
+import org.apache.commons.codec.digest.Md5Crypt;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public class AuthenticationProviderBasic implements AuthenticationProvider {
-    private final static String HTTP_HEADER_NAME = "Authorization";
-    private final static String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
+    private static final String HTTP_HEADER_NAME = "Authorization";
+    private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
     private Map<String, String> users;
 
     @Override
@@ -75,24 +78,30 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         String password = authParams.getPassword();
         String msg = "Unknown user or invalid password";
 
-        if (users.get(userId) == null) {
-            throw new AuthenticationException(msg);
-        }
-
-        String encryptedPassword = users.get(userId);
-
-        // For md5 algorithm
-        if ((users.get(userId).startsWith("$apr1"))) {
-            List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
-            if (splitEncryptedPassword.size() != 4 || !encryptedPassword
-                    .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
+        try {
+            if (users.get(userId) == null) {
                 throw new AuthenticationException(msg);
             }
-        // For crypt algorithm
-        } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
-            throw new AuthenticationException(msg);
-        }
 
+            String encryptedPassword = users.get(userId);
+
+            // For md5 algorithm
+            if ((users.get(userId).startsWith("$apr1"))) {
+                List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
+                if (splitEncryptedPassword.size() != 4 || !encryptedPassword
+                        .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
+                    throw new AuthenticationException(msg);
+                }
+                // For crypt algorithm
+            } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
+                throw new AuthenticationException(msg);
+            }
+        } catch (AuthenticationException exception) {
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
+                    exception.getMessage());
+            throw exception;
+        }
+        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         return userId;
     }
 

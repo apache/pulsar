@@ -1,0 +1,63 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+syntax = "proto3";
+package proto;
+
+import public "google/protobuf/timestamp.proto";
+
+option java_package = "org.apache.pulsar.sql.presto.decoder.protobufnative";
+option java_outer_classname = "TestMsg";
+
+enum TestEnum {
+    SHARED = 0;
+    FAILOVER = 1;
+}
+
+message SubMessage {
+    string foo = 1;
+    double bar = 2;
+    NestedMessage nestedMessage = 3;
+    message NestedMessage {
+        string title = 1;
+        repeated string urls = 2;
+    }
+}
+
+message TestMessage {
+    string stringField = 1;
+    double doubleField = 2;
+    float floatField = 3;
+    int32 int32Field = 4;
+    int64 int64Field = 5;
+    uint32 uint32Field = 6;
+    uint64 uint64Field = 7;
+    sint32 sint32Field = 8;
+    sint64 sint64Field = 9;
+    fixed32 fixed32Field = 10;
+    fixed64 fixed64Field = 11;
+    sfixed32 sfixed32Field = 12;
+    sfixed64 sfixed64Field = 13;
+    bool boolField = 14;
+    bytes bytesField = 15;
+    TestEnum testEnum = 16;
+    SubMessage subMessage = 17;
+    repeated string repeatedField = 18;
+    map<string, double> mapField = 19;
+    google.protobuf.Timestamp timestampField = 20;
+}

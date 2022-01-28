@@ -31,16 +31,27 @@ HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic, 
     : client_(client),
       topic_(topic),
       connection_(),
+      executor_(client->getIOExecutorProvider()->get()),
       mutex_(),
       creationTimestamp_(TimeUtils::now()),
       operationTimeut_(seconds(client->conf().getOperationTimeoutSeconds())),
-      state_(Pending),
+      state_(NotStarted),
       backoff_(backoff),
-      timer_(client->getIOExecutorProvider()->get()->createDeadlineTimer()) {}
+      epoch_(0),
+      timer_(executor_->createDeadlineTimer()) {}
 
 HandlerBase::~HandlerBase() { timer_->cancel(); }
 
-void HandlerBase::start() { grabCnx(); }
+void HandlerBase::start() {
+    Lock lock(mutex_);
+    // guard against concurrent state changes such as closing
+    if (state_ == NotStarted) {
+        state_ = Pending;
+        lock.unlock();
+
+        grabCnx();
+    }
+}
 
 void HandlerBase::grabCnx() {
     Lock lock(mutex_);
@@ -104,6 +115,7 @@ void HandlerBase::handleDisconnection(Result result, ClientConnectionWeakPtr con
             scheduleReconnection(handler);
             break;
 
+        case NotStarted:
         case Closing:
         case Closed:
         case Failed:
@@ -140,6 +152,7 @@ void HandlerBase::handleTimeout(const boost::system::error_code& ec, HandlerBase
         LOG_DEBUG(handler->getName() << "Ignoring timer cancelled event, code[" << ec << "]");
         return;
     } else {
+        handler->epoch_++;
         handler->grabCnx();
     }
 }

@@ -81,4 +81,4 @@ For usage instructions, see the documentation for your preferred client library:
 
 ## Managing Schemas
 
-You can use Pulsar's [admin tools](admin-api-schemas.md) for managing schemas for topics.
+You can use Pulsar admin tools to manage schemas for topics.

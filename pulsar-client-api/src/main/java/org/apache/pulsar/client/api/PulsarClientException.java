@@ -19,15 +19,22 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Base type of exception thrown by Pulsar client.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 @SuppressWarnings("serial")
 public class PulsarClientException extends IOException {
     private long sequenceId = -1;
+    private Collection<Throwable> previous;
+
     /**
      * Constructs an {@code PulsarClientException} with the specified detail message.
      *
@@ -79,6 +86,49 @@ public class PulsarClientException extends IOException {
         super(msg, t);
     }
 
+    /**
+     * Add a list of previous exception which occurred for the same operation
+     * and have been retried.
+     *
+     * @param previous A collection of throwables that triggered retries
+     */
+    public void setPreviousExceptions(Collection<Throwable> previous) {
+        this.previous = previous;
+    }
+
+    /**
+     * Get the collection of previous exceptions which have caused retries
+     * for this operation.
+     *
+     * @return a collection of exception, ordered as they occurred
+     */
+    public Collection<Throwable> getPreviousExceptions() {
+        return this.previous;
+    }
+
+    @Override
+    public String toString() {
+        if (previous == null || previous.isEmpty()) {
+            return super.toString();
+        } else {
+            StringBuilder sb = new StringBuilder(super.toString());
+            int i = 0;
+            boolean first = true;
+            sb.append("{\"previous\":[");
+            for (Throwable t : previous) {
+                if (first) {
+                    first = false;
+                } else {
+                    sb.append(',');
+                }
+                sb.append("{\"attempt\":").append(i++)
+                    .append(",\"error\":\"").append(t.toString().replace("\"", "\\\""))
+                    .append("\"}");
+            }
+            sb.append("]}");
+            return sb.toString();
+        }
+    }
     /**
      * Constructs an {@code PulsarClientException} with the specified cause.
      *
@@ -413,6 +463,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Producer fenced exception thrown by Pulsar client.
+     */
+    public static class ProducerFencedException extends PulsarClientException {
+        /**
+         * Constructs a {@code ProducerFencedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public ProducerFencedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Authentication exception thrown by Pulsar client.
      */
     public static class AuthenticationException extends PulsarClientException {
@@ -686,6 +752,35 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Memory buffer full error thrown by Pulsar client.
+     */
+    public static class MemoryBufferIsFullError extends PulsarClientException {
+        /**
+         * Constructs an {@code MemoryBufferIsFullError} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public MemoryBufferIsFullError(String msg) {
+            super(msg);
+        }
+
+        /**
+         * Constructs an {@code MemoryBufferIsFullError} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public MemoryBufferIsFullError(String msg, long sequenceId) {
+            super(msg, sequenceId);
+        }
+    }
+
+    /**
      * Producer blocked quota exceeded error thrown by Pulsar client.
      */
     public static class ProducerBlockedQuotaExceededError extends PulsarClientException {
@@ -763,6 +858,58 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class MessageAcknowledgeException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public MessageAcknowledgeException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code MessageAcknowledgeException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public MessageAcknowledgeException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class TransactionConflictException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public TransactionConflictException(Throwable t) {
+            super(t);
+        }
+
+        /**
+         * Constructs an {@code TransactionConflictException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public TransactionConflictException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -821,6 +968,10 @@ public class PulsarClientException extends IOException {
             return new CryptoException(msg);
         } else if (t instanceof ConsumerAssignException) {
             return new ConsumerAssignException(msg);
+        } else if (t instanceof MessageAcknowledgeException) {
+            return new MessageAcknowledgeException(msg);
+        } else if (t instanceof TransactionConflictException) {
+            return new TransactionConflictException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -852,66 +1003,109 @@ public class PulsarClientException extends IOException {
         // site
         Throwable cause = t.getCause();
         String msg = cause.getMessage();
+        PulsarClientException newException;
         if (cause instanceof TimeoutException) {
-            return new TimeoutException(msg);
+            newException = new TimeoutException(msg);
         } else if (cause instanceof InvalidConfigurationException) {
-            return new InvalidConfigurationException(msg);
+            newException = new InvalidConfigurationException(msg);
         } else if (cause instanceof AuthenticationException) {
-            return new AuthenticationException(msg);
+            newException = new AuthenticationException(msg);
         } else if (cause instanceof IncompatibleSchemaException) {
-            return new IncompatibleSchemaException(msg);
+            newException = new IncompatibleSchemaException(msg);
         } else if (cause instanceof TooManyRequestsException) {
-            return new TooManyRequestsException(msg);
+            newException = new TooManyRequestsException(msg);
         } else if (cause instanceof LookupException) {
-            return new LookupException(msg);
+            newException = new LookupException(msg);
         } else if (cause instanceof ConnectException) {
-            return new ConnectException(msg);
+            newException = new ConnectException(msg);
         } else if (cause instanceof AlreadyClosedException) {
-            return new AlreadyClosedException(msg);
+            newException = new AlreadyClosedException(msg);
         } else if (cause instanceof TopicTerminatedException) {
-            return new TopicTerminatedException(msg);
+            newException = new TopicTerminatedException(msg);
         } else if (cause instanceof AuthorizationException) {
-            return new AuthorizationException(msg);
+            newException = new AuthorizationException(msg);
         } else if (cause instanceof GettingAuthenticationDataException) {
-            return new GettingAuthenticationDataException(msg);
+            newException = new GettingAuthenticationDataException(msg);
         } else if (cause instanceof UnsupportedAuthenticationException) {
-            return new UnsupportedAuthenticationException(msg);
+            newException = new UnsupportedAuthenticationException(msg);
         } else if (cause instanceof BrokerPersistenceException) {
-            return new BrokerPersistenceException(msg);
+            newException = new BrokerPersistenceException(msg);
         } else if (cause instanceof BrokerMetadataException) {
-            return new BrokerMetadataException(msg);
+            newException = new BrokerMetadataException(msg);
         } else if (cause instanceof ProducerBusyException) {
-            return new ProducerBusyException(msg);
+            newException = new ProducerBusyException(msg);
         } else if (cause instanceof ConsumerBusyException) {
-            return new ConsumerBusyException(msg);
+            newException = new ConsumerBusyException(msg);
         } else if (cause instanceof NotConnectedException) {
-            return new NotConnectedException();
+            newException = new NotConnectedException();
         } else if (cause instanceof InvalidMessageException) {
-            return new InvalidMessageException(msg);
+            newException = new InvalidMessageException(msg);
         } else if (cause instanceof InvalidTopicNameException) {
-            return new InvalidTopicNameException(msg);
+            newException = new InvalidTopicNameException(msg);
         } else if (cause instanceof NotSupportedException) {
-            return new NotSupportedException(msg);
+            newException = new NotSupportedException(msg);
         } else if (cause instanceof NotAllowedException) {
-            return new NotAllowedException(msg);
+            newException = new NotAllowedException(msg);
         } else if (cause instanceof ProducerQueueIsFullError) {
-            return new ProducerQueueIsFullError(msg);
+            newException = new ProducerQueueIsFullError(msg);
         } else if (cause instanceof ProducerBlockedQuotaExceededError) {
-            return new ProducerBlockedQuotaExceededError(msg);
+            newException = new ProducerBlockedQuotaExceededError(msg);
         } else if (cause instanceof ProducerBlockedQuotaExceededException) {
-            return new ProducerBlockedQuotaExceededException(msg);
+            newException = new ProducerBlockedQuotaExceededException(msg);
         } else if (cause instanceof ChecksumException) {
-            return new ChecksumException(msg);
+            newException = new ChecksumException(msg);
         } else if (cause instanceof CryptoException) {
-            return new CryptoException(msg);
+            newException = new CryptoException(msg);
         } else if (cause instanceof ConsumerAssignException) {
-            return new ConsumerAssignException(msg);
+            newException = new ConsumerAssignException(msg);
+        } else if (cause instanceof MessageAcknowledgeException) {
+            newException = new MessageAcknowledgeException(msg);
+        } else if (cause instanceof TransactionConflictException) {
+            newException = new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
-            return new TopicDoesNotExistException(msg);
+            newException = new TopicDoesNotExistException(msg);
+        } else if (cause instanceof ProducerFencedException) {
+            newException = new ProducerFencedException(msg);
+        } else if (cause instanceof MemoryBufferIsFullError) {
+            newException = new MemoryBufferIsFullError(msg);
+        } else if (cause instanceof NotFoundException) {
+            newException = new NotFoundException(msg);
         } else {
-            return new PulsarClientException(t);
+            newException = new PulsarClientException(t);
+        }
+
+        Collection<Throwable> previousExceptions = getPreviousExceptions(t);
+        if (previousExceptions != null) {
+            newException.setPreviousExceptions(previousExceptions);
+        }
+        return newException;
+    }
+
+    public static Collection<Throwable> getPreviousExceptions(Throwable t) {
+        Throwable e = t;
+        for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
+            if (e instanceof PulsarClientException) {
+                Collection<Throwable> previous = ((PulsarClientException) e).getPreviousExceptions();
+                if (previous != null) {
+                    return previous;
+                }
+            }
+            e = t.getCause();
+        }
+        return null;
+    }
+
+    public static void setPreviousExceptions(Throwable t, Collection<Throwable> previous) {
+        Throwable e = t;
+        for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
+            if (e instanceof PulsarClientException) {
+                ((PulsarClientException) e).setPreviousExceptions(previous);
+                return;
+            }
+            e = t.getCause();
         }
     }
+
 
     public long getSequenceId() {
         return sequenceId;
@@ -936,6 +1130,8 @@ public class PulsarClientException extends IOException {
                 || t instanceof ChecksumException
                 || t instanceof CryptoException
                 || t instanceof ConsumerAssignException
+                || t instanceof MessageAcknowledgeException
+                || t instanceof TransactionConflictException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException) {
             return false;

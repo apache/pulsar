@@ -62,7 +62,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -77,15 +77,22 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.worker.*;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.LeaderService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
+import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -123,12 +130,12 @@ public class FunctionApiV2ResourceTest {
     }
     private static final int parallelism = 1;
 
-    private WorkerService mockedWorkerService;
+    private PulsarWorkerService mockedWorkerService;
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
     private Functions mockedFunctions;
-    private TenantInfo mockedTenantInfo;
+    private TenantInfoImpl mockedTenantInfo;
     private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
     private FunctionRuntimeManager mockedFunctionRunTimeManager;
@@ -139,12 +146,13 @@ public class FunctionApiV2ResourceTest {
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetadata;
     private LeaderService mockedLeaderService;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     public void setup() throws Exception {
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedFunctionRunTimeManager = mock(FunctionRuntimeManager.class);
-        this.mockedTenantInfo = mock(TenantInfo.class);
+        this.mockedTenantInfo = mock(TenantInfoImpl.class);
         this.mockedRuntimeFactory = mock(RuntimeFactory.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedNamespace = mock(Namespace.class);
@@ -158,7 +166,7 @@ public class FunctionApiV2ResourceTest {
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
-        this.mockedWorkerService = mock(WorkerService.class);
+        this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
@@ -179,10 +187,11 @@ public class FunctionApiV2ResourceTest {
         WorkerConfig workerConfig = new WorkerConfig()
                 .setWorkerId("test")
                 .setWorkerPort(8080)
-                .setDownloadDirectory("/tmp/pulsar/functions")
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
                 .setPulsarServiceUrl("pulsar://localhost:6650/");
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         FunctionsImpl functions = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -192,6 +201,13 @@ public class FunctionApiV2ResourceTest {
 
         this.resource = spy(new FunctionsImplV2(functions));
 
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (tempDirectory != null) {
+            tempDirectory.delete();
+        }
     }
 
     //
@@ -574,7 +590,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -616,7 +632,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -638,7 +654,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -998,7 +1014,7 @@ public class FunctionApiV2ResourceTest {
     public void testUpdateFunctionSuccess() throws Exception {
         mockStatic(WorkerUtils.class);
         doNothing().when(WorkerUtils.class);
-        WorkerUtils.uploadToBookeeper(
+        WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -1015,8 +1031,8 @@ public class FunctionApiV2ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setOutput(outputTopic);
@@ -1052,7 +1068,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -1075,7 +1091,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -1411,10 +1427,10 @@ public class FunctionApiV2ResourceTest {
     public void testDownloadFunctionFile() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImplV2 function = new FunctionsImplV2(() -> mockedWorkerService);
-        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file://" + fileLocation, null).getEntity();
+        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file:///" + fileLocation, null).getEntity();
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1430,8 +1446,8 @@ public class FunctionApiV2ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -1463,8 +1479,8 @@ public class FunctionApiV2ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
 

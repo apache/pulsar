@@ -19,10 +19,14 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A listener that will be called in order for every message received.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface MessageListener<T> extends Serializable {
     /**
      * This method is called whenever a new message is received.

@@ -27,10 +27,11 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class LoadManagerSharedTest {
 
     @Test
-    public void testRemoveMostServicingBrokersForNamespace() throws Exception {
+    public void testRemoveMostServicingBrokersForNamespace() {
         String namespace = "tenant1/ns1";
         String assignedBundle = namespace + "/0x00000000_0x40000000";
 

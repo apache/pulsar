@@ -18,29 +18,34 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-/**
- */
+import java.util.Random;
+
 public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     protected static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
 
-    protected PulsarService getPulsar() {
-        return pulsar;
-    }
-
     public void baseSetup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        baseSetupCommon();
+    }
+
+    public void baseSetup(ServiceConfiguration serviceConfiguration) throws Exception {
+        super.internalSetup(serviceConfiguration);
+        baseSetupCommon();
+    }
+
+    private void baseSetupCommon() throws Exception {
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("prop",
-                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
     }
@@ -74,6 +79,12 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             LOG.error("Error running message expiry check", e);
         }
+    }
+
+    private static final Random random = new Random();
+
+    protected String newTopicName() {
+        return "prop/ns-abc/topic-" + Long.toHexString(random.nextLong());
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerTestBase.class);

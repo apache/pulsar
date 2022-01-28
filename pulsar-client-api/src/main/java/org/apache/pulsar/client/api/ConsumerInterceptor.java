@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Set;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A plugin interface that allows you to intercept (and possibly mutate)
@@ -30,6 +32,8 @@ import java.util.Set;
  * <p>Exceptions thrown by interceptor methods will be caught, logged, but
  * not propagated further.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConsumerInterceptor<T> extends AutoCloseable {
 
     /**
@@ -116,4 +120,13 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * @param messageIds message to ack, null if acknowledge fail.
      */
     void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds);
+
+    /**
+     * This method is called when partitions of the topic (partitioned-topic) changes.
+     *
+     * @param topicName topic name
+     * @param partitions new updated number of partitions
+     */
+    default void onPartitionsChange(String topicName, int partitions) {
+    }
 }

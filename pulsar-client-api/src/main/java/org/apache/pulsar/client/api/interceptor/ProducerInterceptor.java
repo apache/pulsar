@@ -22,6 +22,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A plugin interface that allows you to intercept (and possibly mutate) the
@@ -38,6 +40,8 @@ import org.apache.pulsar.client.api.ProducerBuilder;
  * interceptor will be called in the order specified by
  * {@link ProducerBuilder#intercept(ProducerInterceptor...)}.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ProducerInterceptor extends AutoCloseable {
 
     /**
@@ -97,4 +101,13 @@ public interface ProducerInterceptor extends AutoCloseable {
      */
     void onSendAcknowledgement(
             Producer producer, Message message, MessageId msgId, Throwable exception);
+
+    /**
+     * This method is called when partitions of the topic (partitioned-topic) changes.
+     *
+     * @param topicName topic name
+     * @param partitions new updated partitions
+     */
+    default void onPartitionsChange(String topicName, int partitions) {
+    }
 }

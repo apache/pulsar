@@ -48,6 +48,8 @@ function getSwaggerByVersion(){
         redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swaggersource.json')
     } else if (pathName.indexOf('sink-rest-api') >= 0) {
         redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swaggersink.json')
+    } else if (pathName.indexOf('packages-rest-api' >= 0)) {
+        redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swaggerpackages.json')
     }
     redoc.setAttribute('lazy-rendering', 'true')
     const redocLink = document.createElement('script');

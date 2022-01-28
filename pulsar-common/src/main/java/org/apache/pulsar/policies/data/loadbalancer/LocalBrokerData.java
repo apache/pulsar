@@ -19,20 +19,22 @@
 package org.apache.pulsar.policies.data.loadbalancer;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Contains all the data that is maintained locally on each broker.
  */
 @JsonDeserialize(as = LocalBrokerData.class)
-public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
+public class LocalBrokerData implements LoadManagerReport {
 
     // URLs to satisfy contract of ServiceLookupData (used by NamespaceService).
     private final String webServiceUrl;
@@ -107,7 +109,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
-        lastStats = Maps.newConcurrentMap();
+        lastStats = new ConcurrentHashMap<>();
         lastUpdate = System.currentTimeMillis();
         cpu = new ResourceUsage();
         memory = new ResourceUsage();
@@ -118,7 +120,29 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         lastBundleGains = new HashSet<>();
         lastBundleLosses = new HashSet<>();
         protocols = new HashMap<>();
-        this.advertisedListeners = Collections.unmodifiableMap(Maps.newHashMap(advertisedListeners));
+        this.advertisedListeners = Collections.unmodifiableMap(new HashMap<>(advertisedListeners));
+    }
+
+    /**
+     * Since the broker data is also used as a lock for the broker, we need to have a stable comparison
+     * operator that is not affected by the actual load on the broker.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof LocalBrokerData) {
+            LocalBrokerData other = (LocalBrokerData) o;
+            return Objects.equals(webServiceUrl, other.webServiceUrl)
+                    && Objects.equals(webServiceUrlTls, other.webServiceUrlTls)
+                    && Objects.equals(pulsarServiceUrl, other.pulsarServiceUrl)
+                    && Objects.equals(pulsarServiceUrlTls, other.pulsarServiceUrlTls);
+        }
+
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls);
     }
 
     /**
@@ -157,11 +181,11 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
     // Update resource usage given each individual usage.
     private void updateSystemResourceUsage(final ResourceUsage cpu, final ResourceUsage memory,
             final ResourceUsage directMemory, final ResourceUsage bandwidthIn, final ResourceUsage bandwidthOut) {
-        this.cpu = new ResourceUsage(cpu);
-        this.memory = new ResourceUsage(memory);
-        this.directMemory = new ResourceUsage(directMemory);
-        this.bandwidthIn = new ResourceUsage(bandwidthIn);
-        this.bandwidthOut = new ResourceUsage(bandwidthOut);
+        this.cpu = cpu;
+        this.memory = memory;
+        this.directMemory = directMemory;
+        this.bandwidthIn = bandwidthIn;
+        this.bandwidthOut = bandwidthOut;
     }
 
     // Aggregate all message, throughput, topic count, bundle count, consumer
@@ -217,17 +241,18 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     public String printResourceUsage() {
         return String.format(
+                Locale.ENGLISH,
                 "cpu: %.2f%%, memory: %.2f%%, directMemory: %.2f%%, bandwidthIn: %.2f%%, bandwidthOut: %.2f%%",
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage());
     }
 
     public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
-                                                final double directMemoryWeight, final double bandwithInWeight,
-                                                final double bandWithOutWeight) {
+                                                final double directMemoryWeight, final double bandwidthInWeight,
+                                                final double bandwidthOutWeight) {
         return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwithInWeight,
-                bandwidthOut.percentUsage() * bandWithOutWeight) / 100;
+                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
+                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
     private static double max(double... args) {
@@ -305,6 +330,11 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     public Set<String> getLastBundleGains() {
         return lastBundleGains;
+    }
+
+    public void cleanDeltas() {
+        lastBundleGains.clear();
+        lastBundleLosses.clear();
     }
 
     public void setLastBundleGains(Set<String> lastBundleGains) {

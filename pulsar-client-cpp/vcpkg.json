@@ -1,0 +1,30 @@
+{
+  "name": "pulsar-cpp",
+  "version": "2.8.0",
+  "description": "Pulsar C++ SDK",
+  "dependencies": [
+    "boost-accumulators",
+    "boost-algorithm",
+    "boost-any",
+    "boost-circular-buffer",
+    "boost-asio",
+    "boost-date-time",
+    "boost-predef",
+    "boost-program-options",
+    "boost-property-tree",
+    "boost-random",
+    "boost-serialization",
+    "boost-xpressive",
+    "curl",
+    "openssl",
+    "protobuf",
+    "snappy",
+    "zlib",
+    "zstd",
+    "log4cxx",
+    {
+      "name": "dlfcn-win32",
+      "platform": "windows"
+    }
+  ]
+}

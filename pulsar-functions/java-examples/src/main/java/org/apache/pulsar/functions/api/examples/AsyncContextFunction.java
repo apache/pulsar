@@ -43,9 +43,8 @@ public class AsyncContextFunction implements Function<String, CompletableFuture<
             String inputTopics = context.getInputTopics().stream().collect(Collectors.joining(", "));
             String funcName = context.getFunctionName();
 
-            String logMessage = String
-                    .format("A message with value of \"%s\" has arrived on one of the following topics: %s\n",
-                            input, inputTopics);
+            String logMessage = String.format("A message with value of \"%s\" has arrived on " +
+                    "one of the following topics: %s %n", input, inputTopics);
             LOG.info(logMessage);
 
             String metricName = String.format("function-%s-messages-received", funcName);

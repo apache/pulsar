@@ -25,9 +25,12 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -38,6 +41,9 @@ import org.apache.pulsar.broker.service.BrokerService;
 @Slf4j
 public class ProtocolHandlers implements AutoCloseable {
 
+    @Getter
+    private final Map<SocketAddress, String> endpoints = new ConcurrentHashMap<>();
+
     /**
      * Load the protocol handlers for the given <tt>protocol</tt> list.
      *
@@ -46,7 +52,8 @@ public class ProtocolHandlers implements AutoCloseable {
      */
     public static ProtocolHandlers load(ServiceConfiguration conf) throws IOException {
         ProtocolHandlerDefinitions definitions =
-            ProtocolHandlerUtils.searchForHandlers(conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
+                ProtocolHandlerUtils.searchForHandlers(
+                        conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, ProtocolHandlerWithClassLoader> handlersBuilder = ImmutableMap.builder();
 
@@ -131,6 +138,7 @@ public class ProtocolHandlers implements AutoCloseable {
                         + " already occupied by other messaging protocols");
                 }
                 channelInitializers.put(handler.getKey(), initializers);
+                endpoints.put(address, handler.getKey());
             });
         }
 

@@ -21,10 +21,9 @@ package org.apache.pulsar.testclient;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import com.google.common.util.concurrent.RateLimiter;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
@@ -38,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -54,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * this class are controlled across a network via LoadSimulationController.
  */
 public class LoadSimulationClient {
-    private final static Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
+    private static final Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
 
     // Values for command encodings.
     public static final byte CHANGE_COMMAND = 0;
@@ -171,6 +169,7 @@ public class LoadSimulationClient {
     }
 
     // JCommander arguments for starting a LoadSimulationClient.
+    @Parameters(commandDescription = "Simulate client load by maintaining producers and consumers for topics.")
     private static class MainArguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
@@ -342,8 +341,9 @@ public class LoadSimulationClient {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
+        PerfClientUtils.printJVMInformation(log);
         (new LoadSimulationClient(mainArguments)).run();
     }
 

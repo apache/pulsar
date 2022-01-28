@@ -23,7 +23,7 @@ import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLe
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
@@ -31,14 +31,14 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Properties;
 
-public class FileStoreTestBase {
+public abstract class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
     protected OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
     protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
         File baseDir = Files.createTempDirectory(basePath).toFile().getAbsoluteFile();
         Configuration conf = new Configuration();
@@ -49,11 +49,11 @@ public class FileStoreTestBase {
         hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
-                OffloadPolicies.create(properties),
+                OffloadPoliciesImpl.create(properties),
                 scheduler, hdfsURI, basePath);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         hdfsCluster.shutdown(true, true);
         hdfsCluster.close();

@@ -37,7 +37,6 @@ You need to have the following installed to use the C++ client:
 * [Log4CXX](https://logging.apache.org/log4cxx)
 * [libcurl](https://curl.haxx.se/libcurl/)
 * [Google Test](https://github.com/google/googletest)
-* [JsonCpp](https://github.com/open-source-parsers/jsoncpp)
 
 ## Compilation
 

@@ -26,17 +26,25 @@
 #include "PartitionedConsumerImpl.h"
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
-#include "SimpleLoggerImpl.h"
+#include <pulsar/ConsoleLoggerFactory.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
-#include <openssl/sha.h>
+#include <stdexcept>
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
-#include <regex>
+#include <random>
 #include <mutex>
 #ifdef USE_LOG4CXX
 #include "Log4CxxLogger.h"
+#endif
+
+#ifdef PULSAR_USE_BOOST_REGEX
+#include <boost/regex.hpp>
+#define PULSAR_REGEX_NAMESPACE boost
+#else
+#include <regex>
+#define PULSAR_REGEX_NAMESPACE std
 #endif
 
 DECLARE_LOG_OBJECT()
@@ -45,24 +53,20 @@ namespace pulsar {
 
 static const char hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+static std::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits) - 1);
+static std::mt19937 randomEngine =
+    std::mt19937(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
-const std::string generateRandomName() {
-    unsigned char hash[SHA_DIGEST_LENGTH];  // == 20;
-    boost::posix_time::ptime t(boost::posix_time::microsec_clock::universal_time());
-    long nanoSeconds = t.time_of_day().total_nanoseconds();
-    std::stringstream ss;
-    ss << nanoSeconds;
-    SHA1(reinterpret_cast<const unsigned char*>(ss.str().c_str()), ss.str().length(), hash);
+std::string generateRandomName() {
+    const int randomNameLength = 10;
 
-    const int nameLength = 10;
-    std::stringstream hexHash;
-    for (int i = 0; i < nameLength / 2; i++) {
-        hexHash << hexDigits[(hash[i] & 0xF0) >> 4];
-        hexHash << hexDigits[hash[i] & 0x0F];
+    std::string randomName;
+    for (int i = 0; i < randomNameLength; ++i) {
+        randomName += hexDigits[hexDigitsDist(randomEngine)];
     }
-
-    return hexHash.str();
+    return randomName;
 }
+
 typedef std::unique_lock<std::mutex> Lock;
 
 typedef std::vector<std::string> StringList;
@@ -86,6 +90,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       state_(Open),
       serviceUrl_(serviceUrl),
       clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
+      memoryLimitController_(clientConfiguration.getMemoryLimit()),
       ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
           std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
@@ -97,18 +102,20 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       requestIdGenerator_(0),
       closingError(ResultOk) {
     std::unique_ptr<LoggerFactory> loggerFactory = clientConfiguration_.impl_->takeLogger();
+    if (!loggerFactory) {
 #ifdef USE_LOG4CXX
-    if (!clientConfiguration_.getLogConfFilePath().empty()) {
-        // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
-        loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
-    } else {
-        // Use default simple console logger
-        loggerFactory = SimpleLoggerFactory::create();
-    }
+        if (!clientConfiguration_.getLogConfFilePath().empty()) {
+            // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
+            loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
+        } else {
+            // Use default simple console logger
+            loggerFactory.reset(new ConsoleLoggerFactory);
+        }
 #else
-    // Use default simple console logger
-    loggerFactory = SimpleLoggerFactory::create();
+        // Use default simple console logger
+        loggerFactory.reset(new ConsoleLoggerFactory);
 #endif
+    }
     LogUtils::setLoggerFactory(std::move(loggerFactory));
 
     if (serviceUrl_.compare(0, 4, "http") == 0) {
@@ -118,13 +125,16 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
                                                 std::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
-        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(std::ref(pool_), std::ref(serviceUrl));
+        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(
+            std::ref(pool_), std::ref(serviceUrl), std::cref(clientConfiguration_.getListenerName()));
     }
 }
 
 ClientImpl::~ClientImpl() { shutdown(); }
 
 const ClientConfiguration& ClientImpl::conf() const { return clientConfiguration_; }
+
+MemoryLimitController& ClientImpl::getMemoryLimitController() { return memoryLimitController_; }
 
 ExecutorServiceProviderPtr ClientImpl::getIOExecutorProvider() { return ioExecutorProvider_; }
 
@@ -138,6 +148,9 @@ LookupServicePtr ClientImpl::getLookup() { return lookupServicePtr_; }
 
 void ClientImpl::createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                                      CreateProducerCallback callback) {
+    if (conf.isChunkingEnabled() && conf.getBatchingEnabled()) {
+        throw std::invalid_argument("Batching and chunking of messages can't be enabled together");
+    }
     TopicNamePtr topicName;
     {
         Lock lock(mutex_);
@@ -165,7 +178,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
             producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                  partitionMetadata->getPartitions(), conf);
         } else {
-            producer = std::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
+            producer = std::make_shared<ProducerImpl>(shared_from_this(), *topicName, conf);
         }
         producer->getProducerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleProducerCreated, shared_from_this(), std::placeholders::_1,
@@ -232,7 +245,7 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
     consumers_.push_back(reader->getConsumer());
 }
 
-void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& consumerName,
+void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
                                          const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicNamePtr = TopicName::get(regexPattern);
 
@@ -254,24 +267,24 @@ void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const 
 
     lookupServicePtr_->getTopicsOfNamespaceAsync(nsName).addListener(
         std::bind(&ClientImpl::createPatternMultiTopicsConsumer, shared_from_this(), std::placeholders::_1,
-                  std::placeholders::_2, regexPattern, consumerName, conf, callback));
+                  std::placeholders::_2, regexPattern, subscriptionName, conf, callback));
 }
 
 void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const NamespaceTopicsPtr topics,
                                                   const std::string& regexPattern,
-                                                  const std::string& consumerName,
+                                                  const std::string& subscriptionName,
                                                   const ConsumerConfiguration& conf,
                                                   SubscribeCallback callback) {
     if (result == ResultOk) {
         ConsumerImplBasePtr consumer;
 
-        std::regex pattern(regexPattern);
+        PULSAR_REGEX_NAMESPACE::regex pattern(regexPattern);
 
         NamespaceTopicsPtr matchTopics =
             PatternMultiTopicsConsumerImpl::topicsPatternFilter(*topics, pattern);
 
         consumer = std::make_shared<PatternMultiTopicsConsumerImpl>(
-            shared_from_this(), regexPattern, *matchTopics, consumerName, conf, lookupServicePtr_);
+            shared_from_this(), regexPattern, *matchTopics, subscriptionName, conf, lookupServicePtr_);
 
         consumer->getConsumerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1,
@@ -286,7 +299,7 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
     }
 }
 
-void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicNamePtr;
 
@@ -311,7 +324,7 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
     }
 
     ConsumerImplBasePtr consumer = std::make_shared<MultiTopicsConsumerImpl>(
-        shared_from_this(), topics, consumerName, topicNamePtr, conf, lookupServicePtr_);
+        shared_from_this(), topics, subscriptionName, topicNamePtr, conf, lookupServicePtr_);
 
     consumer->getConsumerCreatedFuture().addListener(std::bind(&ClientImpl::handleConsumerCreated,
                                                                shared_from_this(), std::placeholders::_1,
@@ -321,7 +334,7 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
     consumer->start();
 }
 
-void ClientImpl::subscribeAsync(const std::string& topic, const std::string& consumerName,
+void ClientImpl::subscribeAsync(const std::string& topic, const std::string& subscriptionName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
     TopicNamePtr topicName;
     {
@@ -345,11 +358,11 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
 
     lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
         std::bind(&ClientImpl::handleSubscribe, shared_from_this(), std::placeholders::_1,
-                  std::placeholders::_2, topicName, consumerName, conf, callback));
+                  std::placeholders::_2, topicName, subscriptionName, conf, callback));
 }
 
 void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr partitionMetadata,
-                                 TopicNamePtr topicName, const std::string& consumerName,
+                                 TopicNamePtr topicName, const std::string& subscriptionName,
                                  ConsumerConfiguration conf, SubscribeCallback callback) {
     if (result == ResultOk) {
         // generate random name if not supplied by the customer.
@@ -363,11 +376,13 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
                 callback(ResultInvalidConfiguration, Consumer());
                 return;
             }
-            consumer = std::make_shared<PartitionedConsumerImpl>(shared_from_this(), consumerName, topicName,
-                                                                 partitionMetadata->getPartitions(), conf);
+            consumer = std::make_shared<PartitionedConsumerImpl>(
+                shared_from_this(), subscriptionName, topicName, partitionMetadata->getPartitions(), conf);
         } else {
-            consumer =
-                std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(), consumerName, conf);
+            auto consumerImpl = std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(),
+                                                               subscriptionName, conf);
+            consumerImpl->setPartitionIndex(topicName->getPartitionIndex());
+            consumer = consumerImpl;
         }
         consumer->getConsumerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1,
@@ -476,8 +491,9 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     state_ = Closing;
     lock.unlock();
 
-    LOG_INFO("Closing Pulsar client");
     SharedInt numberOfOpenHandlers = std::make_shared<int>(producers.size() + consumers.size());
+    LOG_INFO("Closing Pulsar client with " << producers.size() << " producers and " << consumers.size()
+                                           << " consumers");
 
     for (ProducersList::iterator it = producers.begin(); it != producers.end(); ++it) {
         ProducerImplBasePtr producer = it->lock();
@@ -502,7 +518,7 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     }
 
     if (*numberOfOpenHandlers == 0 && callback) {
-        callback(ResultOk);
+        handleClose(ResultOk, numberOfOpenHandlers, callback);
     }
 }
 
@@ -555,10 +571,21 @@ void ClientImpl::shutdown() {
         }
     }
 
-    pool_.close();
+    if (producers.size() + consumers.size() > 0) {
+        LOG_DEBUG(producers.size() << " producers and " << consumers.size()
+                                   << " consumers have been shutdown.");
+    }
+    if (!pool_.close()) {
+        // pool_ has already been closed. It means shutdown() has been called before.
+        return;
+    }
+    LOG_DEBUG("ConnectionPool is closed");
     ioExecutorProvider_->close();
+    LOG_DEBUG("ioExecutorProvider_ is closed");
     listenerExecutorProvider_->close();
+    LOG_DEBUG("listenerExecutorProvider_ is closed");
     partitionListenerExecutorProvider_->close();
+    LOG_DEBUG("partitionListenerExecutorProvider_ is closed");
 }
 
 uint64_t ClientImpl::newProducerId() {
@@ -574,6 +601,30 @@ uint64_t ClientImpl::newConsumerId() {
 uint64_t ClientImpl::newRequestId() {
     Lock lock(mutex_);
     return requestIdGenerator_++;
+}
+
+uint64_t ClientImpl::getNumberOfProducers() {
+    Lock lock(mutex_);
+    uint64_t numberOfAliveProducers = 0;
+    for (const auto& producer : producers_) {
+        const auto& producerImpl = producer.lock();
+        if (producerImpl) {
+            numberOfAliveProducers += producerImpl->getNumberOfConnectedProducer();
+        }
+    }
+    return numberOfAliveProducers;
+}
+
+uint64_t ClientImpl::getNumberOfConsumers() {
+    Lock lock(mutex_);
+    uint64_t numberOfAliveConsumers = 0;
+    for (const auto& consumer : consumers_) {
+        const auto consumerImpl = consumer.lock();
+        if (consumerImpl) {
+            numberOfAliveConsumers += consumerImpl->getNumberOfConnectedConsumer();
+        }
+    }
+    return numberOfAliveConsumers;
 }
 
 const ClientConfiguration& ClientImpl::getClientConfig() const { return clientConfiguration_; }

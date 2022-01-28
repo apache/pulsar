@@ -34,6 +34,7 @@ import java.util.Set;
 
 import javax.naming.AuthenticationException;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -49,6 +50,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -57,7 +59,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
 
 	public static class BasicAuthenticationData implements AuthenticationDataProvider {
-		private String authParam;
+		private final String authParam;
 
 		public BasicAuthenticationData(String authParam) {
 			this.authParam = authParam;
@@ -142,11 +144,12 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 				commandData = authData.getHttpHeader("BasicAuthentication");
 			}
 
-			JsonParser parser = new JsonParser();
-			JsonObject element = parser.parse(commandData).getAsJsonObject();
+			JsonObject element = JsonParser.parseString(commandData).getAsJsonObject();
+			log.info("Have log of {}", element);
 			long expiryTimeInMillis = Long.parseLong(element.get("expiryTime").getAsString());
 			long currentTimeInMillis = System.currentTimeMillis();
 			if (expiryTimeInMillis < currentTimeInMillis) {
+				log.warn("Auth failed due to timeout");
 				throw new AuthenticationException("Authentication data has been expired");
 			}
 			return element.get("entityType").getAsString();
@@ -163,16 +166,16 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		conf.setBrokerClientAuthenticationParameters(
 				"entityType:broker,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000));
 
-		Set<String> superUserRoles = new HashSet<String>();
+		Set<String> superUserRoles = new HashSet<>();
 		superUserRoles.add("admin");
 		conf.setSuperUserRoles(superUserRoles);
 
-		Set<String> providers = new HashSet<String>();
+		Set<String> providers = new HashSet<>();
 		providers.add(BasicAuthenticationProvider.class.getName());
 		conf.setAuthenticationProviders(providers);
 
 		conf.setClusterName("test");
-		Set<String> proxyRoles = new HashSet<String>();
+		Set<String> proxyRoles = new HashSet<>();
 		proxyRoles.add("proxy");
 		conf.setProxyRoles(proxyRoles);
         conf.setAuthenticateOriginalAuthData(true);
@@ -183,7 +186,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	@Override
-	@AfterMethod
+	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
 		super.internalCleanup();
 	}
@@ -198,10 +201,10 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		String namespaceName = "my-property/my-ns";
 		String topicName = "persistent://my-property/my-ns/my-topic1";
 		String subscriptionName = "my-subscriber-name";
-		// expires after 6 seconds
-		String clientAuthParams = "entityType:client,expiryTime:" + (System.currentTimeMillis() + 6 * 1000);
-		// expires after 3 seconds
-		String proxyAuthParams = "entityType:proxy,expiryTime:" + (System.currentTimeMillis() + 3 * 1000);
+		// expires after 60 seconds
+		String clientAuthParams = "entityType:client,expiryTime:" + (System.currentTimeMillis() + 60 * 1000);
+		// expires after 60 seconds
+		String proxyAuthParams = "entityType:proxy,expiryTime:" + (System.currentTimeMillis() + 60 * 1000);
 
 		admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
 				Sets.newHashSet(AuthAction.consume, AuthAction.produce));
@@ -224,22 +227,24 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setForwardAuthorizationCredentials(true);
                 AuthenticationService authenticationService = new AuthenticationService(
                         PulsarConfigurationLoader.convertFrom(proxyConfig));
+		@Cleanup
 		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
 
 		proxyService.start();
 		final String proxyServiceUrl = proxyService.getServiceUrl();
 
-		// Step 3: Pass correct client params
-		PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams, 1);
+		// Step 3: Pass correct client params and use multiple connections
+		@Cleanup
+		PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams, 3);
 		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
-		// Sleep for 4 seconds - wait for proxy auth params to expire
-		Thread.sleep(4 * 1000);
 		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
-		// Sleep for 3 seconds - wait for client auth parans to expire
-		Thread.sleep(3 * 1000);
 		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
-		proxyClient.close();
-		proxyService.close();
+
+		// Step 4: Ensure that all client contexts share the same auth provider
+		Assert.assertTrue(proxyService.getClientCnxs().size() >= 3, "expect at least 3 clients");
+		proxyService.getClientCnxs().stream().forEach((cnx) -> {
+			Assert.assertSame(cnx.authenticationProvider, proxyService.getAuthenticationService().getAuthenticationProvider("BasicAuthentication"));
+		});
 	}
 
 	private void updateAdminClient() throws PulsarClientException {

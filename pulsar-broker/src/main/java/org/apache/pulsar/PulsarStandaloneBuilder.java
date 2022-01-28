@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public final class PulsarStandaloneBuilder {
 

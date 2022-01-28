@@ -180,6 +180,11 @@ $ bin/pulsar-admin functions create \
   # Other function configs
 ```
 
+The message published to log topic contains several properties for better reasoning: 
+- `loglevel` -- the level of the log message.
+- `fqn` -- fully qualified function name pushes this log message.
+- `instance` -- the ID of the function instance pushes this log message.
+
 ## Use Functions CLI
 
 With [Pulsar Functions CLI](reference-pulsar-admin.md#functions), you can debug Pulsar Functions with the following subcommands:

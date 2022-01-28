@@ -1,6 +1,6 @@
 {
-  "docs": {
-    "Get started": [
+  "version-2.6.1-docs": {
+    "Get Started": [
       "version-2.6.1-pulsar-2.0",
       "version-2.6.1-standalone",
       "version-2.6.1-standalone-docker",
@@ -17,7 +17,8 @@
       "version-2.6.1-concepts-authentication",
       "version-2.6.1-concepts-topic-compaction",
       "version-2.6.1-concepts-tiered-storage",
-      "version-2.6.1-concepts-proxy-sni-routing"
+      "version-2.6.1-concepts-proxy-sni-routing",
+      "version-2.6.1-concepts-multiple-advertised-listeners"
     ],
     "Pulsar Schema": [
       "version-2.6.1-schema-get-started",
@@ -93,7 +94,7 @@
     "Performance": [
       "version-2.6.1-performance-pulsar-perf"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.6.1-client-libraries-java",
       "version-2.6.1-client-libraries-go",
       "version-2.6.1-client-libraries-python",
@@ -113,7 +114,6 @@
       "version-2.6.1-admin-api-non-persistent-topics",
       "version-2.6.1-admin-api-partitioned-topics",
       "version-2.6.1-admin-api-non-partitioned-topics",
-      "version-2.6.1-admin-api-schemas",
       "version-2.6.1-admin-api-functions"
     ],
     "Adaptors": [
@@ -142,6 +142,7 @@
     "Reference": [
       "version-2.6.1-reference-terminology",
       "version-2.6.1-reference-cli-tools",
+      "version-2.6.1-pulsar-admin",
       "version-2.6.1-reference-configuration",
       "version-2.6.1-reference-metrics"
     ]

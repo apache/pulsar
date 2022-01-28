@@ -24,6 +24,7 @@
 
 #include "ClientConnection.h"
 
+#include <atomic>
 #include <string>
 #include <map>
 #include <mutex>
@@ -36,7 +37,12 @@ class PULSAR_PUBLIC ConnectionPool {
     ConnectionPool(const ClientConfiguration& conf, ExecutorServiceProviderPtr executorProvider,
                    const AuthenticationPtr& authentication, bool poolConnections = true);
 
-    void close();
+    /**
+     * Close the connection pool.
+     *
+     * @return false if it has already been closed.
+     */
+    bool close();
 
     /**
      * Get a connection from the pool.
@@ -65,6 +71,7 @@ class PULSAR_PUBLIC ConnectionPool {
     PoolMap pool_;
     bool poolConnections_;
     std::mutex mutex_;
+    std::atomic_bool closed_{false};
 
     friend class ConnectionPoolTest;
 };

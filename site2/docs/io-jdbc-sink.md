@@ -32,10 +32,12 @@ The configuration of all JDBC sink connectors has the following properties.
 
     ```json
     {
-        "userName": "clickhouse",
-        "password": "password",
-        "jdbcUrl": "jdbc:clickhouse://localhost:8123/pulsar_clickhouse_jdbc_sink",
-        "tableName": "pulsar_clickhouse_jdbc_sink"
+       "configs": {
+          "userName": "clickhouse",
+          "password": "password",
+          "jdbcUrl": "jdbc:clickhouse://localhost:8123/pulsar_clickhouse_jdbc_sink",
+          "tableName": "pulsar_clickhouse_jdbc_sink"
+       }
     }
     ```
 
@@ -60,10 +62,12 @@ The configuration of all JDBC sink connectors has the following properties.
 
     ```json
     {
-        "userName": "mariadb",
-        "password": "password",
-        "jdbcUrl": "jdbc:mariadb://localhost:3306/pulsar_mariadb_jdbc_sink",
-        "tableName": "pulsar_mariadb_jdbc_sink"
+       "configs": {
+          "userName": "mariadb",
+          "password": "password",
+          "jdbcUrl": "jdbc:mariadb://localhost:3306/pulsar_mariadb_jdbc_sink",
+          "tableName": "pulsar_mariadb_jdbc_sink"
+       }
     }
     ```
 
@@ -90,10 +94,12 @@ Before using the JDBC PostgreSQL sink connector, you need to create a configurat
 
     ```json
     {
-        "userName": "postgres",
-        "password": "password",
-        "jdbcUrl": "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink",
-        "tableName": "pulsar_postgres_jdbc_sink"
+       "configs": {
+          "userName": "postgres",
+          "password": "password",
+          "jdbcUrl": "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink",
+          "tableName": "pulsar_postgres_jdbc_sink"
+       }
     }
     ```
 
@@ -120,8 +126,10 @@ For more information on **how to use this JDBC sink connector**, see [connect Pu
 
     ```json
     {
-        "jdbcUrl": "jdbc:sqlite:db.sqlite",
-        "tableName": "pulsar_sqlite_jdbc_sink"
+       "configs": {
+          "jdbcUrl": "jdbc:sqlite:db.sqlite",
+          "tableName": "pulsar_sqlite_jdbc_sink"
+       }
     }
     ```
 

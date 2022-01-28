@@ -20,9 +20,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
     public int topicsCount;
@@ -39,24 +38,26 @@ public class AggregatedNamespaceStats {
     public long bytesOutCounter;
     public long msgOutCounter;
 
-    public long storageSize;
+    public ManagedLedgerStats managedLedgerStats = new ManagedLedgerStats();
     public long msgBacklog;
     public long msgDelayed;
 
-    long backlogSize;
-    long offloadedStorageUsed;
     long backlogQuotaLimit;
-
-    public StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(
-            ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
-    public StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
-
-    public double storageWriteRate;
-    public double storageReadRate;
+    long backlogQuotaLimitTime;
 
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
     public Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
+
+    long compactionRemovedEventCount;
+    long compactionSucceedCount;
+    long compactionFailedCount;
+    long compactionDurationTimeInMills;
+    double compactionReadThroughput;
+    double compactionWriteThroughput;
+    long compactionCompactedEntriesCount;
+    long compactionCompactedEntriesSize;
+    StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
 
     void updateStats(TopicStats stats) {
         topicsCount++;
@@ -75,18 +76,22 @@ public class AggregatedNamespaceStats {
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
 
-        storageSize += stats.storageSize;
-        backlogSize += stats.backlogSize;
-        offloadedStorageUsed += stats.offloadedStorageUsed;
+        managedLedgerStats.storageSize += stats.managedLedgerStats.storageSize;
+        managedLedgerStats.storageLogicalSize += stats.managedLedgerStats.storageLogicalSize;
+        managedLedgerStats.backlogSize += stats.managedLedgerStats.backlogSize;
+        managedLedgerStats.offloadedStorageUsed += stats.managedLedgerStats.offloadedStorageUsed;
         backlogQuotaLimit = Math.max(backlogQuotaLimit, stats.backlogQuotaLimit);
+        backlogQuotaLimitTime = Math.max(backlogQuotaLimitTime, stats.backlogQuotaLimitTime);
 
-        storageWriteRate += stats.storageWriteRate;
-        storageReadRate += stats.storageReadRate;
+        managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
+        managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
 
         msgBacklog += stats.msgBacklog;
 
-        storageWriteLatencyBuckets.addAll(stats.storageWriteLatencyBuckets);
-        entrySizeBuckets.addAll(stats.entrySizeBuckets);
+        managedLedgerStats.storageWriteLatencyBuckets.addAll(stats.managedLedgerStats.storageWriteLatencyBuckets);
+        managedLedgerStats.storageLedgerWriteLatencyBuckets
+                .addAll(stats.managedLedgerStats.storageLedgerWriteLatencyBuckets);
+        managedLedgerStats.entrySizeBuckets.addAll(stats.managedLedgerStats.entrySizeBuckets);
 
         stats.replicationStats.forEach((n, as) -> {
             AggregatedReplicationStats replStats =
@@ -96,6 +101,9 @@ public class AggregatedNamespaceStats {
             replStats.msgThroughputIn += as.msgThroughputIn;
             replStats.msgThroughputOut += as.msgThroughputOut;
             replStats.replicationBacklog += as.replicationBacklog;
+            replStats.msgRateExpired += as.msgRateExpired;
+            replStats.connectedCount += as.connectedCount;
+            replStats.replicationDelayInSeconds += as.replicationDelayInSeconds;
         });
 
         stats.subscriptionStats.forEach((n, as) -> {
@@ -116,9 +124,20 @@ public class AggregatedNamespaceStats {
                 consumerStats.unackedMessages += v.unackedMessages;
             });
         });
+
+        compactionRemovedEventCount += stats.compactionRemovedEventCount;
+        compactionSucceedCount += stats.compactionSucceedCount;
+        compactionFailedCount += stats.compactionFailedCount;
+        compactionDurationTimeInMills += stats.compactionDurationTimeInMills;
+        compactionReadThroughput += stats.compactionReadThroughput;
+        compactionWriteThroughput += stats.compactionWriteThroughput;
+        compactionCompactedEntriesCount += stats.compactionCompactedEntriesCount;
+        compactionCompactedEntriesSize += stats.compactionCompactedEntriesSize;
+        compactionLatencyBuckets.addAll(stats.compactionLatencyBuckets);
     }
 
     public void reset() {
+        managedLedgerStats.reset();
         topicsCount = 0;
         subscriptionsCount = 0;
         producersCount = 0;
@@ -128,19 +147,12 @@ public class AggregatedNamespaceStats {
         throughputIn = 0;
         throughputOut = 0;
 
-        storageSize = 0;
-        backlogSize = 0;
         msgBacklog = 0;
         msgDelayed = 0;
-        storageWriteRate = 0;
-        storageReadRate = 0;
-        offloadedStorageUsed = 0;
-        backlogQuotaLimit= 0;
+        backlogQuotaLimit = 0;
+        backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
-
-        storageWriteLatencyBuckets.reset();
-        entrySizeBuckets.reset();
     }
 }

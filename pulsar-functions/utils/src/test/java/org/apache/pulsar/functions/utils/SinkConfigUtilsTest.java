@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -27,6 +28,8 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarUnpacker;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -38,20 +41,29 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATMOST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 /**
  * Unit test of {@link Reflections}.
  */
-@PrepareForTest(ConnectorUtils.class)
+@PrepareForTest({ConnectorUtils.class, NarUnpacker.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "javax.xml.*", "org.xml.*", "org.w3c.dom.*", "org.springframework.context.*", "org.apache.log4j.*", "com.sun.org.apache.xerces.*", "javax.management.*" })
 public class SinkConfigUtilsTest extends PowerMockTestCase {
 
@@ -75,7 +87,12 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setArchive("builtin://jdbc");
         sinkConfig.setSourceSubscriptionName("test-subscription");
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
-        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).receiverQueueSize(532).serdeClassName("test-serde").build());
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .isRegexPattern(true)
+                .receiverQueueSize(532)
+                .serdeClassName("test-serde")
+                .poolMessages(true).build());
+        sinkConfig.setInputs(Collections.singleton("test-input"));
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
@@ -89,14 +106,62 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setConfigs(configs);
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setAutoAck(true);
+        sinkConfig.setCleanupSubscription(false);
         sinkConfig.setTimeoutMs(2000l);
         sinkConfig.setRuntimeFlags("-DKerberos");
+        sinkConfig.setCleanupSubscription(true);
+
+        sinkConfig.setResources(Resources.getDefaultResources());
+
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertEquals(
-                new Gson().toJson(sinkConfig),
-                new Gson().toJson(convertedConfig)
+                new Gson().toJson(convertedConfig),
+                new Gson().toJson(sinkConfig)
         );
+    }
+
+    @Test
+    public void testParseRetainOrderingField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setRetainOrdering(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getRetainOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
+        }
+    }
+
+    @Test
+    public void testParseProcessingGuaranteesField() throws IOException {
+        List<FunctionConfig.ProcessingGuarantees> testcases = Lists.newArrayList(
+                EFFECTIVELY_ONCE,
+                ATMOST_ONCE,
+                ATLEAST_ONCE,
+                null
+        );
+
+        for (FunctionConfig.ProcessingGuarantees testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setProcessingGuarantees(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getProcessingGuarantees(), testcase == null ? ATLEAST_ONCE : testcase);
+        }
+    }
+
+    @Test
+    public void testCleanSubscriptionField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setCleanupSubscription(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getCleanupSubscription(), testcase == null ? Boolean.valueOf(true) : testcase);
+        }
     }
 
     @Test
@@ -166,11 +231,16 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testMergeDifferentInputSpec() {
         SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(true).receiverQueueSize(1000).build());
+
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").receiverQueueSize(58).build());
         SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(mergedConfig.getInputSpecs().get("test-input"), newSinkConfig.getInputSpecs().get("test-input"));
+
+        // make sure original sinkConfig was not modified
+        assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
@@ -290,6 +360,19 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
+    public void testMergeDifferentCleanupSubscription() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertFalse(mergedConfig.getCleanupSubscription());
+        mergedConfig.setCleanupSubscription(sinkConfig.getCleanupSubscription());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testMergeRuntimeFlags() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newFunctionConfig = createUpdatedSinkConfig("runtimeFlags", "-Dfoo=bar2");
@@ -307,19 +390,28 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testValidateConfig() throws IOException {
         mockStatic(ConnectorUtils.class);
+        mockStatic(NarUnpacker.class);
         defn = new ConnectorDefinition();
         defn.setSinkConfigClass(TestSinkConfig.class.getName());
         PowerMockito.when(ConnectorUtils.getConnectorDefinition(any())).thenReturn(defn);
 
+        File tmpdir = Files.createTempDirectory("test").toFile();
+        PowerMockito.when(NarUnpacker.unpackNar(any(), any())).thenReturn(tmpdir);
+
         SinkConfig sinkConfig = createSinkConfig();
+
+        NarClassLoader narClassLoader = NarClassLoader.getFromArchive(
+                tmpdir, Collections.emptySet(),
+                Thread.currentThread().getContextClassLoader(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
 
         // Good config
         sinkConfig.getConfigs().put("configParameter", "Test");
-        SinkConfigUtils.validateConnectorConfig(sinkConfig, Thread.currentThread().getContextClassLoader());
+        SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader);
 
         // Bad config
         sinkConfig.getConfigs().put("configParameter", null);
-        Exception e = expectThrows(IllegalArgumentException.class, () -> SinkConfigUtils.validateConnectorConfig(sinkConfig, Thread.currentThread().getContextClassLoader()));
+        Exception e = expectThrows(IllegalArgumentException.class,
+                () -> SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader));
         assertTrue(e.getMessage().contains("Could not validate sink config: Field 'configParameter' cannot be null!"));
     }
 
@@ -338,7 +430,9 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setConfigs(new HashMap<>());
         sinkConfig.setAutoAck(true);
         sinkConfig.setTimeoutMs(2000l);
+        sinkConfig.setCleanupSubscription(true);
         sinkConfig.setArchive("DummyArchive.nar");
+        sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
     }
 
@@ -353,5 +447,24 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
             throw new RuntimeException("Something wrong with the test", e);
         }
         return sinkConfig;
+    }
+
+    @Test
+    public void testPoolMessages() throws IOException {
+        SinkConfig sinkConfig = createSinkConfig();
+        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .poolMessages(true).build());
+        sinkConfig.setInputSpecs(inputSpecs);
+
+        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
     }
 }

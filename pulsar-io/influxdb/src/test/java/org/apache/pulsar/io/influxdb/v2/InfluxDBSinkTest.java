@@ -18,36 +18,40 @@
  */
 package org.apache.pulsar.io.influxdb.v2;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Maps;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.write.Point;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.AbstractStructSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.StructSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
-import org.junit.Before;
-import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class InfluxDBSinkTest {
     @Data
@@ -68,7 +72,7 @@ public class InfluxDBSinkTest {
 
     private Long timestamp;
 
-    @Before
+    @BeforeMethod
     public void setUp() throws Exception {
         // prepare a cpu Record
         cpu = new Cpu();
@@ -104,13 +108,13 @@ public class InfluxDBSinkTest {
         byte[] bytes = schema.encode(cpu);
         GenericRecord record = genericSchema.decode(bytes);
 
-        assertEquals("cpu", record.getField("measurement"));
+        assertEquals(record.getField("measurement"), "cpu");
 
         // compare the String type
-        assertEquals(timestamp + "", record.getField("timestamp").toString());
+        assertEquals(record.getField("timestamp").toString(), timestamp + "");
 
-        assertEquals("server-1", ((GenericRecord)record.getField("tags")).getField("host"));
-        assertEquals(10, ((GenericRecord)record.getField("fields")).getField("value"));
+        assertEquals(((GenericRecord)record.getField("tags")).getField("host"), "server-1");
+        assertEquals(((GenericRecord)record.getField("fields")).getField("value"), 10);
     }
 
     @Test
@@ -126,10 +130,10 @@ public class InfluxDBSinkTest {
         byte[] bytes = schema.encode(cpu);
         GenericRecord record = genericAvroSchema.decode(bytes);
 
-        assertEquals("cpu", record.getField("measurement"));
-        assertEquals(timestamp, record.getField("timestamp"));
-        assertEquals("server-1", ((Map)record.getField("tags")).get(new Utf8("host")).toString());
-        assertEquals(10, ((Map)record.getField("fields")).get(new Utf8("value")));
+        assertEquals(record.getField("measurement"), "cpu");
+        assertEquals(record.getField("timestamp"), timestamp);
+        assertEquals(((Map)record.getField("tags")).get(new Utf8("host")).toString(), "server-1");
+        assertEquals(((Map)record.getField("fields")).get(new Utf8("value")), 10);
     }
 
     @Test
@@ -144,7 +148,7 @@ public class InfluxDBSinkTest {
         openWriteClose(jsonSchema);
     }
 
-    private void openWriteClose(StructSchema<Cpu> schema) throws Exception {
+    private void openWriteClose(AbstractStructSchema<Cpu> schema) throws Exception {
         // test open
         Map<String, Object> map = new HashMap();
         map.put("influxdbUrl", "http://localhost:9999");
@@ -181,10 +185,10 @@ public class InfluxDBSinkTest {
         ArgumentCaptor<List<Point>> captor = ArgumentCaptor.forClass(List.class);
         verify(writeApi).writePoints(captor.capture());
         List<Point> points = captor.getValue();
-        assertEquals(2, points.size());
+        assertEquals(points.size(), 2);
         assertTrue(points.get(0).hasFields());
-        assertEquals("ns", points.get(0).getPrecision().getValue());
-        assertEquals("cpu,host=server-1,region=us-west model=\"lenovo\",value=10i "+timestamp, points.get(0).toLineProtocol());
+        assertEquals(points.get(0).getPrecision().getValue(), "ns");
+        assertEquals(points.get(0).toLineProtocol(), "cpu,host=server-1,region=us-west model=\"lenovo\",value=10i "+timestamp);
 
         // test close
         influxSink.close();

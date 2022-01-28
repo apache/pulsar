@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import com.google.common.annotations.Beta;
-import org.apache.pulsar.broker.service.Topic;
-
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.Beta;
+import java.io.IOException;
+import org.apache.pulsar.broker.service.Topic;
 
 /**
  * A provider that provides {@link TransactionBuffer}.
@@ -42,7 +39,7 @@ public interface TransactionBufferProvider {
         Class<?> providerClass;
         try {
             providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
+            Object obj = providerClass.getDeclaredConstructor().newInstance();
             checkArgument(obj instanceof TransactionBufferProvider,
                 "The factory has to be an instance of "
                     + TransactionBufferProvider.class.getName());
@@ -54,19 +51,10 @@ public interface TransactionBufferProvider {
     }
 
     /**
-     * Open the transaction buffer.
-     *
-     * @return a future represents the result of the operation.
-     *         an instance of {@link TransactionBuffer} is returned
-     *         if the operation succeeds.
-     */
-    CompletableFuture<TransactionBuffer> newTransactionBuffer();
-
-    /**
      * Open the persistent transaction buffer.
      *
      * @param originTopic
      * @return
      */
-    CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic);
+    TransactionBuffer newTransactionBuffer(Topic originTopic);
 }

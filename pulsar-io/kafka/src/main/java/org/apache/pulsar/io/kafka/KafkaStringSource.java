@@ -19,15 +19,22 @@
 
 package org.apache.pulsar.io.kafka;
 
-import org.apache.kafka.clients.consumer.*;
+import java.nio.charset.StandardCharsets;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.pulsar.client.api.Schema;
 
 /**
- * Simple Kafka Source that just transfers the value part of the kafka records
- * as Strings
+ * Simple Kafka Source that just transfers the value part of the kafka records as Strings.
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
+
+
     @Override
-    public String extractValue(ConsumerRecord<String, byte[]> record) {
-        return new String(record.value());
+    public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
+        KafkaRecord record = new KafkaRecord(consumerRecord,
+                new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
+                Schema.STRING);
+        return record;
     }
+
 }

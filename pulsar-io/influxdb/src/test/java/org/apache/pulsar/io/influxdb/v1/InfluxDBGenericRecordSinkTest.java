@@ -100,7 +100,7 @@ public class InfluxDBGenericRecordSinkTest {
         when(influxSink.influxDBBuilder.build(any())).thenReturn(influxDB);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         influxSink.close();
         verify(influxDB, times(1)).close();

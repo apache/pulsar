@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
 import com.google.common.collect.Sets;
+import java.time.temporal.ChronoUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.*;
@@ -35,7 +36,6 @@ import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
 import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
@@ -54,14 +54,27 @@ public class SchemaTest extends PulsarTestSuite {
     private PulsarClient client;
     private PulsarAdmin admin;
 
-    @BeforeMethod
-    public void setup() throws Exception {
+    public void setupCluster() throws Exception {
+        super.setupCluster();
         this.client = PulsarClient.builder()
             .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
             .build();
         this.admin = PulsarAdmin.builder()
             .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
             .build();
+    }
+
+    @Override
+    public void tearDownCluster() throws Exception {
+        if (client != null) {
+            client.close();
+            client = null;
+        }
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
+        super.tearDownCluster();
     }
 
     @Test
@@ -187,7 +200,7 @@ public class SchemaTest extends PulsarTestSuite {
                 .decimal(new BigDecimal("12.34"))
                 .timestampMicros(System.currentTimeMillis() * 1000)
                 .timestampMillis(Instant.parse("2019-03-26T04:39:58.469Z"))
-                .timeMillis(LocalTime.now())
+                .timeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS))
                 .timeMicros(System.currentTimeMillis() * 1000)
                 .date(LocalDate.now())
                 .build();
@@ -273,6 +286,10 @@ public class SchemaTest extends PulsarTestSuite {
         schemas.add(Schema.DATE);
         schemas.add(Schema.TIME);
         schemas.add(Schema.TIMESTAMP);
+        schemas.add(Schema.INSTANT);
+        schemas.add(Schema.LOCAL_DATE);
+        schemas.add(Schema.LOCAL_TIME);
+        schemas.add(Schema.LOCAL_DATE_TIME);
 
         schemas.forEach(schemaProducer -> {
             schemas.forEach(schemaConsumer -> {

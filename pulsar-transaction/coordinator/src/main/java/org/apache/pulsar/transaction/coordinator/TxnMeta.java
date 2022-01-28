@@ -20,10 +20,9 @@ package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
 import java.util.List;
-
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
  * An interface represents the metadata of a transaction in {@link TransactionMetadataStore}.
@@ -59,7 +58,7 @@ public interface TxnMeta {
      * @return the list of partitions that this transaction acknowledges to.
      *         the returned list is sorted by partition name.
      */
-    List<String> ackedPartitions();
+    List<TransactionSubscription> ackedPartitions();
 
     /**
      * Add the list of produced partitions to the transaction.
@@ -74,11 +73,12 @@ public interface TxnMeta {
     /**
      * Add the list of acked partitions to the transaction.
      *
+     * @param subscriptions the ackd subscriptions add to the transaction
      * @return transaction meta
      * @throws InvalidTxnStatusException if the transaction is not in
      *         {@link TxnStatus#OPEN}
      */
-    TxnMeta addAckedPartitions(List<String> partitions)
+    TxnMeta addAckedPartitions(List<TransactionSubscription> subscriptions)
         throws InvalidTxnStatusException;
 
     /**
@@ -93,4 +93,18 @@ public interface TxnMeta {
      */
     TxnMeta updateTxnStatus(TxnStatus newStatus,
                             TxnStatus expectedStatus) throws InvalidTxnStatusException;
+
+    /**
+     * Return the transaction open timestamp.
+     *
+     * @return transaction open timestamp.
+     */
+    long getOpenTimestamp();
+
+    /**
+     * Return the transaction timeout at.
+     *
+     * @return transaction timeout at.
+     */
+    long getTimeoutAt();
 }

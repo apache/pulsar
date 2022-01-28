@@ -1,0 +1,112 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# This workflow keeps the GitHub Action Caches up-to-date in the repository.
+#
+# A pull request build cannot update the cache of the upstream repository. Pull
+# requests have a cache in the context of the fork of the upstream repository.
+# A pull request build will lookup cache entries from the cache of the upstream
+# repository in the case that a cache entry is missing in the pull request source
+# repository's cache.
+# To reduce cache misses for pull request builds, it is necessary that the
+# caches in the upstream repository are up-to-date.
+# If the cache entry already exists, the cache won't be updated. This will keep the
+# update job very efficient and the downloading and updating will only run if one of the pom.xml
+# files has been modified or the cache entry expires.
+#
+
+name: CI - Maven Dependency Cache Update
+on:
+  # trigger on every commit to given branches
+  push:
+    branches:
+      - master
+  # trigger on a schedule so that the cache will be rebuilt if it happens to expire
+  schedule:
+    - cron: '30 */12 * * *'
+
+env:
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+
+jobs:
+  update-maven-dependencies-cache:
+    name: Update Maven dependency cache for ${{ matrix.name }}
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: all modules
+            runs-on: ubuntu-latest
+            cache_name: 'm2-dependencies-all'
+            mvn_arguments: ''
+
+          - name: all modules - macos
+            runs-on: macos-latest
+            cache_name: 'm2-dependencies-all'
+
+          - name: core-modules
+            runs-on: ubuntu-latest
+            cache_name: 'm2-dependencies-core-modules'
+            mvn_arguments: '-Pcore-modules,-main'
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Detect changed files
+        if: ${{ github.event_name != 'schedule' }}
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: |
+            poms:
+              - 'pom.xml'
+              - '**/pom.xml'
+
+      - name: Cache local Maven repository
+        if: ${{ github.event_name == 'schedule' || steps.changes.outputs.poms == 'true' }}
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-${{ matrix.cache_name }}-${{ hashFiles('**/pom.xml') }}
+          # there is no restore-keys here so that the cache size doesn't keep
+          # on growing from old entries which wouldn't never expire if the old
+          # cache would be used as the starting point for a new cache entry
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}
+        with:
+          distribution: 'temurin'
+          java-version: 11
+
+      - name: Download dependencies
+        if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}
+        run: |
+          # download dependencies, ignore errors
+          mvn -B -fn -ntp ${{ matrix.mvn_arguments }} dependency:go-offline

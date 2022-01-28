@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
-
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.JsonProperties;
@@ -141,6 +140,13 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
                 break;
             case TIMESTAMP:
                 baseSchema = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
+                break;
+            case JSON:
+                checkArgument(genericSchema.getSchemaInfo().getType() == SchemaType.JSON,
+                        "The field is expected to be using JSON schema but "
+                                + genericSchema.getSchemaInfo().getType() + " schema is found");
+                AvroBaseStructSchema genericJsonSchema = (AvroBaseStructSchema) genericSchema;
+                baseSchema = genericJsonSchema.getAvroSchema();
                 break;
             case AVRO:
                 checkArgument(genericSchema.getSchemaInfo().getType() == SchemaType.AVRO,

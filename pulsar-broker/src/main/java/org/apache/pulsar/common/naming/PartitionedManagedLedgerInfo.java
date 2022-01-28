@@ -19,9 +19,8 @@
 package org.apache.pulsar.common.naming;
 
 import com.google.common.collect.Maps;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-
 import java.util.Map;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 
 public class PartitionedManagedLedgerInfo extends ManagedLedgerInfo {
 

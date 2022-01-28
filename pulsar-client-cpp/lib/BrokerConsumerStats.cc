@@ -23,8 +23,6 @@
 namespace pulsar {
 BrokerConsumerStats::BrokerConsumerStats(std::shared_ptr<BrokerConsumerStatsImplBase> impl) : impl_(impl) {}
 
-BrokerConsumerStats::BrokerConsumerStats() {}
-
 std::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStats::getImpl() const { return impl_; }
 
 bool BrokerConsumerStats::isValid() const { return impl_->isValid(); }

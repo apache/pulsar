@@ -28,11 +28,12 @@ namespace pulsar {
 
 class PULSAR_PUBLIC Log4CxxLoggerFactory : public LoggerFactory {
    public:
-    static LoggerFactoryPtr create();
-    static LoggerFactoryPtr create(const std::string& log4cxxConfFile);
+    static std::unique_ptr<LoggerFactory> create();
+    static std::unique_ptr<LoggerFactory> create(const std::string& log4cxxConfFile);
 
     Logger* getLogger(const std::string& fileName);
 };
+
 }  // namespace pulsar
 
 #endif

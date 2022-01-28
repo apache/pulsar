@@ -28,33 +28,43 @@ Pulsar's [admin interface](admin-api-overview.md) enables you to manage both ret
 
 ## Retention policies
 
-By default, when a Pulsar message arrives at a broker it will be stored until it has been acknowledged on all subscriptions, at which point it will be marked for deletion. You can override this behavior and retain even messages that have already been acknowledged on all subscriptions by setting a *retention policy* for all topics in a given namespace. Retention policies are either a *size limit* or a *time limit*.
+By default, when a Pulsar message arrives at a broker, the message is stored until it has been acknowledged on all subscriptions, at which point it is marked for deletion. You can override this behavior and retain messages that have already been acknowledged on all subscriptions by setting a *retention policy* for all topics in a given namespace. Retention is based on both a *size limit* and a *time limit*.
 
-Retention policies are particularly useful if you intend to exclusively use the Reader interface. Because the Reader interface does not use acknowledgements, messages will never exist within backlogs. Most realistic Reader-only use cases require that retention be configured.
+Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
-When you set a size limit of, say, 10 gigabytes, then acknowledged messages in all topics in the namespace will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then acknowledged messages for all topics in the namespace will be retained for 24 hours. The retention settings apply to all messages on topics that do not have any subscriptions, or if there are subscriptions, to messages that have been acked by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions -- these are instead controlled by the backlog quota (see below).
+When you set a retention policy, you must set **both** a *size limit* and a *time limit*. You can refer to the following table to set retention policies.
+
+|Time limit|Size limit| Message retention      |
+|----------|----------|------------------------|
+| -1       | -1       | Infinite retention  |
+| -1       | >0       | Based on the size limit  |
+| >0       | -1       | Based on the time limit  |
+| 0        | 0        | Disable message retention(by default) |
+| 0        | >0       | Disable message retention  |
+| >0       | 0        | Disable message retention  |
+| >0       | >0       | Acknowledged messages or messages with no active subscription will not be retained when either time or size reaches the limit.|
+
+The retention settings apply to all messages on topics that do not have any subscriptions, or to messages that have been acknowledged by all subscriptions. The retention policy settings do not affect unacknowledged messages on topics with subscriptions. The unacknowledged messages are controlled by the backlog quota.
 
 When a retention limit is exceeded, the oldest message is marked for deletion until the set of retained messages falls within the specified limits again.
 
-It is also possible to set *unlimited* retention time or size by setting `-1` for either time or size retention.
-
 ### Defaults
 
-There are two configuration parameters that you can use to set [instance](reference-terminology.md#instance)-wide defaults for message retention: [`defaultRetentionTimeInMinutes=0`](reference-configuration.md#broker-defaultRetentionTimeInMinutes) and [`defaultRetentionSizeInMB=0`](reference-configuration.md#broker-defaultRetentionSizeInMB).
+You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
 
-Both of these parameters are in the [`broker.conf`](reference-configuration.md#broker) configuration file.
+For more information of the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
 
 ### Set retention policy
 
-You can set a retention policy for a namespace by specifying the namespace as well as both a size limit *and* a time limit.
+You can set a retention policy for a namespace by specifying the namespace, a size limit and a time limit in `pulsar-admin`, REST API and Java.
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
 
-Use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag.
-
-##### Examples
-
-To set a size limit of 10 gigabytes and a time limit of 3 hours for the `my-tenant/my-ns` namespace:
+In the following example, the size limit is set to 10 GB and the time limit is set to 3 hours for the `my-tenant/my-ns` namespace. 
+- When the message size reaches 10 GB within 3 hours, the acknowledged messages will not be retained any more. 
+- At the time of 3 hours, even the message size is less than 10 GB, the acknowledged messages will not be retained. 
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -62,7 +72,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time 3h
 ```
 
-To set retention with a size limit but without a time limit:
+In the following example, the time is not limited and the size limit is set to 1 TB. The size limit determines the retention.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -70,7 +80,15 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time -1
 ```
 
-Retention can be configured to be unlimited both in size and time:
+In the following example, the size is not limited and the time limit is set to 3 hours. The time limit determines the retention.
+
+```shell
+$ pulsar-admin namespaces set-retention my-tenant/my-ns \
+  --size -1 \
+  --time 3h
+```
+
+To achieve infinite retention, set both values to `-1`.
 
 ```shell
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
@@ -78,20 +96,38 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --time -1
 ```
 
+To disable the retention policy, set either time limit or size limit to `0`. Message retention is disabled in the following examples.
 
+```shell
+$ pulsar-admin namespaces set-retention my-tenant/my-ns \
+  --size 0 \
+  --time 3h
+```
 
-#### REST API
+```shell
+$ pulsar-admin namespaces set-retention my-tenant/my-ns \
+  --size 10G \
+  --time 0
+```
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention}
+```shell
+$ pulsar-admin namespaces set-retention my-tenant/my-ns \
+  --size 0 \
+  --time 0
+```
 
-#### Java
+<!--REST API-->
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=[[pulsar:version_number]]}
 
+<!--Java-->
 ```java
 int retentionTime = 10; // 10 minutes
 int retentionSize = 500; // 500 megabytes
 RetentionPolicies policies = new RetentionPolicies(retentionTime, retentionSize);
 admin.namespaces().setRetention(namespace, policies);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get retention policy
 
@@ -113,7 +149,7 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -165,7 +201,7 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -196,7 +232,7 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -217,7 +253,7 @@ $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -258,7 +294,7 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -281,7 +317,7 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -289,3 +325,13 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
+## Delete messages from namespaces
+
+If you do not have any retention period and that you never have much of a backlog, the upper limit for retaining messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).
+
+- **Segment rollover period**: basically, the segment rollover period is how often a new segment is created. Once a new segment is created, the old segment will be deleted. By default, this happens either when you have written 50,000 entries (messages) or have waited 240 minutes. You can tune this in your broker.
+
+- **Entry log rollover period**: multiple ledgers in BookKeeper are interleaved into an [entry log](https://bookkeeper.apache.org/docs/4.11.1/getting-started/concepts/#entry-logs). In order for a ledger that has been deleted, the entry log must all be rolled over.
+The entry log rollover period is configurable, but is purely based on the entry log size. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-settings). Once the entry log is rolled over, the entry log can be garbage collected.
+
+- **Garbage collection interval**: because entry logs have interleaved ledgers, to free up space, the entry logs need to be rewritten. The garbage collection interval is how often BookKeeper performs garbage collection. which is related to minor compaction and major compaction of entry logs. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-compaction-settings).

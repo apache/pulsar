@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
@@ -137,6 +136,14 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      */
     public int size() {
         return size;
+    }
+
+    /**
+     * Clear all items.
+     */
+    public void clear() {
+        this.buffer.clear();
+        this.size = 0;
     }
 
     private void increaseCapacity() {

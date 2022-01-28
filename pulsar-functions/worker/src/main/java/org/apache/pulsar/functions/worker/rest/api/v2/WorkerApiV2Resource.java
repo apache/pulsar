@@ -24,10 +24,10 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -42,9 +42,11 @@ import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
+import org.apache.pulsar.functions.worker.service.api.Workers;
 
 @Slf4j
 @Path("/worker")
@@ -55,7 +57,6 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
 
     public static final String ATTRIBUTE_WORKER_SERVICE = "worker";
 
-    protected final WorkerImpl worker;
     private WorkerService workerService;
     @Context
     protected ServletContext servletContext;
@@ -64,16 +65,16 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Context
     protected UriInfo uri;
 
-    public WorkerApiV2Resource() {
-        this.worker = new WorkerImpl(this);
-    }
-
     @Override
     public synchronized WorkerService get() {
         if (this.workerService == null) {
             this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_WORKER_SERVICE);
         }
         return this.workerService;
+    }
+
+    Workers<? extends WorkerService> workers() {
+        return get().getWorkers();
     }
 
     public String clientAppId() {
@@ -95,7 +96,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
-        return worker.getCluster(clientAppId());
+        return workers().getCluster(clientAppId());
     }
 
     @GET
@@ -110,7 +111,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
-        return worker.getClusterLeader(clientAppId());
+        return workers().getClusterLeader(clientAppId());
     }
 
     @GET
@@ -125,7 +126,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
-        return worker.getAssignments(clientAppId());
+        return workers().getAssignments(clientAppId());
     }
 
     @GET
@@ -140,7 +141,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return worker.getListOfConnectors(clientAppId());
+        return workers().getListOfConnectors(clientAppId());
     }
 
     @PUT
@@ -154,7 +155,67 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/rebalance")
     public void rebalance() {
-        worker.rebalance(uri.getRequestUri(), clientAppId());
+        workers().rebalance(uri.getRequestUri(), clientAppId());
+    }
+
+    @PUT
+    @ApiOperation(
+            value = "Drains the specified worker, i.e., moves its work-assignments to other workers"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 409, message = "Drain already in progress"),
+            @ApiResponse(code = 503, message = "Worker service is not ready")
+    })
+    @Path("/leader/drain")
+    public void drainAtLeader(@QueryParam("workerId") String workerId) {
+        workers().drain(uri.getRequestUri(), workerId, clientAppId(), true);
+    }
+
+    @PUT
+    @ApiOperation(
+            value = "Drains this worker, i.e., moves its work-assignments to other workers"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 409, message = "Drain already in progress"),
+            @ApiResponse(code = 503, message = "Worker service is not ready")
+    })
+    @Path("/drain")
+    public void drain() {
+        workers().drain(uri.getRequestUri(), null, clientAppId(), false);
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Get the status of the drain operation for the specified worker",
+            response = LongRunningProcessStatus.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not ready")
+    })
+    @Path("/leader/drain")
+    public LongRunningProcessStatus getDrainStatus(@QueryParam("workerId") String workerId) {
+        return workers().getDrainStatus(uri.getRequestUri(), workerId, clientAppId(), true);
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Get the status of the drain operation of this worker",
+            response = LongRunningProcessStatus.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 503, message = "Worker service is not ready")
+    })
+    @Path("/drain")
+    public LongRunningProcessStatus getDrainStatus() {
+        return workers().getDrainStatus(uri.getRequestUri(), null, clientAppId(), false);
     }
 
     @GET
@@ -167,6 +228,6 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/cluster/leader/ready")
     public Boolean isLeaderReady() {
-        return worker.isLeaderReady(clientAppId());
+        return workers().isLeaderReady(clientAppId());
     }
 }

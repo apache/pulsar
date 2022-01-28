@@ -33,7 +33,7 @@ public class ByteBufSchema extends AbstractSchema<ByteBuf> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
             .setName("ByteBuf")
             .setType(SchemaType.BYTES)
             .setSchema(new byte[0]);
@@ -64,11 +64,7 @@ public class ByteBufSchema extends AbstractSchema<ByteBuf> {
 
     @Override
     public ByteBuf decode(ByteBuf byteBuf) {
-        if (null == byteBuf) {
-            return null;
-        } else {
-            return byteBuf;
-        }
+        return byteBuf;
     }
 
     @Override

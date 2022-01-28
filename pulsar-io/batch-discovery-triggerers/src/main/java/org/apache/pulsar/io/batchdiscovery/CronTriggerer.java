@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.io.batchdiscovery;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.io.core.*;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.scheduling.support.CronTrigger;
-
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.io.core.BatchSourceTriggerer;
+import org.apache.pulsar.io.core.SourceContext;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.support.CronTrigger;
 
 /**
  * This is an implementation of BatchSourceTriggerer that triggers based on a cron expression.
@@ -46,20 +46,25 @@ public class CronTriggerer implements BatchSourceTriggerer {
     } else {
       throw new IllegalArgumentException("Cron Trigger is not provided with Cron String");
     }
+    scheduler = new ThreadPoolTaskScheduler();
+    scheduler.setThreadNamePrefix(String.format("%s/%s/%s-cron-triggerer-",
+            sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()));
+
     log.info("Initialized CronTrigger with expression: {}", cronExpression);
   }
 
   @Override
   public void start(Consumer<String> trigger) {
-    scheduler = new ThreadPoolTaskScheduler();
+
     scheduler.initialize();
     scheduler.schedule(() -> trigger.accept("CRON"), new CronTrigger(cronExpression));
   }
 
   @Override
   public void stop() {
-    scheduler.shutdown();
+    if (scheduler != null) {
+      scheduler.shutdown();
+    }
   }
-
 }
 

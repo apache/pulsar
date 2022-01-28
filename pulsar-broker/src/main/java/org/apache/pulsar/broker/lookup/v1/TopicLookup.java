@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.lookup.v1;
 
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -31,7 +31,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.lookup.TopicLookupBase;
 import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.common.naming.TopicName;
@@ -50,17 +50,25 @@ import org.apache.pulsar.common.naming.TopicName;
 @NoSwaggerDocumentation
 public class TopicLookup extends TopicLookupBase {
 
+    static final String LISTENERNAME_HEADER = "X-Pulsar-ListenerName";
+
     @GET
     @Path("{topic-domain}/{property}/{cluster}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiResponses(value = { @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic") })
+    @ApiResponses(value = { @ApiResponse(code = 307,
+            message = "Current broker doesn't serve the namespace of this topic") })
     public void lookupTopicAsync(@PathParam("topic-domain") String topicDomain, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Suspended AsyncResponse asyncResponse) {
+            @Suspended AsyncResponse asyncResponse,
+            @QueryParam("listenerName") String listenerName,
+            @HeaderParam(LISTENERNAME_HEADER) String listenerNameHeader) {
         TopicName topicName = getTopicName(topicDomain, property, cluster, namespace, encodedTopic);
-        internalLookupTopicAsync(topicName, authoritative, asyncResponse);
+        if (StringUtils.isEmpty(listenerName) && StringUtils.isNotEmpty(listenerNameHeader)) {
+            listenerName = listenerNameHeader;
+        }
+        internalLookupTopicAsync(topicName, authoritative, asyncResponse, listenerName);
     }
 
     @GET

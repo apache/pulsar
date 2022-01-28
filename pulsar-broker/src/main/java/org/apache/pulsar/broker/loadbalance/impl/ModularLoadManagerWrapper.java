@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -31,8 +31,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
 /**
  * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
@@ -79,7 +77,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
         }
         return String.format("http://%s", broker);
     }
-    
+
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
         return loadManager.getLoadBalancingMetrics();
@@ -116,13 +114,13 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
-    public void writeResourceQuotasToZooKeeper() {
-        loadManager.writeBundleDataOnZooKeeper();
+    public void writeLoadReportOnZookeeper(boolean force) {
+        loadManager.writeBrokerDataOnZooKeeper(force);
     }
 
     @Override
-    public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
-        return loadManager.getLoadReportDeserializer();
+    public void writeResourceQuotasToZooKeeper() {
+        loadManager.writeBundleDataOnZooKeeper();
     }
 
     public ModularLoadManager getLoadManager() {
@@ -132,5 +130,10 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
         return loadManager.getAvailableBrokers();
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        return loadManager.getAvailableBrokersAsync();
     }
 }

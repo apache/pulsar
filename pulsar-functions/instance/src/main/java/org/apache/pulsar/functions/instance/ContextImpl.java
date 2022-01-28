@@ -21,20 +21,49 @@ package org.apache.pulsar.functions.instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.netty.buffer.ByteBuf;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
-import lombok.Getter;
-import lombok.Setter;
-import org.apache.bookkeeper.api.kv.Table;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+
+import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.api.StateStore;
+import org.apache.pulsar.functions.instance.state.DefaultStateStore;
+import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
@@ -47,26 +76,23 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 /**
  * This class implements the Context interface exposed to the user.
  */
-class ContextImpl implements Context, SinkContext, SourceContext {
+@ToString(exclude = {"pulsarAdmin"})
+class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
 
     // Per Message related
     private Record<?> record;
 
-    private PulsarClient client;
+    private final ClientBuilder clientBuilder;
+    private final PulsarClient client;
+    private final PulsarAdmin pulsarAdmin;
     private Map<String, Producer<?>> publishProducers;
     private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
@@ -77,7 +103,10 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final Map<String, Object> secretsMap;
 
     @VisibleForTesting
-    StateContextImpl stateContext;
+    StateManager stateManager;
+    @VisibleForTesting
+    DefaultStateStore defaultStateStore;
+
     private Map<String, Object> userConfigs;
 
     private ComponentStatsManager statsManager;
@@ -86,7 +115,14 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
 
-    private final static String[] userMetricsLabelNames;
+    private final SubscriptionType subscriptionType;
+
+    private static final String[] userMetricsLabelNames;
+
+    private boolean exposePulsarAdminClientEnabled;
+
+    private List<Consumer<?>> inputConsumers;
+    private final Map<TopicName, Consumer> topicConsumers = new ConcurrentHashMap<>();
 
     static {
         // add label to indicate user metric
@@ -97,31 +133,41 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     private final Function.FunctionDetails.ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
+                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       Table<ByteBuf, ByteBuf> stateTable) {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder) throws PulsarClientException {
         this.config = config;
         this.logger = logger;
+        this.clientBuilder = clientBuilder;
         this.client = client;
+        this.pulsarAdmin = pulsarAdmin;
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         boolean useThreadLocalProducers = false;
-        if (config.getFunctionDetails().getSink().getProducerSpec() != null) {
-            if (config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessages() != 0) {
-                this.producerBuilder.maxPendingMessages(config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessages());
+        Function.ProducerSpec producerSpec = config.getFunctionDetails().getSink().getProducerSpec();
+        if (producerSpec != null) {
+            if (producerSpec.getMaxPendingMessages() != 0) {
+                this.producerBuilder.maxPendingMessages(producerSpec.getMaxPendingMessages());
             }
-            if (config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                this.producerBuilder.maxPendingMessagesAcrossPartitions(config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            if (producerSpec.getMaxPendingMessagesAcrossPartitions() != 0) {
+                this.producerBuilder.maxPendingMessagesAcrossPartitions(producerSpec.getMaxPendingMessagesAcrossPartitions());
             }
-            useThreadLocalProducers = config.getFunctionDetails().getSink().getProducerSpec().getUseThreadLocalProducers();
+            if (producerSpec.getBatchBuilder() != null) {
+                if (producerSpec.getBatchBuilder().equals("KEY_BASED")) {
+                    this.producerBuilder.batcherBuilder(BatcherBuilder.KEY_BASED);
+                } else {
+                    this.producerBuilder.batcherBuilder(BatcherBuilder.DEFAULT);
+                }
+            }
+            useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
         }
         if (useThreadLocalProducers) {
             tlPublishProducers = new ThreadLocal<>();
         } else {
-            publishProducers = new HashMap<>();
+            publishProducers = new ConcurrentHashMap<>();
         }
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
@@ -155,19 +201,37 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             default:
                 throw new RuntimeException("Unknown component type: " + componentType);
         }
-        this.userMetricsSummary = Summary.build()
-                .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
-                .help("User defined metric.")
-                .labelNames(userMetricsLabelNames)
-                .quantile(0.5, 0.01)
-                .quantile(0.9, 0.01)
-                .quantile(0.99, 0.01)
-                .quantile(0.999, 0.01)
-                .register(collectorRegistry);
+        this.userMetricsSummary = collectorRegistry.registerIfNotExist(
+                prefix + ComponentStatsManager.USER_METRIC_PREFIX,
+                Summary.build()
+                        .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
+                        .help("User defined metric.")
+                        .labelNames(userMetricsLabelNames)
+                        .quantile(0.5, 0.01)
+                        .quantile(0.9, 0.01)
+                        .quantile(0.99, 0.01)
+                        .quantile(0.999, 0.01)
+                        .create());
         this.componentType = componentType;
+        this.stateManager = stateManager;
+        this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            config.getFunctionDetails().getName()
+        );
+        this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
 
-        if (null != stateTable) {
-            this.stateContext = new StateContextImpl(stateTable);
+        Function.SourceSpec sourceSpec = config.getFunctionDetails().getSource();
+        switch (sourceSpec.getSubscriptionType()) {
+            case FAILOVER:
+                subscriptionType = SubscriptionType.Failover;
+                break;
+            case KEY_SHARED:
+                subscriptionType = SubscriptionType.Key_Shared;
+                break;
+            default:
+                subscriptionType = SubscriptionType.Shared;
+                break;
         }
     }
 
@@ -287,88 +351,93 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
+    @Override
+    public PulsarAdmin getPulsarAdmin() {
+        if (exposePulsarAdminClientEnabled) {
+            return pulsarAdmin;
+        } else {
+            throw new IllegalStateException("PulsarAdmin is not enabled in function worker");
+        }
+    }
+
+    @Override
+    public <S extends StateStore> S getStateStore(String name) {
+        return getStateStore(
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            name);
+    }
+
+    @Override
+    public <S extends StateStore> S getStateStore(String tenant, String ns, String name) {
+        return (S) stateManager.getStore(tenant, ns, name);
+    }
+
     private void ensureStateEnabled() {
-        checkState(null != stateContext, "State is not enabled.");
+        checkState(null != defaultStateStore, "State %s/%s/%s is not enabled.",
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            config.getFunctionDetails().getName());
     }
 
     @Override
     public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
         ensureStateEnabled();
-        return stateContext.incrCounter(key, amount);
+        return defaultStateStore.incrCounterAsync(key, amount);
     }
 
     @Override
     public void incrCounter(String key, long amount) {
         ensureStateEnabled();
-        try {
-            result(stateContext.incrCounter(key, amount));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
-        }
+        defaultStateStore.incrCounter(key, amount);
     }
 
     @Override
     public CompletableFuture<Long> getCounterAsync(String key) {
         ensureStateEnabled();
-        return stateContext.getCounter(key);
+        return defaultStateStore.getCounterAsync(key);
     }
 
     @Override
     public long getCounter(String key) {
         ensureStateEnabled();
-        try {
-            return result(stateContext.getCounter(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
-        }
+        return defaultStateStore.getCounter(key);
     }
 
     @Override
     public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
         ensureStateEnabled();
-        return stateContext.put(key, value);
+        return defaultStateStore.putAsync(key, value);
     }
 
     @Override
     public void putState(String key, ByteBuffer value) {
         ensureStateEnabled();
-        try {
-            result(stateContext.put(key, value));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update the state value for key '" + key + "'");
-        }
+        defaultStateStore.put(key, value);
     }
 
     @Override
     public CompletableFuture<Void> deleteStateAsync(String key) {
         ensureStateEnabled();
-        return stateContext.delete(key);
+        return defaultStateStore.deleteAsync(key);
     }
 
     @Override
     public void deleteState(String key) {
         ensureStateEnabled();
-        try {
-            result(stateContext.delete(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to delete the state value for key '" + key + "'");
-        }
+        defaultStateStore.delete(key);
     }
 
     @Override
     public CompletableFuture<ByteBuffer> getStateAsync(String key) {
         ensureStateEnabled();
-        return stateContext.get(key);
+        return defaultStateStore.getAsync(key);
     }
 
     @Override
     public ByteBuffer getState(String key) {
         ensureStateEnabled();
-        try {
-            return result(stateContext.get(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
-        }
+        return defaultStateStore.get(key);
     }
 
     @Override
@@ -385,7 +454,13 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @Override
     public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
         MessageBuilderImpl<O> messageBuilder = new MessageBuilderImpl<>();
-        TypedMessageBuilder<O> typedMessageBuilder = getProducer(topicName, schema).newMessage();
+        TypedMessageBuilder<O> typedMessageBuilder;
+        Producer<O> producer = getProducer(topicName, schema);
+        if (schema != null) {
+            typedMessageBuilder = producer.newMessage(schema);
+        } else {
+            typedMessageBuilder = producer.newMessage();
+        }
         messageBuilder.setUnderlyingBuilder(typedMessageBuilder);
         return messageBuilder;
     }
@@ -393,6 +468,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     @Override
     public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
         return this.client.newConsumer(schema);
+    }
+
+    @Override
+    public SubscriptionType getSubscriptionType() {
+        return subscriptionType;
     }
 
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
@@ -417,6 +497,16 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         } else {
             userMetricsSummary.labels(userMetricLabels).observe(value);
         }
+    }
+
+    @Override
+    public PulsarClient getPulsarClient() {
+        return client;
+    }
+
+    @Override
+    public ClientBuilder getPulsarClientBuilder() {
+        return clientBuilder;
     }
 
     private <O> Producer<O> getProducer(String topicName, Schema<O> schema) throws PulsarClientException {
@@ -602,5 +692,107 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         public void setUnderlyingBuilder(TypedMessageBuilder<O> underlyingBuilder) {
             this.underlyingBuilder = underlyingBuilder;
         }
+    }
+
+    @Override
+    public void close() {
+        List<CompletableFuture> futures = new LinkedList<>();
+
+        if (publishProducers != null) {
+            for (Producer<?> producer : publishProducers.values()) {
+                futures.add(producer.closeAsync());
+            }
+        }
+
+        if (tlPublishProducers != null) {
+            for (Producer<?> producer : tlPublishProducers.get().values()) {
+                futures.add(producer.closeAsync());
+            }
+        }
+
+        if (pulsarAdmin != null) {
+            pulsarAdmin.close();
+        }
+
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.warn("Failed to close producers", e);
+        }
+    }
+
+    @Override
+    public void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        Consumer<?> consumer = getConsumer(topic, partition);
+        consumer.seek(messageId);
+    }
+
+    @Override
+    public void pause(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).pause();
+    }
+
+    @Override
+    public void resume(String topic, int partition) throws PulsarClientException {
+        getConsumer(topic, partition).resume();
+    }
+
+    public void setInputConsumers(List<Consumer<?>> inputConsumers) {
+        this.inputConsumers = inputConsumers;
+        inputConsumers.stream()
+            .flatMap(consumer ->
+                    consumer instanceof MultiTopicsConsumerImpl
+                            ? ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().stream()
+                            : Stream.of(consumer))
+            .forEach(consumer -> topicConsumers.putIfAbsent(TopicName.get(consumer.getTopic()), consumer));
+    }
+
+    private void reloadConsumersFromMultiTopicsConsumers() {
+        // MultiTopicsConsumer in the list of inputConsumers could change its nested consumers
+        // if ne partition was created or a new topic added that matches subscription pattern.
+        // Let's update topicConsumers map to match.
+        inputConsumers
+                .stream()
+                .flatMap(c ->
+                        c instanceof MultiTopicsConsumerImpl
+                                ? ((MultiTopicsConsumerImpl<?>) c).getConsumers().stream()
+                                : Stream.empty() // no changes expected in regular consumers
+                ).forEach(c -> topicConsumers.putIfAbsent(TopicName.get(c.getTopic()), c));
+    }
+
+    // returns null if consumer not found
+    private Consumer<?> tryGetConsumer(String topic, int partition) {
+        if (partition == 0) {
+            // maybe a non-partitioned topic
+            Consumer<?> consumer = topicConsumers.get(TopicName.get(topic));
+
+            if (consumer != null) {
+                return consumer;
+            }
+        }
+        // maybe partitioned topic
+        return topicConsumers.get(TopicName.get(topic).getPartition(partition));
+    }
+
+    @VisibleForTesting
+    Consumer<?> getConsumer(String topic, int partition) throws PulsarClientException {
+        if (inputConsumers == null) {
+            throw new PulsarClientException("Getting consumer is not supported");
+        }
+
+        Consumer<?> consumer = tryGetConsumer(topic, partition);
+        if (consumer == null) {
+            // MultiTopicsConsumer's list of consumers could change
+            // if partitions changed or pattern(s) used to subscribe.
+            // Reload and try one more time.
+            reloadConsumersFromMultiTopicsConsumers();
+            consumer = tryGetConsumer(topic, partition);
+        }
+
+        if (consumer != null) {
+            return consumer;
+        }
+        throw new PulsarClientException("Consumer for topic " + topic
+                + " partition " + partition + " is not found");
     }
 }

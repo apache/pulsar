@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -86,7 +85,7 @@ public class GrowablePriorityLongPairQueue {
             loc = parent(loc);
         }
 
-        this.size++;
+        SIZE_UPDATER.incrementAndGet(this);
 
     }
 
@@ -326,7 +325,7 @@ public class GrowablePriorityLongPairQueue {
     private static final long HashMixer = 0xc6a4a7935bd1e995L;
     private static final int R = 47;
 
-    final static long hash(long key1, long key2) {
+    static final long hash(long key1, long key2) {
         long hash = key1 * HashMixer;
         hash ^= hash >>> R;
         hash *= HashMixer;

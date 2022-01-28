@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
+import com.google.common.collect.Maps;
 import java.util.Arrays;
 import java.util.Map;
-
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import org.apache.pulsar.common.stats.Metrics;
-
-import com.google.common.collect.Maps;
 
 public class NamespaceStats {
 
@@ -43,6 +41,7 @@ public class NamespaceStats {
     public static final String BRK_ADD_ENTRY_LATENCY_PREFIX = "brk_AddEntryLatencyBuckets";
     public long[] addLatencyBucket = new long[ENTRY_LATENCY_BUCKETS_USEC.length + 1];
     public static final String[] ADD_LATENCY_BUCKET_KEYS = new String[ENTRY_LATENCY_BUCKETS_USEC.length + 1];
+    private int ratePeriodInSeconds = 1;
 
     static {
         // create static ref for add-latency-bucket keys to avoid new object allocation on every stats call.
@@ -50,9 +49,11 @@ public class NamespaceStats {
             String key;
             // example of key : "<metric_key>_0.0_0.5"
             if (i == 0 && ENTRY_LATENCY_BUCKETS_USEC.length > 0) {
-                key = String.format("%s_0.0_%1.1f", BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0);
+                key = String.format("%s_0.0_%1.1f",
+                        BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0);
             } else if (i < ENTRY_LATENCY_BUCKETS_USEC.length) {
-                key = String.format("%s_%1.1f_%1.1f", BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i - 1] / 1000.0,
+                key = String.format("%s_%1.1f_%1.1f",
+                        BRK_ADD_ENTRY_LATENCY_PREFIX, ENTRY_LATENCY_BUCKETS_USEC[i - 1] / 1000.0,
                         ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0);
             } else {
                 key = String.format("%s_OVERFLOW", BRK_ADD_ENTRY_LATENCY_PREFIX);
@@ -61,7 +62,8 @@ public class NamespaceStats {
         }
     }
 
-    public NamespaceStats() {
+    public NamespaceStats(int ratePeriodInSeconds) {
+        this.ratePeriodInSeconds = Math.max(1, ratePeriodInSeconds);
         reset();
     }
 
@@ -100,15 +102,17 @@ public class NamespaceStats {
         dMetrics.put("brk_max_replication_delay_second", maxMsgReplDelayInSeconds);
         // add add-latency metrics
         for (int i = 0; i < this.addLatencyBucket.length; i++) {
-            dMetrics.put(ADD_LATENCY_BUCKET_KEYS[i], this.addLatencyBucket[i]);
+            dMetrics.put(ADD_LATENCY_BUCKET_KEYS[i], this.addLatencyBucket[i] / ratePeriodInSeconds);
         }
         return dMetrics;
 
     }
 
-    public static void copy(long[] src, long[] dest) {
+    public static void add(long[] src, long[] dest) {
         if (src != null && dest != null && src.length == dest.length) {
-            System.arraycopy(src, 0, dest, 0, src.length);
+            for (int i = 0; i < src.length; i++) {
+                dest[i] += src[i];
+            }
         }
     }
 

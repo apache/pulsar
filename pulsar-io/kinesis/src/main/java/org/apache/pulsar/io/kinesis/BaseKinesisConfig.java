@@ -19,12 +19,9 @@
 package org.apache.pulsar.io.kinesis;
 
 import java.io.Serializable;
-
-import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import software.amazon.awssdk.regions.Region;
-
 import lombok.Data;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
+import software.amazon.awssdk.regions.Region;
 
 @Data
 public abstract class BaseKinesisConfig implements Serializable {
@@ -64,6 +61,7 @@ public abstract class BaseKinesisConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
+        sensitive = true,
         help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")
     private String awsCredentialPluginParam = "";
 

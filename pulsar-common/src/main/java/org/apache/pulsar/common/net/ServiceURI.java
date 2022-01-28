@@ -20,15 +20,16 @@ package org.apache.pulsar.common.net;
 
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import static java.util.Objects.requireNonNull;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
-
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -61,11 +62,44 @@ public class ServiceURI {
      *
      * @param uriStr service uri string
      * @return a service uri instance
-     * @throws NullPointerException if {@code uriStr} is null
+     * @throws NullPointerExceptionFieldParser if {@code uriStr} is null
      * @throws IllegalArgumentException if the given string violates RFC&nbsp;2396
      */
     public static ServiceURI create(String uriStr) {
-        checkNotNull(uriStr, "service uri string is null");
+        requireNonNull(uriStr, "service uri string is null");
+
+        if (uriStr.contains("[") && uriStr.contains("]")) {
+            // deal with ipv6 address
+            Splitter splitter = Splitter.on(CharMatcher.anyOf(",;"));
+            List<String> hosts = splitter.splitToList(uriStr);
+
+            if (hosts.size() > 1) {
+                // deal with multi ipv6 hosts
+                String firstHost = hosts.get(0);
+                String lastHost = hosts.get(hosts.size() - 1);
+                boolean hasPath = lastHost.contains("/");
+                String path = hasPath ? lastHost.substring(lastHost.indexOf("/")) : "";
+                firstHost += path;
+
+                URI uri = URI.create(firstHost);
+                ServiceURI serviceURI = create(uri);
+
+                List<String> multiHosts = new ArrayList<>();
+                multiHosts.add(serviceURI.getServiceHosts()[0]);
+                multiHosts.addAll(hosts.subList(1, hosts.size()));
+                multiHosts = multiHosts
+                        .stream()
+                        .map(host -> validateHostName(serviceURI.getServiceName(), serviceURI.getServiceInfos(), host))
+                        .collect(Collectors.toList());
+                return new ServiceURI(
+                        serviceURI.getServiceName(),
+                        serviceURI.getServiceInfos(),
+                        serviceURI.getServiceUser(),
+                        multiHosts.toArray(new String[multiHosts.size()]),
+                        serviceURI.getServicePath(),
+                        serviceURI.getUri());
+            }
+        }
 
         // a service uri first should be a valid java.net.URI
         URI uri = URI.create(uriStr);
@@ -82,7 +116,7 @@ public class ServiceURI {
      * @throws IllegalArgumentException if the given string violates RFC&nbsp;2396
      */
     public static ServiceURI create(URI uri) {
-        checkNotNull(uri, "service uri instance is null");
+        requireNonNull(uri, "service uri instance is null");
 
         String serviceName;
         final String[] serviceInfos;
@@ -185,10 +219,11 @@ public class ServiceURI {
             case BINARY_SERVICE:
                 if (serviceInfos.length == 0) {
                     port = BINARY_PORT;
-                } else if (serviceInfos.length == 1 && serviceInfos[0].toLowerCase().equals(SSL_SERVICE)) {
+                } else if (serviceInfos.length == 1 && serviceInfos[0].equalsIgnoreCase(SSL_SERVICE)) {
                     port = BINARY_TLS_PORT;
                 } else {
-                    throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+" + serviceInfos);
+                    throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+"
+                        + Arrays.toString(serviceInfos));
                 }
                 break;
             case HTTP_SERVICE:
@@ -203,4 +238,25 @@ public class ServiceURI {
         return port;
     }
 
+    /**
+     * Create a new URI from the service URI which only specifies one of the hosts.
+     * @return a pulsar service URI with a single host specified
+     */
+    public String selectOne() {
+        StringBuilder sb = new StringBuilder();
+        if (serviceName != null) {
+            sb.append(serviceName);
+
+            for (int i = 0; i < serviceInfos.length; i++) {
+                sb.append('+').append(serviceInfos[i]);
+            }
+            sb.append("://");
+        }
+        if (serviceUser != null) {
+            sb.append(serviceUser).append('@');
+        }
+        int hostIndex = ThreadLocalRandom.current().nextInt(serviceHosts.length);
+        sb.append(serviceHosts[hostIndex]);
+        return sb.append(servicePath).toString();
+    }
 }

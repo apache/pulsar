@@ -38,6 +38,7 @@ class PULSAR_PUBLIC Consumer {
      * Construct an uninitialized consumer object
      */
     Consumer();
+    virtual ~Consumer() = default;
 
     /**
      * @return the topic this consumer is subscribed to
@@ -124,6 +125,17 @@ class PULSAR_PUBLIC Consumer {
      * @return ResultError if there was a failure
      */
     Result acknowledge(const Message& message);
+
+    /**
+     * Acknowledge the reception of a single message.
+     *
+     * This method is blocked until an acknowledgement is sent to the broker. After that, the message is not
+     * re-delivered to the consumer.
+     *
+     * @see asyncAcknowledge
+     * @param messageId the MessageId to acknowledge
+     * @return ResultOk if the messageId is successfully acknowledged
+     */
     Result acknowledge(const MessageId& messageId);
 
     /**
@@ -136,7 +148,17 @@ class PULSAR_PUBLIC Consumer {
      * @param callback callback that will be triggered when the message has been acknowledged
      */
     void acknowledgeAsync(const Message& message, ResultCallback callback);
-    void acknowledgeAsync(const MessageId& messageID, ResultCallback callback);
+
+    /**
+     * Asynchronously acknowledge the reception of a single message.
+     *
+     * This method initiates the operation and returns the result immediately. The provided callback
+     * is triggered when the operation is completed.
+     *
+     * @param messageId the messageId to acknowledge
+     * @param callback the callback that is triggered when the message has been acknowledged or not
+     */
+    void acknowledgeAsync(const MessageId& messageId, ResultCallback callback);
 
     /**
      * Acknowledge the reception of all the messages in the stream up to (and including)
@@ -156,6 +178,23 @@ class PULSAR_PUBLIC Consumer {
      * @return ResultError if there was a failure
      */
     Result acknowledgeCumulative(const Message& message);
+
+    /**
+     * Acknowledge the reception of all the messages in the stream up to (and including)
+     * the provided message.
+     *
+     * This method is blocked until an acknowledgement is sent to the broker. After
+     * that, the message is not re-delivered to this consumer.
+     *
+     * Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
+     *
+     * It is equivalent to calling the asyncAcknowledgeCumulative(const Message&, ResultCallback) method and
+     * waiting for the callback to be triggered.
+     *
+     * @param messageId the last messageId in the stream to acknowledge
+     * @return ResultOk if the message is successfully acknowledged. All previously delivered messages for
+     * this topic are also acknowledged.
+     */
     Result acknowledgeCumulative(const MessageId& messageId);
 
     /**
@@ -169,6 +208,17 @@ class PULSAR_PUBLIC Consumer {
      * @param callback callback that will be triggered when the message has been acknowledged
      */
     void acknowledgeCumulativeAsync(const Message& message, ResultCallback callback);
+
+    /**
+     * Asynchronously acknowledge the reception of all the messages in the stream up to (and
+     * including) the provided message.
+     *
+     * This method initiates the operation and returns the result immediately. The provided callback
+     * is triggered when the operation is completed.
+     *
+     * @param messageId the messageId to acknowledge
+     * @param callback the callback that is triggered when the message has been acknowledged or not
+     */
     void acknowledgeCumulativeAsync(const MessageId& messageId, ResultCallback callback);
 
     /**
@@ -235,16 +285,23 @@ class PULSAR_PUBLIC Consumer {
      */
     void negativeAcknowledge(const MessageId& messageId);
 
+    /**
+     * Close the consumer and stop the broker to push more messages
+     */
     Result close();
 
+    /**
+     * Asynchronously close the consumer and stop the broker to push more messages
+     *
+     */
     void closeAsync(ResultCallback callback);
 
-    /*
+    /**
      * Pause receiving messages via the messageListener, till resumeMessageListener() is called.
      */
     Result pauseMessageListener();
 
-    /*
+    /**
      * Resume receiving the messages via the messageListener.
      * Asynchronously receive all the messages enqueued from time pauseMessageListener() was called.
      */
@@ -298,7 +355,7 @@ class PULSAR_PUBLIC Consumer {
      * @param messageId
      *            the message id where to reposition the subscription
      */
-    Result seek(const MessageId& msgId);
+    Result seek(const MessageId& messageId);
 
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
@@ -318,7 +375,7 @@ class PULSAR_PUBLIC Consumer {
      * @param messageId
      *            the message id where to reposition the subscription
      */
-    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void seekAsync(const MessageId& messageId, ResultCallback callback);
 
     /**
      * Asynchronously reset the subscription associated with this consumer to a specific message publish time.
@@ -327,6 +384,11 @@ class PULSAR_PUBLIC Consumer {
      *            the message publish time where to reposition the subscription
      */
     virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
+
+    /**
+     * @return Whether the consumer is currently connected to the broker
+     */
+    bool isConnected() const;
 
    private:
     ConsumerImplBasePtr impl_;

@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.GrowablePriorityLongPairQueue.LongPair;
 import org.testng.annotations.Test;
 
@@ -162,6 +163,7 @@ public class GrowablePriorityLongPairQueueTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -189,13 +191,12 @@ public class GrowablePriorityLongPairQueueTest {
         }
 
         assertEquals(queue.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         GrowablePriorityLongPairQueue map = new GrowablePriorityLongPairQueue();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -223,8 +224,6 @@ public class GrowablePriorityLongPairQueueTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
@@ -268,7 +267,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(values, Lists.newArrayList(new LongPair(0, 0), new LongPair(1, 1), new LongPair(3, 3),
                 new LongPair(6, 6), new LongPair(7, 7)));
 
-        List<LongPair> removeList = Lists.newArrayList();
+        List<LongPair> removeList = new ArrayList<>();
         queue.forEach((first, second) -> {
             System.out.println(first + "," + second);
             if (first < 5) {

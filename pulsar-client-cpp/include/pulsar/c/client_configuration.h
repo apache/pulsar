@@ -46,6 +46,21 @@ PULSAR_PUBLIC void pulsar_client_configuration_set_auth(pulsar_client_configurat
                                                         pulsar_authentication_t *authentication);
 
 /**
+ * Configure a limit on the amount of memory that will be allocated by this client instance.
+ * Setting this to 0 will disable the limit. By default this is disabled.
+ *
+ * @param memoryLimitBytes the memory limit
+ */
+PULSAR_PUBLIC void pulsar_client_configuration_set_memory_limit(pulsar_client_configuration_t *conf,
+                                                                unsigned long long memoryLimitBytes);
+
+/**
+ * @return the client memory limit in bytes
+ */
+PULSAR_PUBLIC unsigned long long pulsar_client_configuration_get_memory_limit(
+    pulsar_client_configuration_t *conf);
+
+/**
  * Set timeout on client operations (subscribe, create producer, close, unsubscribe)
  * Default is 30 seconds.
  *

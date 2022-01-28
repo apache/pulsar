@@ -18,15 +18,45 @@
  */
 package org.apache.pulsar.common.events;
 
+import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.Set;
+import org.apache.pulsar.common.naming.TopicName;
+
 /**
- * System topic name for the event type.
+ * System topic names for each {@link EventType}.
  */
 public class EventsTopicNames {
-
 
     /**
      * Local topic name for the namespace events.
      */
     public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
 
+    /**
+     * Local topic name for the transaction buffer snapshot.
+     */
+    public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
+
+    /**
+     * The set of all local topic names declared above.
+     */
+    public static final Set<String> EVENTS_TOPIC_NAMES =
+            Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
+
+    public static boolean checkTopicIsEventsNames(TopicName topicName) {
+        return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
+    }
+
+    public static boolean checkTopicIsTransactionCoordinatorAssign(TopicName topicName) {
+        return topicName != null && topicName.toString()
+                .startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+    }
+
+    public static boolean isTopicPoliciesSystemTopic(String topic) {
+        if (topic == null) {
+            return false;
+        }
+        return TopicName.get(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
+    }
 }

@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -34,6 +34,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.security.Key;
+import java.util.Arrays;
 import java.util.List;
 import lombok.Cleanup;
 
@@ -55,6 +56,7 @@ import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class AuthenticationProviderTokenTest {
@@ -86,8 +88,9 @@ public class AuthenticationProviderTokenTest {
                 .compact();
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parser()
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
                 .setSigningKey(AuthTokenUtils.decodeSecretKey(secretKey.getEncoded()))
+                .build()
                 .parse(token);
 
         assertNotNull(jwt);
@@ -107,8 +110,9 @@ public class AuthenticationProviderTokenTest {
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parser()
+        Jwt<?, Claims> jwt = Jwts.parserBuilder()
                 .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
+                .build()
                 .parse(token);
 
         assertNotNull(jwt);
@@ -173,6 +177,34 @@ public class AuthenticationProviderTokenTest {
         });
         assertEquals(subject, SUBJECT);
 
+        /**
+         * HEADER:ALGORITHM & TOKEN TYPE
+         * {
+         *   "alg": "none"
+         * }
+         * PAYLOAD:DATA
+         * {
+         *   "sub": "test-user"
+         * }
+         */
+        String tokenWithNoneAlg = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.";
+        try {
+            provider.authenticate(new AuthenticationDataSource() {
+                @Override
+                public boolean hasDataFromCommand() {
+                    return true;
+                }
+
+                @Override
+                public String getCommandData() {
+                    return tokenWithNoneAlg;
+                }
+            });
+            fail("Should have failed");
+        } catch (AuthenticationException e) {
+            // expected, Unsigned Claims JWTs are not supported.
+        }
+
         // Expired token. This should be rejected by the authentication provider
         String expiredToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
                 Optional.of(new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1))));
@@ -209,7 +241,8 @@ public class AuthenticationProviderTokenTest {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         Properties properties = new Properties();
-        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "file://" + secretKeyFile.toString());
+        String secretKeyFileUri = secretKeyFile.toURI().toString();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFileUri);
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
@@ -634,7 +667,7 @@ public class AuthenticationProviderTokenTest {
         assertTrue(authState.isComplete());
 
         AuthData brokerData = authState.refreshAuthentication();
-        assertNull(brokerData);
+        assertEquals(brokerData, AuthData.REFRESH_AUTH_DATA);
     }
 
     // tests for Token Audience
@@ -720,6 +753,93 @@ public class AuthenticationProviderTokenTest {
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
+    }
+
+    @Test
+    public void testArrayTypeRoleClaim() throws Exception {
+        String authRoleClaim = "customClaim";
+        String authRole = "my-test-role";
+
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+
+        String privateKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        // Use public key for validation
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
+        // Set custom claim field
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUTH_CLAIM, authRoleClaim);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Use private key to generate token
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        String token = Jwts.builder()
+                .setClaims(new HashMap<String, Object>() {{
+                    put(authRoleClaim, Arrays.asList(authRole, "other-role"));
+                }})
+                .signWith(privateKey)
+                .compact();
+
+        // Pulsar protocol auth
+        String role = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(role, authRole);
+
+        provider.close();
+    }
+
+    @Test
+    public void testTokenSettingPrefix() throws Exception {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+        Properties properties = new Properties();
+        // Use public key for validation
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        ServiceConfiguration mockConf = Mockito.mock(ServiceConfiguration.class);
+        String prefix = "test";
+
+        Mockito.when(mockConf.getProperty(anyString()))
+                .thenAnswer(invocationOnMock ->
+                        conf.getProperty(((String) invocationOnMock.getArgument(0)).substring(prefix.length()))
+                );
+        Mockito.when(mockConf.getProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX)).thenReturn(prefix);
+
+        provider.initialize(mockConf);
+
+        // Each property is fetched only once. Prevent multiple fetches.
+        Mockito.verify(mockConf, Mockito.times(1)).getProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUTH_CLAIM);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE);
     }
 
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {

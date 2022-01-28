@@ -19,9 +19,9 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.common.collect.Lists;
+import static java.util.Objects.requireNonNull;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -42,6 +42,27 @@ public class ConcurrentOpenHashMap<K, V> {
 
     private static final Object EmptyKey = null;
     private static final Object DeletedKey = new Object();
+
+    /**
+     * This object is used to delete empty value in this map.
+     * EmptyValue.equals(null) = true.
+     */
+    private static final Object EmptyValue = new Object() {
+
+        @SuppressFBWarnings
+        @Override
+        public boolean equals(Object obj) {
+            return obj == null;
+        }
+
+        /**
+         * This is just for avoiding spotbugs errors
+         */
+        @Override
+        public int hashCode() {
+            return super.hashCode();
+        }
+    };
 
     private static final float MapFillFactor = 0.66f;
 
@@ -100,7 +121,7 @@ public class ConcurrentOpenHashMap<K, V> {
     }
 
     public V get(K key) {
-        checkNotNull(key);
+        requireNonNull(key);
         long h = hash(key);
         return getSection(h).get(key, (int) h);
     }
@@ -110,37 +131,41 @@ public class ConcurrentOpenHashMap<K, V> {
     }
 
     public V put(K key, V value) {
-        checkNotNull(key);
-        checkNotNull(value);
+        requireNonNull(key);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).put(key, value, (int) h, false, null);
     }
 
     public V putIfAbsent(K key, V value) {
-        checkNotNull(key);
-        checkNotNull(value);
+        requireNonNull(key);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).put(key, value, (int) h, true, null);
     }
 
     public V computeIfAbsent(K key, Function<K, V> provider) {
-        checkNotNull(key);
-        checkNotNull(provider);
+        requireNonNull(key);
+        requireNonNull(provider);
         long h = hash(key);
         return getSection(h).put(key, null, (int) h, true, provider);
     }
 
     public V remove(K key) {
-        checkNotNull(key);
+        requireNonNull(key);
         long h = hash(key);
         return getSection(h).remove(key, null, (int) h);
     }
 
     public boolean remove(K key, Object value) {
-        checkNotNull(key);
-        checkNotNull(value);
+        requireNonNull(key);
+        requireNonNull(value);
         long h = hash(key);
         return getSection(h).remove(key, value, (int) h) != null;
+    }
+
+    public void removeNullValue(K key) {
+        remove(key, EmptyValue);
     }
 
     private Section<K, V> getSection(long hash) {
@@ -150,14 +175,14 @@ public class ConcurrentOpenHashMap<K, V> {
     }
 
     public void clear() {
-        for (Section<K, V> s : sections) {
-            s.clear();
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].clear();
         }
     }
 
     public void forEach(BiConsumer<? super K, ? super V> processor) {
-        for (Section<K, V> s : sections) {
-            s.forEach(processor);
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].forEach(processor);
         }
     }
 
@@ -165,13 +190,13 @@ public class ConcurrentOpenHashMap<K, V> {
      * @return a new list of all keys (makes a copy)
      */
     public List<K> keys() {
-        List<K> keys = Lists.newArrayList();
+        List<K> keys = new ArrayList<>((int) size());
         forEach((key, value) -> keys.add(key));
         return keys;
     }
 
     public List<V> values() {
-        List<V> values = Lists.newArrayList();
+        List<V> values = new ArrayList<>((int) size());
         forEach((key, value) -> values.add(value));
         return values;
     }
@@ -355,42 +380,37 @@ public class ConcurrentOpenHashMap<K, V> {
         }
 
         public void forEach(BiConsumer<? super K, ? super V> processor) {
-            long stamp = tryOptimisticRead();
-
+            // Take a reference to the data table, if there is a rehashing event, we'll be
+            // simply iterating over a snapshot of the data.
             Object[] table = this.table;
-            boolean acquiredReadLock = false;
 
-            try {
-
-                // Validate no rehashing
-                if (!validate(stamp)) {
-                    // Fallback to read lock
-                    stamp = readLock();
-                    acquiredReadLock = true;
-                    table = this.table;
+            // Go through all the buckets for this section. We try to renew the stamp only after a validation
+            // error, otherwise we keep going with the same.
+            long stamp = 0;
+            for (int bucket = 0; bucket < table.length; bucket += 2) {
+                if (stamp == 0) {
+                    stamp = tryOptimisticRead();
                 }
 
-                // Go through all the buckets for this section
-                for (int bucket = 0; bucket < table.length; bucket += 2) {
-                    K storedKey = (K) table[bucket];
-                    V storedValue = (V) table[bucket + 1];
+                K storedKey = (K) table[bucket];
+                V storedValue = (V) table[bucket + 1];
 
-                    if (!acquiredReadLock && !validate(stamp)) {
-                        // Fallback to acquiring read lock
-                        stamp = readLock();
-                        acquiredReadLock = true;
+                if (!validate(stamp)) {
+                    // Fallback to acquiring read lock
+                    stamp = readLock();
 
+                    try {
                         storedKey = (K) table[bucket];
                         storedValue = (V) table[bucket + 1];
+                    } finally {
+                        unlockRead(stamp);
                     }
 
-                    if (storedKey != DeletedKey && storedKey != EmptyKey) {
-                        processor.accept(storedKey, storedValue);
-                    }
+                    stamp = 0;
                 }
-            } finally {
-                if (acquiredReadLock) {
-                    unlockRead(stamp);
+
+                if (storedKey != DeletedKey && storedKey != EmptyKey) {
+                    processor.accept(storedKey, storedValue);
                 }
             }
         }
@@ -436,7 +456,7 @@ public class ConcurrentOpenHashMap<K, V> {
     private static final long HashMixer = 0xc6a4a7935bd1e995L;
     private static final int R = 47;
 
-    final static <K> long hash(K key) {
+    static final <K> long hash(K key) {
         long hash = key.hashCode() * HashMixer;
         hash ^= hash >>> R;
         hash *= HashMixer;

@@ -1,0 +1,118 @@
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<FindBugsFilter>
+
+    <Match>
+        <Class name="~org.apache.pulsar.client.impl.*"/>
+        <Bug pattern="CN_IDIOM_NO_SUPER_CALL"/>
+    </Match>
+
+    <Match>
+        <Class name="~org.apache.pulsar.client.impl.schema.generic.*"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerResponse"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.auth.AuthenticationDataBasic"/>
+        <Bug pattern="DM_DEFAULT_ENCODING"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerResponse"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerImpl"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.auth.AuthenticationDataTls"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ZeroQueueConsumerImpl"/>
+        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.BooleanSchema"/>
+        <Bug pattern="NP_BOOLEAN_RETURN_NULL"/>
+    </Match>
+    
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <Match>
+      <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl$SchemaInfoImplBuilder"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    
+
+    <Match>
+        <Class name="~org.apache.pulsar.client.impl.ConsumerImpl.*"/>
+        <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerImpl."/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+
+    <!-- Needed for compatibility with TopicMessageIdImpl -->
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageIdImpl"/>
+        <Bug pattern="EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.BatchMessageIdImpl"/>
+        <Bug pattern="EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.Hash"/>
+        <Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE"/>
+    </Match>
+</FindBugsFilter>

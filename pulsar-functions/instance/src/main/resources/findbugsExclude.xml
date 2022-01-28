@@ -1,0 +1,79 @@
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<FindBugsFilter>
+    <!-- these public fields may be used in other modules -->
+    <Match>
+        <Class name="org.apache.pulsar.functions.instance.ContextImpl$MessageBuilderImpl"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.sink.PulsarSink"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.sink.PulsarSink$PulsarSinkEffectivelyOnceProcessor"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
+        <Bug pattern="MS_MUTABLE_ARRAY"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.sink.PulsarSink$Crypto$CryptoBuilder"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
+        <Bug pattern="UC_USELESS_OBJECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.source.PulsarSource"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSource"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.source.SerDeSchema"/>
+        <Bug pattern="CN_IDIOM_NO_SUPER_CALL"/>
+    </Match>
+</FindBugsFilter>

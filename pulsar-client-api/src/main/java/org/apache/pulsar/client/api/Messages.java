@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+
 /**
  * A container that holds the list {@link Message} for a topic.
  * @param <T>
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Messages<T> extends Iterable<Message<T>> {
 
     /**

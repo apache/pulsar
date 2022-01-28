@@ -18,13 +18,15 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
 /**
  * An Entry represent a ledger entry data and its associated position.
  */
-@Beta
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public interface Entry {
 
     /**
@@ -64,5 +66,4 @@ public interface Entry {
      * of data reached to 0).
      */
     boolean release();
-
 }

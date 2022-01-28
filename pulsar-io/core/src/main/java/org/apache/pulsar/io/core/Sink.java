@@ -19,12 +19,15 @@
 package org.apache.pulsar.io.core;
 
 import java.util.Map;
-
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;
 
 /**
  * Generic sink interface users can implement to run Sink on top of Pulsar Functions.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Sink<T> extends AutoCloseable {
     /**
      * Open connector with configuration.
@@ -33,7 +36,7 @@ public interface Sink<T> extends AutoCloseable {
      * @param sinkContext environment where the sink connector is running
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
+    void open(Map<String, Object> config, SinkContext sinkContext) throws Exception;
 
     /**
      * Write a message to Sink.

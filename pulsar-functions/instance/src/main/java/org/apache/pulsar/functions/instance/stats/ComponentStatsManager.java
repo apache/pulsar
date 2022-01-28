@@ -19,17 +19,15 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
-import io.prometheus.client.CollectorRegistry;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.Function;
-
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 @Slf4j
 public abstract class ComponentStatsManager implements AutoCloseable {
@@ -38,11 +36,11 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected ScheduledFuture<?> scheduledFuture;
 
-    protected final CollectorRegistry collectorRegistry;
+    protected final FunctionCollectorRegistry collectorRegistry;
 
     protected final EvictingQueue EMPTY_QUEUE = EvictingQueue.create(0);
 
-    public final static String USER_METRIC_PREFIX = "user_metric_";
+    public static final String USER_METRIC_PREFIX = "user_metric_";
 
     public static final String[] metricsLabelNames = {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
 
@@ -53,7 +51,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         exceptionMetricsLabelNames[metricsLabelNames.length] = "error";
     }
 
-    public static ComponentStatsManager getStatsManager(CollectorRegistry collectorRegistry,
+    public static ComponentStatsManager getStatsManager(FunctionCollectorRegistry collectorRegistry,
                                   String[] metricsLabels,
                                   ScheduledExecutorService scheduledExecutorService,
                                   Function.FunctionDetails.ComponentType componentType) {
@@ -69,9 +67,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         }
     }
 
-    public ComponentStatsManager(CollectorRegistry collectorRegistry,
-                         String[] metricsLabels,
-                         ScheduledExecutorService scheduledExecutorService) {
+    public ComponentStatsManager(FunctionCollectorRegistry collectorRegistry,
+                                 String[] metricsLabels,
+                                 ScheduledExecutorService scheduledExecutorService) {
 
         this.collectorRegistry = collectorRegistry;
         this.metricsLabels = metricsLabels;

@@ -53,15 +53,17 @@ bool CompressionCodecSnappy::decode(const SharedBuffer& encoded, uint32_t uncomp
 
 #else  // No SNAPPY
 
+#include <stdexcept>
+
 namespace pulsar {
 
 SharedBuffer CompressionCodecSnappy::encode(const SharedBuffer& raw) {
-    throw "Snappy compression not supported";
+    throw std::runtime_error("Snappy compression not supported");
 }
 
 bool CompressionCodecSnappy::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
                                     SharedBuffer& decoded) {
-    throw "Snappy compression not supported";
+    throw std::runtime_error("Snappy compression not supported");
 }
 }  // namespace pulsar
 

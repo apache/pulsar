@@ -23,7 +23,6 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import lombok.Getter;
 import org.apache.pulsar.client.api.MessageId;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * A MessageId implementation that contains a map of <partitionName, MessageId>.
@@ -42,7 +41,7 @@ public class MultiMessageIdImpl implements MessageId {
     //  https://github.com/apache/pulsar/issues/4940
     @Override
     public byte[] toByteArray() {
-        throw new NotImplementedException();
+        throw new UnsupportedOperationException();
     }
 
     @Override

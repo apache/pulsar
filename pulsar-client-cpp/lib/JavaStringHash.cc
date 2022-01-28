@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "JavaStringHash.h"
+#include <limits>
 
 namespace pulsar {
 

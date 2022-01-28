@@ -18,7 +18,7 @@
  */
 #include "Commands.h"
 #include "MessageImpl.h"
-#include "Version.h"
+#include "VersionInternal.h"
 #include "pulsar/MessageBuilder.h"
 #include "LogUtils.h"
 #include "PulsarApi.pb.h"
@@ -42,6 +42,7 @@ static inline bool isBuiltInSchema(SchemaType schemaType) {
         case JSON:
         case AVRO:
         case PROTOBUF:
+        case PROTOBUF_NATIVE:
             return true;
 
         default:
@@ -61,6 +62,8 @@ static inline proto::Schema_Type getSchemaType(SchemaType type) {
             return Schema_Type_Protobuf;
         case AVRO:
             return Schema_Type_Avro;
+        case PROTOBUF_NATIVE:
+            return Schema_Type_ProtobufNative;
         default:
             return Schema_Type_None;
     }
@@ -108,7 +111,8 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
     return buffer;
 }
 
-SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                 const std::string& listenerName) {
     static BaseCommand cmd;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -117,6 +121,7 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_topic(topic);
     lookup->set_authoritative(authoritative);
     lookup->set_request_id(requestId);
+    lookup->set_advertised_listener_name(listenerName);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
     return buffer;
@@ -136,16 +141,17 @@ SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId)
 }
 
 PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint64_t producerId,
-                                   uint64_t sequenceId, ChecksumType checksumType, const Message& msg) {
-    const proto::MessageMetadata& metadata = msg.impl_->metadata;
-    SharedBuffer& payload = msg.impl_->payload;
-
+                                   uint64_t sequenceId, ChecksumType checksumType,
+                                   const proto::MessageMetadata& metadata, const SharedBuffer& payload) {
     cmd.set_type(BaseCommand::SEND);
     CommandSend* send = cmd.mutable_send();
     send->set_producer_id(producerId);
     send->set_sequence_id(sequenceId);
     if (metadata.has_num_messages_in_batch()) {
         send->set_num_messages(metadata.num_messages_in_batch());
+    }
+    if (metadata.has_chunk_id()) {
+        send->set_is_chunk(true);
     }
 
     // / Wire format
@@ -161,12 +167,11 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
         4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize;  // cmdLength + cmdSize + magicLength +
     // checksumSize + msgMetadataLength + msgMetadataSize
     int totalSize = headerContentSize + payloadSize;
-    int headersSize = 4 + headerContentSize;  // totalSize + headerLength
     int checksumReaderIndex = -1;
 
     headers.reset();
-    assert(headers.writableBytes() >= headersSize);
-    headers.writeUnsignedInt(totalSize);  // External frame
+    assert(headers.writableBytes() >= (4 + headerContentSize));  // totalSize + headerLength
+    headers.writeUnsignedInt(totalSize);                         // External frame
 
     // Write cmd
     headers.writeUnsignedInt(cmdSize);
@@ -195,7 +200,8 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
         int metadataStartIndex = checksumReaderIndex + checksumSize;
         uint32_t metadataChecksum =
             computeChecksum(0, headers.data() + metadataStartIndex, (writeIndex - metadataStartIndex));
-        uint32_t computedChecksum = computeChecksum(metadataChecksum, payload.data(), payload.writerIndex());
+        uint32_t computedChecksum =
+            computeChecksum(metadataChecksum, payload.data(), payload.readableBytes());
         // set computed checksum
         headers.setWriterIndex(checksumReaderIndex);
         headers.writeUnsignedInt(computedChecksum);
@@ -207,11 +213,11 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
 }
 
 SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
-                                  bool connectingThroughProxy) {
+                                  bool connectingThroughProxy, Result& result) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::CONNECT);
     CommandConnect* connect = cmd.mutable_connect();
-    connect->set_client_version(_PULSAR_VERSION_);
+    connect->set_client_version(_PULSAR_VERSION_INTERNAL_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
 
@@ -224,23 +230,33 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     }
 
     AuthenticationDataPtr authDataContent;
-    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+    result = authentication->getAuthData(authDataContent);
+    if (result != ResultOk) {
+        return SharedBuffer{};
+    }
+
+    if (authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
     }
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication) {
+SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication, Result& result) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::AUTH_RESPONSE);
     CommandAuthResponse* authResponse = cmd.mutable_authresponse();
-    authResponse->set_client_version(_PULSAR_VERSION_);
+    authResponse->set_client_version(_PULSAR_VERSION_INTERNAL_);
 
     AuthData* authData = authResponse->mutable_response();
     authData->set_auth_method_name(authentication->getAuthMethodName());
 
     AuthenticationDataPtr authDataContent;
-    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+    result = authentication->getAuthData(authDataContent);
+    if (result != ResultOk) {
+        return SharedBuffer{};
+    }
+
+    if (authDataContent->hasDataFromCommand()) {
         authData->set_auth_data(authDataContent->getCommandData());
     }
 
@@ -253,7 +269,9 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     Optional<MessageId> startMessageId, bool readCompacted,
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
-                                    CommandSubscribe_InitialPosition subscriptionInitialPosition) {
+                                    CommandSubscribe_InitialPosition subscriptionInitialPosition,
+                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
+                                    int priorityLevel) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -266,6 +284,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
     subscribe->set_read_compacted(readCompacted);
     subscribe->set_initialposition(subscriptionInitialPosition);
+    subscribe->set_replicate_subscription_state(replicateSubscriptionState);
+    subscribe->set_priority_level(priorityLevel);
 
     if (isBuiltInSchema(schemaInfo.getSchemaType())) {
         subscribe->set_allocated_schema(getSchema(schemaInfo));
@@ -288,6 +308,24 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         subscribe->mutable_metadata()->AddAllocated(keyValue);
     }
 
+    if (subType == CommandSubscribe_SubType_Key_Shared) {
+        KeySharedMeta& ksm = *subscribe->mutable_keysharedmeta();
+        switch (keySharedPolicy.getKeySharedMode()) {
+            case pulsar::AUTO_SPLIT:
+                ksm.set_keysharedmode(proto::KeySharedMode::AUTO_SPLIT);
+                break;
+            case pulsar::STICKY:
+                ksm.set_keysharedmode(proto::KeySharedMode::STICKY);
+                for (StickyRange range : keySharedPolicy.getStickyRanges()) {
+                    IntRange* intRange = IntRange().New();
+                    intRange->set_start(range.first);
+                    intRange->set_end(range.second);
+                    ksm.mutable_hashranges()->AddAllocated(intRange);
+                }
+        }
+        ksm.set_allowoutoforderdelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
+    }
+
     return writeMessageWithSize(cmd);
 }
 
@@ -304,13 +342,18 @@ SharedBuffer Commands::newUnsubscribe(uint64_t consumerId, uint64_t requestId) {
 SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId,
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
-                                   const SchemaInfo& schemaInfo) {
+                                   const SchemaInfo& schemaInfo, uint64_t epoch,
+                                   bool userProvidedProducerName, bool encrypted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
     producer->set_topic(topic);
     producer->set_producer_id(producerId);
     producer->set_request_id(requestId);
+    producer->set_epoch(epoch);
+    producer->set_user_provided_producer_name(userProvidedProducerName);
+    producer->set_encrypted(encrypted);
+
     for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
          it++) {
         proto::KeyValue* keyValue = proto::KeyValue().New();
@@ -613,25 +656,44 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
+        case BaseCommand::TC_CLIENT_CONNECT_REQUEST:
+            return "TC_CLIENT_CONNECT_REQUEST";
+        case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
+            return "TC_CLIENT_CONNECT_RESPONSE";
+            break;
     };
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));
 }
 
 void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {
-    if (msg.impl_->metadata.has_publish_time()) {
-        batchMetadata.set_publish_time(msg.impl_->metadata.publish_time());
-    }
+    // metadata has already been set in ProducerImpl::setMessageMetadata
+    const proto::MessageMetadata& metadata = msg.impl_->metadata;
 
-    if (msg.impl_->metadata.has_sequence_id()) {
-        batchMetadata.set_sequence_id(msg.impl_->metadata.sequence_id());
-    }
+    // required fields
+    batchMetadata.set_producer_name(metadata.producer_name());
+    batchMetadata.set_sequence_id(metadata.sequence_id());
+    batchMetadata.set_publish_time(metadata.publish_time());
 
-    if (msg.impl_->metadata.has_replicated_from()) {
-        batchMetadata.set_replicated_from(msg.impl_->metadata.replicated_from());
+    // optional fields
+    if (metadata.has_partition_key()) {
+        batchMetadata.set_partition_key(metadata.partition_key());
     }
+    if (metadata.has_ordering_key()) {
+        batchMetadata.set_ordering_key(metadata.ordering_key());
+    }
+    if (metadata.has_replicated_from()) {
+        batchMetadata.set_replicated_from(metadata.replicated_from());
+    }
+    if (metadata.replicate_to_size() > 0) {
+        for (int i = 0; i < metadata.replicate_to_size(); i++) {
+            batchMetadata.add_replicate_to(metadata.replicate_to(i));
+        }
+    }
+    // TODO: set other optional fields
 }
 
-void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
-                                                        const unsigned long& maxMessageSizeInBytes) {
+uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
+                                                            unsigned long maxMessageSizeInBytes) {
     SingleMessageMetadata metadata;
     if (msg.impl_->hasPartitionKey()) {
         metadata.set_partition_key(msg.impl_->getPartitionKey());
@@ -662,8 +724,10 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
         LOG_DEBUG("remaining size of batchPayLoad buffer ["
                   << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
                   << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() +
-                                                     std::max(requiredSpace, maxMessageSizeInBytes));
+        uint32_t new_size =
+            std::min(batchPayLoad.readableBytes() * 2, static_cast<uint32_t>(maxMessageSizeInBytes));
+        new_size = std::max(new_size, batchPayLoad.readableBytes() + static_cast<uint32_t>(requiredSpace));
+        SharedBuffer buffer = SharedBuffer::allocate(new_size);
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;
@@ -673,6 +737,8 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
     metadata.SerializeToArray(batchPayLoad.mutableData(), msgMetadataSize);
     batchPayLoad.bytesWritten(msgMetadataSize);
     batchPayLoad.write(msg.impl_->payload.data(), payloadSize);
+
+    return msg.impl_->metadata.sequence_id();
 }
 
 Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex) {

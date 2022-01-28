@@ -19,11 +19,14 @@
 #include <pulsar/MessageBuilder.h>
 
 #include <memory>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
-#include "MessageImpl.h"
-#include "SharedBuffer.h"
 #include "LogUtils.h"
+#include "MessageImpl.h"
 #include "PulsarApi.pb.h"
+#include "SharedBuffer.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -72,6 +75,12 @@ MessageBuilder& MessageBuilder::setContent(const std::string& data) {
     return *this;
 }
 
+MessageBuilder& MessageBuilder::setContent(std::string&& data) {
+    checkMetadata();
+    impl_->payload = SharedBuffer::take(std::move(data));
+    return *this;
+}
+
 MessageBuilder& MessageBuilder::setProperty(const std::string& name, const std::string& value) {
     checkMetadata();
     proto::KeyValue* keyValue = proto::KeyValue().New();
@@ -109,7 +118,7 @@ MessageBuilder& MessageBuilder::setEventTimestamp(uint64_t eventTimestamp) {
 
 MessageBuilder& MessageBuilder::setSequenceId(int64_t sequenceId) {
     if (sequenceId < 0) {
-        throw "sequenceId needs to be >= 0";
+        throw std::invalid_argument("sequenceId needs to be >= 0");
     }
     checkMetadata();
     impl_->metadata.set_sequence_id(sequenceId);

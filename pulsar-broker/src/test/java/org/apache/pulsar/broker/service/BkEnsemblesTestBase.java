@@ -19,12 +19,14 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
+import java.util.Properties;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -38,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
  * Test base for tests requires a bk ensemble.
  */
 @Slf4j
-public abstract class BkEnsemblesTestBase {
+public abstract class BkEnsemblesTestBase extends TestRetrySupport {
 
     protected PulsarService pulsar;
     protected ServiceConfiguration config;
@@ -57,19 +59,28 @@ public abstract class BkEnsemblesTestBase {
         this.numberOfBookies = numberOfBookies;
     }
 
-    @BeforeMethod
+    protected void configurePulsar(ServiceConfiguration config) throws Exception {
+        //overridable by subclasses
+    }
+
+    @Override
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
+        incrementSetupNumber();
         try {
             // start local bookie and zookeeper
             bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
             bkEnsemble.start();
 
             // start pulsar service
-            config = new ServiceConfiguration();
+            if (config == null) {
+                config = new ServiceConfiguration();
+            }
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
@@ -77,30 +88,35 @@ public abstract class BkEnsemblesTestBase {
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
+            config.setZooKeeperOperationTimeoutSeconds(10);
+            config.setNumIOThreads(1);
+            Properties properties = new Properties();
+            properties.put("bookkeeper_numWorkerThreads", "1");
+            config.setProperties(properties);
+            configurePulsar(config);
 
             pulsar = new PulsarService(config);
             pulsar.start();
 
             admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
 
-            admin.clusters().createCluster("usc", new ClusterData(pulsar.getWebServiceAddress()));
+            admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
             admin.tenants().createTenant("prop",
-                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
             log.error("Error setting up broker test", t);
             Assert.fail("Broker test setup failed");
         }
     }
 
-    @AfterMethod
-    protected void shutdown() throws Exception {
-        try {
-            admin.close();
-            pulsar.close();
-            bkEnsemble.stop();
-        } catch (Throwable t) {
-            log.warn("Error cleaning up broker test setup state", t);
-        }
+    @Override
+    @AfterMethod(alwaysRun = true)
+    protected void cleanup() throws Exception {
+        config = null;
+        markCurrentSetupNumberCleaned();
+        admin.close();
+        pulsar.close();
+        bkEnsemble.stop();
     }
 
 }

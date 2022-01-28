@@ -31,16 +31,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
  * The in-memory implementation of {@link TransactionBuffer}.
@@ -82,6 +83,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
+        public int numMessageInTxn() throws TransactionBufferException.TransactionStatusException {
+            return -1;
+        }
+
+        @Override
         public long committedAtLedgerId() {
             return committedAtLedgerId;
         }
@@ -102,7 +108,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
-        public CompletableFuture<Position> appendEntry(long sequenceId, Position position) {
+        public CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize) {
             return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
@@ -116,7 +122,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         public CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
             try {
                 return CompletableFuture.completedFuture(commitAt(committedAtLedgerId, committedAtEntryId));
-            } catch (UnexpectedTxnStatusException e) {
+            } catch (TransactionBufferException.TransactionStatusException e) {
                 return FutureUtil.failedFuture(e);
             }
         }
@@ -125,23 +131,23 @@ class InMemTransactionBuffer implements TransactionBuffer {
         public CompletableFuture<TransactionMeta> abortTxn() {
             try {
                 return CompletableFuture.completedFuture(abort());
-            } catch (UnexpectedTxnStatusException e) {
+            } catch (TransactionBufferException.TransactionStatusException e) {
                 return FutureUtil.failedFuture(e);
             }
         }
 
-        synchronized TxnBuffer abort() throws UnexpectedTxnStatusException {
+        synchronized TxnBuffer abort() throws TransactionBufferException.TransactionStatusException {
             if (TxnStatus.OPEN != status) {
-                throw new UnexpectedTxnStatusException(txnid, TxnStatus.OPEN, status);
+                throw new TransactionBufferException.TransactionStatusException(txnid, TxnStatus.OPEN, status);
             }
             this.status = TxnStatus.ABORTED;
             return this;
         }
 
         synchronized TxnBuffer commitAt(long committedAtLedgerId, long committedAtEntryId)
-                throws UnexpectedTxnStatusException {
+                throws TransactionBufferException.TransactionStatusException {
             if (TxnStatus.OPEN != status) {
-                throw new UnexpectedTxnStatusException(txnid, TxnStatus.OPEN, status);
+                throw new TransactionBufferException.TransactionStatusException(txnid, TxnStatus.OPEN, status);
             }
 
             this.committedAtLedgerId = committedAtLedgerId;
@@ -161,11 +167,13 @@ class InMemTransactionBuffer implements TransactionBuffer {
             }
         }
 
-        public void appendEntry(long sequenceId, ByteBuf entry) throws TransactionSealedException {
+        public void appendEntry(long sequenceId, ByteBuf entry) throws
+                TransactionBufferException.TransactionSealedException {
             synchronized (this) {
                 if (TxnStatus.OPEN != status) {
                     // the transaction is not open anymore, reject the append operations
-                    throw new TransactionSealedException("Transaction `" + txnid + "` is already sealed");
+                    throw new TransactionBufferException
+                            .TransactionSealedException("Transaction `" + txnid + "` is already sealed");
                 }
             }
 
@@ -174,17 +182,19 @@ class InMemTransactionBuffer implements TransactionBuffer {
             }
         }
 
-        public TransactionBufferReader newReader(long sequenceId) throws TransactionNotSealedException {
+        public TransactionBufferReader newReader(long sequenceId) throws
+                TransactionBufferException.TransactionNotSealedException {
             synchronized (this) {
                 if (TxnStatus.COMMITTED != status) {
                     // the transaction is not committed yet, hence the buffer is not sealed
-                    throw new TransactionNotSealedException("Transaction `" + txnid + "` is not sealed yet");
+                    throw new TransactionBufferException
+                            .TransactionNotSealedException("Transaction `" + txnid + "` is not sealed yet");
                 }
             }
 
             final SortedMap<Long, ByteBuf> entriesToRead = new TreeMap<>();
             synchronized (entries) {
-                SortedMap<Long, ByteBuf> subEntries = entries.tailMap(Long.valueOf(sequenceId));
+                SortedMap<Long, ByteBuf> subEntries = entries.tailMap(sequenceId);
                 subEntries.values().forEach(value -> value.retain());
                 entriesToRead.putAll(subEntries);
             }
@@ -201,7 +211,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
-    public InMemTransactionBuffer() {
+    public InMemTransactionBuffer(Topic topic) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
     }
@@ -211,17 +221,17 @@ class InMemTransactionBuffer implements TransactionBuffer {
         CompletableFuture<TransactionMeta> getFuture = new CompletableFuture<>();
         try {
             getFuture.complete(getTxnBufferOrThrowNotFoundException(txnID));
-        } catch (TransactionNotFoundException e) {
+        } catch (TransactionBufferException.TransactionNotFoundException e) {
             getFuture.completeExceptionally(e);
         }
         return getFuture;
     }
 
     private TxnBuffer getTxnBufferOrThrowNotFoundException(TxnID txnID)
-            throws TransactionNotFoundException {
+            throws TransactionBufferException.TransactionNotFoundException {
         TxnBuffer buffer = buffers.get(txnID);
         if (null == buffer) {
-            throw new TransactionNotFoundException(
+            throw new TransactionBufferException.TransactionNotFoundException(
                 "Transaction `" + txnID + "` doesn't exist in the transaction buffer");
         }
         return buffer;
@@ -253,7 +263,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         try {
             txnBuffer.appendEntry(sequenceId, buffer);
             appendFuture.complete(null);
-        } catch (TransactionSealedException e) {
+        } catch (TransactionBufferException.TransactionSealedException e) {
             appendFuture.completeExceptionally(e);
         }
         return appendFuture;
@@ -267,36 +277,28 @@ class InMemTransactionBuffer implements TransactionBuffer {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
             TransactionBufferReader reader = txnBuffer.newReader(startSequenceId);
             openFuture.complete(reader);
-        } catch (TransactionNotFoundException | TransactionNotSealedException e) {
+        } catch (TransactionBufferException.TransactionNotFoundException
+                | TransactionBufferException.TransactionNotSealedException e) {
             openFuture.completeExceptionally(e);
         }
         return openFuture;
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        return FutureUtil.failedFuture(
-                new Exception("Unsupported operation endTxnOnPartition in InMemTransactionBuffer."));
-    }
-
-    @Override
-    public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID,
-                                             long committedAtLedgerId,
-                                             long committedAtEntryId) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark) {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         try {
             TxnBuffer txnBuffer = getTxnBufferOrThrowNotFoundException(txnID);
             synchronized (txnBuffer) {
+                // the committed position should be generated
+                long committedAtLedgerId = -1L;
+                long committedAtEntryId = -1L;
                 txnBuffer.commitAt(committedAtLedgerId, committedAtEntryId);
                 addTxnToTxnIdex(txnID, committedAtLedgerId);
             }
             commitFuture.complete(null);
-        } catch (TransactionNotFoundException | UnexpectedTxnStatusException e) {
+        } catch (TransactionBufferException.TransactionNotFoundException
+                | TransactionBufferException.TransactionStatusException e) {
             commitFuture.completeExceptionally(e);
         }
         return commitFuture;
@@ -311,7 +313,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnID) {
+    public CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
 
         try {
@@ -319,7 +321,8 @@ class InMemTransactionBuffer implements TransactionBuffer {
             txnBuffer.abort();
             buffers.remove(txnID, txnBuffer);
             abortFuture.complete(null);
-        } catch (TransactionNotFoundException | UnexpectedTxnStatusException e) {
+        } catch (TransactionBufferException.TransactionNotFoundException
+                | TransactionBufferException.TransactionStatusException e) {
             abortFuture.completeExceptionally(e);
         }
 
@@ -346,9 +349,43 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> clearSnapshot() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         buffers.values().forEach(TxnBuffer::close);
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public boolean isTxnAborted(TxnID txnID) {
+        return false;
+    }
+
+    @Override
+    public void syncMaxReadPositionForNormalPublish(PositionImpl position) {
+        //no-op
+    }
+
+    @Override
+    public PositionImpl getMaxReadPosition() {
+        return PositionImpl.LATEST;
+    }
+
+    @Override
+    public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
+        return null;
+    }
+
+    @Override
+    public TransactionBufferStats getStats() {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
+        return CompletableFuture.completedFuture(null);
+    }
 }

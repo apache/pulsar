@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -35,15 +38,8 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
-import lombok.Data;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Data
 @NoArgsConstructor
@@ -53,8 +49,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     public static final int DEFAULT_BATCHING_MAX_MESSAGES = 1000;
-    public static final int DEFAULT_MAX_PENDING_MESSAGES = 1000;
-    public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES = 0;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 0;
 
     private String topicName = null;
     private String producerName = null;
@@ -83,7 +79,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader;
 
     @JsonIgnore
-    private MessageCrypto messageCrypto = null;
+    private transient MessageCrypto messageCrypto = null;
 
     @JsonIgnore
     private Set<String> encryptionKeys = new TreeSet<>();
@@ -99,11 +95,15 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private boolean multiSchema = true;
 
+    private ProducerAccessMode accessMode = ProducerAccessMode.Shared;
+
+    private boolean lazyStartPartitionedProducers = false;
+
     private SortedMap<String, String> properties = new TreeMap<>();
 
     /**
      *
-     * Returns true if encryption keys are added
+     * Returns true if encryption keys are added.
      *
      */
     @JsonIgnore
@@ -115,7 +115,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         try {
             ProducerConfigurationData c = (ProducerConfigurationData) super.clone();
             c.encryptionKeys = Sets.newTreeSet(this.encryptionKeys);
-            c.properties = Maps.newTreeMap(this.properties);
+            c.properties = new TreeMap<>(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ProducerConfigurationData", e);
@@ -128,12 +128,13 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public void setMaxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0, "maxPendingMessages needs to be > 0");
+        checkArgument(maxPendingMessages >= 0, "maxPendingMessages needs to be >= 0");
         this.maxPendingMessages = maxPendingMessages;
     }
 
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages);
+        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages,
+                "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages");
         this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
     }
 

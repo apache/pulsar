@@ -36,6 +36,7 @@ import java.util.List;
  * This class will create three classloaders:
  *      1. The root classloader that will share interfaces between the function instance
  *      classloader and user code classloader. This classloader will contain the following dependencies
+ *          - pulsar-io-core
  *          - pulsar-functions-api
  *          - pulsar-client-api
  *          - log4j-slf4j-impl

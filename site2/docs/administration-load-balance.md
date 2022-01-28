@@ -6,8 +6,7 @@ sidebar_label: Load balance
 
 ## Load balance across Pulsar brokers
 
-Pulsar is an horizontally scalable messaging system, so the traffic
-in a logical cluster must be spread across all the available Pulsar brokers as evenly as possible, which is a core requirement.
+Pulsar is an horizontally scalable messaging system, so the traffic in a logical cluster must be balanced across all the available Pulsar brokers as evenly as possible, which is a core requirement.
 
 You can use multiple settings and tools to control the traffic distribution which require a bit of context to understand how the traffic is managed in Pulsar. Though, in most cases, the core requirement mentioned above is true out of the box and you should not worry about it. 
 
@@ -35,11 +34,9 @@ Instead of individual topic or partition assignment, each broker takes ownership
 
 The namespace is the "administrative" unit: many config knobs or operations are done at the namespace level.
 
-For assignment, a namespaces is sharded into a list of "bundles", with each bundle comprising
-a portion of overall hash range of the namespace.
+For assignment, a namespaces is sharded into a list of "bundles", with each bundle comprising a portion of overall hash range of the namespace.
 
-Topics are assigned to a particular bundle by taking the hash of the topic name and checking in which
-bundle the hash falls into.
+Topics are assigned to a particular bundle by taking the hash of the topic name and checking in which bundle the hash falls into.
 
 Each bundle is independent of the others and thus is independently assigned to different brokers.
 
@@ -67,8 +64,7 @@ On the same note, it is beneficial to start with more bundles than the number of
 
 ### Unload topics and bundles
 
-You can "unload" a topic in Pulsar with admin operation. Unloading means to close the topics,
-release ownership and reassign the topics to a new broker, based on current load.
+You can "unload" a topic in Pulsar with admin operation. Unloading means to close the topics, release ownership and reassign the topics to a new broker, based on current load.
 
 When unloading happens, the client experiences a small latency blip, typically in the order of tens of milliseconds, while the topic is reassigned.
 
@@ -88,9 +84,11 @@ pulsar-admin namespaces unload tenant/namespace
 
 ### Split namespace bundles 
 
-Since the load for the topics in a bundle might change over time, or predicting upfront might just be hard, brokers can split bundles into two. The new smaller bundles can be reassigned to different brokers.
+Since the load for the topics in a bundle might change over time and predicting the load might be hard, bundle split is designed to deal with these issues. The broker splits a bundle into two and the new smaller bundles can be reassigned to different brokers.
 
-The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.
+The splitting is based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution. 
+
+You can split namespace bundles in two ways, by setting `supportedNamespaceBundleSplitAlgorithms` to `range_equally_divide` or `topic_count_equally_divide` in `broker.conf` file. The former splits the bundle into two parts with the same hash range size; the latter splits the bundle into two parts with the same number of topics. You can also configure other parameters for namespace bundles.
 
 ```properties
 # enable/disable namespace bundle auto split
@@ -117,15 +115,13 @@ loadBalancerNamespaceMaximumBundles=128
 
 ### Shed load automatically
 
-The support for automatic load shedding is avaliable in the load manager of Pulsar. This means that whenever the system recognizes a particular broker is overloaded, the system forces some traffic to be reassigned to less loaded brokers.
+The support for automatic load shedding is available in the load manager of Pulsar. This means that whenever the system recognizes a particular broker is overloaded, the system forces some traffic to be reassigned to less loaded brokers.
 
-When a broker is identified as overloaded, the broker forces to "unload" a subset of the bundles, the
-ones with higher traffic, that make up for the overload percentage.
+When a broker is identified as overloaded, the broker forces to "unload" a subset of the bundles, the ones with higher traffic, that make up for the overload percentage.
 
 For example, the default threshold is 85% and if a broker is over quota at 95% CPU usage, then the broker unloads the percent difference plus a 5% margin: `(95% - 85%) + 5% = 15%`.
 
-Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network
-and memory), broker unloads bundles for at least 15% of traffic.
+Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network and memory), broker unloads bundles for at least 15% of traffic.
 
 The automatic load shedding is enabled by default and you can disable the automatic load shedding with this setting:
 
@@ -145,6 +141,26 @@ loadBalancerSheddingIntervalMinutes=1
 loadBalancerSheddingGracePeriodMinutes=30
 ```
 
+Pulsar supports the following types of shedding strategies. From Pulsar 2.10, the **default** shedding strategy is `ThresholdShedder`.
+
+##### ThresholdShedder
+This strategy tends to shed the bundles if any broker's usage is above the configured threshold. It does this by first computing the average resource usage per broker for the whole cluster. The resource usage for each broker is calculated using the following method: LocalBrokerData#getMaxResourceUsageWithWeight. The weights for each resource are configurable. Historical observations are included in the running average based on the broker's setting for loadBalancerHistoryResourcePercentage. Once the average resource usage is calculated, a broker's current/historical usage is compared to the average broker usage. If a broker's usage is greater than the average usage per broker plus the loadBalancerBrokerThresholdShedderPercentage, this load shedder proposes removing enough bundles to bring the unloaded broker 5% below the current average broker usage. Note that recently unloaded bundles are not unloaded again. Configure broker with below value to use this strategy.
+`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
+
+![Shedding strategy - ThresholdShedder](assets/ThresholdShedder.png)
+
+##### OverloadShedder
+This strategy will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose maximum system resource usage exceeds loadBalancerBrokerOverloadedThresholdPercentage. To see which resources are considered when determining the maximum system resource. A bundle is recommended for unloading off that broker if and only if the following conditions hold: The broker has at least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message rate that has not been recently unloaded. Note that this strategy does not take into account "underloaded" brokers when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across all brokers, see ThresholdShedder. Configure broker with below value to use this strategy.
+`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`
+
+![Shedding strategy - OverloadShedder](assets/OverloadShedder.png)
+
+##### UniformLoadShedder
+This strategy tends to distribute load uniformly across all brokers. This strategy checks laod difference between broker with highest load and broker with lowest load. If the difference is higher than configured thresholds `loadBalancerMsgRateDifferenceShedderThreshold` and `loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold` then it finds out bundles which can be unloaded to distribute traffic evenly across all brokers. Configure broker with below value to use this strategy.
+`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`
+
+![Shedding strategy - UniformLoadShedder](assets/UniformLoadShedder.png)
+
 #### Broker overload thresholds
 
 The determinations of when a broker is overloaded is based on threshold of CPU, network and memory usage. Whenever either of those metrics reaches the threshold, the system triggers the shedding (if enabled).
@@ -158,9 +174,7 @@ loadBalancerBrokerOverloadedThresholdPercentage=85
 
 Pulsar gathers the usage stats from the system metrics.
 
-In case of network utilization, in some cases the network interface speed that Linux reports is
-not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps
-NIC speed for which the OS reports 10Gbps speed.
+In case of network utilization, in some cases the network interface speed that Linux reports is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS reports 10Gbps speed.
 
 Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact the broker already uses all the bandwidth and the traffic is slowed down.
 

@@ -16,28 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
-#define PULSAR_RR_MESSAGE_ROUTER_HEADER_
+
+#pragma once
 
 #include <pulsar/defines.h>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/ProducerConfiguration.h>
 #include <pulsar/TopicMetadata.h>
-#include <mutex>
 #include "Hash.h"
 #include "MessageRouterBase.h"
+
+#include <atomic>
+#include <boost/date_time/local_time/local_time.hpp>
 
 namespace pulsar {
 class PULSAR_PUBLIC RoundRobinMessageRouter : public MessageRouterBase {
    public:
-    RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme);
+    RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme, bool batchingEnabled,
+                            uint32_t maxBatchingMessages, uint32_t maxBatchingSize,
+                            boost::posix_time::time_duration maxBatchingDelay);
     virtual ~RoundRobinMessageRouter();
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
 
    private:
-    std::mutex mutex_;
-    unsigned int prevPartition_;
+    const bool batchingEnabled_;
+    const uint32_t maxBatchingMessages_;
+    const uint32_t maxBatchingSize_;
+    const boost::posix_time::time_duration maxBatchingDelay_;
+
+    std::atomic<uint32_t> currentPartitionCursor_;
+    std::atomic<int64_t> lastPartitionChange_;
+    std::atomic<uint32_t> msgCounter_;
+    std::atomic<uint32_t> cumulativeBatchSize_;
 };
-typedef std::unique_lock<std::mutex> Lock;
+
 }  // namespace pulsar
-#endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_

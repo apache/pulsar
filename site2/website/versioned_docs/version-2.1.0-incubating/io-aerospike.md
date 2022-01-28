@@ -13,7 +13,7 @@ The following configuration options are specific to the Aerospike Connector:
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `seedHosts` | `true` | `null` | Comma seperated list of one or more Aerospike cluster hosts; each host can be specified as a valid IP address or hostname followed by an optional port number (default is 3000). | 
+| `seedHosts` | `true` | `null` | Comma separated list of one or more Aerospike cluster hosts; each host can be specified as a valid IP address or hostname followed by an optional port number (default is 3000). | 
 | `keyspace` | `true` | `null` | Aerospike namespace to use. |
 | `keySet` | `false` | `null` | Aerospike set name to use. |
 | `columnName` | `true` | `null` | Aerospike bin name to use. |

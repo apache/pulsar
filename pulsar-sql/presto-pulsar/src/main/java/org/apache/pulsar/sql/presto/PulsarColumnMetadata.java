@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto;
 
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.Type;
-import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -31,22 +30,26 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     private boolean isInternal;
     // need this because presto ColumnMetadata saves name in lowercase
     private String nameWithCase;
-    private String[] fieldNames;
-    private Integer[] positionIndices;
     private PulsarColumnHandle.HandleKeyValueType handleKeyValueType;
-    public final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
+    public static final String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
+
+    private DecoderExtraInfo decoderExtraInfo;
 
     public PulsarColumnMetadata(String name, Type type, String comment, String extraInfo,
                                 boolean hidden, boolean isInternal,
-                                String[] fieldNames, Integer[] positionIndices,
-                                PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
+                                PulsarColumnHandle.HandleKeyValueType handleKeyValueType,
+                                DecoderExtraInfo decoderExtraInfo) {
         super(name, type, comment, extraInfo, hidden);
         this.nameWithCase = name;
         this.isInternal = isInternal;
-        this.fieldNames = fieldNames;
-        this.positionIndices = positionIndices;
         this.handleKeyValueType = handleKeyValueType;
+        this.decoderExtraInfo = decoderExtraInfo;
     }
+
+    public DecoderExtraInfo getDecoderExtraInfo() {
+        return decoderExtraInfo;
+    }
+
 
     public String getNameWithCase() {
         return nameWithCase;
@@ -56,13 +59,6 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return isInternal;
     }
 
-    public String[] getFieldNames() {
-        return fieldNames;
-    }
-
-    public Integer[] getPositionIndices() {
-        return positionIndices;
-    }
 
     public PulsarColumnHandle.HandleKeyValueType getHandleKeyValueType() {
         return handleKeyValueType;
@@ -88,9 +84,8 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         return "PulsarColumnMetadata{"
             + "isInternal=" + isInternal
             + ", nameWithCase='" + nameWithCase + '\''
-            + ", fieldNames=" + Arrays.toString(fieldNames)
-            + ", positionIndices=" + Arrays.toString(positionIndices)
             + ", handleKeyValueType=" + handleKeyValueType
+            + ", decoderExtraInfo=" + decoderExtraInfo.toString()
             + '}';
     }
 
@@ -111,13 +106,10 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         if (isInternal != that.isInternal) {
             return false;
         }
-        if (nameWithCase != null ? !nameWithCase.equals(that.nameWithCase) : that.nameWithCase != null) {
+        if (!Objects.equals(nameWithCase, that.nameWithCase)) {
             return false;
         }
-        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) {
-            return false;
-        }
-        if (!Arrays.deepEquals(positionIndices, that.positionIndices)) {
+        if (!Objects.equals(decoderExtraInfo, that.decoderExtraInfo)) {
             return false;
         }
         return Objects.equals(handleKeyValueType, that.handleKeyValueType);
@@ -128,9 +120,100 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         int result = super.hashCode();
         result = 31 * result + (isInternal ? 1 : 0);
         result = 31 * result + (nameWithCase != null ? nameWithCase.hashCode() : 0);
-        result = 31 * result + Arrays.hashCode(fieldNames);
-        result = 31 * result + Arrays.hashCode(positionIndices);
+        result = 31 * result + (decoderExtraInfo != null ? decoderExtraInfo.hashCode() : 0);
         result = 31 * result + (handleKeyValueType != null ? handleKeyValueType.hashCode() : 0);
         return result;
     }
+
+
+    /**
+     * Decoder extra info for {@link org.apache.pulsar.sql.presto.PulsarColumnHandle}
+     * used by {@link io.prestosql.decoder.RowDecoder}.
+     */
+    public static class DecoderExtraInfo {
+
+        public DecoderExtraInfo(String mapping, String dataFormat, String formatHint) {
+            this.mapping = mapping;
+            this.dataFormat = dataFormat;
+            this.formatHint = formatHint;
+        }
+
+        public DecoderExtraInfo() {}
+
+        //equals ColumnName in general, may used as alias or embedded field in future.
+        private String mapping;
+        //reserved dataFormat used by RowDecoder.
+        private String dataFormat;
+        //reserved formatHint used by RowDecoder.
+        private String formatHint;
+
+        public String getMapping() {
+            return mapping;
+        }
+
+        public void setMapping(String mapping) {
+            this.mapping = mapping;
+        }
+
+        public String getDataFormat() {
+            return dataFormat;
+        }
+
+        public void setDataFormat(String dataFormat) {
+            this.dataFormat = dataFormat;
+        }
+
+        public String getFormatHint() {
+            return formatHint;
+        }
+
+        public void setFormatHint(String formatHint) {
+            this.formatHint = formatHint;
+        }
+
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+
+            DecoderExtraInfo that = (DecoderExtraInfo) o;
+
+            if (!Objects.equals(mapping, that.mapping)) {
+                return false;
+            }
+            if (!Objects.equals(dataFormat, that.dataFormat)) {
+                return false;
+            }
+            return Objects.equals(formatHint, that.formatHint);
+        }
+
+        @Override
+        public String  toString() {
+            return "DecoderExtraInfo{"
+                    + "mapping=" + mapping
+                    + ", dataFormat=" + dataFormat
+                    + ", formatHint=" + formatHint
+                    + '}';
+        }
+
+        @Override
+        public int hashCode() {
+            int result = super.hashCode();
+            result = 31 * result + (mapping != null ? mapping.hashCode() : 0);
+            result = 31 * result + (dataFormat != null ? dataFormat.hashCode() : 0);
+            result = 31 * result + (formatHint != null ? formatHint.hashCode() : 0);
+            return result;
+        }
+
+    }
+
+
 }

@@ -31,7 +31,9 @@ Deploying a Pulsar cluster involves doing the following (in order):
 
 ### Requirements
 
-> If you already have an existing zookeeper cluster and want to reuse it, you do not need to prepare the machines
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+
+> If you already have an existing ZooKeeper cluster and want to reuse it, you do not need to prepare the machines
 > for running ZooKeeper.
 
 To run Pulsar on bare metal, you had better have the following:
@@ -173,7 +175,7 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 ## Deploy a ZooKeeper cluster
 
-> If you already have an exsiting zookeeper cluster and want to use it, you can skip this section.
+> If you already have an existing zookeeper cluster and want to use it, you can skip this section.
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster you need to deploy ZooKeeper first (before all other components). You had better deploy a 3-node ZooKeeper cluster. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
 
@@ -266,15 +268,6 @@ zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.
 ```
 
 Once you appropriately modify the `zkServers` parameter, you can provide any other configuration modifications you need. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper), although consulting the [BookKeeper documentation](http://bookkeeper.apache.org/docs/latest/reference/config/) for a more in-depth guide might be a better choice.
-
-> ##### NOTES
->
-> Since Pulsar 2.1.0 releases, Pulsar introduces [stateful function](functions-develop.md#state-storage) for Pulsar Functions. If you want to enable that feature,
-> you need to enable table service on BookKeeper by doing the following setting in `conf/bookkeeper.conf` file.
->
-> ```conf
-> extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-> ```
 
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
@@ -383,7 +376,7 @@ You can start a broker in the background using the [`pulsar-daemon`](reference-c
 $ bin/pulsar-daemon start broker
 ```
 
-Once you succesfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!
+Once you successfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!
 
 ## Connect to the running cluster
 

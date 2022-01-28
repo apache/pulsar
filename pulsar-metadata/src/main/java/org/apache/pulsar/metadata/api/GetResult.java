@@ -25,7 +25,6 @@ import lombok.Data;
  */
 @Data
 public class GetResult {
-
     /**
      * The value of the key stored.
      */

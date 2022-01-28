@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * The message abstraction used in Pulsar.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Message<T> {
 
     /**
@@ -61,6 +65,13 @@ public interface Message<T> {
      * @return the byte array with the message payload
      */
     byte[] getData();
+
+    /**
+     * Get the uncompressed message payload size in bytes.
+     *
+     * @return size in bytes.
+     */
+    int size();
 
     /**
      * Get the de-serialized value of the message, according the configured {@link Schema}.
@@ -198,6 +209,19 @@ public interface Message<T> {
     byte[] getSchemaVersion();
 
     /**
+     * Get the schema associated to the message.
+     * Please note that this schema is usually equal to the Schema you passed
+     * during the construction of the Consumer or the Reader.
+     * But if you are consuming the topic using the GenericObject interface
+     * this method will return the schema associated with the message.
+     * @return The schema used to decode the payload of message.
+     * @see Schema#AUTO_CONSUME()
+     */
+    default Optional<Schema<?>> getReaderSchema() {
+        return Optional.empty();
+    }
+
+    /**
      * Check whether the message is replicated from other cluster.
      *
      * @since 2.4.0
@@ -213,4 +237,46 @@ public interface Message<T> {
      * @return the name of cluster, from which the message is replicated.
      */
     String getReplicatedFrom();
+
+    /**
+     * Release a message back to the pool. This is required only if the consumer was created with the option to pool
+     * messages, otherwise it will have no effect.
+     *
+     * @since 2.8.0
+     */
+    void release();
+
+    /**
+     * Check whether the message has a broker publish time.
+     *
+     * @since 2.9.0
+     * @return true if the message has a broker publish time, otherwise false.
+     */
+    boolean hasBrokerPublishTime();
+
+    /**
+     * Get broker publish time from broker entry metadata.
+     * Note that only if the feature is enabled in the broker then the value is available.
+     *
+     * @since 2.9.0
+     * @return broker publish time from broker entry metadata, or empty if the feature is not enabled in the broker.
+     */
+    Optional<Long> getBrokerPublishTime();
+
+    /**
+     * Check whether the message has a index.
+     *
+     * @since 2.9.0
+     * @return true if the message has a index, otherwise false.
+     */
+    boolean hasIndex();
+
+    /**
+     * Get index from broker entry metadata.
+     * Note that only if the feature is enabled in the broker then the value is available.
+     *
+     * @since 2.9.0
+     * @return index from broker entry metadata, or empty if the feature is not enabled in the broker.
+     */
+    Optional<Long> getIndex();
 }

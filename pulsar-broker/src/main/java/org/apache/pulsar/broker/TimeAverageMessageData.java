@@ -49,7 +49,7 @@ public class TimeAverageMessageData {
 
     /**
      * Initialize this TimeAverageData to 0 values.
-     * 
+     *
      * @param maxSamples
      *            The maximum number of samples with which to maintain the average.
      */
@@ -59,7 +59,7 @@ public class TimeAverageMessageData {
 
     /**
      * Initialize this TimeAverageData using default stats.
-     * 
+     *
      * @param maxSamples
      *            The maximum number of samples with which to maintain the average.
      * @param defaultStats
@@ -75,7 +75,7 @@ public class TimeAverageMessageData {
 
     /**
      * Update using new samples for the message data.
-     * 
+     *
      * @param newMsgThroughputIn
      *            Most recently observed throughput in.
      * @param newMsgThroughputOut
@@ -86,7 +86,7 @@ public class TimeAverageMessageData {
      *            Most recently observed message rate out.
      */
     public void update(final double newMsgThroughputIn, final double newMsgThroughputOut, final double newMsgRateIn,
-            final double newMsgRateOut) {
+                       final double newMsgRateOut) {
         // If max samples has been reached, don't increase numSamples.
         numSamples = Math.min(numSamples + 1, maxSamples);
         msgThroughputIn = getUpdatedValue(msgThroughputIn, newMsgThroughputIn);
@@ -97,7 +97,7 @@ public class TimeAverageMessageData {
 
     /**
      * Update using a new bundle sample.
-     * 
+     *
      * @param newSample
      *            Most recently observed bundle stats.
      */
@@ -161,10 +161,10 @@ public class TimeAverageMessageData {
     public void setMsgRateOut(double msgRateOut) {
         this.msgRateOut = msgRateOut;
     }
-    
+
     /**
      * Get the total message rate.
-     * 
+     *
      * @return Message rate in + message rate out.
      */
     public double totalMsgRate() {
@@ -173,7 +173,7 @@ public class TimeAverageMessageData {
 
     /**
      * Get the total message throughput.
-     * 
+     *
      * @return Message throughput in + message throughput out.
      */
     public double totalMsgThroughput() {

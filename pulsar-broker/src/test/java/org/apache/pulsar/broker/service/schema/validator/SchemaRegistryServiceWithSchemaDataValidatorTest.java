@@ -43,6 +43,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link SchemaRegistryServiceWithSchemaDataValidator}.
  */
+@Test(groups = "broker")
 public class SchemaRegistryServiceWithSchemaDataValidatorTest {
 
     private SchemaRegistryService underlyingService;

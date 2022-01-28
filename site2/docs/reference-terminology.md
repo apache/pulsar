@@ -41,12 +41,12 @@ An administrative unit for allocating capacity and enforcing an authentication/a
 
 #### Subscription
 
-A lease on a [topic](#topic) established by a group of [consumers](#consumer). Pulsar has three subscription
-modes (exclusive, shared, and failover).
+A lease on a [topic](#topic) established by a group of [consumers](#consumer). Pulsar has four subscription
+modes (exclusive, shared, failover and key_shared).
 
 #### Pub-Sub
 
-A messaging pattern in which [producer](#producer) proccesses publish messages on [topics](#topic) that
+A messaging pattern in which [producer](#producer) processes publish messages on [topics](#topic) that
 are then consumed (processed) by [consumer](#consumer) processes.
 
 #### Producer
@@ -78,9 +78,10 @@ if no acknowledgement, then the message will be retained until it's processed.
 
 #### Negative Acknowledgment (nack)
 
-When an application fails to process a particular message, it can sends a "negative ack" to Pulsar
+When an application fails to process a particular message, it can send a "negative ack" to Pulsar
 to signal that the message should be replayed at a later timer. (By default, failed messages are
-replayed after a 1 minute delay)
+replayed after a 1 minute delay). Be aware that negative acknowledgment on ordered subscription types,
+such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
 
 #### Unacknowledged
 
@@ -88,7 +89,7 @@ A message that has been delivered to a consumer for processing but not yet confi
 
 #### Retention Policy
 
-Size and/or time limits that you can set on a [namespace](#namespace) to configure retention of [messages](#message)
+Size and time limits that you can set on a [namespace](#namespace) to configure retention of [messages](#message)
 that have already been [acknowledged](#acknowledgement-ack).
 
 #### Multi-Tenancy

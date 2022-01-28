@@ -22,6 +22,7 @@ import lombok.Cleanup;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-api")
 public class ConsumerAckListTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -40,39 +42,49 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
-    public void testBatchListAck() throws Exception {
-        ackListMessage(true,true);
-        ackListMessage(true,false);
-        ackListMessage(false,false);
-        ackListMessage(false,true);
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
-    public void ackListMessage(boolean isBatch, boolean isPartitioned) throws Exception {
+    @Test(timeOut = 30000, dataProvider = "ackReceiptEnabled")
+    public void testBatchListAck(boolean ackReceiptEnabled) throws Exception {
+        ackListMessage(true,true, ackReceiptEnabled);
+        ackListMessage(true,false, ackReceiptEnabled);
+        ackListMessage(false,false, ackReceiptEnabled);
+        ackListMessage(false,true, ackReceiptEnabled);
+    }
+
+    private void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackReceiptEnabled) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
         final String subName = "testBatchAck-sub" + UUID.randomUUID();
         final int messageNum = ThreadLocalRandom.current().nextInt(50, 100);
         if (isPartitioned) {
             admin.topics().createPartitionedTopic(topic, 3);
         }
+
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(isBatch)
                 .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
                 .topic(topic).create();
+
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionType(SubscriptionType.Shared)
                 .topic(topic)
                 .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
                 .subscriptionName(subName)
+                .enableBatchIndexAcknowledgment(ackReceiptEnabled)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscribe();
+
         sendMessagesAsyncAndWait(producer, messageNum);
         List<MessageId> messages = new ArrayList<>();
         for (int i = 0; i < messageNum; i++) {

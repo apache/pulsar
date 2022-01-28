@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api.interceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A wrapper for old style producer interceptor.
  */
+@InterfaceAudience.Private
+@InterfaceStability.Stable
 public class ProducerInterceptorWrapper implements ProducerInterceptor {
     private final org.apache.pulsar.client.api.ProducerInterceptor<?> innerInterceptor;
 
@@ -52,5 +56,10 @@ public class ProducerInterceptorWrapper implements ProducerInterceptor {
     public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
                                       Throwable exception) {
         innerInterceptor.onSendAcknowledgement(producer, message, msgId, exception);
+    }
+
+    @Override
+    public void onPartitionsChange(String topicName, int partitions) {
+        innerInterceptor.onPartitionsChange(topicName, partitions);
     }
 }

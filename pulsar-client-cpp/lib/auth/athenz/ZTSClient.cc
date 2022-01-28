@@ -38,12 +38,29 @@
 #include <boost/property_tree/ptree.hpp>
 namespace ptree = boost::property_tree;
 
-#include <boost/regex.hpp>
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#endif
+
 #include <boost/xpressive/xpressive.hpp>
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 
 #include <mutex>
+
+#ifdef PULSAR_USE_BOOST_REGEX
+#include <boost/regex.hpp>
+#define PULSAR_REGEX_NAMESPACE boost
+#else
+#include <regex>
+#define PULSAR_REGEX_NAMESPACE std
+#endif
 
 DECLARE_LOG_OBJECT()
 
@@ -360,14 +377,14 @@ const std::string ZTSClient::getHeader() const { return roleHeader_; }
 PrivateKeyUri ZTSClient::parseUri(const char *uri) {
     PrivateKeyUri uriSt;
     // scheme mediatype[;base64] path file
-    static const boost::regex expression(
-        "^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
-    boost::cmatch groups;
-    if (boost::regex_match(uri, groups, expression)) {
+    static const PULSAR_REGEX_NAMESPACE::regex expression(
+        R"(^(?:([A-Za-z]+):)(?:([/\w\-]+;\w+),([=\w]+))?(?:\/\/)?([^?#]+)?)");
+    PULSAR_REGEX_NAMESPACE::cmatch groups;
+    if (PULSAR_REGEX_NAMESPACE::regex_match(uri, groups, expression)) {
         uriSt.scheme = groups.str(1);
         uriSt.mediaTypeAndEncodingType = groups.str(2);
-        uriSt.data = groups.str(4);
-        uriSt.path = groups.str(3) + groups.str(4);
+        uriSt.data = groups.str(3);
+        uriSt.path = groups.str(4);
     }
     return uriSt;
 }

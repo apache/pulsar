@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import io.prometheus.client.Summary;
-
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
@@ -28,15 +27,13 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
 
 @Slf4j
 public class ReplicatedSubscriptionsSnapshotBuilder {
@@ -44,7 +41,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     private final String snapshotId;
     private final ReplicatedSubscriptionsController controller;
 
-    private final Map<String, MessageIdData> responses = new TreeMap<>();
+    private final Map<String, MarkersMessageIdData> responses = new TreeMap<>();
     private final List<String> remoteClusters;
     private final Set<String> missingClusters;
 
@@ -56,7 +53,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final Clock clock;
 
-    private final static Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
+    private static final Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
             "Time taken to create a consistent snapshot across clusters").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
@@ -93,7 +90,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
                     response.getCluster().getCluster());
         }
         String cluster = response.getCluster().getCluster();
-        responses.putIfAbsent(cluster, response.getCluster().getMessageId());
+        responses.putIfAbsent(cluster, new MarkersMessageIdData().copyFrom(response.getCluster().getMessageId()));
         missingClusters.remove(cluster);
 
         if (log.isDebugEnabled()) {
@@ -133,5 +130,9 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     boolean isTimedOut() {
         return (startTimeMillis + timeoutMillis) < clock.millis();
+    }
+
+    long getStartTimeMillis() {
+        return startTimeMillis;
     }
 }

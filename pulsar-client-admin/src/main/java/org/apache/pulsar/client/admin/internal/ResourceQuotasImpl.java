@@ -19,15 +19,10 @@
 package org.apache.pulsar.client.admin.internal;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.api.Authentication;
@@ -47,16 +42,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     @Override
     public ResourceQuota getDefaultResourceQuota() throws PulsarAdminException {
-        try {
-            return getDefaultResourceQuotaAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDefaultResourceQuotaAsync());
     }
 
     @Override
@@ -79,16 +65,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     @Override
     public void setDefaultResourceQuota(ResourceQuota quota) throws PulsarAdminException {
-        try {
-            setDefaultResourceQuotaAsync(quota).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDefaultResourceQuotaAsync(quota));
     }
 
     @Override
@@ -98,17 +75,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     @Override
     public ResourceQuota getNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
-        try {
-            return getNamespaceBundleResourceQuotaAsync(namespace, bundle)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getNamespaceBundleResourceQuotaAsync(namespace, bundle));
     }
 
     @Override
@@ -134,17 +101,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     @Override
     public void setNamespaceBundleResourceQuota(String namespace, String bundle, ResourceQuota quota)
             throws PulsarAdminException {
-        try {
-            setNamespaceBundleResourceQuotaAsync(namespace, bundle, quota)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setNamespaceBundleResourceQuotaAsync(namespace, bundle, quota));
     }
 
     @Override
@@ -157,17 +114,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     @Override
     public void resetNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
-        try {
-            resetNamespaceBundleResourceQuotaAsync(namespace, bundle)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> resetNamespaceBundleResourceQuotaAsync(namespace, bundle));
     }
 
     @Override

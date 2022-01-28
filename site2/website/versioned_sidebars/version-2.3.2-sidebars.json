@@ -1,6 +1,6 @@
 {
   "version-2.3.2-docs": {
-    "Getting started": [
+    "Getting Started": [
       "version-2.3.2-pulsar-2.0",
       "version-2.3.2-standalone",
       "version-2.3.2-standalone-docker",
@@ -70,7 +70,7 @@
       "version-2.3.2-security-encryption",
       "version-2.3.2-security-extending"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.3.2-client-libraries-java",
       "version-2.3.2-client-libraries-go",
       "version-2.3.2-client-libraries-python",

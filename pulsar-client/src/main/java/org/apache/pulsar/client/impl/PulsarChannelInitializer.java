@@ -18,19 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import java.security.cert.X509Certificate;
+import java.net.InetSocketAddress;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
 import lombok.Getter;
-import lombok.Setter;
-
-import org.apache.commons.lang3.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ObjectCache;
@@ -48,13 +49,12 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     @Getter
     private final boolean tlsEnabled;
     private final boolean tlsEnabledWithKeyStore;
+    private final InetSocketAddress socks5ProxyAddress;
+    private final String socks5ProxyUsername;
+    private final String socks5ProxyPassword;
 
     private final Supplier<SslContext> sslContextSupplier;
     private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
-    @Setter
-    private String sniHostName;
-    @Setter
-    private int sniHostPort;
 
     private static final long TLS_CERTIFICATE_CACHE_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
@@ -63,6 +63,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         super();
         this.clientCnxSupplier = clientCnxSupplier;
         this.tlsEnabled = conf.isUseTls();
+        this.socks5ProxyAddress = conf.getSocks5ProxyAddress();
+        this.socks5ProxyUsername = conf.getSocks5ProxyUsername();
+        this.socks5ProxyPassword = conf.getSocks5ProxyPassword();
+
         this.tlsEnabledWithKeyStore = conf.isUseKeyStoreTls();
 
         if (tlsEnabled) {
@@ -86,9 +90,13 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                     // Set client certificate if available
                     AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
                     if (authData.hasDataForTls()) {
-                        return SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
+                        return authData.getTlsTrustStoreStream() == null
+                                ? SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                        conf.getTlsTrustCertsFilePath(),
+                                        authData.getTlsCertificates(), authData.getTlsPrivateKey())
+                                : SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                        authData.getTlsTrustStoreStream(),
+                                        authData.getTlsCertificates(), authData.getTlsPrivateKey());
                     } else {
                         return SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath());
@@ -104,26 +112,66 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     @Override
     public void initChannel(SocketChannel ch) throws Exception {
-        if (tlsEnabled) {
-            if (tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER,
-                        new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
-			} else {
-				SslHandler handler = StringUtils.isNotBlank(sniHostName)
-						? sslContextSupplier.get().newHandler(ch.alloc(), sniHostName, sniHostPort)
-						: sslContextSupplier.get().newHandler(ch.alloc());
-				ch.pipeline().addLast(TLS_HANDLER, handler);
-			}
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
-        } else {
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
-        }
 
-        ch.pipeline()
-                .addLast("frameDecoder",
-                        new LengthFieldBasedFrameDecoder(
-                                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING,
-                                0, 4, 0, 4));
+        // Setup channel except for the SsHandler for TLS enabled connections
+
+        ch.pipeline().addLast("ByteBufPairEncoder", tlsEnabled ? ByteBufPair.COPYING_ENCODER : ByteBufPair.ENCODER);
+
+        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
+                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", clientCnxSupplier.get());
     }
+
+   /**
+     * Initialize TLS for a channel. Should be invoked before the channel is connected to the remote address.
+     *
+     * @param ch      the channel
+     * @param sniHost the value of this argument will be passed as peer host and port when creating the SSLEngine (which
+     *                in turn will use these values to set SNI header when doing the TLS handshake). Cannot be
+     *                <code>null</code>.
+     * @return a {@link CompletableFuture} that completes when the TLS is set up.
+     */
+    CompletableFuture<Channel> initTls(Channel ch, InetSocketAddress sniHost) {
+        Objects.requireNonNull(ch, "A channel is required");
+        Objects.requireNonNull(sniHost, "A sniHost is required");
+        if (!tlsEnabled) {
+            throw new IllegalStateException("TLS is not enabled in client configuration");
+        }
+        CompletableFuture<Channel> initTlsFuture = new CompletableFuture<>();
+        ch.eventLoop().execute(() -> {
+            try {
+                SslHandler handler = tlsEnabledWithKeyStore
+                        ? new SslHandler(nettySSLContextAutoRefreshBuilder.get()
+                                .createSSLEngine(sniHost.getHostString(), sniHost.getPort()))
+                        : sslContextSupplier.get().newHandler(ch.alloc(), sniHost.getHostString(), sniHost.getPort());
+                ch.pipeline().addFirst(TLS_HANDLER, handler);
+                initTlsFuture.complete(ch);
+            } catch (Throwable t) {
+                initTlsFuture.completeExceptionally(t);
+            }
+        });
+
+        return initTlsFuture;
+    }
+
+    CompletableFuture<Channel> initSocks5IfConfig(Channel ch) {
+        CompletableFuture<Channel> initSocks5Future = new CompletableFuture<>();
+        if (socks5ProxyAddress != null) {
+            ch.eventLoop().execute(() -> {
+                try {
+                    Socks5ProxyHandler socks5ProxyHandler =
+                            new Socks5ProxyHandler(socks5ProxyAddress, socks5ProxyUsername, socks5ProxyPassword);
+                    ch.pipeline().addFirst(socks5ProxyHandler.protocol(), socks5ProxyHandler);
+                    initSocks5Future.complete(ch);
+                } catch (Throwable t) {
+                    initSocks5Future.completeExceptionally(t);
+                }
+            });
+        } else {
+            initSocks5Future.complete(ch);
+        }
+
+        return initSocks5Future;
+    }
 }
+

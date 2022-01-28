@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import junit.framework.Assert;
+import java.io.File;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
-import java.io.File;
-
-public class TestEnvVarResolverProperties {
+public final class TestEnvVarResolverProperties {
     private static final File TESTFILE = new File(
             TestEnvVarResolverProperties.class.getClassLoader()
                     .getResource("flume-conf-with-envvars.properties").getFile());
@@ -36,19 +35,19 @@ public class TestEnvVarResolverProperties {
     private PropertiesFileConfigurationProvider provider;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = new PropertiesFileConfigurationProvider("a1", TESTFILE);
     }
 
     @Test
-    public void resolveEnvVar() throws Exception {
+    public void resolveEnvVar() {
         environmentVariables.set("VARNAME", "varvalue");
         String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
         Assert.assertEquals("padding varvalue padding", resolved);
     }
 
     @Test
-    public void resolveEnvVars() throws Exception {
+    public void resolveEnvVars() {
         environmentVariables.set("VARNAME1", "varvalue1");
         environmentVariables.set("VARNAME2", "varvalue2");
         String resolved = EnvVarResolverProperties
@@ -57,7 +56,7 @@ public class TestEnvVarResolverProperties {
     }
 
     @Test
-    public void getProperty() throws Exception {
+    public void getProperty() {
         String NC_PORT = "6667";
         environmentVariables.set("NC_PORT", NC_PORT);
         System.setProperty("propertiesImplementation",

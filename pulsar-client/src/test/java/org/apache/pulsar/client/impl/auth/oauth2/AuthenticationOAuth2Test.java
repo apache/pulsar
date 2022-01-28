@@ -26,12 +26,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -81,6 +86,19 @@ public class AuthenticationOAuth2Test {
         params.put("privateKey", "data:base64,e30=");
         params.put("issuerUrl", "http://localhost");
         params.put("audience", "http://localhost");
+        params.put("scope", "http://localhost");
+        ObjectMapper mapper = new ObjectMapper();
+        String authParams = mapper.writeValueAsString(params);
+        this.auth.configure(authParams);
+        assertNotNull(this.auth.flow);
+    }
+
+    @Test
+    public void testConfigureWithoutOptionalParams() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put("type", "client_credentials");
+        params.put("privateKey", "data:base64,e30=");
+        params.put("issuerUrl", "http://localhost");
         ObjectMapper mapper = new ObjectMapper();
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
@@ -112,6 +130,12 @@ public class AuthenticationOAuth2Test {
         data = this.auth.getAuthData();
         verify(this.flow, times(2)).authenticate();
         assertEquals(data.getCommandData(), tr.getAccessToken());
+    }
+
+    @Test
+    public void testMetadataResolver() throws MalformedURLException {
+        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(URI.create("http://localhost/path/oauth").toURL());
+        assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", url.toString());
     }
 
     @Test

@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.websocket.data;
 
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import java.util.Map;
+import org.apache.pulsar.common.api.EncryptionContext;
 
 @JsonInclude(Include.NON_NULL)
 public class ConsumerMessage {
@@ -29,7 +29,10 @@ public class ConsumerMessage {
     public String payload;
     public Map<String, String> properties;
     public String publishTime;
+    public int redeliveryCount;
     public String eventTime;
+
+    public EncryptionContext encryptionContext;
 
     public String key;
 }

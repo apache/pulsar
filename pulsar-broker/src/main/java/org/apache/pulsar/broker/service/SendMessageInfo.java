@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.util.concurrent.FastThreadLocal;
-
 import lombok.Data;
 
 @Data

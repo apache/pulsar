@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.io.influxdb;
 
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertTrue;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.influxdb.v2.InfluxDBSink;
 import org.influxdb.InfluxDBIOException;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 
 public class InfluxDBGenericRecordSinkTest {

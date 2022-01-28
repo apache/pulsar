@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-sql</artifactId>
-        <version>2.7.0-SNAPSHOT</version>
+        <version>2.10.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-presto-connector-original</artifactId>
@@ -95,6 +95,53 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
+          <version>${joda.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-record-decoder</artifactId>
+            <version>${presto.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-main</artifactId>
+            <version>${presto.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-testing</artifactId>
+            <version>${presto.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-broker</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>testmocks</artifactId>
+          <version>${project.version}</version>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>jetty-http</artifactId>
+          <version>${jetty.version}</version>
+          <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -104,7 +151,7 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <phase>${shadePluginPhase}</phase>
                         <goals>
                             <goal>shade</goal>
                         </goals>
@@ -134,6 +181,10 @@
                                     <includes>
                                         <include>**</include>
                                     </includes>
+                                    <excludes>
+                                        <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                                        <exclude>org/bouncycastle/**</exclude>
+                                    </excludes>
                                 </filter>
                             </filters>
                             <relocations>
@@ -170,4 +221,25 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <!-- enables builds with -Dmaven.test.skip=true -->
+            <id>test-jar-dependencies</id>
+            <activation>
+                <property>
+                    <name>maven.test.skip</name>
+                    <value>!true</value>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>pulsar-broker</artifactId>
+                    <version>${project.version}</version>
+                    <type>test-jar</type>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

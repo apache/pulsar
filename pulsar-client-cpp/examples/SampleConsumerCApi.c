@@ -43,7 +43,7 @@ int main() {
         }
 
         printf("Received message with payload: '%.*s'\n", pulsar_message_get_length(message),
-               pulsar_message_get_data(message));
+               (const char*)pulsar_message_get_data(message));
 
         pulsar_consumer_acknowledge(consumer, message);
         pulsar_message_free(message);

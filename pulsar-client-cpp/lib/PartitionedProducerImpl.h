@@ -46,37 +46,28 @@ class PartitionedProducerImpl : public ProducerImplBase,
                             const ProducerConfiguration& config);
     virtual ~PartitionedProducerImpl();
 
-    virtual void sendAsync(const Message& msg, SendCallback callback);
-
+    // overrided methods from ProducerImplBase
+    const std::string& getProducerName() const override;
+    int64_t getLastSequenceId() const override;
+    const std::string& getSchemaVersion() const override;
+    void sendAsync(const Message& msg, SendCallback callback) override;
     /*
      * closes all active producers, it can be called explicitly from client as well as createProducer
      * when it fails to create one of the producers and we want to fail createProducer
      */
-    virtual void closeAsync(CloseCallback closeCallback);
-
-    virtual const std::string& getProducerName() const;
-
-    virtual int64_t getLastSequenceId() const;
-
-    virtual const std::string& getSchemaVersion() const;
-
-    virtual void start();
-
-    virtual void shutdown();
-
-    virtual bool isClosed();
-
-    virtual const std::string& getTopic() const;
-
-    virtual Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture();
-
-    virtual void triggerFlush();
-
-    virtual void flushAsync(FlushCallback callback);
-
+    void closeAsync(CloseCallback callback) override;
+    void start() override;
+    void shutdown() override;
+    bool isClosed() override;
+    const std::string& getTopic() const override;
+    Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture() override;
+    void triggerFlush() override;
+    void flushAsync(FlushCallback callback) override;
+    bool isConnected() const override;
+    uint64_t getNumberOfConnectedProducer() override;
     void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
-
+    void createLazyPartitionProducer(const unsigned int partitionIndex);
     void handleSinglePartitionProducerClose(Result result, const unsigned int partitionIndex,
                                             CloseCallback callback);
 
@@ -92,40 +83,31 @@ class PartitionedProducerImpl : public ProducerImplBase,
     const TopicNamePtr topicName_;
     const std::string topic_;
 
-    std::unique_ptr<TopicMetadata> topicMetadata_;
-
-    unsigned int numProducersCreated_;
+    unsigned int numProducersCreated_ = 0;
 
     /*
      * set when one or more Single Partition Creation fails, close will cleanup and fail the create callbackxo
      */
-    bool cleanup_;
+    bool cleanup_ = false;
 
     ProducerConfiguration conf_;
 
     typedef std::vector<ProducerImplPtr> ProducerList;
-
     ProducerList producers_;
 
     // producersMutex_ is used to share producers_ and topicMetadata_
     mutable std::mutex producersMutex_;
-
-    unsigned int getNumPartitions() const;
-    unsigned int getNumPartitionsWithLock() const;
-
-    ProducerImplPtr newInternalProducer(unsigned int partition) const;
-
     MessageRoutingPolicyPtr routerPolicy_;
 
     // mutex_ is used to share state_, and numProducersCreated_
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 
-    PartitionedProducerState state_;
+    PartitionedProducerState state_ = Pending;
 
     // only set this promise to value, when producers on all partitions are created.
     Promise<Result, ProducerImplBaseWeakPtr> partitionedProducerCreatedPromise_;
 
-    MessageRoutingPolicyPtr getMessageRouter();
+    std::unique_ptr<TopicMetadata> topicMetadata_;
 
     std::atomic<int> flushedPartitions_;
     std::shared_ptr<Promise<Result, bool_type>> flushPromise_;
@@ -135,9 +117,14 @@ class PartitionedProducerImpl : public ProducerImplBase,
     boost::posix_time::time_duration partitionsUpdateInterval_;
     LookupServicePtr lookupServicePtr_;
 
+    unsigned int getNumPartitions() const;
+    unsigned int getNumPartitionsWithLock() const;
+    ProducerImplPtr newInternalProducer(unsigned int partition, bool lazy);
+    MessageRoutingPolicyPtr getMessageRouter();
     void runPartitionUpdateTask();
     void getPartitionMetadata();
     void handleGetPartitions(const Result result, const LookupDataResultPtr& partitionMetadata);
+    bool assertState(const PartitionedProducerState state);
 };
 
 }  // namespace pulsar

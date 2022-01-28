@@ -22,5 +22,6 @@
    "indexName": "myIndex",
    "typeName": "doc",
    "username": "scooby",
-   "password": "doobie"
+   "password": "doobie",
+   "primaryFields": "id,a"
 }

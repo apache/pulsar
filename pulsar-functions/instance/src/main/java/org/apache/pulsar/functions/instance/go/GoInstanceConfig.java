@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.instance.go;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.functions.proto.Function;
 
 @Setter
 @Getter
@@ -41,6 +42,7 @@ public class GoInstanceConfig {
     private String logTopic = "";
     private int processingGuarantees;
     private String secretsMap = "";
+    private String userConfig = "";
     private int runtime;
     private boolean autoAck;
     private int parallelism;
@@ -49,6 +51,7 @@ public class GoInstanceConfig {
     private long timeoutMs;
     private String subscriptionName = "";
     private boolean cleanupSubscription;
+    private int subscriptionPosition = Function.SubscriptionPosition.LATEST.getNumber();
 
     private String sourceSpecsTopic = "";
     private String sourceSchemaType = "";
@@ -64,4 +67,6 @@ public class GoInstanceConfig {
 
     private int maxMessageRetries;
     private String deadLetterTopic = "";
+
+    private int metricsPort;
 }

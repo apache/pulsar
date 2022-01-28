@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -40,6 +41,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Override
@@ -50,7 +52,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -103,7 +105,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             throws Exception {
         log.info("Test negative acks batching={} partitions={} subType={} negAckDelayMs={}", batching, usePartitions,
                 subscriptionType, negAcksDelayMillis);
-        String topic = "testNegativeAcks-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -112,6 +114,107 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(subscriptionType)
                 .negativeAckRedeliveryDelay(negAcksDelayMillis, TimeUnit.MILLISECONDS)
+                .ackTimeout(ackTimeout, TimeUnit.MILLISECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(batching)
+                .create();
+
+        Set<String> sentMessages = new HashSet<>();
+
+        final int N = 10;
+        for (int i = 0; i < N; i++) {
+            String value = "test-" + i;
+            producer.sendAsync(value);
+            sentMessages.add(value);
+        }
+        producer.flush();
+
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            consumer.negativeAcknowledge(msg);
+        }
+
+        Set<String> receivedMessages = new HashSet<>();
+
+        // All the messages should be received again
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            receivedMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+
+        assertEquals(receivedMessages, sentMessages);
+
+        // There should be no more messages
+        assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+        consumer.close();
+        producer.close();
+    }
+
+    @DataProvider(name = "variationsBackoff")
+    public static Object[][] variationsBackoff() {
+        return new Object[][] {
+                // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms / ack-timeout
+                { false, false, SubscriptionType.Shared, 100, 1000, 0 },
+                { false, false, SubscriptionType.Failover, 100, 1000, 0 },
+                { false, true, SubscriptionType.Shared, 100, 1000, 0 },
+                { false, true, SubscriptionType.Failover, 100, 1000, 0 },
+                { true, false, SubscriptionType.Shared, 100, 1000, 0 },
+                { true, false, SubscriptionType.Failover, 100, 1000, 0 },
+                { true, true, SubscriptionType.Shared, 100, 1000, 0 },
+                { true, true, SubscriptionType.Failover, 100, 1000, 0 },
+
+                { false, false, SubscriptionType.Shared, 0, 1000, 0 },
+                { false, false, SubscriptionType.Failover, 0, 1000, 0 },
+                { false, true, SubscriptionType.Shared, 0, 1000, 0 },
+                { false, true, SubscriptionType.Failover, 0, 1000, 0 },
+                { true, false, SubscriptionType.Shared, 0, 1000, 0 },
+                { true, false, SubscriptionType.Failover, 0, 1000, 0 },
+                { true, true, SubscriptionType.Shared, 0, 1000, 0 },
+                { true, true, SubscriptionType.Failover, 0, 1000, 0 },
+
+                { false, false, SubscriptionType.Shared, 100, 1000, 1000 },
+                { false, false, SubscriptionType.Failover, 100, 1000, 1000 },
+                { false, true, SubscriptionType.Shared, 100, 1000, 1000 },
+                { false, true, SubscriptionType.Failover, 100, 1000, 1000 },
+                { true, false, SubscriptionType.Shared, 100, 1000, 1000 },
+                { true, false, SubscriptionType.Failover, 100, 1000, 1000 },
+                { true, true, SubscriptionType.Shared, 100, 1000, 1000 },
+                { true, true, SubscriptionType.Failover, 100, 1000, 1000 },
+
+                { false, false, SubscriptionType.Shared, 0, 1000, 1000 },
+                { false, false, SubscriptionType.Failover, 0, 1000, 1000 },
+                { false, true, SubscriptionType.Shared, 0, 1000, 1000 },
+                { false, true, SubscriptionType.Failover, 0, 1000, 1000 },
+                { true, false, SubscriptionType.Shared, 0, 1000, 1000 },
+                { true, false, SubscriptionType.Failover, 0, 1000, 1000 },
+                { true, true, SubscriptionType.Shared, 0, 1000, 1000 },
+                { true, true, SubscriptionType.Failover, 0, 1000, 1000 },
+        };
+    }
+
+    @Test(dataProvider = "variationsBackoff")
+    public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
+            int minNackTimeMs, int maxNackTimeMs, int ackTimeout)
+            throws Exception {
+        log.info("Test negative acks with back off batching={} partitions={} subType={} minNackTimeMs={}, "
+                        + "maxNackTimeMs={}", batching, usePartitions, subscriptionType, minNackTimeMs, maxNackTimeMs);
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBackoff");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(subscriptionType)
+                .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                        .minDelayMs(minNackTimeMs)
+                        .maxDelayMs(maxNackTimeMs)
+                        .build())
                 .ackTimeout(ackTimeout, TimeUnit.MILLISECONDS)
                 .subscribe();
 

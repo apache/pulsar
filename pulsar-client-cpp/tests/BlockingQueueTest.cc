@@ -19,6 +19,8 @@
 #include <gtest/gtest.h>
 #include <lib/BlockingQueue.h>
 
+#include <future>
+#include <iostream>
 #include <thread>
 
 class ProducerWorker {
@@ -214,4 +216,41 @@ TEST(BlockingQueueTest, testReservedSpot) {
         ASSERT_TRUE(queue.full());
         ASSERT_EQ(0, queue.size());
     }
+}
+
+TEST(BlockingQueueTest, testPushPopRace) {
+    auto test_logic = []() {
+        size_t size = 5;
+        BlockingQueue<int> queue(size);
+
+        std::vector<std::unique_ptr<ProducerWorker>> producers;
+        for (int i = 0; i < 5; ++i) {
+            producers.emplace_back(new ProducerWorker{queue});
+            producers.back()->produce(1000);
+        }
+
+        // wait for queue full
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        std::vector<std::unique_ptr<ConsumerWorker>> consumers;
+        for (int i = 0; i < 5; ++i) {
+            consumers.emplace_back(new ConsumerWorker{queue});
+            consumers.back()->consume(1000);
+        }
+
+        auto future = std::async(std::launch::async, [&]() {
+            for (auto& p : producers) p->join();
+            for (auto& c : consumers) c->join();
+        });
+        auto ret = future.wait_for(std::chrono::seconds(5));
+        if (ret == std::future_status::ready) {
+            std::cerr << "Exiting";
+            exit(0);
+        } else {
+            std::cerr << "Threads are not exited in time";
+            exit(1);
+        }
+    };
+
+    ASSERT_EXIT(test_logic(), ::testing::ExitedWithCode(0), "Exiting");
 }

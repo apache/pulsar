@@ -18,18 +18,28 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SinkSpecOrBuilder;
+import org.apache.pulsar.functions.proto.Function.SourceSpecOrBuilder;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
+import java.util.Map;
+
+import static org.mockito.Mockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 public class JavaInstanceRunnableTest {
 
@@ -58,8 +68,10 @@ public class JavaInstanceRunnableTest {
 
     private JavaInstanceRunnable createRunnable(String outputSerde) throws Exception {
         InstanceConfig config = createInstanceConfig(outputSerde);
+        ClientBuilder clientBuilder = mock(ClientBuilder.class);
+        when(clientBuilder.build()).thenReturn(null);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, null, null, null, null, null, null, null);
+                config, clientBuilder, null, null, null,null, null, null, null);
         return javaInstanceRunnable;
     }
 
@@ -116,5 +128,25 @@ public class JavaInstanceRunnableTest {
         Assert.assertEquals(javaInstanceRunnable.getFunctionStatus().build(), InstanceCommunication.FunctionStatus.newBuilder().build());
 
         Assert.assertEquals(javaInstanceRunnable.getMetrics(), InstanceCommunication.MetricsData.newBuilder().build());
+    }
+
+    @Test
+    public void testSinkConfigParsingPreservesOriginalType() throws Exception {
+        SinkSpecOrBuilder sinkSpec = mock(SinkSpecOrBuilder.class);
+        Mockito.when(sinkSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
+        Map<String, Object> parsedConfig =
+                new ObjectMapper().readValue(sinkSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
+        Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
+        Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
+    }
+
+    @Test
+    public void testSourceConfigParsingPreservesOriginalType() throws Exception {
+        SourceSpecOrBuilder sourceSpec = mock(SourceSpecOrBuilder.class);
+        Mockito.when(sourceSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
+        Map<String, Object> parsedConfig =
+                new ObjectMapper().readValue(sourceSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
+        Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
+        Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }
 }

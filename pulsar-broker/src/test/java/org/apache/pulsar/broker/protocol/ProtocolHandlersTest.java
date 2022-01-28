@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link ProtocolHandlers}.
  */
+@Test(groups = "broker")
 public class ProtocolHandlersTest {
 
     private static final String protocol1 = "protocol1";
@@ -72,7 +73,7 @@ public class ProtocolHandlersTest {
         this.handlers = new ProtocolHandlers(this.handlerMap);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         this.handlers.close();
 

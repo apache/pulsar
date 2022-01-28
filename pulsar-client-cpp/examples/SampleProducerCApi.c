@@ -24,6 +24,7 @@
 
 int main() {
     pulsar_client_configuration_t *conf = pulsar_client_configuration_create();
+    pulsar_client_configuration_set_memory_limit(conf, 64 * 1024 * 1024);
     pulsar_client_t *client = pulsar_client_create("pulsar://localhost:6650", conf);
 
     pulsar_producer_configuration_t* producer_conf = pulsar_producer_configuration_create();

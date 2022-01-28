@@ -31,7 +31,9 @@ Deploying a Pulsar cluster involves doing the following (in order):
 
 ### Requirements
 
-> If you already have an existing zookeeper cluster and would like to reuse it, you don't need to prepare the machines
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+
+> If you already have an existing ZooKeeper cluster and would like to reuse it, you don't need to prepare the machines
 > for running ZooKeeper.
 
 To run Pulsar on bare metal, you are recommended to have:
@@ -174,7 +176,7 @@ For more details of how to configure tiered storage feature, you could reference
 
 ## Deploying a ZooKeeper cluster
 
-> If you already have an exsiting zookeeper cluster and would like to use it, you can skip this section.
+> If you already have an existing zookeeper cluster and would like to use it, you can skip this section.
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster you'll need to deploy ZooKeeper first (before all other components). We recommend deploying a 3-node ZooKeeper cluster. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
 
@@ -256,15 +258,6 @@ zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.
 ```
 
 Once you've appropriately modified the `zkServers` parameter, you can provide any other configuration modifications you need. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper), although we would recommend consulting the [BookKeeper documentation](http://bookkeeper.apache.org/docs/latest/reference/config/) for a more in-depth guide.
-
-> ##### NOTES
->
-> Since Pulsar 2.1.0 release, Pulsar introduces [stateful function](functions-state.md) for Pulsar Functions. If you would like to enable that feature,
-> you need to enable table service on BookKeeper by setting following setting in `conf/bookkeeper.conf` file.
->
-> ```conf
-> extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-> ```
 
 Once you've applied the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
@@ -373,11 +366,11 @@ You can start a broker in the background using the [`pulsar-daemon`](reference-c
 $ bin/pulsar-daemon start broker
 ```
 
-Once you've succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!
+Once you've successfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!
 
 ## Connecting to the running cluster
 
-Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is runnning properly.
+Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is running properly.
 
 To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](reference-configuration.md#client) in your binary package. You'll need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:
 

@@ -20,14 +20,17 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
  * for all the supported authentication methods.
  */
+@InterfaceAudience.LimitedPrivate
+@InterfaceStability.Stable
 public final class AuthenticationFactory {
 
     /**
@@ -38,7 +41,7 @@ public final class AuthenticationFactory {
      * @return the Authentication object initialized with the token credentials
      */
     public static Authentication token(String token) {
-        return DefaultImplementation.newAuthenticationToken(token);
+        return DefaultImplementation.getDefaultImplementation().newAuthenticationToken(token);
     }
 
     /**
@@ -49,7 +52,7 @@ public final class AuthenticationFactory {
      * @return the Authentication object initialized with the token credentials
      */
     public static Authentication token(Supplier<String> tokenSupplier) {
-        return DefaultImplementation.newAuthenticationToken(tokenSupplier);
+        return DefaultImplementation.getDefaultImplementation().newAuthenticationToken(tokenSupplier);
     }
 
     // CHECKSTYLE.OFF: MethodName
@@ -64,7 +67,7 @@ public final class AuthenticationFactory {
      * @return the Authentication object initialized with the TLS credentials
      */
     public static Authentication TLS(String certFilePath, String keyFilePath) {
-        return DefaultImplementation.newAuthenticationTLS(certFilePath, keyFilePath);
+        return DefaultImplementation.getDefaultImplementation().newAuthenticationTLS(certFilePath, keyFilePath);
     }
 
     // CHECKSTYLE.ON: MethodName
@@ -83,7 +86,8 @@ public final class AuthenticationFactory {
     public static Authentication create(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         try {
-            return DefaultImplementation.createAuthentication(authPluginClassName, authParamsString);
+            return DefaultImplementation.getDefaultImplementation()
+                    .createAuthentication(authPluginClassName, authParamsString);
         } catch (Throwable t) {
             throw new UnsupportedAuthenticationException(t);
         }
@@ -100,7 +104,8 @@ public final class AuthenticationFactory {
     public static Authentication create(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
         try {
-            return DefaultImplementation.createAuthentication(authPluginClassName, authParams);
+            return DefaultImplementation.getDefaultImplementation()
+                    .createAuthentication(authPluginClassName, authParams);
         } catch (Throwable t) {
             throw new UnsupportedAuthenticationException(t);
         }

@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.topologies;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
 
 import com.google.common.collect.Lists;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
@@ -60,6 +62,7 @@ public class PulsarCluster {
     public static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
     public static final String CLIENT_SCRIPT = "/pulsar/bin/pulsar-client";
     public static final String PULSAR_COMMAND_SCRIPT = "/pulsar/bin/pulsar";
+    public static final String CURL = "/usr/bin/curl";
 
     /**
      * Pulsar Cluster Spec
@@ -68,9 +71,17 @@ public class PulsarCluster {
      * @return the built pulsar cluster
      */
     public static PulsarCluster forSpec(PulsarClusterSpec spec) {
-        return new PulsarCluster(spec);
+        CSContainer csContainer = new CSContainer(spec.clusterName)
+                .withNetwork(Network.newNetwork())
+                .withNetworkAliases(CSContainer.NAME);
+        return new PulsarCluster(spec, csContainer, false);
     }
 
+    public static PulsarCluster forSpec(PulsarClusterSpec spec, CSContainer csContainer) {
+        return new PulsarCluster(spec, csContainer, true);
+    }
+
+    @Getter
     private final PulsarClusterSpec spec;
 
     @Getter
@@ -78,30 +89,29 @@ public class PulsarCluster {
     private final Network network;
     private final ZKContainer zkContainer;
     private final CSContainer csContainer;
+    private final boolean sharedCsContainer;
     private final Map<String, BKContainer> bookieContainers;
     private final Map<String, BrokerContainer> brokerContainers;
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
     private PrestoWorkerContainer prestoWorkerContainer;
+    @Getter
+    private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private final boolean enablePrestoWorker;
 
-    private PulsarCluster(PulsarClusterSpec spec) {
+    private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
         this.spec = spec;
+        this.sharedCsContainer = sharedCsContainer;
         this.clusterName = spec.clusterName();
-        this.network = Network.newNetwork();
+        this.network = csContainer.getNetwork();
         this.enablePrestoWorker = spec.enablePrestoWorker();
 
+        this.sqlFollowWorkerContainers = Maps.newTreeMap();
         if (enablePrestoWorker) {
-            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+            prestoWorkerContainer = buildPrestoWorkerContainer(
+                    PrestoWorkerContainer.NAME, true, null, null);
         } else {
             prestoWorkerContainer = null;
         }
@@ -110,59 +120,77 @@ public class PulsarCluster {
         this.zkContainer = new ZKContainer(clusterName);
         this.zkContainer
             .withNetwork(network)
-            .withNetworkAliases(ZKContainer.NAME)
+            .withNetworkAliases(appendClusterName(ZKContainer.NAME))
             .withEnv("clusterName", clusterName)
-            .withEnv("zkServers", ZKContainer.NAME)
+            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
             .withEnv("configurationStore", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("forceSync", "no")
-            .withEnv("pulsarNode", "pulsar-broker-0");
+            .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
 
-        this.csContainer = new CSContainer(clusterName)
-            .withNetwork(network)
-            .withNetworkAliases(CSContainer.NAME);
+        this.csContainer = csContainer;
 
         this.bookieContainers = Maps.newTreeMap();
         this.brokerContainers = Maps.newTreeMap();
         this.workerContainers = Maps.newTreeMap();
 
-        this.proxyContainer = new ProxyContainer(clusterName, ProxyContainer.NAME)
+        this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME)
             .withNetwork(network)
-            .withNetworkAliases("pulsar-proxy")
-            .withEnv("zkServers", ZKContainer.NAME)
-            .withEnv("zookeeperServers", ZKContainer.NAME)
+            .withNetworkAliases(appendClusterName("pulsar-proxy"))
+            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+            .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
+        if (spec.proxyEnvs != null) {
+            spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
+        }
+        if (spec.proxyMountFiles != null) {
+            spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
+        }
 
         // create bookies
         bookieContainers.putAll(
                 runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
                         .withNetwork(network)
-                        .withNetworkAliases(name)
-                        .withEnv("zkServers", ZKContainer.NAME)
+                        .withNetworkAliases(appendClusterName(name))
+                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("useHostNameAsBookieID", "true")
                         // Disable fsyncs for tests since they're slow within the containers
                         .withEnv("journalSyncData", "false")
                         .withEnv("journalMaxGroupWaitMSec", "0")
                         .withEnv("clusterName", clusterName)
                         .withEnv("diskUsageThreshold", "0.99")
+                        .withEnv("nettyMaxFrameSizeBytes", "" + spec.maxMessageSize)
                 )
         );
 
         // create brokers
         brokerContainers.putAll(
-                runNumContainers("broker", spec.numBrokers(), (name) -> new BrokerContainer(clusterName, name)
+            runNumContainers("broker", spec.numBrokers(), (name) -> {
+                    BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name))
                         .withNetwork(network)
-                        .withNetworkAliases(name)
-                        .withEnv("zkServers", ZKContainer.NAME)
-                        .withEnv("zookeeperServers", ZKContainer.NAME)
+                        .withNetworkAliases(appendClusterName(name))
+                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+                        .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
                         .withEnv("AWS_SECRET_KEY", "secretkey")
-                )
-        );
+                        .withEnv("maxMessageSize", "" + spec.maxMessageSize);
+                    if (spec.queryLastMessage) {
+                        brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
+                        brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
+                    }
+                    if (spec.brokerEnvs != null) {
+                        brokerContainer.withEnv(spec.brokerEnvs);
+                    }
+                    if (spec.brokerMountFiles != null) {
+                        spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
+                    }
+                    return brokerContainer;
+                }
+            ));
 
         spec.classPathVolumeMounts.forEach((key, value) -> {
             zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
@@ -200,6 +228,10 @@ public class PulsarCluster {
         return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
+    public String getCSConnString() {
+        return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
+    }
+
     public Network getNetwork() {
         return network;
     }
@@ -214,8 +246,10 @@ public class PulsarCluster {
         log.info("Successfully started local zookeeper container.");
 
         // start the configuration store
-        csContainer.start();
-        log.info("Successfully started configuration store container.");
+        if (!sharedCsContainer) {
+            csContainer.start();
+            log.info("Successfully started configuration store container.");
+        }
 
         // init the cluster
         zkContainer.execCmd(
@@ -250,6 +284,7 @@ public class PulsarCluster {
                 GenericContainer<?> serviceContainer = service.getValue();
                 serviceContainer.withNetwork(network);
                 serviceContainer.withNetworkAliases(service.getKey());
+                PulsarContainer.configureLeaveContainerRunning(serviceContainer);
                 serviceContainer.start();
                 log.info("Successfully start external service {}.", service.getKey());
             });
@@ -261,12 +296,17 @@ public class PulsarCluster {
         log.info("Starting external service {} ...", networkAlias);
         serviceContainer.withNetwork(network);
         serviceContainer.withNetworkAliases(networkAlias);
+        PulsarContainer.configureLeaveContainerRunning(serviceContainer);
         serviceContainer.start();
         log.info("Successfully start external service {}", networkAlias);
     }
 
-    public void stopService(String networkAlias,
-                            GenericContainer<?> serviceContainer) {
+    public static void stopService(String networkAlias,
+                                   GenericContainer<?> serviceContainer) {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
         log.info("Stopping external service {} ...", networkAlias);
         serviceContainer.stop();
         log.info("Successfully stop external service {}", networkAlias);
@@ -290,6 +330,10 @@ public class PulsarCluster {
     }
 
     public synchronized void stop() {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
 
         List<GenericContainer> containers = new ArrayList<>();
 
@@ -304,9 +348,11 @@ public class PulsarCluster {
         if (null != proxyContainer) {
             containers.add(proxyContainer);
         }
-        if (null != csContainer) {
+
+        if (!sharedCsContainer && null != csContainer) {
             containers.add(csContainer);
         }
+
         if (null != zkContainer) {
             containers.add(zkContainer);
         }
@@ -334,35 +380,81 @@ public class PulsarCluster {
     public void startPrestoWorker(String offloadDriver, String offloadProperties) {
         log.info("[startPrestoWorker] offloadDriver: {}, offloadProperties: {}", offloadDriver, offloadProperties);
         if (null == prestoWorkerContainer) {
-            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
-            if (offloadDriver != null && offloadProperties != null) {
-                log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
-                        offloadDriver, offloadProperties);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloader-properties", offloadProperties);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
-                // used in s3 tests
-                prestoWorkerContainer.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
-                prestoWorkerContainer.withEnv("AWS_SECRET_KEY", "secretkey");
-            }
+            prestoWorkerContainer = buildPrestoWorkerContainer(
+                    PrestoWorkerContainer.NAME, true, offloadDriver, offloadProperties);
         }
-        log.info("[startPrestoWorker] Starting Presto Worker");
         prestoWorkerContainer.start();
+        log.info("[{}] Presto coordinator start finished.", prestoWorkerContainer.getContainerName());
     }
 
     public void stopPrestoWorker() {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
+        if (sqlFollowWorkerContainers != null && sqlFollowWorkerContainers.size() > 0) {
+            for (PrestoWorkerContainer followWorker : sqlFollowWorkerContainers.values()) {
+                followWorker.stop();
+                log.info("Stopped presto follow worker {}.", followWorker.getContainerName());
+            }
+            sqlFollowWorkerContainers.clear();
+            log.info("Stopped all presto follow workers.");
+        }
         if (null != prestoWorkerContainer) {
             prestoWorkerContainer.stop();
-            log.info("Stopped Presto Worker");
+            log.info("Stopped presto coordinator.");
             prestoWorkerContainer = null;
         }
+    }
+
+    public void startPrestoFollowWorkers(int numSqlFollowWorkers, String offloadDriver, String offloadProperties) {
+        log.info("start presto follow worker containers.");
+        sqlFollowWorkerContainers.putAll(runNumContainers(
+                "sql-follow-worker",
+                numSqlFollowWorkers,
+                (name) -> {
+                    log.info("build presto follow worker with name {}", name);
+                    return buildPrestoWorkerContainer(name, false, offloadDriver, offloadProperties);
+                }
+        ));
+        // Start workers that have been initialized
+        sqlFollowWorkerContainers.values().parallelStream().forEach(PrestoWorkerContainer::start);
+        log.info("Successfully started {} presto follow worker containers.", sqlFollowWorkerContainers.size());
+    }
+
+    private PrestoWorkerContainer buildPrestoWorkerContainer(String hostName, boolean isCoordinator,
+                                                             String offloadDriver, String offloadProperties) {
+        String resourcePath = isCoordinator ? "presto-coordinator-config.properties"
+                : "presto-follow-worker-config.properties";
+        PrestoWorkerContainer container = new PrestoWorkerContainer(
+                clusterName, hostName)
+                .withNetwork(network)
+                .withNetworkAliases(hostName)
+                .withEnv("clusterName", clusterName)
+                .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
+                .withEnv("SQL_PREFIX_pulsar.max-message-size", "" + spec.maxMessageSize)
+                .withClasspathResourceMapping(
+                        resourcePath, "/pulsar/conf/presto/config.properties", BindMode.READ_WRITE);
+        if (spec.queryLastMessage) {
+            container.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
+                    .withEnv("pulsar.bookkeeper-explicit-interval", "10");
+        }
+        if (offloadDriver != null && offloadProperties != null) {
+            log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
+                    offloadDriver, offloadProperties);
+            // used to query from tiered storage
+            container.withEnv("SQL_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
+            container.withEnv("SQL_PREFIX_pulsar.offloader-properties", offloadProperties);
+            container.withEnv("SQL_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
+            container.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
+            container.withEnv("AWS_SECRET_KEY", "secretkey");
+        }
+        log.info("[{}] build presto worker container. isCoordinator: {}, resourcePath: {}",
+                container.getContainerName(), isCoordinator, resourcePath);
+        return container;
     }
 
     public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType, int numFunctionWorkers) {
@@ -417,7 +509,8 @@ public class PulsarCluster {
                 .withEnv("PF_pulsarFunctionsCluster", clusterName)
                 .withEnv("PF_pulsarServiceUrl", serviceUrl)
                 .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
-                .withEnv("PF_threadContainerFactory_threadGroupName", "pf-container-group")
+                .withEnv("PF_functionRuntimeFactoryClassName", "org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory")
+                .withEnv("PF_functionRuntimeFactoryConfigs_threadGroupName", "pf-container-group")
                 // script
                 .withEnv("clusterName", clusterName)
                 .withEnv("zookeeperServers", ZKContainer.NAME)
@@ -433,7 +526,27 @@ public class PulsarCluster {
         log.info("Successfully started {} worker containers.", workerContainers.size());
     }
 
+    public synchronized void stopWorker(String workerName) {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
+        // Stop the named worker.
+        WorkerContainer worker = workerContainers.get(workerName);
+        if (worker == null) {
+            log.warn("Failed to find the worker to stop ({})", workerName);
+            return;
+        }
+        worker.stop();
+        workerContainers.remove(workerName);
+        log.info("Worker {} stopped and removed from the map of worker containers", workerName);
+    }
+
     public synchronized void stopWorkers() {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
         // Stop workers that have been initialized
         workerContainers.values().parallelStream().forEach(WorkerContainer::stop);
         workerContainers.clear();
@@ -441,6 +554,7 @@ public class PulsarCluster {
 
     public void startContainers(Map<String, GenericContainer<?>> containers) {
         containers.forEach((name, container) -> {
+            PulsarContainer.configureLeaveContainerRunning(container);
             container
                 .withNetwork(network)
                 .withNetworkAliases(name)
@@ -449,9 +563,17 @@ public class PulsarCluster {
         });
     }
 
-    public void stopContainers(Map<String, GenericContainer<?>> containers) {
+    public static void stopContainers(Map<String, GenericContainer<?>> containers) {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
         containers.values().parallelStream().forEach(GenericContainer::stop);
         log.info("Successfully stop containers : {}", containers);
+    }
+
+    private static void logIgnoringStopDueToLeaveRunning() {
+        log.warn("Ignoring stop due to PULSAR_CONTAINERS_LEAVE_RUNNING=true.");
     }
 
     public BrokerContainer getAnyBroker() {
@@ -462,12 +584,20 @@ public class PulsarCluster {
         return getAnyContainer(workerContainers, "pulsar-functions-worker");
     }
 
+    public synchronized List<WorkerContainer> getAlWorkers() {
+        return new ArrayList<WorkerContainer>(workerContainers.values());
+    }
+
     public BrokerContainer getBroker(int index) {
         return getAnyContainer(brokerContainers, "pulsar-broker", index);
     }
 
     public synchronized WorkerContainer getWorker(int index) {
         return getAnyContainer(workerContainers, "pulsar-functions-worker", index);
+    }
+
+    public synchronized WorkerContainer getWorker(String workerName) {
+        return workerContainers.get(workerName);
     }
 
     private <T> T getAnyContainer(Map<String, T> containers, String serviceName) {
@@ -558,4 +688,24 @@ public class PulsarCluster {
             enabled ? "--enable" : "--disable");
     }
 
+    public void dumpFunctionLogs(String name) {
+        for (WorkerContainer container : getAlWorkers()) {
+            log.info("Trying to get function {} logs from container {}", name, container.getContainerName());
+            try {
+                String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+                String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                    return IOUtils.toString(inputStream, "utf-8");
+                });
+                log.info("Function {} logs {}", name, logs);
+            } catch (com.github.dockerjava.api.exception.NotFoundException notFound) {
+                log.info("Cannot download {} logs from {} not found exception {}", name, container.getContainerName(), notFound.toString());
+            } catch (Throwable err) {
+                log.info("Cannot download {} logs from {}", name, container.getContainerName(), err);
+            }
+        }
+    }
+
+    private String appendClusterName(String name) {
+        return sharedCsContainer ? clusterName + "-" + name : name;
+    }
 }

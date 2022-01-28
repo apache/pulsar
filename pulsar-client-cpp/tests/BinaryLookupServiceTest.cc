@@ -27,8 +27,6 @@
 #include <pulsar/Authentication.h>
 #include <boost/exception/all.hpp>
 
-DECLARE_LOG_OBJECT()
-
 using namespace pulsar;
 
 TEST(BinaryLookupServiceTest, basicLookup) {
