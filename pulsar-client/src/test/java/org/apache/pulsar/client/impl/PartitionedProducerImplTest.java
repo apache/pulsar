@@ -72,7 +72,7 @@ public class PartitionedProducerImplTest {
         schema = mock(Schema.class);
         producerInterceptors = mock(ProducerInterceptors.class);
         producerCreatedFuture = new CompletableFuture<>();
-        ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
+        ClientConfigurationData clientConfigurationData = mock(ClientConfigurationData.class);
         Timer timer = mock(Timer.class);
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
