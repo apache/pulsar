@@ -1173,9 +1173,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                             if (cause instanceof NoSuchElementException) {
                                 cause = new TopicNotFoundException("Topic Not Found.");
-                            }
-
-                            if (!Exceptions.areExceptionsPresentInChain(cause,
+                                log.info("[{}] Failed to load topic {}, producerId={}: Topic not found",
+                                        remoteAddress, topicName, producerId);
+                            } else if (!Exceptions.areExceptionsPresentInChain(cause,
                                     ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
                                 // Do not print stack traces for expected exceptions
                                 log.error("[{}] Failed to create topic {}, producerId={}",
