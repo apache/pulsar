@@ -92,7 +92,7 @@ public class NamespaceResources extends BaseResources<Policies> {
                     if (!exists) {
                         return CompletableFuture.completedFuture(false);
                     } else {
-                        return getChildrenAsync(path).thenApply(children -> children.isEmpty());
+                        return getChildrenAsync(path).thenApply(List::isEmpty);
                     }
                 });
     }
