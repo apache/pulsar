@@ -144,8 +144,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_WORKER,
             required = false,
+            deprecated = true,
             doc = "Configuration store connection string (as a comma-separated list)"
     )
+    @Deprecated
     private String configurationStoreServers;
     @FieldContext(
             category = CATEGORY_WORKER,

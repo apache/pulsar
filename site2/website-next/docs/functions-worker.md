@@ -241,7 +241,7 @@ To enable authorization on Functions Worker, you need to configure `authorizatio
 
 authorizationEnabled: true
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
-configurationMetadataStoreUrl: <configuration-store-servers>
+configurationMetadataStoreUrl: <meta-type>:<configuration-metadata-store-url>
 
 ```
 

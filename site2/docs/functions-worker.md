@@ -221,7 +221,7 @@ To enable authorization on Functions Worker, you need to configure `authorizatio
 ```yaml
 authorizationEnabled: true
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
-configurationMetadataStoreUrl: <configuration-store-servers>
+configurationMetadataStoreUrl: <meta-type>:<configuration-metadata-store-url>
 ```
 
 You should also configure a list of superuser roles. The superuser roles are able to access any admin API. The following is a configuration example.
