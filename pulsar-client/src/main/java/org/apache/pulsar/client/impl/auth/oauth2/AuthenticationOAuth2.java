@@ -81,6 +81,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     volatile Flow flow;
     private transient volatile CachedToken cachedToken;
 
+    // Only ever updated in synchronized block on class.
+    private boolean isClosed = false;
+
     // Only ever updated on the single scheduler thread. Does not need to be volatile.
     private transient Backoff backoff;
     private transient ScheduledFuture<?> nextRefreshAttempt;
@@ -155,6 +158,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
      */
     @Override
     public synchronized AuthenticationDataProvider getAuthData() throws PulsarClientException {
+        if (isClosed) {
+            throw new PulsarClientException.AlreadyClosedException("Authentication already closed.");
+        }
         if (this.cachedToken == null || this.cachedToken.isExpired()) {
             this.authenticate();
         }
@@ -241,8 +247,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         try {
+            isClosed = true;
             flow.close();
         } catch (Exception e) {
             throw new IOException(e);
