@@ -1259,16 +1259,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             (BrokerServiceException.TopicBacklogQuotaExceededException) cause;
                     IllegalStateException illegalStateException = new IllegalStateException(tbqe);
                     BacklogQuota.RetentionPolicy retentionPolicy = tbqe.getRetentionPolicy();
-                    if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                        commandSender.sendErrorResponse(requestId,
-                                ServerError.ProducerBlockedQuotaExceededError,
-                                illegalStateException.getMessage());
-                    } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                        commandSender.sendErrorResponse(requestId,
-                                ServerError.ProducerBlockedQuotaExceededException,
-                                illegalStateException.getMessage());
+                    if (producerFuture.completeExceptionally(illegalStateException)) {
+                        if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededError,
+                                    illegalStateException.getMessage());
+                        } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededException,
+                                    illegalStateException.getMessage());
+                        }
                     }
-                    producerFuture.completeExceptionally(illegalStateException);
                     producers.remove(producerId, producerFuture);
                     return null;
                 }
