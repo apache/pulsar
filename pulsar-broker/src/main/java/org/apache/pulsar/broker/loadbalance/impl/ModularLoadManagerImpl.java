@@ -563,7 +563,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             for (String bundle : bundleData.keySet()) {
                 if (!activeBundles.contains(bundle)){
                     bundleData.remove(bundle);
-                    if(pulsar.getLeaderElectionService().isLeader()){
+                    if (pulsar.getLeaderElectionService().isLeader()){
                         deleteBundleDataFromMetadataStore(bundle);
                     }
                 }
