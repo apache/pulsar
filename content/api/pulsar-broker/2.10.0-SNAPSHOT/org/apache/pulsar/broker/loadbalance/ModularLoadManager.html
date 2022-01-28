@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":18,"i14":6};
+var data = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":18,"i15":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -180,76 +180,83 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </td>
 </tr>
 <tr id="i4" class="altColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.util.Set&lt;java.lang.String&gt;&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getAvailableBrokersAsync()">getAvailableBrokersAsync</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Get available broker list in cluster by async invoke.</div>
+</td>
+</tr>
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getBrokerLocalData(java.lang.String)">getBrokerLocalData</a></span>&#8203;(java.lang.String&nbsp;broker)</code></th>
 <td class="colLast">
 <div class="block">Fetch local-broker data from load-manager broker cache.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getBundleDataOrDefault(java.lang.String)">getBundleDataOrDefault</a></span>&#8203;(java.lang.String&nbsp;bundle)</code></th>
 <td class="colLast">
 <div class="block">Fetch bundle's load report data.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>java.util.List&lt;org.apache.pulsar.common.stats.Metrics&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLoadBalancingMetrics()">getLoadBalancingMetrics</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Fetch load balancing metrics.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initialize(org.apache.pulsar.broker.PulsarService)">initialize</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code></th>
 <td class="colLast">
 <div class="block">Initialize this load manager using the given pulsar service.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>java.util.Optional&lt;java.lang.String&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#selectBrokerForAssignment(org.apache.pulsar.common.naming.ServiceUnitId)">selectBrokerForAssignment</a></span>&#8203;(org.apache.pulsar.common.naming.ServiceUnitId&nbsp;serviceUnit)</code></th>
 <td class="colLast">
 <div class="block">As the leader broker, find a suitable broker for the assignment of the given bundle.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#start()">start</a></span>()</code></th>
 <td class="colLast">
 <div class="block">As any broker, start the load manager.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#stop()">stop</a></span>()</code></th>
 <td class="colLast">
 <div class="block">As any broker, stop the load manager.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateLocalBrokerData()">updateLocalBrokerData</a></span>()</code></th>
 <td class="colLast">
 <div class="block">As any broker, retrieve the namespace bundle stats and system resource usage to update data local to this broker.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeBrokerDataOnZooKeeper()">writeBrokerDataOnZooKeeper</a></span>()</code></th>
 <td class="colLast">
 <div class="block">As any broker, write the local broker data to ZooKeeper.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>default void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeBrokerDataOnZooKeeper(boolean)">writeBrokerDataOnZooKeeper</a></span>&#8203;(boolean&nbsp;force)</code></th>
 <td class="colLast">
 <div class="block">As any broker, write the local broker data to ZooKeeper, forced or not.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeBundleDataOnZooKeeper()">writeBundleDataOnZooKeeper</a></span>()</code></th>
 <td class="colLast">
@@ -416,6 +423,16 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
+</li>
+</ul>
+<a id="getAvailableBrokersAsync()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getAvailableBrokersAsync</h4>
+<pre class="methodSignature">java.util.concurrent.CompletableFuture&lt;java.util.Set&lt;java.lang.String&gt;&gt;&nbsp;getAvailableBrokersAsync()</pre>
+<div class="block">Get available broker list in cluster by async invoke.</div>
 </li>
 </ul>
 <a id="getBrokerLocalData(java.lang.String)">

@@ -193,12 +193,16 @@ ls offloaders
 </code></pre>
 <p><strong>Output</strong></p>
 <pre><code class="hljs"><span class="hljs-attribute">Offload was a success</span>
-</code></pre>
-<p>If there is an error in offloading, the error is propagated to the <code>pulsar-admin topics offload-status</code> command.</p>
-<pre><code class="hljs css language-bash">bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-</code></pre>
-<p><strong>Output</strong></p></li>
+</code></pre></li>
 </ul>
+<pre><code class="hljs">If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
+
+```bash
+bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+```
+
+**Output**
+</code></pre>
 <pre><code class="hljs css language-Error in offload null"><span class="hljs-attribute">Reason</span>: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: ````
 
 <span class="pgsql">    &gt; #### Tip

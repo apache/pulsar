@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":1,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":18,"i15":6};
+var data = {"i0":1,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":18,"i16":6};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -223,65 +223,70 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </td>
 </tr>
 <tr id="i6" class="altColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.util.Set&lt;java.lang.String&gt;&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getAvailableBrokersAsync()">getAvailableBrokersAsync</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>java.util.Optional&lt;<a href="ResourceUnit.html" title="interface in org.apache.pulsar.broker.loadbalance">ResourceUnit</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLeastLoaded(org.apache.pulsar.common.naming.ServiceUnitId)">getLeastLoaded</a></span>&#8203;(org.apache.pulsar.common.naming.ServiceUnitId&nbsp;su)</code></th>
 <td class="colLast">
 <div class="block">Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>java.util.List&lt;org.apache.pulsar.common.stats.Metrics&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLoadBalancingMetrics()">getLoadBalancingMetrics</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Generate load balancing stats metrics.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initialize(org.apache.pulsar.broker.PulsarService)">initialize</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code></th>
 <td class="colLast">
 <div class="block">Initialize this LoadManager.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isCentralized()">isCentralized</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Is centralized decision making to assign a new bundle.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setLoadReportForceUpdateFlag()">setLoadReportForceUpdateFlag</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Set flag to force load report update.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#start()">start</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#stop()">stop</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeLoadReportOnZookeeper()">writeLoadReportOnZookeeper</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Publish the current load report on ZK.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>default void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeLoadReportOnZookeeper(boolean)">writeLoadReportOnZookeeper</a></span>&#8203;(boolean&nbsp;force)</code></th>
 <td class="colLast">
 <div class="block">Publish the current load report on ZK, forced or not.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeResourceQuotasToZooKeeper()">writeResourceQuotasToZooKeeper</a></span>()</code></th>
 <td class="colLast">
@@ -512,6 +517,15 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code>java.lang.Exception</code></dd>
 </dl>
+</li>
+</ul>
+<a id="getAvailableBrokersAsync()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getAvailableBrokersAsync</h4>
+<pre class="methodSignature">java.util.concurrent.CompletableFuture&lt;java.util.Set&lt;java.lang.String&gt;&gt;&nbsp;getAvailableBrokersAsync()</pre>
 </li>
 </ul>
 <a id="stop()">

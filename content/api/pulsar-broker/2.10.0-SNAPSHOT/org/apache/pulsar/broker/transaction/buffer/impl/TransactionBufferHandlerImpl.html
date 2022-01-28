@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -132,12 +132,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <li class="blockList">
 <dl>
 <dt>All Implemented Interfaces:</dt>
-<dd><code>io.netty.util.TimerTask</code>, <code>org.apache.pulsar.client.impl.transaction.TransactionBufferHandler</code></dd>
+<dd><code>org.apache.pulsar.client.impl.transaction.TransactionBufferHandler</code></dd>
 </dl>
 <hr>
 <pre>public class <span class="typeNameLabel">TransactionBufferHandlerImpl</span>
 extends java.lang.Object
-implements org.apache.pulsar.client.impl.transaction.TransactionBufferHandler, io.netty.util.TimerTask</pre>
+implements org.apache.pulsar.client.impl.transaction.TransactionBufferHandler</pre>
 </li>
 </ul>
 </div>
@@ -214,11 +214,6 @@ implements org.apache.pulsar.client.impl.transaction.TransactionBufferHandler, i
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#handleEndTxnOnTopicResponse(long,org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse)">handleEndTxnOnTopicResponse</a></span>&#8203;(long&nbsp;requestId,
                            org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse&nbsp;response)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr id="i5" class="rowColor">
-<td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#run(io.netty.util.Timeout)">run</a></span>&#8203;(io.netty.util.Timeout&nbsp;timeout)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -325,22 +320,6 @@ implements org.apache.pulsar.client.impl.transaction.TransactionBufferHandler, i
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code>handleEndTxnOnSubscriptionResponse</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.impl.transaction.TransactionBufferHandler</code></dd>
-</dl>
-</li>
-</ul>
-<a id="run(io.netty.util.Timeout)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>run</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;run&#8203;(io.netty.util.Timeout&nbsp;timeout)
-         throws java.lang.Exception</pre>
-<dl>
-<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code>run</code>&nbsp;in interface&nbsp;<code>io.netty.util.TimerTask</code></dd>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code>java.lang.Exception</code></dd>
 </dl>
 </li>
 </ul>

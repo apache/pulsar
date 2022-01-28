@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -234,70 +234,75 @@ implements <a href="../LoadManager.html" title="interface in org.apache.pulsar.b
 </td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.util.Set&lt;java.lang.String&gt;&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getAvailableBrokersAsync()">getAvailableBrokersAsync</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>java.util.Optional&lt;<a href="../ResourceUnit.html" title="interface in org.apache.pulsar.broker.loadbalance">ResourceUnit</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLeastLoaded(org.apache.pulsar.common.naming.ServiceUnitId)">getLeastLoaded</a></span>&#8203;(org.apache.pulsar.common.naming.ServiceUnitId&nbsp;serviceUnit)</code></th>
 <td class="colLast">
 <div class="block">Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>java.util.List&lt;org.apache.pulsar.common.stats.Metrics&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLoadBalancingMetrics()">getLoadBalancingMetrics</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Generate load balancing stats metrics.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../ModularLoadManager.html" title="interface in org.apache.pulsar.broker.loadbalance">ModularLoadManager</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLoadManager()">getLoadManager</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initialize(org.apache.pulsar.broker.PulsarService)">initialize</a></span>&#8203;(<a href="../../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code></th>
 <td class="colLast">
 <div class="block">Initialize this LoadManager.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isCentralized()">isCentralized</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Is centralized decision making to assign a new bundle.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setLoadReportForceUpdateFlag()">setLoadReportForceUpdateFlag</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Set flag to force load report update.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#start()">start</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#stop()">stop</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeLoadReportOnZookeeper()">writeLoadReportOnZookeeper</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Publish the current load report on ZK.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeLoadReportOnZookeeper(boolean)">writeLoadReportOnZookeeper</a></span>&#8203;(boolean&nbsp;force)</code></th>
 <td class="colLast">
 <div class="block">Publish the current load report on ZK, forced or not.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#writeResourceQuotasToZooKeeper()">writeResourceQuotasToZooKeeper</a></span>()</code></th>
 <td class="colLast">
@@ -578,7 +583,7 @@ implements <a href="../LoadManager.html" title="interface in org.apache.pulsar.b
 <a id="getAvailableBrokers()">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getAvailableBrokers</h4>
 <pre class="methodSignature">public&nbsp;java.util.Set&lt;java.lang.String&gt;&nbsp;getAvailableBrokers()
@@ -591,6 +596,19 @@ implements <a href="../LoadManager.html" title="interface in org.apache.pulsar.b
 <dt><span class="returnLabel">Returns:</span></dt>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code>java.lang.Exception</code></dd>
+</dl>
+</li>
+</ul>
+<a id="getAvailableBrokersAsync()">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getAvailableBrokersAsync</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.util.Set&lt;java.lang.String&gt;&gt;&nbsp;getAvailableBrokersAsync()</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../LoadManager.html#getAvailableBrokersAsync()">getAvailableBrokersAsync</a></code>&nbsp;in interface&nbsp;<code><a href="../LoadManager.html" title="interface in org.apache.pulsar.broker.loadbalance">LoadManager</a></code></dd>
 </dl>
 </li>
 </ul>

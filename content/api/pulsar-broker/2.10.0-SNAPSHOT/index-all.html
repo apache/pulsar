@@ -2868,6 +2868,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html#endTransaction(org.apache.pulsar.client.api.transaction.TxnID,int,boolean)">endTransaction(TxnID, int, boolean)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html" title="class in org.apache.pulsar.broker">TransactionMetadataStoreService</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html#endTransaction(org.apache.pulsar.client.api.transaction.TxnID,int,boolean,java.util.concurrent.CompletableFuture)">endTransaction(TxnID, int, boolean, CompletableFuture&lt;Void&gt;)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html" title="class in org.apache.pulsar.broker">TransactionMetadataStoreService</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html#endTransactionForTimeout(org.apache.pulsar.client.api.transaction.TxnID)">endTransactionForTimeout(TxnID)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html" title="class in org.apache.pulsar.broker">TransactionMetadataStoreService</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentSubscription.html#endTxn(long,long,int,long)">endTxn(long, long, int, long)</a></span> - Method in class org.apache.pulsar.broker.service.nonpersistent.<a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentSubscription.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentSubscription</a></dt>
@@ -3279,7 +3281,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/pendingack/proto/PendingAckMetadataEntry.html#getAckType()">getAckType()</a></span> - Method in class org.apache.pulsar.broker.transaction.pendingack.proto.<a href="org/apache/pulsar/broker/transaction/pendingack/proto/PendingAckMetadataEntry.html" title="class in org.apache.pulsar.broker.transaction.pendingack.proto">PendingAckMetadataEntry</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html#getActiveBrokers(java.lang.String)">getActiveBrokers(String)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokersBase</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html#getActiveBrokers(javax.ws.rs.container.AsyncResponse,java.lang.String)">getActiveBrokers(AsyncResponse, String)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokersBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#getActiveConsumer()">getActiveConsumer()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service">AbstractDispatcherSingleActiveConsumer</a></dt>
 <dd>&nbsp;</dd>
@@ -3376,6 +3378,20 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="block">Get available broker list in cluster.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/NoopLoadManager.html#getAvailableBrokers()">getAvailableBrokers()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/NoopLoadManager.html" title="class in org.apache.pulsar.broker.loadbalance">NoopLoadManager</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html#getAvailableBrokersAsync()">getAvailableBrokersAsync()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html" title="class in org.apache.pulsar.broker.loadbalance.impl">ModularLoadManagerImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerWrapper.html#getAvailableBrokersAsync()">getAvailableBrokersAsync()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerWrapper.html" title="class in org.apache.pulsar.broker.loadbalance.impl">ModularLoadManagerWrapper</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.html#getAvailableBrokersAsync()">getAvailableBrokersAsync()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.html" title="class in org.apache.pulsar.broker.loadbalance.impl">SimpleLoadManagerImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/LoadManager.html#getAvailableBrokersAsync()">getAvailableBrokersAsync()</a></span> - Method in interface org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/LoadManager.html" title="interface in org.apache.pulsar.broker.loadbalance">LoadManager</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#getAvailableBrokersAsync()">getAvailableBrokersAsync()</a></span> - Method in interface org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/ModularLoadManager.html" title="interface in org.apache.pulsar.broker.loadbalance">ModularLoadManager</a></dt>
+<dd>
+<div class="block">Get available broker list in cluster by async invoke.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/NoopLoadManager.html#getAvailableBrokersAsync()">getAvailableBrokersAsync()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/NoopLoadManager.html" title="class in org.apache.pulsar.broker.loadbalance">NoopLoadManager</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html#getAvailableDispatchRateLimitOnByte()">getAvailableDispatchRateLimitOnByte()</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></dt>
 <dd>
@@ -4304,7 +4320,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Get the most recent broker version number from the load reports of all the running brokers.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html#getLeaderBroker()">getLeaderBroker()</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokersBase</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html#getLeaderBroker(javax.ws.rs.container.AsyncResponse)">getLeaderBroker(AsyncResponse)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/BrokersBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokersBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/PulsarService.html#getLeaderElectionService()">getLeaderElectionService()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a></dt>
 <dd>
@@ -5284,7 +5300,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/Namespaces.html#getSchemaAutoUpdateCompatibilityStrategy(java.lang.String,java.lang.String,java.lang.String)">getSchemaAutoUpdateCompatibilityStrategy(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v1">Namespaces</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#getSchemaCompatibilityStrategy()">getSchemaCompatibilityStrategy()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#getSchemaCompatibilityStrategy(java.lang.String,java.lang.String)">getSchemaCompatibilityStrategy(String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#getSchemaCompatibilityStrategy(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getSchemaCompatibilityStrategy(AsyncResponse, String, String, String, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#getSchemaCompatibilityStrategyAsync()">getSchemaCompatibilityStrategyAsync()</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
@@ -6996,6 +7016,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html#internalGetSchemaCompatibilityStrategy()">internalGetSchemaCompatibilityStrategy()</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetSchemaCompatibilityStrategy(boolean)">internalGetSchemaCompatibilityStrategy(boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html#internalGetSchemaValidationEnforced(boolean)">internalGetSchemaValidationEnforced(boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/TransactionsBase.html#internalGetSlowTransactions(javax.ws.rs.container.AsyncResponse,boolean,long,java.lang.Integer)">internalGetSlowTransactions(AsyncResponse, boolean, long, Integer)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/TransactionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">TransactionsBase</a></dt>
@@ -7225,6 +7247,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <div class="deprecationBlock"><span class="deprecatedLabel">Deprecated.</span></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html#internalSetSchemaCompatibilityStrategy(org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy)">internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetSchemaCompatibilityStrategy(org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy)">internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html#internalSetSchemaValidationEnforced(boolean)">internalSetSchemaValidationEnforced(boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></dt>
 <dd>&nbsp;</dd>
@@ -10452,6 +10476,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#removeRetention(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeRetention(AsyncResponse, String, String, String, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#removeSchemaCompatibilityStrategy(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy)">removeSchemaCompatibilityStrategy(AsyncResponse, String, String, String, boolean, SchemaCompatibilityStrategy)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/stats/prometheus/metrics/PrometheusStatsLogger.html#removeScope(java.lang.String,org.apache.bookkeeper.stats.StatsLogger)">removeScope(String, StatsLogger)</a></span> - Method in class org.apache.pulsar.broker.stats.prometheus.metrics.<a href="org/apache/pulsar/broker/stats/prometheus/metrics/PrometheusStatsLogger.html" title="class in org.apache.pulsar.broker.stats.prometheus.metrics">PrometheusStatsLogger</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#removeSubscribeRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.SubscribeRate)">removeSubscribeRate(AsyncResponse, String, String, String, boolean, boolean, SubscribeRate)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
@@ -10917,8 +10943,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/impl/TopicTransactionBuffer.html#run(io.netty.util.Timeout)">run(Timeout)</a></span> - Method in class org.apache.pulsar.broker.transaction.buffer.impl.<a href="org/apache/pulsar/broker/transaction/buffer/impl/TopicTransactionBuffer.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TopicTransactionBuffer</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferHandlerImpl.html#run(io.netty.util.Timeout)">run(Timeout)</a></span> - Method in class org.apache.pulsar.broker.transaction.buffer.impl.<a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferHandlerImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionBufferHandlerImpl</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/timeout/TransactionTimeoutTrackerImpl.html#run(io.netty.util.Timeout)">run(Timeout)</a></span> - Method in class org.apache.pulsar.broker.transaction.timeout.<a href="org/apache/pulsar/broker/transaction/timeout/TransactionTimeoutTrackerImpl.html" title="class in org.apache.pulsar.broker.transaction.timeout">TransactionTimeoutTrackerImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/tools/BrokerTool.html#run(java.lang.String%5B%5D)">run(String[])</a></span> - Static method in class org.apache.pulsar.broker.tools.<a href="org/apache/pulsar/broker/tools/BrokerTool.html" title="class in org.apache.pulsar.broker.tools">BrokerTool</a></dt>
@@ -10946,8 +10970,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.html#SCHEMA_ID_FIELD_NUMBER">SCHEMA_ID_FIELD_NUMBER</a></span> - Static variable in class org.apache.pulsar.broker.service.schema.proto.<a href="org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.SchemaInfo.html" title="class in org.apache.pulsar.broker.service.schema.proto">SchemaRegistryFormat.SchemaInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/schema/SchemaCompatibilityCheck.html" title="interface in org.apache.pulsar.broker.service.schema"><span class="typeNameLink">SchemaCompatibilityCheck</span></a> - Interface in <a href="org/apache/pulsar/broker/service/schema/package-summary.html">org.apache.pulsar.broker.service.schema</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#schemaCompatibilityStrategy">schemaCompatibilityStrategy</a></span> - Variable in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/schema/validator/SchemaDataValidator.html" title="interface in org.apache.pulsar.broker.service.schema.validator"><span class="typeNameLink">SchemaDataValidator</span></a> - Interface in <a href="org/apache/pulsar/broker/service/schema/validator/package-summary.html">org.apache.pulsar.broker.service.schema.validator</a></dt>
 <dd>
@@ -11648,7 +11670,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setSchemaCompatibilityStrategy(java.lang.String,java.lang.String,org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy)">setSchemaCompatibilityStrategy(String, String, SchemaCompatibilityStrategy)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#setSchemaCompatibilityStrategy(org.apache.pulsar.common.policies.data.Policies)">setSchemaCompatibilityStrategy(Policies)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#setSchemaCompatibilityStrategy(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy)">setSchemaCompatibilityStrategy(AsyncResponse, String, String, String, boolean, SchemaCompatibilityStrategy)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/schema/SchemaStorageFormat.SchemaEntry.Builder.html#setSchemaData(com.google.protobuf.ByteString)">setSchemaData(ByteString)</a></span> - Method in class org.apache.pulsar.broker.service.schema.<a href="org/apache/pulsar/broker/service/schema/SchemaStorageFormat.SchemaEntry.Builder.html" title="class in org.apache.pulsar.broker.service.schema">SchemaStorageFormat.SchemaEntry.Builder</a></dt>
 <dd>
@@ -13129,6 +13151,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Check if the cluster exists and redirect the call to the owning cluster.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/web/PulsarWebResource.html#validateClusterOwnershipAsync(java.lang.String)">validateClusterOwnershipAsync(String)</a></span> - Method in class org.apache.pulsar.broker.web.<a href="org/apache/pulsar/broker/web/PulsarWebResource.html" title="class in org.apache.pulsar.broker.web">PulsarWebResource</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#validateCreateTopic(org.apache.pulsar.common.naming.TopicName)">validateCreateTopic(TopicName)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#validateDynamicConfiguration(java.lang.String,java.lang.String)">validateDynamicConfiguration(String, String)</a></span> - Static method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
@@ -13200,6 +13224,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Checks whether the user has Pulsar Super-User access to the system.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/web/PulsarWebResource.html#validateSuperUserAccessAsync()">validateSuperUserAccessAsync()</a></span> - Method in class org.apache.pulsar.broker.web.<a href="org/apache/pulsar/broker/web/PulsarWebResource.html" title="class in org.apache.pulsar.broker.web">PulsarWebResource</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/web/PulsarWebResource.html#validateTenantOperation(java.lang.String,org.apache.pulsar.common.policies.data.TenantOperation)">validateTenantOperation(String, TenantOperation)</a></span> - Method in class org.apache.pulsar.broker.web.<a href="org/apache/pulsar/broker/web/PulsarWebResource.html" title="class in org.apache.pulsar.broker.web">PulsarWebResource</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#validateTopicName(java.lang.String,java.lang.String,java.lang.String)">validateTopicName(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
