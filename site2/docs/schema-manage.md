@@ -817,7 +817,7 @@ The schema compatibility check strategy set at different levels has priority: to
 
 - If you set the strategy at both namespace and broker level, it uses the namespace-level strategy.
 
-- If you do not set the strategy at any level, it uses the `FULL` strategy.
+- If you do not set the strategy at any level, it uses the `FULL` strategy. For all available values, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy).
 
 
 ### Topic level
@@ -826,7 +826,7 @@ To set a schema compatibility check strategy at the topic level, use one of the 
 
 <!--DOCUSAURUS_CODE_TABS-->
 
-<!--admin CLI-->
+<!--Admin CLI-->
 
 Use the [`pulsar-admin topics set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
@@ -857,7 +857,7 @@ To get the topic-level schema compatibility check strategy, use one of the follo
 
 <!--DOCUSAURUS_CODE_TABS-->
 
-<!--admin CLI-->
+<!--Admin CLI-->
 
 Use the [`pulsar-admin topics get-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
@@ -892,7 +892,7 @@ To remove the topic-level schema compatibility check strategy, use one of the fo
 
 <!--DOCUSAURUS_CODE_TABS-->
 
-<!--admin CLI-->
+<!--Admin CLI-->
 
 Use the [`pulsar-admin topics remove-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
@@ -926,7 +926,7 @@ You can set schema compatibility check strategy at namespace level using one of 
 
 <!--DOCUSAURUS_CODE_TABS-->
 
-<!--pulsar-admin-->
+<!--Admin CLI-->
 
 Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
@@ -937,7 +937,7 @@ pulsar-admin namespaces set-schema-compatibility-strategy options
 
 Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=[[pulsar:version_number]]}
 
-<!--Java-->
+<!--Java Admin CLI-->
 
 Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
 
