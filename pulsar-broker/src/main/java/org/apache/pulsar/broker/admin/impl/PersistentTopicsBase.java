@@ -390,17 +390,14 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalCreateNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
                                                      Map<String, String> properties) {
-        validateNonPartitionTopicName(topicName.getLocalName());
-        CompletableFuture<Void> ret;
+        CompletableFuture<Void> ret = validateNonPartitionTopicNameAsync(topicName.getLocalName());
         if (topicName.isGlobal()) {
-            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
-        } else {
-            ret = CompletableFuture.completedFuture(null);
+            ret.thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
         }
         ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
            .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                    NamespaceOperation.CREATE_TOPIC))
-           .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false))
+           .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false, false))
            .thenAccept(partitionMetadata -> {
                if (partitionMetadata.partitions > 0) {
                    log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
@@ -4244,7 +4241,8 @@ public class PersistentTopicsBase extends AdminResource {
      *
      * @param topicName
      */
-    private void validateNonPartitionTopicName(String topicName) {
+    private CompletableFuture<Void> validateNonPartitionTopicNameAsync(String topicName) {
+        CompletableFuture<Void> ret;
         if (topicName.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
             try {
                 // First check if what's after suffix "-partition-" is number or not, if not number then can create.
@@ -4253,34 +4251,39 @@ public class PersistentTopicsBase extends AdminResource {
                         + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
                 TopicName partitionTopicName = TopicName.get(domain(),
                         namespaceName, topicName.substring(0, partitionIndex));
-                PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
-
-                // Partition topic index is 0 to (number of partition - 1)
-                if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
-                    log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
-                                    + " a number smaller then number of partition of partitioned topic {}.",
-                            clientAppId(), topicName, partitionTopicName.getLocalName());
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Can't create topic " + topicName + " with \"-partition-\" followed by"
-                                    + " a number smaller then number of partition of partitioned topic "
-                                    + partitionTopicName.getLocalName());
-                } else if (metadata.partitions == 0) {
-                    log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
-                                    + " numeric value if there isn't a partitioned topic {} created.",
-                            clientAppId(), topicName, partitionTopicName.getLocalName());
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Can't create topic " + topicName + " with \"-partition-\" followed by"
-                                    + " numeric value if there isn't a partitioned topic "
-                                    + partitionTopicName.getLocalName() + " created.");
-                }
-                // If there is a  partitioned topic with the same name and numeric suffix is smaller than the
-                // number of partition for that partitioned topic, validation will pass.
+                ret = getPartitionedTopicMetadataAsync(partitionTopicName, false, false)
+                        .thenAccept(metadata -> {
+                            // Partition topic index is 0 to (number of partition - 1)
+                            if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
+                                log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
+                                                + " a number smaller then number of partition of partitioned topic {}.",
+                                        clientAppId(), topicName, partitionTopicName.getLocalName());
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Can't create topic " + topicName + " with \"-partition-\" followed by"
+                                                + " a number smaller then number of partition of partitioned topic "
+                                                + partitionTopicName.getLocalName());
+                            } else if (metadata.partitions == 0) {
+                                log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
+                                                + " numeric value if there isn't a partitioned topic {} created.",
+                                        clientAppId(), topicName, partitionTopicName.getLocalName());
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Can't create topic " + topicName + " with \"-partition-\" followed by"
+                                                + " numeric value if there isn't a partitioned topic "
+                                                + partitionTopicName.getLocalName() + " created.");
+                            }
+                            // If there is a  partitioned topic with the same name and numeric suffix is smaller
+                            // than the number of partition for that partitioned topic, validation will pass.
+                        });
             } catch (NumberFormatException e) {
                 // Do nothing, if value after partition suffix is not pure numeric value,
                 // as it can't conflict if user want to create partitioned topic with same
                 // topic name prefix in the future.
+                ret = CompletableFuture.completedFuture(null);
             }
+        } else {
+            ret = CompletableFuture.completedFuture(null);
         }
+        return ret;
     }
 
     protected void internalGetLastMessageId(AsyncResponse asyncResponse, boolean authoritative) {
