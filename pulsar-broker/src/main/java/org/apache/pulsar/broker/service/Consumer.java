@@ -581,14 +581,6 @@ public class Consumer {
         return ackOwnerConsumer;
     }
 
-    private boolean isMessageDeleted(Position position) {
-        if (!(subscription instanceof PersistentSubscription)) {
-            return true;
-        }
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ((PersistentSubscription) subscription).getCursor();
-        return cursor.isMessageDeleted(position);
-    }
-
     private long[] getCursorAckSet(PositionImpl position) {
         if (!(subscription instanceof PersistentSubscription)) {
             return null;

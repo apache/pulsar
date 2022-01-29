@@ -112,14 +112,18 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         });
     }
 
-    @DataProvider(name = "subType")
-    public Object[][] subType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover}};
+    @DataProvider(name = "testSubTypeAndEnableBatch")
+    public Object[][] testSubTypeAndEnableBatch() {
+        return new Object[][] { { SubscriptionType.Shared, Boolean.TRUE },
+                { SubscriptionType.Failover, Boolean.TRUE },
+                { SubscriptionType.Shared, Boolean.FALSE },
+                { SubscriptionType.Failover, Boolean.FALSE }};
     }
 
 
-    @Test(dataProvider="subType")
-    private void testDecreaseUnAckMessageCountWithAckReceipt(SubscriptionType subType) throws Exception {
+    @Test(dataProvider="testSubTypeAndEnableBatch")
+    private void testDecreaseUnAckMessageCountWithAckReceipt(SubscriptionType subType,
+                                                             boolean enableBatch) throws Exception {
 
         final int messageCount = 50;
         final String topicName = "persistent://prop/ns-abc/testDecreaseWithAckReceipt" + UUID.randomUUID();
@@ -137,6 +141,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
+                .enableBatching(enableBatch)
                 .topic(topicName)
                 .batchingMaxMessages(10)
                 .create();
