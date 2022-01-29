@@ -156,9 +156,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         return applyAuthProcessor(
             providers,
-            provider -> {
-                return provider.authenticate(authData);
-            }
+            provider -> provider.authenticate(authData)
         );
     }
 
@@ -210,7 +208,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
             authenticationException = ae;
         }
         if (states.isEmpty()) {
-            log.debug("Failed to initialize a new auth http state from {}", request.getRemoteHost(), authenticationException);
+            log.debug("Failed to initialize a new http auth state from {}", request.getRemoteHost(), authenticationException);
             if (authenticationException != null) {
                 throw authenticationException;
             } else {
