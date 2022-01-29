@@ -1180,24 +1180,30 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
+    protected void internalGetInternalStats(AsyncResponse asyncResponse, boolean authoritative, boolean metadata) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.GET_STATS);
-
-        Topic topic = getTopicReference(topicName);
-        try {
-            if (metadata) {
-                validateTopicOperation(topicName, TopicOperation.GET_METADATA);
-            }
-            return topic.getInternalStats(metadata).get();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get internal stats for {}", clientAppId(), topicName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR,
-                    (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
-        }
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
+                .thenCompose(__ -> {
+                    if (metadata) {
+                        return validateTopicOperationAsync(topicName, TopicOperation.GET_METADATA);
+                    }
+                    return null;
+                })
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> topic.getInternalStats(metadata))
+                .thenAccept(stats -> asyncResponse.resume(stats))
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to get internal stats for {}", clientAppId(), topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {

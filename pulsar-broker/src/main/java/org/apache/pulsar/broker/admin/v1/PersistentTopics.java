@@ -52,7 +52,6 @@ import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -356,13 +355,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
+    public void getInternalStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetInternalStats(authoritative, metadata);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetInternalStats(asyncResponse, authoritative, metadata);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
