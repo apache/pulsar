@@ -822,27 +822,99 @@ The schema compatibility check strategy set at different levels has priority: to
 
 ### Topic level
 
-You can set schema compatibility check strategy at topic level using one of the following methods.
+To set a schema compatibility check strategy at the topic level, use one of the following methods.
 
 <!--DOCUSAURUS_CODE_TABS-->
 
-<!--pulsar-admin-->
+<!--admin CLI-->
 
-Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topics set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
 ```shell
-pulsar-admin namespaces set-schema-compatibility-strategy options
+pulsar-admin topics set-schema-compatibility-strategy <strategy> <topicName>
 ```
 <!--REST API-->
 
-Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=[[pulsar:version_number]]}
+Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/topics/:tenant/:namespace/:topic|operation/schemaCompatibilityStrategy?version=[[pulsar:version_number]]}
 
-<!--Java-->
-
-Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
+<!--Java Admin API-->
 
 ```java
-admin.namespaces().setSchemaCompatibilityStrategy("test", SchemaCompatibilityStrategy.FULL);
+void setSchemaCompatibilityStrategy(String topic, SchemaCompatibilityStrategy strategy)
+```
+
+Here is an example of setting a schema compatibility check strategy at the topic level.
+
+```java
+PulsarAdmin admin = …;
+
+admin.topicPolicies().setSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic", SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+<br />
+To get the topic-level schema compatibility check strategy, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--admin CLI-->
+
+Use the [`pulsar-admin topics get-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+
+```shell
+pulsar-admin topics get-schema-compatibility-strategy <topicName>
+```
+<!--REST API-->
+
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic|operation/schemaCompatibilityStrategy?version=[[pulsar:version_number]]}
+
+<!--Java Admin API-->
+
+```java
+SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String topic, boolean applied)
+```
+
+Here is an example of getting the topic-level schema compatibility check strategy.
+
+```java
+PulsarAdmin admin = …;
+
+// get the current applied schema compatibility strategy
+admin.topicPolicies().getSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic", true);
+
+// only get the schema compatibility strategy from topic policies
+admin.topicPolicies().getSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic", false);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+<br />
+To remove the topic-level schema compatibility check strategy, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--admin CLI-->
+
+Use the [`pulsar-admin topics remove-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+
+```shell
+pulsar-admin topics remove-schema-compatibility-strategy <topicName>
+```
+<!--REST API-->
+
+Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic|operation/schemaCompatibilityStrategy?version=[[pulsar:version_number]]}
+
+<!--Java Admin API-->
+
+```java
+void removeSchemaCompatibilityStrategy(String topic)
+```
+
+Here is an example of removing the topic-level schema compatibility check strategy.
+
+```java
+PulsarAdmin admin = …;
+
+admin.removeSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic");
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
