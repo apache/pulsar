@@ -862,9 +862,6 @@ public abstract class PulsarWebResource {
         return  pulsar.getLeaderElectionService().isLeader();
     }
 
-    // Non-Usual HTTP error codes
-    protected static final int NOT_IMPLEMENTED = 501;
-
     public void validateTenantOperation(String tenant, TenantOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
             && pulsar().getBrokerService().isAuthorizationEnabled()) {

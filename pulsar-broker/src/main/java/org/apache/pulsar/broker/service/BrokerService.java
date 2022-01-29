@@ -1689,7 +1689,7 @@ public class BrokerService implements Closeable {
             if (t instanceof PersistentTopic) {
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
-                            managedLedger.trimConsumedLedgersInBackground(Futures.nullPromise_);
+                            managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
                         }
                 );
             }

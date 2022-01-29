@@ -766,17 +766,39 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
-        return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
-            SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                        policies.schema_auto_update_compatibility_strategy);
-                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                    schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
-                }
-            }
-            return schemaCompatibilityStrategy;
-        });
+        return validateTopicOperationAsync(topicName, TopicOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY)
+                .thenCompose((__) -> {
+                    CompletableFuture<SchemaCompatibilityStrategy> future;
+                    if (config().isTopicLevelPoliciesEnabled()) {
+                        future = getTopicPoliciesAsyncWithRetry(topicName)
+                                .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
+                    } else {
+                        future = CompletableFuture.completedFuture(null);
+                    }
+
+                    return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
+                        if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
+                            return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
+                        }
+                        return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
+                            SchemaCompatibilityStrategy schemaCompatibilityStrategy =
+                                    policies.schema_compatibility_strategy;
+                            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                                        policies.schema_auto_update_compatibility_strategy);
+                                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                                    schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+                                }
+                            }
+                            return schemaCompatibilityStrategy;
+                        });
+                    });
+                }).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
+                                clientAppId(), topicName, ex);
+                    }
+                });
     }
 
     @CanIgnoreReturnValue
