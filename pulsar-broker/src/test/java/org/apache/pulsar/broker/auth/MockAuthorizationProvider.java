@@ -192,15 +192,6 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
-                                                 PolicyName policy,
-                                                 PolicyOperation operation,
-                                                 String role,
-                                                 AuthenticationDataSource authData) {
-        return roleAuthorized(role);
-    }
-
-    @Override
     public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
                                                                          PolicyName policy,
                                                                          PolicyOperation operation,

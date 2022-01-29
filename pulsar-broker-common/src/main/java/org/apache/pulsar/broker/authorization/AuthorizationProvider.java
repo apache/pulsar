@@ -393,20 +393,6 @@ public interface AuthorizationProvider extends Closeable {
                         + "is not supported by is not supported by the Authorization provider you are using."));
     }
 
-    default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
-                                                  PolicyName policy,
-                                                  PolicyOperation operation,
-                                                  String role,
-                                                  AuthenticationDataSource authData) {
-        try {
-            return allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
     /**
      * Grant authorization-action permission on a namespace to the given client.
      * @param namespaceName

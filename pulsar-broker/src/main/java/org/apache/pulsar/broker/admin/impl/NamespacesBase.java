@@ -1801,9 +1801,8 @@ public abstract class NamespacesBase extends AdminResource {
                                                 clientAppId(), fieldName,
                                                 namespaceName, jsonMapper().writeValueAsString(value));
                                     } catch (JsonProcessingException ex) {
-                                        log.error("[{}] Failed to serialize value while update {} configuration"
+                                        log.warn("[{}] Failed to serialize value while update {} configuration"
                                                 + " for namespace {}", clientAppId(), fieldName , namespaceName, ex);
-                                        throw new RestException(ex);
                                     }
                                 });
                     } catch (Exception ex) {
@@ -2791,7 +2790,8 @@ public abstract class NamespacesBase extends AdminResource {
                     if (realCause instanceof WebApplicationException) {
                         asyncResponse.resume(realCause);
                     } else {
-                        log.error("[{}] Fail to set namespace resource group {}", clientAppId(), rgName);
+                        log.error("[{}] Fail to set namespace resource group {} : {}", clientAppId(), rgName,
+                                realCause.getMessage());
                         asyncResponse.resume(new RestException(realCause));
                     }
                     return null;

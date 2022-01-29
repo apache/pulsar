@@ -50,6 +50,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -74,7 +75,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.internal.BaseResource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -86,7 +86,19 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.*;
+import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.zookeeper.KeeperException.Code;
@@ -1740,7 +1752,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testNamespaceResourceGroup() {
+    public void testExistNamespaceResourceGroup() {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         ResourceGroup testResourceGroup = new ResourceGroup();
         testResourceGroup.setDispatchRateInBytes(10000L);
@@ -1757,6 +1769,48 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             admin.namespaces().removeNamespaceResourceGroup(namespace);
             assertTrue(StringUtils.isBlank(admin.namespaces().getNamespaceResourceGroup(namespace)));
         } catch (PulsarAdminException e) {
+            fail();
+        }
+    }
+
+    @Test
+    public void testNonExistNamespaceResourceGroup() {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        ResourceGroup testResourceGroup = new ResourceGroup();
+        testResourceGroup.setDispatchRateInBytes(10000L);
+        testResourceGroup.setDispatchRateInMsgs(100);
+        testResourceGroup.setPublishRateInMsgs(100);
+        testResourceGroup.setPublishRateInBytes(10000L);
+        final String resourceGroupName = "test-resource-group";
+        try {
+            admin.resourcegroups().createResourceGroup(resourceGroupName, testResourceGroup);
+        } catch (PulsarAdminException ex) {
+            fail();
+        }
+        try {
+            admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getCause() instanceof NotFoundException);
+        }
+        try {
+            admin.namespaces().getNamespaceResourceGroup(namespace);
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getCause() instanceof NotFoundException);
+        }
+        try {
+            admin.namespaces().removeNamespaceResourceGroup(namespace);
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getCause() instanceof NotFoundException);
+        }
+        try {
+            admin.namespaces().createNamespace(namespace);
+            String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
+            assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
+            admin.namespaces().removeNamespaceResourceGroup(namespace);
+            assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
+            admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+            assertEquals(admin.namespaces().getNamespaceResourceGroup(namespace), resourceGroupName);
+        } catch (PulsarAdminException ex) {
             fail();
         }
     }
