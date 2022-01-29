@@ -3583,7 +3583,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("applied") boolean applied,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -3599,7 +3599,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/schemaCompatibilityStrategy")
-    @ApiOperation(value = "Get schema compatibility strategy on a topic")
+    @ApiOperation(value = "Set schema compatibility strategy on a topic")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -3624,7 +3624,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenRun(() -> {
                     log.info(
                             "[{}] Successfully set topic schema compatibility strategy: tenant={}, namespace={}, "
-                                    + "topic={}, shemaCompatibilityStrategy = {}",
+                                    + "topic={}, schemaCompatibilityStrategy={}",
                             clientAppId(),
                             tenant,
                             namespace,
