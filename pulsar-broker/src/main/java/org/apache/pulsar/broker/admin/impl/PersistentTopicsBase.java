@@ -3764,7 +3764,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.OFFLOAD))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenAccept(topic -> {
-                    OffloadProcessStatus offloadProcessStatus = ((PersistentTopic)topic).offloadStatus();
+                    OffloadProcessStatus offloadProcessStatus = ((PersistentTopic) topic).offloadStatus();
                     asyncResponse.resume(offloadProcessStatus);
                 });
     }
