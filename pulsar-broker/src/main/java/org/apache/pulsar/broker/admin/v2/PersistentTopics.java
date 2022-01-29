@@ -334,6 +334,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
     public void createNonPartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -344,11 +345,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Key value pair properties for the topic metadata")
             Map<String, String> properties) {
-        validateNamespaceName(tenant, namespace);
-        validateGlobalNamespaceOwnership();
-        validateTopicName(tenant, namespace, encodedTopic);
-        validateCreateTopic(topicName);
-        internalCreateNonPartitionedTopic(authoritative, properties);
+        try {
+            validateNamespaceName(tenant, namespace);
+            validateTopicName(tenant, namespace, encodedTopic);
+            validateCreateTopic(topicName);
+            internalCreateNonPartitionedTopic(asyncResponse, authoritative, properties);
+        } catch (Exception e) {
+            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @GET
