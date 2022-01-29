@@ -1217,7 +1217,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
                         String msg = String.format("Encryption is required in %s", topicName);
                         log.warn("[{}] {}", remoteAddress, msg);
-                        commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
+                        if (producerFuture.completeExceptionally(new ServerMetadataException(msg))) {
+                            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
+                        }
                         producers.remove(producerId, producerFuture);
                         return;
                     }
@@ -1227,13 +1229,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
 
                     schemaVersionFuture.exceptionally(exception -> {
-                        String message = exception.getMessage();
-                        if (exception.getCause() != null) {
-                            message += (" caused by " + exception.getCause());
+                        if (producerFuture.completeExceptionally(exception)) {
+                            String message = exception.getMessage();
+                            if (exception.getCause() != null) {
+                                message += (" caused by " + exception.getCause());
+                            }
+                            commandSender.sendErrorResponse(requestId,
+                                    BrokerServiceException.getClientErrorCode(exception),
+                                    message);
                         }
-                        commandSender.sendErrorResponse(requestId,
-                                BrokerServiceException.getClientErrorCode(exception),
-                                message);
                         producers.remove(producerId, producerFuture);
                         return null;
                     });
