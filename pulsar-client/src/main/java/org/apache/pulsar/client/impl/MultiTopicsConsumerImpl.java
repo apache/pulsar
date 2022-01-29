@@ -365,19 +365,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
 
-        long callTime = System.currentTimeMillis();
+        long callTime = System.nanoTime();
         try {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
                 if (!isValidConsumerEpoch(message)) {
-                    long executionTime = System.currentTimeMillis() - callTime;
-                    if (executionTime >= unit.toMillis(timeout)) {
+                    long executionTime = System.nanoTime() - callTime;
+                    if (executionTime >= unit.toNanos(timeout)) {
                         return null;
                     } else {
                         resumeReceivingFromPausedConsumersIfNeeded();
-                        return internalReceive((int) (timeout - executionTime), TimeUnit.MILLISECONDS);
+                        return internalReceive((int) (timeout - executionTime), TimeUnit.NANOSECONDS);
                     }
                 }
                 unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.ComparisonChain;
@@ -454,7 +455,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
-        long callTime = System.currentTimeMillis();
+        long callTime = System.nanoTime();
         try {
             message = incomingMessages.poll(timeout, unit);
             if (message == null) {
@@ -462,11 +463,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             messageProcessed(message);
             if (!isValidConsumerEpoch(message)) {
-                long executionTime = System.currentTimeMillis() - callTime;
-                if (executionTime >= unit.toMillis(timeout)) {
+                long executionTime = System.nanoTime() - callTime;
+                if (executionTime >= unit.toNanos(timeout)) {
                     return null;
                 } else {
-                    return internalReceive((int) (timeout - executionTime), TimeUnit.MILLISECONDS);
+                    return internalReceive((int) (timeout - executionTime), TimeUnit.NANOSECONDS);
                 }
             }
             return beforeConsume(message);

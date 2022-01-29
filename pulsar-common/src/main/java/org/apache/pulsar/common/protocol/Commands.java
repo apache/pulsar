@@ -114,6 +114,10 @@ public class Commands {
     public static final int MESSAGE_SIZE_FRAME_PADDING = 10 * 1024;
     public static final int INVALID_MAX_MESSAGE_SIZE = -1;
 
+    // this present broker version don't have consumerEpoch feature,
+    // so client don't need to think about consumerEpoch feature
+    public static final long DEFAULT_CONSUMER_EPOCH = -1L;
+
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")
@@ -480,8 +484,8 @@ public class Commands {
     public static ByteBufPair newMessage(long consumerId, long ledgerId, long entryId, int partition,
             int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet) {
         return serializeCommandMessageWithSize(
-                newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet, 0L),
-                metadataAndPayload);
+                newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet,
+                        DEFAULT_CONSUMER_EPOCH), metadataAndPayload);
     }
 
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
@@ -546,7 +550,7 @@ public class Commands {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
                 startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null,
-                Collections.emptyMap(), -1L);
+                Collections.emptyMap(), DEFAULT_CONSUMER_EPOCH);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,

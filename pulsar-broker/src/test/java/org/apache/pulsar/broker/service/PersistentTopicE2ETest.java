@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.client.impl.ConsumerBase.DEFAULT_CONSUMER_EPOCH;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
@@ -95,10 +96,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Setter
     @Getter
     protected volatile long consumerEpoch;
-
-    // this present broker version don't have consumerEpoch feature,
-    // so client don't need to think about consumerEpoch feature
-    public static final long DEFAULT_CONSUMER_EPOCH = -1L;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
