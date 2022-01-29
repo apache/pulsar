@@ -114,7 +114,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
 
     @DataProvider(name = "subType")
     public Object[][] subType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover } };
+        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover }};
     }
 
 
@@ -131,14 +131,13 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(subType)
-                .isAckReceiptEnabled(true)
+                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topicName)
-                .enableBatching(false)
                 .batchingMaxMessages(10)
                 .create();
 
@@ -153,7 +152,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             Message<byte[]> message = consumer.receive();
             // wait for receipt
             if (i < messageCount / 2) {
-                consumer.acknowledgeAsync(message.getMessageId()).get();
+                consumer.acknowledgeAsync(message.getMessageId());
             }
         }
 
@@ -161,11 +160,12 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         PersistentSubscription persistentSubscription =  (PersistentSubscription) pulsar.getBrokerService()
                 .getTopic(topic, false).get().get().getSubscription(subscriptionName);
 
-        if (subType == SubscriptionType.Shared) {
-            assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
-        } else {
-            assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
-        }
-
+        Awaitility.await().untilAsserted(() -> {
+            if (subType == SubscriptionType.Shared) {
+                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+            } else {
+                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
+            }
+        });
     }
 }
