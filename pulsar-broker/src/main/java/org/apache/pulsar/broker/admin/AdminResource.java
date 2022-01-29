@@ -776,7 +776,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return null;
     }
 
-    protected Void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
+    protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
         if (throwable instanceof WebApplicationException) {
             asyncResponse.resume(throwable);
         } else if (throwable instanceof BrokerServiceException.NotAllowedException) {
@@ -784,7 +784,6 @@ public abstract class AdminResource extends PulsarWebResource {
         } else {
             asyncResponse.resume(new RestException(throwable));
         }
-        return null;
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
