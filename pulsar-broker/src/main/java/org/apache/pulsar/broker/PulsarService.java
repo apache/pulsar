@@ -1242,7 +1242,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             } else {
                 LOG.info("No ledger offloader configured, using NULL instance");
-                return NullLedgerOffloader.instance_;
+                return NullLedgerOffloader.INSTANCE;
             }
         } catch (Throwable t) {
             throw new PulsarServerException(t);
