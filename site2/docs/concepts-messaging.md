@@ -302,7 +302,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 
 ```
 
-By default, there is no subscription during a DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create the initial subscription for the DLQ, you can specify the initSubscriptionName parameter.
+By default, there is no subscription during a DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create the initial subscription for the DLQ, you can specify the initialSubscriptionName parameter.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
@@ -312,7 +312,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                       .maxRedeliverCount(maxRedeliveryCount)
                       .deadLetterTopic("your-topic-name")
-                      .initSubscriptionName("init-sub")
+                      .initialSubscriptionName("init-sub")
                       .build())
                 .subscribe();
                 
