@@ -161,54 +161,61 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/AutoClusterFailoverBuilder.html" title="interface in org.apache.pulsar.client.api">AutoClusterFailoverBuilder</a></span></code></th>
+<td class="colLast">
+<div class="block"><a href="../../../client/api/AutoClusterFailoverBuilder.html" title="interface in org.apache.pulsar.client.api"><code>AutoClusterFailoverBuilder</code></a> is used to configure and create instance of <a href="../../../client/api/ServiceUrlProvider.html" title="interface in org.apache.pulsar.client.api"><code>ServiceUrlProvider</code></a>.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/BatcherBuilder.html" title="interface in org.apache.pulsar.client.api">BatcherBuilder</a></span></code></th>
 <td class="colLast">
 <div class="block">Batcher builder.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/BatchMessageContainer.html" title="interface in org.apache.pulsar.client.api">BatchMessageContainer</a></span></code></th>
 <td class="colLast">
 <div class="block">Batch message container for individual messages being published until they are batched and sent to broker.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>class&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/BatchReceivePolicy.html" title="class in org.apache.pulsar.client.api">BatchReceivePolicy</a></span></code></th>
 <td class="colLast">
 <div class="block">Configuration for message batch receive <a href="../../../client/api/Consumer.html#batchReceive()"><code>Consumer.batchReceive()</code></a> <a href="../../../client/api/Consumer.html#batchReceiveAsync()"><code>Consumer.batchReceiveAsync()</code></a>.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></span></code></th>
 <td class="colLast">
 <div class="block">Builder interface that is used to configure and construct a <a href="../../../client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a> instance.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>class&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/CompressionType.html" title="enum in org.apache.pulsar.client.api">CompressionType</a></span></code></th>
 <td class="colLast">
 <div class="block">The compression type that can be specified on a <a href="../../../client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a>.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;T&gt;</span></code></th>
 <td class="colLast">
 <div class="block">An interface that abstracts behavior of Pulsar's consumer.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;</span></code></th>
 <td class="colLast">
 <div class="block"><a href="../../../client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerBuilder</code></a> is used to configure and create instances of <a href="../../../client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a>.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>class&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a></span></code></th>
 <td class="colLast">
@@ -216,14 +223,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
  message that it cannot decrypt.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></span></code></th>
 <td class="colLast">
 <div class="block">Listener on the consumer state changes.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/ConsumerInterceptor.html" title="interface in org.apache.pulsar.client.api">ConsumerInterceptor</a>&lt;T&gt;</span></code></th>
 <td class="colLast">
@@ -231,11 +238,18 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
  messages received by the consumer.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>interface&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/ConsumerStats.html" title="interface in org.apache.pulsar.client.api">ConsumerStats</a></span></code></th>
 <td class="colLast">
 <div class="block">Consumer statistics recorded by client.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>interface&nbsp;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../../../client/api/ControlledClusterFailoverBuilder.html" title="interface in org.apache.pulsar.client.api">ControlledClusterFailoverBuilder</a></span></code></th>
+<td class="colLast">
+<div class="block"><a href="../../../client/api/ControlledClusterFailoverBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ControlledClusterFailoverBuilder</code></a> is used to configure and create instance of <a href="../../../client/api/ServiceUrlProvider.html" title="interface in org.apache.pulsar.client.api"><code>ServiceUrlProvider</code></a>.</div>
 </td>
 </tr>
 <tr class="rowColor">

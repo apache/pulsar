@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":9,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":9,"i16":10,"i17":9,"i18":10,"i19":9,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":9,"i27":10,"i28":10,"i29":10,"i30":9,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10};
+var data = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":9,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":9,"i16":10,"i17":9,"i18":10,"i19":9,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":9,"i27":10,"i28":10,"i29":10,"i30":9,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -514,32 +514,38 @@ extends java.lang.Object</pre>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i50" class="altColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTenantOperationAsync(java.lang.String,org.apache.pulsar.common.policies.data.TenantOperation)">validateTenantOperationAsync</a></span>&#8203;(java.lang.String&nbsp;tenant,
+                            org.apache.pulsar.common.policies.data.TenantOperation&nbsp;operation)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperation(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation)">validateTopicOperation</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i51" class="rowColor">
+<tr id="i52" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperation(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation,java.lang.String)">validateTopicOperation</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation,
                       java.lang.String&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i52" class="altColor">
+<tr id="i53" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperationAsync(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation)">validateTopicOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                            org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i53" class="rowColor">
+<tr id="i54" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperationAsync(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation,java.lang.String)">validateTopicOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                            org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation,
                            java.lang.String&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i54" class="altColor">
+<tr id="i55" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOwnership(org.apache.pulsar.common.naming.TopicName,boolean)">validateTopicOwnership</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       boolean&nbsp;authoritative)</code></th>
@@ -547,17 +553,24 @@ extends java.lang.Object</pre>
 <div class="block">Checks whether the broker is the owner of the namespace.</div>
 </td>
 </tr>
-<tr id="i55" class="rowColor">
+<tr id="i56" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOwnershipAsync(org.apache.pulsar.common.naming.TopicName,boolean)">validateTopicOwnershipAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i56" class="altColor">
+<tr id="i57" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicPolicyOperation(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.PolicyName,org.apache.pulsar.common.policies.data.PolicyOperation)">validateTopicPolicyOperation</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                             org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
                             org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i58" class="altColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicPolicyOperationAsync(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.PolicyName,org.apache.pulsar.common.policies.data.PolicyOperation)">validateTopicPolicyOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
+                                 org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
+                                 org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -1034,6 +1047,16 @@ protected&nbsp;javax.ws.rs.core.UriInfo uri</pre>
                                     org.apache.pulsar.common.policies.data.TenantOperation&nbsp;operation)</pre>
 </li>
 </ul>
+<a id="validateTenantOperationAsync(java.lang.String,org.apache.pulsar.common.policies.data.TenantOperation)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>validateTenantOperationAsync</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;validateTenantOperationAsync&#8203;(java.lang.String&nbsp;tenant,
+                                                                                           org.apache.pulsar.common.policies.data.TenantOperation&nbsp;operation)</pre>
+</li>
+</ul>
 <a id="validateNamespaceOperation(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.NamespaceOperation)">
 <!--   -->
 </a>
@@ -1225,6 +1248,17 @@ protected&nbsp;javax.ws.rs.core.UriInfo uri</pre>
 <pre class="methodSignature">public&nbsp;void&nbsp;validateTopicPolicyOperation&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                                          org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
                                          org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</pre>
+</li>
+</ul>
+<a id="validateTopicPolicyOperationAsync(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.PolicyName,org.apache.pulsar.common.policies.data.PolicyOperation)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>validateTopicPolicyOperationAsync</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;validateTopicPolicyOperationAsync&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
+                                                                                                org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
+                                                                                                org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</pre>
 </li>
 </ul>
 <a id="validateTopicOperation(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation)">
