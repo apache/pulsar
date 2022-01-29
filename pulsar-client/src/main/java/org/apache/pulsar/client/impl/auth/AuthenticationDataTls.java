@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 public class AuthenticationDataTls implements AuthenticationDataProvider {
-    public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
+    private static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
 
     private static final long serialVersionUID = 1L;
     protected X509Certificate[] tlsCertificates;

@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
  */
 class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
     public static final String HTTP_HEADER_NAME = "Authorization";
-    public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
+    private static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
 
     private final String accessToken;
 
