@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.utils.PulsarAdminAssert.assertNotFound;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -1752,7 +1753,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testExistNamespaceResourceGroup() {
+    public void testExistNamespaceResourceGroup() throws PulsarAdminException {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         ResourceGroup testResourceGroup = new ResourceGroup();
         testResourceGroup.setDispatchRateInBytes(10000L);
@@ -1760,21 +1761,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         testResourceGroup.setPublishRateInMsgs(100);
         testResourceGroup.setPublishRateInBytes(10000L);
         final String resourceGroupName = "test-resource-group";
-        try {
-            admin.resourcegroups().createResourceGroup(resourceGroupName, testResourceGroup);
-            admin.namespaces().createNamespace(namespace);
-            admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
-            String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
-            assertEquals(namespaceResourceGroup, resourceGroupName);
-            admin.namespaces().removeNamespaceResourceGroup(namespace);
-            assertTrue(StringUtils.isBlank(admin.namespaces().getNamespaceResourceGroup(namespace)));
-        } catch (PulsarAdminException e) {
-            fail();
-        }
+        admin.resourcegroups().createResourceGroup(resourceGroupName, testResourceGroup);
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+        String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
+        assertEquals(namespaceResourceGroup, resourceGroupName);
+        admin.namespaces().removeNamespaceResourceGroup(namespace);
+        assertTrue(StringUtils.isBlank(admin.namespaces().getNamespaceResourceGroup(namespace)));
     }
 
     @Test
-    public void testNonExistNamespaceResourceGroup() {
+    public void testNonExistNamespaceResourceGroup() throws PulsarAdminException {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         ResourceGroup testResourceGroup = new ResourceGroup();
         testResourceGroup.setDispatchRateInBytes(10000L);
@@ -1782,36 +1779,18 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         testResourceGroup.setPublishRateInMsgs(100);
         testResourceGroup.setPublishRateInBytes(10000L);
         final String resourceGroupName = "test-resource-group";
-        try {
-            admin.resourcegroups().createResourceGroup(resourceGroupName, testResourceGroup);
-        } catch (PulsarAdminException ex) {
-            fail();
-        }
-        try {
-            admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
-        } catch (PulsarAdminException ex) {
-            assertTrue(ex.getCause() instanceof NotFoundException);
-        }
-        try {
-            admin.namespaces().getNamespaceResourceGroup(namespace);
-        } catch (PulsarAdminException ex) {
-            assertTrue(ex.getCause() instanceof NotFoundException);
-        }
-        try {
-            admin.namespaces().removeNamespaceResourceGroup(namespace);
-        } catch (PulsarAdminException ex) {
-            assertTrue(ex.getCause() instanceof NotFoundException);
-        }
-        try {
-            admin.namespaces().createNamespace(namespace);
-            String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
-            assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
-            admin.namespaces().removeNamespaceResourceGroup(namespace);
-            assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
-            admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
-            assertEquals(admin.namespaces().getNamespaceResourceGroup(namespace), resourceGroupName);
-        } catch (PulsarAdminException ex) {
-            fail();
-        }
+        admin.resourcegroups().createResourceGroup(resourceGroupName, testResourceGroup);
+        assertNotFound(__ -> admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName));
+        assertNotFound(__ -> admin.namespaces().getNamespaceResourceGroup(namespace));
+        assertNotFound(__ -> admin.namespaces().removeNamespaceResourceGroup(namespace));
+        admin.namespaces().createNamespace(namespace);
+        String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
+        assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
+        admin.namespaces().removeNamespaceResourceGroup(namespace);
+        assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
+        admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+        assertEquals(admin.namespaces().getNamespaceResourceGroup(namespace), resourceGroupName);
     }
+
+
 }

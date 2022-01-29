@@ -2757,10 +2757,11 @@ public abstract class NamespacesBase extends AdminResource {
                         }))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Fail to get namespace resource group {}/{} cause by {}", clientAppId(), tenant,
+                            namespace, realCause.getMessage());
                     if (realCause instanceof WebApplicationException) {
                         asyncResponse.resume(realCause);
                     } else {
-                        log.error("[{}] Fail to get namespace resource group {}/{}", clientAppId(), tenant, namespace);
                         asyncResponse.resume(new RestException(realCause));
                     }
                     return null;
@@ -2789,11 +2790,11 @@ public abstract class NamespacesBase extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), rgName,
+                            realCause.getMessage());
                     if (realCause instanceof WebApplicationException) {
                         asyncResponse.resume(realCause);
                     } else {
-                        log.error("[{}] Fail to set namespace resource group {} : {}", clientAppId(), rgName,
-                                realCause.getMessage());
                         asyncResponse.resume(new RestException(realCause));
                     }
                     return null;
