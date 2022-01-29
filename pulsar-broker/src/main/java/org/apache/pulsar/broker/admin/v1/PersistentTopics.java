@@ -801,14 +801,20 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
             @ApiResponse(code = 404, message = "Topic does not exist")})
-    public OffloadProcessStatus offloadStatus(@PathParam("tenant") String tenant,
-                                              @PathParam("cluster") String cluster,
-                                              @PathParam("namespace") String namespace,
-                                              @PathParam("topic") @Encoded String encodedTopic,
-                                              @QueryParam("authoritative") @DefaultValue("false")
-                                                      boolean authoritative) {
-        validateTopicName(tenant, cluster, namespace, encodedTopic);
-        return internalOffloadStatus(authoritative);
+    public void offloadStatus(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("cluster") String cluster,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic,
+                              @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(tenant, cluster, namespace, encodedTopic);
+            internalOffloadStatus(asyncResponse, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET

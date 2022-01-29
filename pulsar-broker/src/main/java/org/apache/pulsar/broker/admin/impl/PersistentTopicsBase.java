@@ -3759,12 +3759,14 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected OffloadProcessStatus internalOffloadStatus(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.OFFLOAD);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        return topic.offloadStatus();
+    protected void internalOffloadStatus(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.OFFLOAD))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> {
+                    OffloadProcessStatus offloadProcessStatus = ((PersistentTopic)topic).offloadStatus();
+                    asyncResponse.resume(offloadProcessStatus);
+                });
     }
 
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
