@@ -2750,12 +2750,14 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperationAsync(NamespaceName.get(tenant, namespace),
                 PolicyName.RESOURCEGROUP, PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName)
-                        .thenAccept(policies -> asyncResponse.resume(policies.resource_group_name)))
+                        .thenAccept(policies -> {
+                            log.info("[{}] Successfully to get namespace resource group {}/{}",
+                                    clientAppId(), tenant, namespace);
+                            asyncResponse.resume(policies.resource_group_name);
+                        }))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof WebApplicationException) {
-                        log.info("[{}] Successfully to get namespace resource group {}/{}",
-                                clientAppId(), tenant, namespace);
                         asyncResponse.resume(realCause);
                     } else {
                         log.error("[{}] Fail to get namespace resource group {}/{}", clientAppId(), tenant, namespace);
