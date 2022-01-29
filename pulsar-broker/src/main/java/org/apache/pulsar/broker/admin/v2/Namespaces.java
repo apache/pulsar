@@ -1923,10 +1923,10 @@ public class Namespaces extends NamespacesBase {
                                       @PathParam("namespace") String namespace) {
         validateNamespaceNameAsync(tenant, namespace)
                 .thenCompose(__ -> internalGetNamespaceResourceGroup(tenant, namespace))
-                .thenAccept(policies -> {
+                .thenAccept(resourceGroup -> {
                     log.info("[{}] Successfully to get namespace resource group {}/{}",
                             clientAppId(), tenant, namespace);
-                    asyncResponse.resume(policies.resource_group_name);
+                    asyncResponse.resume(resourceGroup);
                 }).exceptionally(ex -> {
                     log.error("[{}] Fail to get namespace resource group, cause by {}", clientAppId(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);

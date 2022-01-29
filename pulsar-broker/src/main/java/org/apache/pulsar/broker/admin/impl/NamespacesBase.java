@@ -2746,10 +2746,12 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
 
-    protected CompletableFuture<Policies> internalGetNamespaceResourceGroup(String tenant, String namespace) {
+    protected CompletableFuture<String> internalGetNamespaceResourceGroup(String tenant, String namespace) {
         return validateNamespacePolicyOperationAsync(NamespaceName.get(tenant, namespace),
                 PolicyName.RESOURCEGROUP, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName));
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName)
+                        .thenApply(policies -> policies.resource_group_name)
+                );
     }
 
     protected CompletableFuture<Void> internalSetNamespaceResourceGroup(String rgName) {
