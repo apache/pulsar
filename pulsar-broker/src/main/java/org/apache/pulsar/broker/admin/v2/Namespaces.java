@@ -42,6 +42,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
@@ -71,6 +72,8 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.jetbrains.annotations.Nullable;
 
 @Path("/namespaces")
 @Produces(MediaType.APPLICATION_JSON)
@@ -1918,8 +1921,13 @@ public class Namespaces extends NamespacesBase {
                                       @Suspended AsyncResponse asyncResponse,
                                       @PathParam("tenant") String tenant,
                                       @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, namespace);
-        internalGetNamespaceResourceGroup(asyncResponse, tenant, namespace);
+        validateNamespaceNameAsync(tenant, namespace)
+                .thenCompose(__ -> internalGetNamespaceResourceGroup(tenant, namespace))
+                .thenAccept(policies -> {
+                    log.info("[{}] Successfully to get namespace resource group {}/{}",
+                            clientAppId(), tenant, namespace);
+                    asyncResponse.resume(policies.resource_group_name);
+                }).exceptionally(ex -> handleCommonRestAsyncException(asyncResponse, ex));
     }
 
     @POST
@@ -1931,8 +1939,12 @@ public class Namespaces extends NamespacesBase {
     public void setNamespaceResourceGroup(@Suspended AsyncResponse asyncResponse,
                                           @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                           @PathParam("resourcegroup") String rgName) {
-        validateNamespaceName(tenant, namespace);
-        internalSetNamespaceResourceGroup(asyncResponse, rgName);
+        validateNamespaceNameAsync(tenant, namespace)
+                .thenCompose(__ -> internalSetNamespaceResourceGroup(rgName))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), rgName);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> handleCommonRestAsyncException(asyncResponse, ex));
     }
 
     @DELETE
@@ -1944,7 +1956,24 @@ public class Namespaces extends NamespacesBase {
     public void removeNamespaceResourceGroup(@Suspended AsyncResponse asyncResponse,
                                              @PathParam("tenant") String tenant,
                                              @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, namespace);
-        internalSetNamespaceResourceGroup(asyncResponse, null);
+        validateNamespaceNameAsync(tenant, namespace)
+                .thenCompose(__ -> internalSetNamespaceResourceGroup(null))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), null);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> handleCommonRestAsyncException(asyncResponse, ex));
+    }
+
+    @Nullable
+    private Void handleCommonRestAsyncException(AsyncResponse asyncResponse, Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), null,
+                realCause.getMessage());
+        if (realCause instanceof WebApplicationException) {
+            asyncResponse.resume(realCause);
+        } else {
+            asyncResponse.resume(new RestException(realCause));
+        }
+        return null;
     }
 }

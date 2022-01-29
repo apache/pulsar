@@ -166,6 +166,17 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected CompletableFuture<Void> validateNamespaceNameAsync(String property, String namespace) {
+        try {
+            this.namespaceName = NamespaceName.get(property, namespace);
+            return CompletableFuture.completedFuture(null);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Namespace name is not valid"));
+        }
+    }
+
     protected void validateGlobalNamespaceOwnership() {
         try {
             validateGlobalNamespaceOwnership(this.namespaceName);

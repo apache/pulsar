@@ -2746,30 +2746,14 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
 
-    protected void internalGetNamespaceResourceGroup(AsyncResponse asyncResponse, String tenant, String namespace) {
-        validateNamespacePolicyOperationAsync(NamespaceName.get(tenant, namespace),
+    protected CompletableFuture<Policies> internalGetNamespaceResourceGroup(String tenant, String namespace) {
+        return validateNamespacePolicyOperationAsync(NamespaceName.get(tenant, namespace),
                 PolicyName.RESOURCEGROUP, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName)
-                        .thenAccept(policies -> {
-                            log.info("[{}] Successfully to get namespace resource group {}/{}",
-                                    clientAppId(), tenant, namespace);
-                            asyncResponse.resume(policies.resource_group_name);
-                        }))
-                .exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Fail to get namespace resource group {}/{} cause by {}", clientAppId(), tenant,
-                            namespace, realCause.getMessage());
-                    if (realCause instanceof WebApplicationException) {
-                        asyncResponse.resume(realCause);
-                    } else {
-                        asyncResponse.resume(new RestException(realCause));
-                    }
-                    return null;
-                });
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName));
     }
 
-    protected void internalSetNamespaceResourceGroup(AsyncResponse asyncResponse, String rgName) {
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RESOURCEGROUP, PolicyOperation.WRITE)
+    protected CompletableFuture<Void> internalSetNamespaceResourceGroup(String rgName) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RESOURCEGROUP, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
                     if (rgName != null) {
@@ -2784,20 +2768,6 @@ public abstract class NamespacesBase extends AdminResource {
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }
-                }).thenCompose(__ -> internalSetPoliciesAsync("resource_group_name", rgName))
-                .thenAccept(__ -> {
-                    log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), rgName);
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), rgName,
-                            realCause.getMessage());
-                    if (realCause instanceof WebApplicationException) {
-                        asyncResponse.resume(realCause);
-                    } else {
-                        asyncResponse.resume(new RestException(realCause));
-                    }
-                    return null;
-                });
+                }).thenCompose(__ -> internalSetPoliciesAsync("resource_group_name", rgName));
     }
 }
