@@ -485,8 +485,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (payloadChunkSize <= 0) {
                 PulsarClientException.InvalidMessageException invalidMessageException =
                         new PulsarClientException.InvalidMessageException(
-                                format("The producer %s of the topic %s sends a message with %d bytes metadata that exceeds %d bytes",
-                                        producerName, topic, msgMetadata.getSerializedSize(), ClientCnx.getMaxMessageSize()));
+                                format("The producer %s of the topic %s sends a message with %d bytes metadata that "
+                                                + "exceeds %d bytes", producerName, topic,
+                                        msgMetadata.getSerializedSize(), ClientCnx.getMaxMessageSize()));
                 completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
                 compressedPayload.release();
                 return;
