@@ -2730,6 +2730,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
     public void triggerOffload(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -2739,11 +2740,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                MessageIdImpl messageId) {
-        if (messageId == null) {
-            throw new RestException(Response.Status.BAD_REQUEST, "messageId is null");
+        try {
+            if (messageId == null) {
+                throw new RestException(Response.Status.BAD_REQUEST, "messageId is null");
+            }
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalTriggerOffload(asyncResponse, authoritative, messageId);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
         }
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalTriggerOffload(authoritative, messageId);
     }
 
     @GET

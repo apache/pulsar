@@ -783,14 +783,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 409, message = "Offload already running")})
-    public void triggerOffload(@PathParam("tenant") String tenant,
+    public void triggerOffload(@Suspended final AsyncResponse asyncResponse,
+                               @PathParam("tenant") String tenant,
                                @PathParam("cluster") String cluster,
                                @PathParam("namespace") String namespace,
                                @PathParam("topic") @Encoded String encodedTopic,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                MessageIdImpl messageId) {
-        validateTopicName(tenant, cluster, namespace, encodedTopic);
-        internalTriggerOffload(authoritative, messageId);
+        try {
+            validateTopicName(tenant, cluster, namespace, encodedTopic);
+            internalTriggerOffload(asyncResponse, authoritative, messageId);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
