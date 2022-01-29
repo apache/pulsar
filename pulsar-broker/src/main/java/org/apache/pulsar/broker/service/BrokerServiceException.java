@@ -203,8 +203,8 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class ProducerInitSubAuthzException extends BrokerServiceException {
-        public ProducerInitSubAuthzException(String msg) {
+    public static class ProducerInitSubAuthorizationException extends BrokerServiceException {
+        public ProducerInitSubAuthorizationException(String msg) {
             super(msg);
         }
     }
@@ -256,7 +256,7 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
-        } else if (t instanceof ProducerInitSubAuthzException) {
+        } else if (t instanceof ProducerInitSubAuthorizationException) {
             return ServerError.AuthorizationError;
         } else {
             if (checkCauseIfUnknown) {

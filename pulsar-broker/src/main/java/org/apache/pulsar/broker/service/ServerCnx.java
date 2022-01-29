@@ -1248,7 +1248,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ).thenCompose(canSubscribe -> {
                                     if (!canSubscribe) {
                                         return FutureUtil.failedFuture(
-                                                new BrokerServiceException.ProducerInitSubAuthzException(
+                                                new BrokerServiceException.ProducerInitSubAuthorizationException(
                                                         "Client is not authorized to subscribe."));
                                     }
                                     return topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
