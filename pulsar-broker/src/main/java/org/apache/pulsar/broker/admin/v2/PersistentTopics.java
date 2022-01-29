@@ -125,7 +125,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateNamespaceNameAsync(tenant, namespace)
                 .thenCompose(__ -> internalGetPartitionedTopicList())
                 .thenAccept(partitionedTopicList -> {
-                    log.info("[{}] Successfully to get partitioned topic list {}/{}",clientAppId(), tenant, namespace);
+                    log.info("[{}] Successfully to get partitioned topic list {}/{}", clientAppId(), tenant, namespace);
                     asyncResponse.resume(partitionedTopicList);
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to get partitioned topic list {}: {}", clientAppId(),
