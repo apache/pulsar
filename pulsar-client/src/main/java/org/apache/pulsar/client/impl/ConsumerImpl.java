@@ -351,8 +351,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         topic, subscription));
             }
 
-            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitSubscriptionName())) {
-                this.deadLetterPolicy.setInitSubscriptionName(conf.getDeadLetterPolicy().getInitSubscriptionName());
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitialSubscriptionName())) {
+                this.deadLetterPolicy.setInitialSubscriptionName(
+                        conf.getDeadLetterPolicy().getInitialSubscriptionName());
             }
 
         } else {
@@ -1873,7 +1874,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (deadLetterProducer == null) {
                     deadLetterProducer =
                             ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
-                                    .initialSubscriptionName(this.deadLetterPolicy.getInitSubscriptionName())
+                                    .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                     .blockIfQueueFull(false)
                                     .createAsync();

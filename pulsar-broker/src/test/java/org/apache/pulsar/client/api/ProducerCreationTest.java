@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -101,23 +102,23 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         final TopicName topic = TopicName.get(domain.value(), "public", "default", "testInitialSubscriptionCreation");
 
         // Should not create initial subscription when the initialSubscriptionName is null or empty
-        Producer<byte[]> nullInitSubProducer = pulsarClient.newProducer()
-                .topic(topic.toString())
+        Producer<byte[]> nullInitSubProducer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
                 .initialSubscriptionName(null)
+                .topic(topic.toString())
                 .create();
         nullInitSubProducer.close();
         Assert.assertFalse(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
 
-        Producer<byte[]> emptyInitSubProducer = pulsarClient.newProducer()
+        Producer<byte[]> emptyInitSubProducer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
+                .initialSubscriptionName(initialSubscriptionName)
                 .topic(topic.toString())
-                .initialSubscriptionName("")
                 .create();
         emptyInitSubProducer.close();
         Assert.assertFalse(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic.toString())
+        Producer<byte[]> producer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
                 .initialSubscriptionName(initialSubscriptionName)
+                .topic(topic.toString())
                 .create();
         producer.close();
 
@@ -126,9 +127,9 @@ public class ProducerCreationTest extends ProducerConsumerBase {
                 admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
 
         // Existing subscription should not fail the producer creation.
-        Producer<byte[]> otherProducer = pulsarClient.newProducer()
-                .topic(topic.toString())
+        Producer<byte[]> otherProducer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
                 .initialSubscriptionName(initialSubscriptionName)
+                .topic(topic.toString())
                 .create();
         otherProducer.close();
 
@@ -142,9 +143,9 @@ public class ProducerCreationTest extends ProducerConsumerBase {
                 TopicName.get("persistent", "public", "default", "testCreateInitialSubscriptionOnPartitionedTopic");
         final String initialSubscriptionName = "init-sub";
         admin.topics().createPartitionedTopic(topic.toString(), 10);
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic.toString())
+        Producer<byte[]> producer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
                 .initialSubscriptionName(initialSubscriptionName)
+                .topic(topic.toString())
                 .create();
         producer.close();
 
@@ -158,9 +159,9 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         final String initialSubscriptionName = "init-sub";
         admin.topics().createNonPartitionedTopic(topic.toString());
         admin.topics().createSubscription(topic.toString(), initialSubscriptionName, MessageId.earliest);
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic.toString())
+        Producer<byte[]> producer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
                 .initialSubscriptionName(initialSubscriptionName)
+                .topic(topic.toString())
                 .create();
         producer.close();
 

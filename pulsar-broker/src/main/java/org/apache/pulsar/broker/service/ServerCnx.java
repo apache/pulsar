@@ -1238,33 +1238,42 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     });
 
                     schemaVersionFuture.thenAccept(schemaVersion -> {
-                        topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenCompose(future -> {
-                            if (Strings.isNullOrEmpty(initialSubscriptionName)
-                                    || topic.getSubscriptions().containsKey(initialSubscriptionName)
-                                    || !topic.isPersistent()) {
-                                return CompletableFuture.completedFuture(null);
+                        topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
+                            CompletableFuture<Subscription> initSubFuture = new CompletableFuture<>();
+                            if (!Strings.isNullOrEmpty(initialSubscriptionName)
+                                    && !topic.getSubscriptions().containsKey(initialSubscriptionName)
+                                    && topic.isPersistent()) {
+                                initSubFuture = isTopicOperationAllowed(
+                                        topicName, TopicOperation.SUBSCRIBE
+                                ).thenCompose(canSubscribe -> {
+                                    if (!canSubscribe) {
+                                        return FutureUtil.failedFuture(
+                                                new BrokerServiceException.ProducerInitSubAuthzException(
+                                                        "Client is not authorized to subscribe."));
+                                    }
+                                    return topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
+                                            false);
+                                });
+                            } else {
+                                initSubFuture.complete(null);
                             }
-                            return isTopicOperationAllowed(
-                                    topicName, TopicOperation.SUBSCRIBE
-                            ).thenCompose(canSubscribe -> {
-                                if (!canSubscribe) {
-                                    log.warn(
-                                            "[{}] Could not create the initial subscription {} for topic {}. Client "
-                                                    + "is not authorized to subscribe with role {}",
-                                            remoteAddress, initialSubscriptionName, topicName, getPrincipal());
-                                    return CompletableFuture.completedFuture(null);
+
+                            initSubFuture.whenComplete((sub, ex) -> {
+                                if (ex != null) {
+                                    String msg =
+                                            "Failed to create the initial subscription: " + ex.getCause().getMessage();
+                                    log.warn("[{}] {} initialSubscriptionName: {}, topic: {}",
+                                            remoteAddress, msg, initialSubscriptionName, topicName);
+                                    commandSender.sendErrorResponse(requestId,
+                                            BrokerServiceException.getClientErrorCode(ex), msg);
+                                    producers.remove(producerId, producerFuture);
+                                    return;
                                 }
-                                return topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
-                                        false);
-                            }).exceptionally(exception -> {
-                                log.warn("[{}] Failed to create the initial subscription {}, topic: {}", remoteAddress,
-                                        initialSubscriptionName, topicName);
-                                return null;
+
+                                buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                                        metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
+                                        producerAccessMode, topicEpoch, producerFuture);
                             });
-                        }).thenAccept(future -> {
-                            buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
-                                    metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
-                                    producerAccessMode, topicEpoch, producerFuture);
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
                             log.error("producerId {}, requestId {} : TransactionBuffer recover failed",

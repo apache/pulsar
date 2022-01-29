@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -569,11 +570,16 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
                 .authentication(authenticationInvalidRole).build();
 
-        Producer<byte[]> invalidRoleProducer = pulsarClientInvalidRole.newProducer()
-                .topic(topic)
-                .initialSubscriptionName(initialSubscriptionName)
-                .create();
-        invalidRoleProducer.close();
+        try{
+            Producer<byte[]> invalidRoleProducer = ((ProducerBuilderImpl<byte[]>) pulsarClientInvalidRole.newProducer())
+                    .initialSubscriptionName(initialSubscriptionName)
+                    .topic(topic)
+                    .create();
+            invalidRoleProducer.close();
+            fail("Should not pass");
+        } catch (PulsarClientException.AuthorizationException ex){
+            // ok
+        }
 
         Assert.assertFalse(admin.topics().getSubscriptions(topic).contains(initialSubscriptionName));
 
@@ -581,9 +587,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarClient pulsarClientProducerRole = PulsarClient.builder().serviceUrl(lookupUrl)
                 .authentication(authenticationProducerRole).build();
 
-        Producer<byte[]> producer = pulsarClientProducerRole.newProducer()
-                .topic(topic)
+        Producer<byte[]> producer = ((ProducerBuilderImpl<byte[]>) pulsarClientProducerRole.newProducer())
                 .initialSubscriptionName(initialSubscriptionName)
+                .topic(topic)
                 .create();
         producer.close();
 
