@@ -414,16 +414,7 @@ public class Consumer {
                 }
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
-                    long[] cursorAckSet = getCursorAckSet(position);
-                    if (cursorAckSet != null) {
-                        ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET);
-                    } else {
-                        ackedCount = batchSize;
-                    }
-                } else {
-                    ackedCount = batchSize;
-                }
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
             }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
@@ -477,16 +468,7 @@ public class Consumer {
                 ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
-                    long[] cursorAckSet = getCursorAckSet(position);
-                    if (cursorAckSet != null) {
-                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
-                    } else {
-                        ackedCount = batchSize;
-                    }
-                } else {
-                    ackedCount = batchSize;
-                }
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
             }
 
             if (msgId.hasBatchIndex()) {
@@ -531,6 +513,16 @@ public class Consumer {
                 }
             } else {
                 batchSize = longPair.first;
+            }
+        }
+        return batchSize;
+    }
+
+    private long getAckedCountForMsgIdNoAckSets(long batchSize, PositionImpl position) {
+        if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
+            long[] cursorAckSet = getCursorAckSet(position);
+            if (cursorAckSet != null) {
+                return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET);
             }
         }
         return batchSize;
