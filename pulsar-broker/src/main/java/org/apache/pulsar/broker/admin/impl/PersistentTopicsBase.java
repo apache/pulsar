@@ -2494,50 +2494,71 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
+    protected void internalPeekNthMessage(AsyncResponse asyncResponse, String subName, int messagePosition,
+                                              boolean authoritative) {
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
                 authoritative, false).partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
+            resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Peek messages on a partitioned topic is not allowed"));
+            return;
         }
 
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
-
-        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
-                    subName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Peek messages on a non-persistent topic is not allowed");
-        }
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        PersistentReplicator repl = null;
-        PersistentSubscription sub = null;
-        Entry entry = null;
-        if (subName.startsWith(topic.getReplicatorPrefix())) {
-            repl = getReplicatorReference(subName, topic);
-        } else {
-            sub = (PersistentSubscription) getSubscriptionReference(subName, topic);
-        }
-        try {
-            if (subName.startsWith(topic.getReplicatorPrefix())) {
-                entry = repl.peekNthMessage(messagePosition).get();
-            } else {
-                entry = sub.peekNthMessage(messagePosition).get();
-            }
-            return generateResponseWithEntry(entry);
-        } catch (NullPointerException npe) {
-            throw new RestException(Status.NOT_FOUND, "Message not found");
-        } catch (Exception exception) {
-            log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(), messagePosition,
-                    topicName, subName, exception);
-            throw new RestException(exception);
-        } finally {
-            if (entry != null) {
-                entry.release();
-            }
-        }
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
+                    CompletableFuture<Entry> entry = null;
+                    if (!(topic instanceof PersistentTopic)) {
+                        log.error("[{}] Not supported operation of non-persistent topic {} {}",
+                                clientAppId(), topicName, subName);
+                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Peek messages on a non-persistent topic is not allowed"));
+                    } else {
+                        if (subName.startsWith(((PersistentTopic) topic).getReplicatorPrefix())) {
+                            PersistentReplicator repl = getReplicatorReference(subName, ((PersistentTopic) topic));
+                            entry = repl.peekNthMessage(messagePosition);
+                        } else {
+                            PersistentSubscription sub = (PersistentSubscription) getSubscriptionReference(
+                                    subName, ((PersistentTopic) topic));
+                            entry = sub.peekNthMessage(messagePosition);
+                        }
+                    }
+                    return entry;
+                })
+                .thenAccept(entry -> {
+                    if (entry != null) {
+                        try {
+                            Response response = generateResponseWithEntry(entry);
+                            asyncResponse.resume(response);
+                        } catch (NullPointerException npe) {
+                            throw new RestException(Status.NOT_FOUND, "Message not found");
+                        } catch (Exception exception) {
+                            log.error("[{}] Failed to peek message at position {} from {} {}",
+                                    clientAppId(), messagePosition, topicName, subName, exception);
+                            throw new RestException(exception);
+                        } finally {
+                            if (entry != null) {
+                                entry.release();
+                            }
+                        }
+                    }
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to peek messages on a partitioned topic {},"
+                                    + " redirecting to other brokers.", clientAppId(), topicName, cause);
+                        }
+                    } else {
+                        log.error("[{}] Failed to peek messages on a partitioned topic {}",
+                                clientAppId(), topicName, cause);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     protected Response internalExamineMessage(String initialPosition, long messagePosition, boolean authoritative) {

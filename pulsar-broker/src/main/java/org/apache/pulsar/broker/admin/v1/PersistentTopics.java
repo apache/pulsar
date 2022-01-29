@@ -658,12 +658,22 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic, subscription or the message position does not exist") })
-    public Response peekNthMessage(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String encodedSubName, @PathParam("messagePosition") int messagePosition,
+    public void peekNthMessage(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("property") String property,
+                                   @PathParam("cluster") String cluster,
+                                   @PathParam("namespace") String namespace,
+                                   @PathParam("topic") @Encoded String encodedTopic,
+                                   @PathParam("subName") String encodedSubName,
+                                   @PathParam("messagePosition") int messagePosition,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalPeekNthMessage(decode(encodedSubName), messagePosition, authoritative);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalPeekNthMessage(asyncResponse, decode(encodedSubName), messagePosition, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
