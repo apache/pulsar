@@ -3766,6 +3766,20 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenAccept(topic -> {
                     OffloadProcessStatus offloadProcessStatus = ((PersistentTopic) topic).offloadStatus();
                     asyncResponse.resume(offloadProcessStatus);
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to offload status on topic {},"
+                                    + " redirecting to other brokers.", clientAppId(), topicName, cause);
+                        }
+                    } else {
+                        log.error("[{}] Failed to offload status on topic {}", clientAppId(), topicName, cause);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
                 });
     }
 
