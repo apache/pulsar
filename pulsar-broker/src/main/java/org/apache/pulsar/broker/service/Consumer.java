@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
@@ -122,6 +123,7 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> AVG_MESSAGES_PER_ENTRY =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "avgMessagesPerEntry");
     private volatile int avgMessagesPerEntry = 1000;
+    private static final long [] EMPTY_ACK_SET = new long[0];
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
@@ -416,7 +418,8 @@ public class Consumer {
                 if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
                     long[] cursorAckSet = getCursorAckSet(position);
                     if (cursorAckSet != null) {
-                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
+                        ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET,
+                                subType);
                     } else {
                         ackedCount = batchSize;
                     }
@@ -576,6 +579,14 @@ public class Consumer {
             }
         }
         return ackOwnerConsumer;
+    }
+
+    private boolean isMessageDeleted(Position position) {
+        if (!(subscription instanceof PersistentSubscription)) {
+            return true;
+        }
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ((PersistentSubscription) subscription).getCursor();
+        return cursor.isMessageDeleted(position);
     }
 
     private long[] getCursorAckSet(PositionImpl position) {

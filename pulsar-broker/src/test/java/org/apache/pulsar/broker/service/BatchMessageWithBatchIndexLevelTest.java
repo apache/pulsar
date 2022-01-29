@@ -114,7 +114,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
 
     @DataProvider(name = "subType")
     public Object[][] subType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover }};
+        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover}};
     }
 
 
@@ -152,7 +152,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             Message<byte[]> message = consumer.receive();
             // wait for receipt
             if (i < messageCount / 2) {
-                consumer.acknowledgeAsync(message.getMessageId());
+                consumer.acknowledgeAsync(message.getMessageId()).get();
             }
         }
 
