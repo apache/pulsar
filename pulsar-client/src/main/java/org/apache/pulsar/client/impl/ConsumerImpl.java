@@ -1871,11 +1871,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                            .blockIfQueueFull(false)
-                            .initialSubscriptionName(this.deadLetterPolicy.getInitSubscriptionName())
-                            .createAsync();
+                    deadLetterProducer =
+                            ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                    .initialSubscriptionName(this.deadLetterPolicy.getInitSubscriptionName())
+                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                    .blockIfQueueFull(false)
+                                    .createAsync();
                 }
             } finally {
                 createProducerLock.writeLock().unlock();

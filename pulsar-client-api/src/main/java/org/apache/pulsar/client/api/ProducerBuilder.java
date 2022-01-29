@@ -596,13 +596,4 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers);
-
-    /**
-     * Use this config to automatically create an initial subscription when creating the topic.
-     * If this field is not set, the initial subscription will not be created.
-     *
-     * @param initialSubscriptionName Name of the initial subscription of the topic.
-     * @return the producer builder instance
-     */
-    ProducerBuilder<T> initialSubscriptionName(String initialSubscriptionName);
 }
