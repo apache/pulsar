@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,6 +30,7 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate.Predicate4ConsistentHashingStickyKeyConsumerSelector;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -100,8 +102,7 @@ public class KeySharedEUseConsistentHashE2ETest extends BrokerTestBase {
                 consumerBuilder.clone().consumerName("key_shared_consistent_consumer_01")
                 .consumerEventListener(listener1);
         Consumer<byte[]> consumer1 = consumerBuilder1.subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-        Assert.assertEquals(listener1.trigCount.get(), 1);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener1.trigCount.get() == 1);
         Assert.assertTrue(listener1.keyPredicate != null);
         Assert.assertTrue(listener1.keyPredicate instanceof Predicate4ConsistentHashingStickyKeyConsumerSelector);
         Predicate4ConsistentHashingStickyKeyConsumerSelector predicate1 =
@@ -116,9 +117,8 @@ public class KeySharedEUseConsistentHashE2ETest extends BrokerTestBase {
         ConsumerBuilder<byte[]> consumerBuilder2 = consumerBuilder.clone().consumerName("key_shared_consumer_02")
                 .consumerEventListener(listener2);
         Consumer<byte[]> consumer2 = consumerBuilder2.subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         // assert listener2
-        Assert.assertEquals(listener2.trigCount.get(), 1);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener2.trigCount.get() == 1);
         Assert.assertTrue(listener2.keyPredicate != null);
         Assert.assertTrue(listener2.keyPredicate instanceof Predicate4ConsistentHashingStickyKeyConsumerSelector);
         Predicate4ConsistentHashingStickyKeyConsumerSelector predicate2 =
@@ -138,9 +138,8 @@ public class KeySharedEUseConsistentHashE2ETest extends BrokerTestBase {
         Assert.assertTrue(nodeCount1 > nodeCountFist);
         // 3. Close one consumer
         consumer2.close();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         // assert listener1
-        Assert.assertEquals(listener1.trigCount.get(), 3);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener1.trigCount.get() == 3);
         Assert.assertTrue(listener1.keyPredicate != null);
         Assert.assertTrue(listener1.keyPredicate instanceof Predicate4ConsistentHashingStickyKeyConsumerSelector);
         predicate1 = (Predicate4ConsistentHashingStickyKeyConsumerSelector) listener1.keyPredicate;

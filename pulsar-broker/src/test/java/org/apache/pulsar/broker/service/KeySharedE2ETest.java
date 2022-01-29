@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.NavigableMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -30,6 +31,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.StickyKeyConsumerPredicate;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -43,12 +45,14 @@ public class KeySharedE2ETest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        super.conf.setSubscriptionKeySharedUseConsistentHashing(false);
         super.baseSetup();
     }
 
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        super.conf.setSubscriptionKeySharedUseConsistentHashing(false);
         super.internalCleanup();
     }
 
@@ -95,12 +99,11 @@ public class KeySharedE2ETest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Key_Shared);
         int rangeSize = 0;
         // 1.One subscription.
-        TestConsumerStateEventListener listener1 = new TestConsumerStateEventListener("key_shared_listener_01");
+        final TestConsumerStateEventListener listener1 = new TestConsumerStateEventListener("key_shared_listener_01");
         ConsumerBuilder<byte[]> consumerBuilder1 = consumerBuilder.clone().consumerName("key_shared_consumer_01")
                 .consumerEventListener(listener1);
         Consumer<byte[]> consumer1 = consumerBuilder1.subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-        Assert.assertEquals(listener1.trigCount.get(), 1);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener1.trigCount.get() == 1);
         Assert.assertTrue(listener1.keyPredicate != null);
         Assert.assertTrue(listener1.keyPredicate instanceof Predicate4HashRangeAutoSplitStickyKeyConsumerSelector);
         Predicate4HashRangeAutoSplitStickyKeyConsumerSelector predicate4ConsistentHashingStickyKeyConsumerSelector1 =
@@ -114,9 +117,8 @@ public class KeySharedE2ETest extends BrokerTestBase {
         ConsumerBuilder<byte[]> consumerBuilder2 = consumerBuilder.clone().consumerName("key_shared_consumer_02")
                 .consumerEventListener(listener2);
         Consumer<byte[]> consumer2 = consumerBuilder2.subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         // assert listener2
-        Assert.assertEquals(listener2.trigCount.get(), 1);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener2.trigCount.get() == 1);
         Assert.assertTrue(listener2.keyPredicate != null);
         Assert.assertTrue(listener2.keyPredicate instanceof Predicate4HashRangeAutoSplitStickyKeyConsumerSelector);
         Predicate4HashRangeAutoSplitStickyKeyConsumerSelector predicate4ConsistentHashingStickyKeyConsumerSelector2 =
@@ -135,9 +137,8 @@ public class KeySharedE2ETest extends BrokerTestBase {
         Assert.assertEquals(predicate4ConsistentHashingStickyKeyConsumerSelector1.getLowHash(), rangeSize >> 1);
         // 3. close one consumer.
         consumer2.close();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         // assert listener1
-        Assert.assertEquals(listener1.trigCount.get(), 3);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener1.trigCount.get() == 3);
         Assert.assertTrue(listener1.keyPredicate != null);
         Assert.assertTrue(listener1.keyPredicate instanceof Predicate4HashRangeAutoSplitStickyKeyConsumerSelector);
         predicate4ConsistentHashingStickyKeyConsumerSelector1 =
@@ -163,8 +164,7 @@ public class KeySharedE2ETest extends BrokerTestBase {
                 .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 10)))
                 .consumerEventListener(listener1);
         Consumer<byte[]> consumer1 = consumerBuilder1.subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-        Assert.assertEquals(listener1.trigCount.get(), 1);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener1.trigCount.get() == 1);
         Assert.assertTrue(listener1.keyPredicate != null);
         Assert.assertTrue(listener1.keyPredicate instanceof Predicate4HashRangeExclusiveStickyKeyConsumerSelector);
         Predicate4HashRangeExclusiveStickyKeyConsumerSelector predicate1 =
@@ -182,9 +182,8 @@ public class KeySharedE2ETest extends BrokerTestBase {
                 .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(11, 20)))
                 .consumerEventListener(listener2);
         Consumer<byte[]> consumer2 = consumerBuilder2.subscribe();
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
         // assert listener2
-        Assert.assertEquals(listener2.trigCount.get(), 1);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener2.trigCount.get() == 1);
         Assert.assertTrue(listener2.keyPredicate != null);
         Assert.assertTrue(listener2.keyPredicate instanceof Predicate4HashRangeExclusiveStickyKeyConsumerSelector);
         Predicate4HashRangeExclusiveStickyKeyConsumerSelector predicate2 =
@@ -211,8 +210,7 @@ public class KeySharedE2ETest extends BrokerTestBase {
         // 3. close one consumer.
         consumer2.close();
         // assert listener1
-        Thread.sleep(CONSUMER_ADD_OR_REMOVE_WAIT_TIME);
-        Assert.assertEquals(listener1.trigCount.get(), 3);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> listener1.trigCount.get() == 3);
         Assert.assertTrue(listener1.keyPredicate != null);
         Assert.assertTrue(listener1.keyPredicate instanceof Predicate4HashRangeExclusiveStickyKeyConsumerSelector);
         predicate1 = (Predicate4HashRangeExclusiveStickyKeyConsumerSelector) listener1.keyPredicate;

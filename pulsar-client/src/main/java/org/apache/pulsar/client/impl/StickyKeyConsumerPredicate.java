@@ -31,6 +31,7 @@ import java.util.function.Predicate;
 import lombok.Data;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /***
  * Test message-key whether match client-current-consumer.
