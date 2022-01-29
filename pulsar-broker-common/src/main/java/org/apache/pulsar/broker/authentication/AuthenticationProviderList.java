@@ -208,11 +208,13 @@ public class AuthenticationProviderList implements AuthenticationProvider {
             authenticationException = ae;
         }
         if (states.isEmpty()) {
-            log.debug("Failed to initialize a new http auth state from {}", request.getRemoteHost(), authenticationException);
+            log.debug("Failed to initialize a new http auth state from {}",
+                    request.getRemoteHost(), authenticationException);
             if (authenticationException != null) {
                 throw authenticationException;
             } else {
-                throw new AuthenticationException("Failed to initialize a new http auth state from " + request.getRemoteHost());
+                throw new AuthenticationException(
+                        "Failed to initialize a new http auth state from " + request.getRemoteHost());
             }
         } else {
             return new AuthenticationListState(states);

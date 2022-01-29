@@ -22,7 +22,6 @@ package org.apache.pulsar.broker.authentication;
 import java.net.SocketAddress;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.common.api.AuthData;
 
