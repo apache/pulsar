@@ -94,7 +94,7 @@ public class SchemaUtil {
             ReflectData reflectData = schemaDefinition.getAlwaysAllowNull()
                      ? new ReflectData.AllowNull()
                      : new ReflectData();
-            AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled());
+            AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled(), false);
             return reflectData.getSchema(pojo);
         }
     }
