@@ -193,16 +193,12 @@ ls offloaders
 </code></pre>
 <p><strong>输出</strong></p>
 <pre><code class="hljs"><span class="hljs-attribute">Offload was a success</span>
-</code></pre></li>
-</ul>
-<pre><code class="hljs">如果卸载时出现错误，错误会返回到 `pulsar-admin topics offload-status` 命令。
-
-```bash
-bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-```
-
-**输出**
 </code></pre>
+<p>如果卸载时出现错误，错误会返回到 <code>pulsar-admin topics offload-status</code> 命令。</p>
+<pre><code class="hljs css language-bash">bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>输出</strong></p></li>
+</ul>
 <pre><code class="hljs css language-Error in offload null"><span class="hljs-attribute">Reason</span>: Error <span class="hljs-attribute">offloading</span>: org.apache.bookkeeper.mledger.<span class="hljs-attribute">ManagedLedgerException</span>: <span class="hljs-built_in">``</span><span class="hljs-built_in">``</span>
 
     &gt; #### 提示

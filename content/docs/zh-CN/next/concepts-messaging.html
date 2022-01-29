@@ -151,7 +151,7 @@ nettyMaxFrameSizeBytes=5253120
 <p>By default, batch index acknowledgement is disabled (<code>acknowledgmentAtBatchIndexLevelEnabled=false</code>). You can enable batch index acknowledgement by setting the <code>acknowledgmentAtBatchIndexLevelEnabled</code> parameter to <code>true</code> at the broker side. 启用批量索引确认将会导致更多内存开销。</p>
 <h3><a class="anchor" aria-hidden="true" id="分块"></a><a href="#分块" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分块</h3>
 <p>当你想要启用分块(chunking) 时，请阅读以下说明。 - 不能同时启动批量处理和分块(chunking) 。 如果想要启用分块(chunking) ，您必须提前禁用批量处理。 - 只对持久主题(persisted topics) 支持分块(chunking) 。 - 仅独占 ( Exclusive) 和故障转移 ( Failover) 订阅模式支持分块 (chunking) 。</p>
-<p>当启用分块(chunking) 时(<code>chunkingEnabled=true</code>) ，如果消息大小大于允许的最大发布有效载荷大小，则 producer 将原始消息分割成分块的消息，并将它们与块状的元数据一起单独和按顺序发布到 broker。 在 broker 中，分块的消息将和普通的消息以相同的方式存储在 Managed Ledger 上。 唯一的区别是，consumer 需要缓冲分块消息，并在收集完所有分块消息后将其合并成真正的消息。 Managed Ledger 上的分块消息可以和普通消息交织在一起。 如果 producer 未能发布消息的所有分块，则当 consumer 未能在过期时间(expire time) 内接收所有分块时，consumer 可以过期未完成的分块。 By default, the expire time is set to one hour.</p>
+<p>当启用分块(chunking) 时(<code>chunkingEnabled=true</code>) ，如果消息大小大于允许的最大发布有效载荷大小，则 producer 将原始消息分割成分块的消息，并将它们与块状的元数据一起单独和按顺序发布到 broker。 在 broker 中，分块的消息将和普通的消息以相同的方式存储在 Managed Ledger 上。 唯一的区别是，consumer 需要缓冲分块消息，并在收集完所有分块消息后将其合并成真正的消息。 Managed Ledger 上的分块消息可以和普通消息交织在一起。 如果 producer 未能发布消息的所有分块，则当 consumer 未能在过期时间(expire time) 内接收所有分块时，consumer 可以过期未完成的分块。 By default, the expire time is set to one minute.</p>
 <p>Consumer 会缓存收到的块状消息，直到收到消息的所有分块为止。 然后 consumer 将分块的消息拼接在一起，并将它们放入接收器队列中。 客户端从接收器队列中消费消息。 一旦 consumer 使用整个大消息并确认，consumer 就会在内部发送与该大消息关联的所有分块消息的确认。 You can set the <code>maxPendingChunkedMessage</code> parameter on the consumer. 当达到阈值时，consumer 通过静默确认未分块的消息或通过将其标记为未确认，要求 broker 稍后重新发送这些消息。</p>
 <p>Broker 不需要进行任何更改以支持非共享订阅的分块。 Broker 只使用 <code>chuckedMessageRate</code> 记录主题上的分块消息速率。</p>
 <h4><a class="anchor" aria-hidden="true" id="处理一个-producer-和一个订阅-consumer-的分块消息"></a><a href="#处理一个-producer-和一个订阅-consumer-的分块消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>处理一个 producer 和一个订阅 consumer 的分块消息</h4>
@@ -225,14 +225,38 @@ consumer.acknowledge(message);
 <p>It happens sometimes that consumers fail to process messages successfully. In this case, you can use <a href="#negative-acknowledgement">negative acknowledgement</a> to redeliver the messages after consumption failures. For the Shared subscription type, the messages are redelivered to other consumers; for other subscription types, the messages are redelivered to the same consumer.</p>
 <p>但这还不够灵活。 一个更好的方法是使用** redelivery backoff 机制**。 You can redeliver messages with different delays by setting the number of times the messages are retried.</p>
 <p>Use the following API to enable <code>Negative Redelivery Backoff</code>.</p>
-<pre><code class="hljs css language-java">consumer.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
-        .minNackTimeMs(<span class="hljs-number">1000</span>)
-        .maxNackTimeMs(<span class="hljs-number">60</span> * <span class="hljs-number">1000</span>)
+<pre><code class="hljs css language-java">consumer.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+        .minDelayMs(<span class="hljs-number">1000</span>)
+        .maxDelayMs(<span class="hljs-number">60</span> * <span class="hljs-number">1000</span>)
         .build())
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="确认超时"></a><a href="#确认超时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认超时</h3>
 <p>The acknowledgement timeout mechanism allows you to set a time range during which the client tracks the unacknowledged messages. After this acknowledgement timeout (<code>ackTimeout</code>) period, the client sends <code>redeliver unacknowledged messages</code> request to the broker, thus the broker resends the unacknowledged messages to the consumer.</p>
 <p>You can configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after <code>ackTimeout</code> or to execute a timer task to check the acknowledgement timeout messages during every <code>ackTimeoutTickTime</code> period.</p>
+<p>You can also use the redelivery backoff mechanism, redeliver messages with different delays by setting the number of times the messages is retried.</p>
+<p>If you want to use redelivery backoff, you can use the following API.</p>
+<pre><code class="hljs css language-java">consumer.ackTimeout(<span class="hljs-number">10</span>, TimeUnit.SECOND)
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+        .minDelayMs(<span class="hljs-number">1000</span>)
+        .maxDelayMs(<span class="hljs-number">60000</span>)
+        .multiplier(<span class="hljs-number">2</span>).build())
+</code></pre>
+<p>The message redelivery behavior should be as follows.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Redelivery count</th><th style="text-align:left">Redelivery delay</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left">1</td><td style="text-align:left">10 + 1 seconds</td></tr>
+<tr><td style="text-align:left">2</td><td style="text-align:left">10 + 2 seconds</td></tr>
+<tr><td style="text-align:left">3</td><td style="text-align:left">10 + 4 seconds</td></tr>
+<tr><td style="text-align:left">4</td><td style="text-align:left">10 + 8 seconds</td></tr>
+<tr><td style="text-align:left">5</td><td style="text-align:left">10 + 16 seconds</td></tr>
+<tr><td style="text-align:left">6</td><td style="text-align:left">10 + 32 seconds</td></tr>
+<tr><td style="text-align:left">7</td><td style="text-align:left">10 + 60 seconds</td></tr>
+<tr><td style="text-align:left">8</td><td style="text-align:left">10 + 60 seconds</td></tr>
+</tbody>
+</table>
 <blockquote>
 <p><strong>Note</strong></p>
 <ul>
