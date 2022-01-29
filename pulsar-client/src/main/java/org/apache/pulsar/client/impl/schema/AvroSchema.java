@@ -106,7 +106,14 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {
-        reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        addLogicalTypeConversions(reflectData, jsr310ConversionEnabled, true);
+    }
+
+    public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled,
+                                                 boolean decimalConversionEnabled) {
+        if (decimalConversionEnabled) {
+            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        }
         reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
