@@ -215,6 +215,14 @@ public class MaxMessageSizeTest {
         @Cleanup
         Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName("test1").subscribe();
 
+        // 12 MB metadata, should fail
+        try {
+            producer.newMessage().orderingKey(new byte[12 * 1024 * 1024]).send();
+            Assert.fail("Shouldn't send out this message");
+        } catch (PulsarClientException e) {
+            //no-op
+        }
+
         // 12 MB payload, there should be 2 chunks
         byte[] data = new byte[12 * 1024 * 1024];
         try {

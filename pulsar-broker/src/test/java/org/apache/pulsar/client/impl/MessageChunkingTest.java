@@ -171,7 +171,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     @Test
     public void testChunkingWithOrderingKey() throws Exception {
-        this.conf.setMaxMessageSize(5);
+        this.conf.setMaxMessageSize(100);
 
         final String topicName = "persistent://my-property/my-ns/testChunkingWithOrderingKey";
 
@@ -183,8 +183,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableChunking(true)
                 .enableBatching(false).create();
 
-        byte[] data = RandomUtils.nextBytes(20);
-        byte[] ok = RandomUtils.nextBytes(10);
+        byte[] data = RandomUtils.nextBytes(200);
+        byte[] ok = RandomUtils.nextBytes(50);
         producer.newMessage().value(data).orderingKey(ok).send();
 
         Message<byte[]> msg = consumer.receive();

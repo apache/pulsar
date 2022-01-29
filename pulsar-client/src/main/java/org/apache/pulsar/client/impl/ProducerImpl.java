@@ -482,6 +482,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // So there is a small chance that the final message size is larger than ClientCnx.getMaxMessageSize().
             // But it won't cause produce failure as broker have 10 KB padding space for these cases.
             payloadChunkSize = ClientCnx.getMaxMessageSize() - msgMetadata.getSerializedSize();
+            if (payloadChunkSize <= 0) {
+                PulsarClientException.InvalidMessageException invalidMessageException =
+                        new PulsarClientException.InvalidMessageException(
+                                format("The producer %s of the topic %s sends a message with %d bytes metadata that exceeds %d bytes",
+                                        producerName, topic, msgMetadata.getSerializedSize(), ClientCnx.getMaxMessageSize()));
+                completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
+                compressedPayload.release();
+                return;
+            }
             totalChunks = MathUtils.ceilDiv(Math.max(1, compressedPayload.readableBytes()), payloadChunkSize);
         }
 
