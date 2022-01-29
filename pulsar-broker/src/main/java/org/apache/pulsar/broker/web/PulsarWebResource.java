@@ -863,21 +863,42 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled()
-            && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
-            }
-
-            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                .allowTenantOperation(tenant, operation, originalPrincipal(), clientAppId(), clientAuthData());
-            if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED,
-                    String.format("Unauthorized to validateTenantOperation for"
-                            + " originalPrincipal [%s] and clientAppId [%s] about operation [%s] on tenant [%s]",
-                        originalPrincipal(), clientAppId(), operation.toString(), tenant));
+        try {
+            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            validateTenantOperationAsync(tenant, operation).get(timeout, SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof WebApplicationException){
+                throw (WebApplicationException) cause;
+            } else {
+                throw new RestException(cause);
             }
         }
+    }
+
+    public CompletableFuture<Void> validateTenantOperationAsync(String tenant, TenantOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                return FutureUtil.failedFuture(
+                        new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
+            }
+
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowTenantOperationAsync(tenant, operation, originalPrincipal(), clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    String.format("Unauthorized to validateTenantOperation for"
+                                                    + " originalPrincipal [%s] and clientAppId [%s] about operation "
+                                                    + "[%s] on tenant [%s]",
+                                            originalPrincipal(), clientAppId(), operation.toString(), tenant));
+                        }
+                    });
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
