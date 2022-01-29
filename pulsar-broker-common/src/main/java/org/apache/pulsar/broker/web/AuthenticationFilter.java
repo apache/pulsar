@@ -33,6 +33,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,8 +77,15 @@ public class AuthenticationFilter implements Filter {
                 // not sasl type, return role directly.
                 String role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
                 request.setAttribute(AuthenticatedRoleAttributeName, role);
-                request.setAttribute(AuthenticatedDataAttributeName,
-                    new AuthenticationDataHttps((HttpServletRequest) request));
+                String authMethodName = httpRequest.getHeader("X-Pulsar-Auth-Method-Name");
+                if (authMethodName != null && authenticationService.getAuthenticationProvider(authMethodName) != null) {
+                    AuthenticationState authenticationState = authenticationService
+                            .getAuthenticationProvider(authMethodName).newHttpAuthState(httpRequest);
+                    request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
+                } else {
+                    request.setAttribute(AuthenticatedDataAttributeName,
+                            new AuthenticationDataHttps((HttpServletRequest) request));
+                }
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);
                 }

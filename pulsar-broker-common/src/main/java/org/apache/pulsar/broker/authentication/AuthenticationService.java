@@ -87,7 +87,6 @@ public class AuthenticationService implements Closeable {
 
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
         AuthenticationException authenticationException = null;
-        AuthenticationDataSource authData = new AuthenticationDataHttps(request);
         String authMethodName = request.getHeader("X-Pulsar-Auth-Method-Name");
 
         if (authMethodName != null) {
@@ -96,6 +95,8 @@ public class AuthenticationService implements Closeable {
                 throw new AuthenticationException(
                         String.format("Unsupported authentication method: [%s].", authMethodName));
             }
+            AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
+            AuthenticationDataSource authData = authenticationState.getAuthDataSource();
             try {
                 return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
@@ -109,6 +110,8 @@ public class AuthenticationService implements Closeable {
         } else {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
+                    AuthenticationState authenticationState = provider.newHttpAuthState(request);
+                    AuthenticationDataSource authData = authenticationState.getAuthDataSource();
                     return provider.authenticate(authData);
                 } catch (AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {

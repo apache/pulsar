@@ -156,7 +156,9 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         return applyAuthProcessor(
             providers,
-            provider -> provider.authenticate(authData)
+            provider -> {
+                return provider.authenticate(authData);
+            }
         );
     }
 
@@ -184,6 +186,35 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 throw authenticationException;
             } else {
                 throw new AuthenticationException("Failed to initialize a new auth state from " + remoteAddress);
+            }
+        } else {
+            return new AuthenticationListState(states);
+        }
+    }
+
+    @Override
+    public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
+        final List<AuthenticationState> states = new ArrayList<>(providers.size());
+
+        AuthenticationException authenticationException = null;
+        try {
+            applyAuthProcessor(
+                    providers,
+                    provider -> {
+                        AuthenticationState state = provider.newHttpAuthState(request);
+                        states.add(state);
+                        return state;
+                    }
+            );
+        } catch (AuthenticationException ae) {
+            authenticationException = ae;
+        }
+        if (states.isEmpty()) {
+            log.debug("Failed to initialize a new auth http state from {}", request.getRemoteHost(), authenticationException);
+            if (authenticationException != null) {
+                throw authenticationException;
+            } else {
+                throw new AuthenticationException("Failed to initialize a new http auth state from " + request.getRemoteHost());
             }
         } else {
             return new AuthenticationListState(states);

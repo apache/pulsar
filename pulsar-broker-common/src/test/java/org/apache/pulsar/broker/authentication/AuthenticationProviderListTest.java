@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import javax.servlet.http.HttpServletRequest;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -165,6 +167,14 @@ public class AuthenticationProviderListTest {
         return authState;
     }
 
+    private AuthenticationState newHttpAuthState(HttpServletRequest request, String expectedSubject) throws Exception {
+        AuthenticationState authState = authProvider.newHttpAuthState(request);
+        assertEquals(authState.getAuthRole(), expectedSubject);
+        assertTrue(authState.isComplete());
+        assertFalse(authState.isExpired());
+        return authState;
+    }
+
     private void verifyAuthStateExpired(AuthenticationState authState, String expectedSubject)
         throws Exception {
         assertEquals(authState.getAuthRole(), expectedSubject);
@@ -186,6 +196,22 @@ public class AuthenticationProviderListTest {
         verifyAuthStateExpired(authStateBA, SUBJECT_A);
         verifyAuthStateExpired(authStateBB, SUBJECT_B);
 
+    }
+
+    @Test
+    public void testNewHttpAuthState() throws Exception {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        AuthenticationState authStateAA = newHttpAuthState(request, SUBJECT_A);
+        AuthenticationState authStateAB = newHttpAuthState(request, SUBJECT_B);
+        AuthenticationState authStateBA = newHttpAuthState(request, SUBJECT_A);
+        AuthenticationState authStateBB = newHttpAuthState(request, SUBJECT_B);
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(6));
+
+        verifyAuthStateExpired(authStateAA, SUBJECT_A);
+        verifyAuthStateExpired(authStateAB, SUBJECT_B);
+        verifyAuthStateExpired(authStateBA, SUBJECT_A);
+        verifyAuthStateExpired(authStateBB, SUBJECT_B);
     }
 
 }

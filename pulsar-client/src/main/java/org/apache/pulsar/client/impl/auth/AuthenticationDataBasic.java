@@ -29,12 +29,13 @@ import java.util.Base64;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
+    public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
     private String httpAuthToken;
     private String commandAuthToken;
 
     public AuthenticationDataBasic(String userId, String password) {
         httpAuthToken = "Basic " + Base64.getEncoder().encodeToString((userId + ":" + password).getBytes());
-        commandAuthToken = userId+":"+password;
+        commandAuthToken = userId + ":" + password;
     }
 
     @Override
@@ -46,6 +47,7 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
     public Set<Map.Entry<String, String>> getHttpHeaders() {
         Map<String, String> headers = new HashMap<>();
         headers.put(HTTP_HEADER_NAME, httpAuthToken);
+        headers.put(PULSAR_AUTH_METHOD_NAME, "basic");
         return headers.entrySet();
     }
 

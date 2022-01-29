@@ -24,6 +24,9 @@ import java.security.KeyManagementException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -35,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 public class AuthenticationDataTls implements AuthenticationDataProvider {
+    public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
+
     private static final long serialVersionUID = 1L;
     protected X509Certificate[] tlsCertificates;
     protected PrivateKey tlsPrivateKey;
@@ -86,6 +91,11 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     @Override
     public boolean hasDataForTls() {
         return true;
+    }
+
+    @Override
+    public Set<Map.Entry<String, String>> getHttpHeaders() {
+        return Collections.singletonMap(PULSAR_AUTH_METHOD_NAME, "tls").entrySet();
     }
 
     @Override
