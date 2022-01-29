@@ -1927,7 +1927,10 @@ public class Namespaces extends NamespacesBase {
                     log.info("[{}] Successfully to get namespace resource group {}/{}",
                             clientAppId(), tenant, namespace);
                     asyncResponse.resume(policies.resource_group_name);
-                }).exceptionally(ex -> handleCommonRestAsyncException(asyncResponse, ex));
+                }).exceptionally(ex -> {
+                    log.error("[{}] Fail to get namespace resource group, cause by {}", clientAppId(), ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
+                });
     }
 
     @POST
@@ -1944,7 +1947,10 @@ public class Namespaces extends NamespacesBase {
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), rgName);
                     asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> handleCommonRestAsyncException(asyncResponse, ex));
+                }).exceptionally(ex -> {
+                    log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), rgName, ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
+                });
     }
 
     @DELETE
@@ -1961,14 +1967,15 @@ public class Namespaces extends NamespacesBase {
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), null);
                     asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> handleCommonRestAsyncException(asyncResponse, ex));
+                }).exceptionally(ex -> {
+                    log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), null, ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
+                });
     }
 
     @Nullable
     private Void handleCommonRestAsyncException(AsyncResponse asyncResponse, Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-        log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), null,
-                realCause.getMessage());
         if (realCause instanceof WebApplicationException) {
             asyncResponse.resume(realCause);
         } else {
