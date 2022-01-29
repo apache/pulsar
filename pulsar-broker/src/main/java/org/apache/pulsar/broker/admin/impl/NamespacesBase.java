@@ -52,6 +52,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -221,12 +222,20 @@ public abstract class NamespacesBase extends AdminResource {
         boolean isEmpty;
         List<String> topics;
         try {
+            int timeoutSeconds = config().getZooKeeperOperationTimeoutSeconds();
             topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
-                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
-            topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
-            topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
+                    .get(timeoutSeconds, TimeUnit.SECONDS);
+            NamespaceResources.PartitionedTopicResources partitionedTopicResources =
+                    pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
+            List<String> partitionedPersistentTopicList = partitionedTopicResources
+                    .listPartitionedTopicsAsync(namespaceName, TopicDomain.persistent)
+                    .get(timeoutSeconds, TimeUnit.SECONDS);
+            List<String> partitionedUnPersistentTopicList = partitionedTopicResources
+                    .listPartitionedTopicsAsync(namespaceName, TopicDomain.non_persistent)
+                    .get(timeoutSeconds, TimeUnit.SECONDS);
+            topics.addAll(partitionedPersistentTopicList);
+            topics.addAll(partitionedUnPersistentTopicList);
             isEmpty = topics.isEmpty();
-
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
