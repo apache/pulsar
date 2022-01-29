@@ -68,7 +68,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
     private LedgerOffloaderMXBeanImpl mxBean;
-    private String ledgerNameForMetrics;
+    private String topicName;
 
     public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize) {
         this.ledger = ledger;
@@ -84,7 +84,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
                                             LedgerOffloaderMXBeanImpl mxBean, String ledgerName) {
         this(ledger, startEntryId, blockSize);
         this.mxBean = mxBean;
-        this.ledgerNameForMetrics = ledgerName;
+        this.topicName = ledgerName;
     }
 
     // read ledger entries.
@@ -130,8 +130,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
                 log.debug("read ledger entries. start: {}, end: {} cost {}", start, end,
                         TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTime));
             }
-            if (mxBean != null && ledgerNameForMetrics != null) {
-                mxBean.recordReadLedgerLatency(ledgerNameForMetrics, System.nanoTime() - startTime,
+            if (mxBean != null && topicName != null) {
+                mxBean.recordReadLedgerLatency(topicName, System.nanoTime() - startTime,
                         TimeUnit.NANOSECONDS);
             }
 

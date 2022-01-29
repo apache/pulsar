@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.commons.lang3.StringUtils;
 
 public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
 
@@ -161,7 +162,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordOffloadTime(String topicName, long time, TimeUnit unit) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = offloadTimeMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -170,7 +171,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
 
 
     public void recordOffloadError(String topicName) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = offloadErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -178,7 +179,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordOffloadBytes(String topicName, int size) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = offloadBytesMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -186,7 +187,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordReadLedgerLatency(String topicName, long latency, TimeUnit unit) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         StatsBuckets statsBuckets = readLedgerLatencyBucketsMap.computeIfAbsent(topicName,
@@ -195,7 +196,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordWriteToStorageLatency(String topicName, long latency, TimeUnit unit) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         StatsBuckets statsBuckets = writeToStorageLatencyBucketsMap.computeIfAbsent(topicName,
@@ -204,7 +205,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordWriteToStorageError(String topicName) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = writeToStorageErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -212,7 +213,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordStreamingWriteToStorageBytes(String topicName, int size) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = streamingWriteToStorageBytesMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -220,7 +221,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordStreamingWriteToStorageError(String topicName) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = streamingWriteToStorageErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -229,7 +230,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
 
 
     public void recordReadOffloadError(String topicName) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = readOffloadErrorMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -237,7 +238,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordReadOffloadBytes(String topicName, long size) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         LongAdder adder = readOffloadDataBytesMap.computeIfAbsent(topicName, k -> new LongAdder());
@@ -245,7 +246,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordReadOffloadIndexLatency(String topicName, long latency, TimeUnit unit) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         StatsBuckets statsBuckets = readOffloadIndexLatencyBucketsMap.computeIfAbsent(topicName,
@@ -254,7 +255,7 @@ public class LedgerOffloaderMXBeanImpl implements LedgerOffloaderMXBean {
     }
 
     public void recordReadOffloadDataLatency(String topicName, long latency, TimeUnit unit) {
-        if (topicName == null) {
+        if (StringUtils.isBlank(topicName)) {
             return;
         }
         StatsBuckets statsBuckets = readOffloadDataLatencyBucketsMap.computeIfAbsent(topicName,
