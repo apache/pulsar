@@ -132,7 +132,7 @@ The message chunking feature is OFF by default.
 To enable message chunking, set the `chunkingEnabled` parameter to `true` when creating a producer.
 
 > **Note**  
-> If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default expiration time is 1 hour. For more information about the `expireTimeOfIncompleteChunkedMessage` parameter, refer to [org.apache.pulsar.client.api](https://pulsar.apache.org/api/client/).
+> If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. For more information about the `expireTimeOfIncompleteChunkedMessage` parameter, refer to [org.apache.pulsar.client.api](https://pulsar.apache.org/api/client/).
 
 ## Consumers
 
