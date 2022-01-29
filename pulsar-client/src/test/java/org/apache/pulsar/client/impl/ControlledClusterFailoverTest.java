@@ -22,9 +22,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.asynchttpclient.Request;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
@@ -36,7 +36,7 @@ public class ControlledClusterFailoverTest {
     @Test
     public void testBuildControlledClusterFailoverInstance() throws IOException {
         String defaultServiceUrl = "pulsar://localhost:6650";
-        String urlProvider = "http://localhost:8080";
+        String urlProvider = "http://localhost:8080/test";
         String keyA = "key-a";
         String valueA = "value-a";
         String keyB = "key-b";
@@ -52,14 +52,14 @@ public class ControlledClusterFailoverTest {
             .build();
 
         ControlledClusterFailover controlledClusterFailover = (ControlledClusterFailover) provider;
-        HttpUriRequest request = controlledClusterFailover.getRequest();
+        Request request = controlledClusterFailover.getRequestBuilder().build();
 
         Assert.assertTrue(provider instanceof ControlledClusterFailover);
         Assert.assertEquals(defaultServiceUrl, provider.getServiceUrl());
         Assert.assertEquals(defaultServiceUrl, controlledClusterFailover.getCurrentPulsarServiceUrl());
-        Assert.assertEquals(urlProvider, request.getURI().toString());
-        Assert.assertEquals(request.getFirstHeader(keyA).getValue(), valueA);
-        Assert.assertEquals(request.getFirstHeader(keyB).getValue(), valueB);
+        Assert.assertEquals(urlProvider, request.getUri().toUrl());
+        Assert.assertEquals(request.getHeaders().get(keyA), valueA);
+        Assert.assertEquals(request.getHeaders().get(keyB), valueB);
     }
 
     @Test

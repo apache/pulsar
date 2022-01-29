@@ -21,74 +21,88 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHeaders;
-import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.methods.RequestBuilder;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.AsyncHttpClientConfig;
+import org.asynchttpclient.BoundRequestBuilder;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.Request;
+import org.asynchttpclient.Response;
+import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Slf4j
 public class ControlledClusterFailover implements ServiceUrlProvider {
+    private static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    private static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
+    private static final int DEFAULT_MAX_REDIRECTS = 20;
+
     private PulsarClientImpl pulsarClient;
     private volatile String currentPulsarServiceUrl;
     private volatile ControlledConfiguration currentControlledConfiguration;
     private final ScheduledExecutorService executor;
     private final long interval;
     private ObjectMapper objectMapper = null;
-    private final CloseableHttpClient httpClient;
-    private final HttpUriRequest request;
-    private final ResponseHandler<String> responseHandler;
+    private final AsyncHttpClient httpClient;
+    private final BoundRequestBuilder requestBuilder;
 
     private ControlledClusterFailover(ControlledClusterFailoverBuilderImpl builder) throws IOException {
         this.currentPulsarServiceUrl = builder.defaultServiceUrl;
         this.interval = builder.interval;
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-service-provider"));
-        this.httpClient = HttpClients.custom().build();
 
-        RequestBuilder requestBuilder = RequestBuilder.get()
-            .setUri(builder.urlProvider)
-            .setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        this.httpClient = buildHttpClient();
+        this.requestBuilder = httpClient.prepareGet(builder.urlProvider)
+            .addHeader("Accept", "application/json");
 
         if (builder.header != null && !builder.header.isEmpty()) {
-            builder.header.forEach(requestBuilder::setHeader);
+            builder.header.forEach(requestBuilder::addHeader);
         }
-        this.request = requestBuilder.build();
-        responseHandler = httpResponse -> {
-            int status = httpResponse.getStatusLine().getStatusCode();
-            if (status >= 200 && status < 300) {
-                HttpEntity entity = httpResponse.getEntity();
-                return entity != null ? EntityUtils.toString(entity) : null;
-            } else {
-                log.warn("Unexpected response status: {}", status);
-                return null;
-            }
-        };
     }
 
-    public HttpUriRequest getRequest() {
-        return this.request;
+    private AsyncHttpClient buildHttpClient() {
+        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setFollowRedirect(true);
+        confBuilder.setMaxRedirects(DEFAULT_MAX_REDIRECTS);
+        confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
+        confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
+            @Override
+            public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
+                                     HttpRequest request, HttpResponse response) {
+                // Close connection upon a server error or per HTTP spec
+                return (response.status().code() / 100 != 5)
+                    && super.keepAlive(remoteAddress, ahcRequest, request, response);
+            }
+        });
+        AsyncHttpClientConfig config = confBuilder.build();
+        return new DefaultAsyncHttpClient(config);
     }
 
     @Override
@@ -139,15 +153,26 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         return this.currentPulsarServiceUrl;
     }
 
+    @VisibleForTesting
+    protected BoundRequestBuilder getRequestBuilder() {
+        return this.requestBuilder;
+    }
+
     protected ControlledConfiguration fetchControlledConfiguration() throws IOException {
         // call the service to get service URL
         try {
-            String jsonStr = httpClient.execute(request, responseHandler);
-            return getObjectMapper().readValue(jsonStr, ControlledConfiguration.class);
-        } catch (IOException e) {
-            log.warn("Failed to fetch controlled configuration. ", e);
-            return null;
+            Response response = requestBuilder.execute().get();
+            int statusCode = response.getStatusCode();
+            if (statusCode == 200) {
+                String content = response.getResponseBody(StandardCharsets.UTF_8);
+                return getObjectMapper().readValue(content, ControlledConfiguration.class);
+            }
+            log.warn("Failed to fetch controlled configuration, status code: {}", statusCode);
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Failed to fetch controlled configuration ", e);
         }
+
+        return null;
     }
 
     private ObjectMapper getObjectMapper() {
