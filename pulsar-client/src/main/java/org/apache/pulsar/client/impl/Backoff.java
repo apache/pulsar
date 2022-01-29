@@ -22,17 +22,13 @@ import com.google.common.annotations.VisibleForTesting;
 import java.time.Clock;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.ToString;
 
 /**
  * Thread-safe utility to provide an exponential backoff.
  *
  * All variables are in {@link TimeUnit#MILLISECONDS}, by default.
  */
-@ToString
-@EqualsAndHashCode
 public class Backoff {
     public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
     public static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
