@@ -180,8 +180,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
                 .thenCompose(namespaceExists -> {
                     if (!namespaceExists) {
-                        log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist", clientAppId(),
-                                namespaceName);
+                        log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist",
+                                clientAppId(), namespaceName);
                         throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                     } else {
                         return namespaceResources().getPartitionedTopicResources()
