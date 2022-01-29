@@ -110,7 +110,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         Assert.assertFalse(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
 
         Producer<byte[]> emptyInitSubProducer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
-                .initialSubscriptionName(initialSubscriptionName)
+                .initialSubscriptionName("")
                 .topic(topic.toString())
                 .create();
         emptyInitSubProducer.close();
