@@ -175,8 +175,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalGetPartitionedTopicList(AsyncResponse asyncResponse) {
-        validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
+    protected CompletableFuture<List<String>> internalGetPartitionedTopicList() {
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
                 .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
                 .thenCompose(namespaceExists -> {
                     if (!namespaceExists) {
@@ -185,15 +185,8 @@ public class PersistentTopicsBase extends AdminResource {
                         throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                     } else {
                         return namespaceResources().getPartitionedTopicResources()
-                                .listPartitionedTopicsAsync(namespaceName, TopicDomain.getEnum(domain()))
-                                .thenAccept(asyncResponse::resume);
+                                .listPartitionedTopicsAsync(namespaceName, TopicDomain.getEnum(domain()));
                     }
-                }).exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to get partitioned topic list {}: {}", clientAppId(),
-                            namespaceName, realCause.getMessage());
-                    resumeAsyncResponseExceptionally(asyncResponse, realCause);
-                    return null;
                 });
     }
 

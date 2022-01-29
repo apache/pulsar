@@ -93,8 +93,16 @@ public class PersistentTopics extends PersistentTopicsBase {
                                         @PathParam("property") String property,
                                         @PathParam("cluster") String cluster,
                                         @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, cluster, namespace);
-        internalGetPartitionedTopicList(asyncResponse);
+        validateNamespaceNameAsync(property, cluster, namespace)
+                .thenCompose(__ -> internalGetPartitionedTopicList())
+                .thenAccept(partitionedTopicList -> {
+                    log.info("[{}] Successfully to get partitioned topic list {}/{}",clientAppId(), cluster, namespace);
+                    asyncResponse.resume(partitionedTopicList);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get partitioned topic list {}: {}", clientAppId(),
+                            namespaceName, ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
+                });
     }
 
     @GET
