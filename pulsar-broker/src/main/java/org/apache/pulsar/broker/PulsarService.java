@@ -1242,7 +1242,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             } else {
                 LOG.info("No ledger offloader configured, using NULL instance");
-                return NullLedgerOffloader.instance_;
+                return NullLedgerOffloader.INSTANCE;
             }
         } catch (Throwable t) {
             throw new PulsarServerException(t);
@@ -1608,7 +1608,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
         workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
-        workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationMetadataStoreUrl());
+        workerConfig.setConfigurationMetadataStoreUrl(brokerConfig.getConfigurationMetadataStoreUrl());
         workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
         workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 

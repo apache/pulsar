@@ -17,11 +17,15 @@
 # under the License.
 #
 
-[defaults]
-private_key_file=~/.ssh/pulsar_aws
-host_key_checking=false
-
-[privilege_escalation]
-become=True
-become_method='sudo'
-become_user='root'
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = ">=3.3.0"
+    }
+    random = {
+      source = "hashicorp/random"
+    }
+  }
+  required_version = ">= 0.13"
+}

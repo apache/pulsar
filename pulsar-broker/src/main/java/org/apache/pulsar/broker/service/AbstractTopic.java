@@ -169,6 +169,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getRetentionPolicies().updateTopicValue(data.getRetentionPolicies());
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
         topicPolicies.getMaxUnackedMessagesOnConsumer().updateTopicValue(data.getMaxUnackedMessagesOnConsumer());
+        topicPolicies.getMaxUnackedMessagesOnSubscription()
+                .updateTopicValue(data.getMaxUnackedMessagesOnSubscription());
         topicPolicies.getMaxProducersPerTopic().updateTopicValue(data.getMaxProducerPerTopic());
         topicPolicies.getMaxConsumerPerTopic().updateTopicValue(data.getMaxConsumerPerTopic());
         topicPolicies.getMaxConsumersPerSubscription().updateTopicValue(data.getMaxConsumersPerSubscription());
@@ -202,6 +204,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 Lists.newArrayList(CollectionUtils.emptyIfNull(namespacePolicies.replication_clusters)));
         topicPolicies.getMaxUnackedMessagesOnConsumer()
                 .updateNamespaceValue(namespacePolicies.max_unacked_messages_per_consumer);
+        topicPolicies.getMaxUnackedMessagesOnSubscription()
+                .updateNamespaceValue(namespacePolicies.max_unacked_messages_per_subscription);
         topicPolicies.getMessageTTLInSeconds().updateNamespaceValue(namespacePolicies.message_ttl_in_seconds);
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
@@ -259,6 +263,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 config.getBrokerDeduplicationSnapshotIntervalSeconds());
         topicPolicies.getMaxUnackedMessagesOnConsumer()
                 .updateBrokerValue(config.getMaxUnackedMessagesPerConsumer());
+        topicPolicies.getMaxUnackedMessagesOnSubscription()
+                .updateBrokerValue(config.getMaxUnackedMessagesPerSubscription());
         //init backlogQuota
         topicPolicies.getBackLogQuotaMap()
                 .get(BacklogQuota.BacklogQuotaType.destination_storage)

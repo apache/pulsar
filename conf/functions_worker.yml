@@ -26,8 +26,12 @@ workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
-# Configuration Store connection string
-configurationStoreServers: localhost:2181
+# The Configuration metadata store url
+# Examples:
+# * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
+# * my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 (will default to ZooKeeper when the schema is not specified)
+# * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)
+configurationMetadataStoreUrl: zk:localhost:2181
 # ZooKeeper session timeout in milliseconds
 zooKeeperSessionTimeoutMillis: 30000
 # ZooKeeper operation timeout in seconds
@@ -328,3 +332,6 @@ validateConnectorConfig: false
 # Whether to initialize distributed log metadata by runtime.
 # If it is set to true, you must ensure that it has been initialized by "bin/pulsar initialize-cluster-metadata" command.
 initializedDlogMetadata: false
+
+### --- Deprecated settings --- ###
+configurationStoreServers: localhost:2181
