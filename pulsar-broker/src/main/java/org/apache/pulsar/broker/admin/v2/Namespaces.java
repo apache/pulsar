@@ -1965,10 +1965,10 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceNameAsync(tenant, namespace)
                 .thenCompose(__ -> internalSetNamespaceResourceGroup(null))
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), null);
+                    log.info("[{}] Successfully to remove namespace resource group.", clientAppId());
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), null, ex);
+                    log.error("[{}] Fail to remove namespace resource group, cause by {}", clientAppId(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
