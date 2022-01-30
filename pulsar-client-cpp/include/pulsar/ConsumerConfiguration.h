@@ -454,7 +454,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      *
      * If it's zero, the pending chunked messages will not be limited.
      *
-     * Default: 100
+     * Default: 10
      *
      * @param maxPendingChunkedMessage the number of max pending chunked messages
      */

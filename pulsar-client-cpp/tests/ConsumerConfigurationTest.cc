@@ -59,7 +59,7 @@ TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.isReplicateSubscriptionStateEnabled(), false);
     ASSERT_EQ(conf.getProperties().empty(), true);
     ASSERT_EQ(conf.getPriorityLevel(), 0);
-    ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 100);
+    ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 10);
     ASSERT_EQ(conf.isAutoAckOldestChunkedMessageOnQueueFull(), false);
 }
 
