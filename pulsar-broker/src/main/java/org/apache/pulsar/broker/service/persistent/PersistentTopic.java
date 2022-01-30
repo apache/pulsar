@@ -2374,6 +2374,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
     }
 
+    public CompletableFuture<Void> onLocalPoliciesUpdate() {
+        return checkPersistencePolicies();
+    }
+
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
         if (log.isDebugEnabled()) {

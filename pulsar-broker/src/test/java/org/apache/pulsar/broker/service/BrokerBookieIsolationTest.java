@@ -73,8 +73,10 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -261,6 +263,123 @@ public class BrokerBookieIsolationTest {
         getConf.setAccessible(true);
         ClientConfiguration clientConf = (ClientConfiguration) getConf.invoke(bk);
         assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
+    }
+
+    @Test
+    public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
+        final String tenant1 = "tenant1";
+        final String cluster = "use";
+        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
+        final int totalPublish = 100;
+
+        final String brokerBookkeeperClientIsolationGroups = "default-group";
+        final String tenantNamespaceIsolationGroups = "tenant1-isolation";
+
+        BookieServer[] bookies = bkEnsemble.getBookies();
+        ZooKeeper zkClient = bkEnsemble.getZkClient();
+
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
+                bookies[3].getBookieId());
+
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.setClusterName(cluster);
+        config.setWebServicePort(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setBrokerServicePort(Optional.of(0));
+        config.setAdvertisedAddress("localhost");
+        config.setStrictBookieAffinityEnabled(true);
+        config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
+
+        config.setManagedLedgerDefaultEnsembleSize(2);
+        config.setManagedLedgerDefaultWriteQuorum(2);
+        config.setManagedLedgerDefaultAckQuorum(2);
+
+        config.setAllowAutoTopicCreationType("non-partitioned");
+
+        int totalEntriesPerLedger = 20;
+        int totalLedgers = totalPublish / totalEntriesPerLedger;
+        config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
+        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        pulsarService = new PulsarService(config);
+        pulsarService.start();
+
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        admin.clusters().createCluster(cluster, clusterData);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
+        admin.tenants().createTenant(tenant1, tenantInfo);
+        admin.namespaces().createNamespace(ns2);
+
+        try {
+            admin.namespaces().getBookieAffinityGroup(ns2);
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok
+        }
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS).build();
+
+        final String topicName = String.format("persistent://%s/%s", ns2, "topic1");
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscribe();
+        consumer.close();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        for (int i = 0; i < 20; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
+        admin.namespaces().setBookieAffinityGroup(ns2,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+
+        PersistentTopic topic2 = (PersistentTopic) pulsarService.getBrokerService().getTopicReference(topicName).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic2.getManagedLedger();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(ml.getConfig().getBookKeeperEnsemblePlacementPolicyProperties().size() > 0));
+
+        for (int i=0; i<80; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        producer.close();
+
+        Bookie bookie1 = bookies[0].getBookie();
+        Field ledgerManagerField = Bookie.class.getDeclaredField("ledgerManager");
+        ledgerManagerField.setAccessible(true);
+        LedgerManager ledgerManager = (LedgerManager) ledgerManagerField.get(bookie1);
+
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
+        // namespace: ns2
+        assertEquals(ml2.getLedgersInfoAsList().size(), totalLedgers);
+
+        List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
+        // validate ledgers' ensemble with affinity bookies
+        for (int i=1; i<ledgers.size();i++) {
+            LedgerInfo lInfo = ledgers.get(i);
+            long ledgerId = lInfo.getLedgerId();
+            CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
+            LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
+            Set<BookieId> ledgerBookies = Sets.newHashSet();
+            ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
+            assertEquals(ledgerBookies.size(), isolatedBookies.size());
+            ledgerBookies.removeAll(isolatedBookies);
+            assertEquals(ledgerBookies.size(), 0);
+        }
     }
 
     /**

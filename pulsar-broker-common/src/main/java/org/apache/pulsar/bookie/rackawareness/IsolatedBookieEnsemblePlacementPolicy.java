@@ -22,7 +22,6 @@ import io.netty.util.HashedWheelTimer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -128,7 +127,30 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     public PlacementResult<List<BookieId>> newEnsemble(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
             Map<String, byte[]> customMetadata, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
-        Map<String, List<String>> isolationGroup = new HashMap<>();
+        if (customMetadata.containsKey(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG)) {
+            try {
+                EnsemblePlacementPolicyConfig policy = EnsemblePlacementPolicyConfig
+                        .decode(customMetadata.get(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG));
+                Map<String, Object> policyProperties = policy.getProperties();
+                String isolationBookieGroups =
+                        (String) policyProperties.get(ISOLATION_BOOKIE_GROUPS);
+                String secondaryIsolationBookieGroups =
+                        (String) policyProperties.get(SECONDARY_ISOLATION_BOOKIE_GROUPS);
+                Set<String> primaryIsolationGroups = new HashSet<>();
+                Set<String> secondaryIsolationGroups = new HashSet<>();
+                if (isolationBookieGroups != null) {
+                    primaryIsolationGroups.addAll(Arrays.asList(isolationBookieGroups.split(",")));
+                }
+                if (secondaryIsolationBookieGroups != null) {
+                    secondaryIsolationGroups.addAll(Arrays.asList(secondaryIsolationBookieGroups.split(",")));
+                }
+                defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
+            } catch (EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException e) {
+              log.error("Failed to decode EnsemblePlacementPolicyConfig from customeMetadata when choosing ensemble, "
+                        + "Will use defaultIsolationGroups instead");
+            }
+        }
+
         Set<BookieId> blacklistedBookies = getBlacklistedBookiesWithIsolationGroups(
             ensembleSize, defaultIsolationGroups);
         if (excludeBookies == null) {
