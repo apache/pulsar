@@ -41,6 +41,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -2866,44 +2867,50 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
-                                           BacklogQuotaImpl backlogQuota, boolean isGlobal) {
-        validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
+                                                              BacklogQuotaImpl backlogQuota, boolean isGlobal) {
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
+        CompletableFuture<Void> future =
+                validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
+        future.thenAccept(__ -> validatePoliciesReadOnlyAccess());
 
-        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-            .thenCompose(op -> {
-                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
-                if (!checkBacklogQuota(backlogQuota, retentionPolicies)) {
-                    log.warn(
-                            "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
-                            clientAppId(), topicName);
-                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                            "Backlog Quota exceeds configured retention quota for topic. "
-                                    + "Please increase retention quota and retry"));
-                }
-
-                if (backlogQuota != null) {
-                    topicPolicies.getBackLogQuotaMap().put(finalBacklogQuotaType.name(), backlogQuota);
-                } else {
-                    topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
-                }
-                Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
-                topicPolicies.setIsGlobal(isGlobal);
-                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                    .thenRun(() -> {
-                        try {
-                            log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}",
-                                    clientAppId(),
-                                    namespaceName,
-                                    topicName.getLocalName(),
-                                    jsonMapper().writeValueAsString(backLogQuotaMap));
-                        } catch (JsonProcessingException ignore) { }
+        return future.thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    return getRetentionPoliciesAsync(topicName, topicPolicies)
+                            .thenCompose(retentionPolicies -> {
+                                if (!checkBacklogQuota(backlogQuota, retentionPolicies)) {
+                                    log.warn(
+                                            "[{}] Failed to update backlog configuration for topic {}: conflicts with"
+                                                    + " retention quota",
+                                            clientAppId(), topicName);
+                                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                            "Backlog Quota exceeds configured retention quota for topic. "
+                                                    + "Please increase retention quota and retry"));
+                                }
+                                if (backlogQuota != null) {
+                                    topicPolicies.getBackLogQuotaMap().put(finalBacklogQuotaType.name(), backlogQuota);
+                                } else {
+                                    topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
+                                }
+                                Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+                                topicPolicies.setIsGlobal(isGlobal);
+                                return pulsar().getTopicPoliciesService()
+                                        .updateTopicPoliciesAsync(topicName, topicPolicies)
+                                        .thenRun(() -> {
+                                            try {
+                                                log.info(
+                                                        "[{}] Successfully updated backlog quota map: namespace={}, "
+                                                        + "topic={}, map={}",
+                                                        clientAppId(),
+                                                        namespaceName,
+                                                        topicName.getLocalName(),
+                                                        jsonMapper().writeValueAsString(backLogQuotaMap));
+                                            } catch (JsonProcessingException ignore) {
+                                            }
+                                        });
+                            });
                 });
-            });
     }
 
     protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
@@ -3001,18 +3008,14 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    private RetentionPolicies getRetentionPolicies(TopicName topicName, TopicPolicies topicPolicies) {
+    private CompletableFuture<RetentionPolicies> getRetentionPoliciesAsync(TopicName topicName,
+                                                                           TopicPolicies topicPolicies) {
         RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies();
-        if (retentionPolicies == null){
-            try {
-                retentionPolicies = getNamespacePoliciesAsync(topicName.getNamespaceObject())
-                        .thenApply(policies -> policies.retention_policies)
-                        .get(1L, TimeUnit.SECONDS);
-            } catch (Exception e) {
-               throw new RestException(e);
-            }
+        if (retentionPolicies != null) {
+            return CompletableFuture.completedFuture(retentionPolicies);
         }
-        return retentionPolicies;
+        return getNamespacePoliciesAsync(topicName.getNamespaceObject())
+                .thenApply(policies -> policies.retention_policies);
     }
 
     protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
