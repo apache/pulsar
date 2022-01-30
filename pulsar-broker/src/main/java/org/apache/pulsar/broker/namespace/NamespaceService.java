@@ -727,18 +727,6 @@ public class NamespaceService implements AutoCloseable {
                         .collect(Collectors.toMap(Pair::getLeft, Pair::getRight)));
     }
 
-    public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
-        NamespaceIsolationPolicies nsIsolationPolicies = this.getLocalNamespaceIsolationPolicies();
-        Map<String, NamespaceOwnershipStatus> ownedNsStatus = new HashMap<String, NamespaceOwnershipStatus>();
-        for (OwnedBundle nsObj : this.ownershipCache.getOwnedBundles().values()) {
-            NamespaceOwnershipStatus nsStatus = this.getNamespaceOwnershipStatus(nsObj,
-                    nsIsolationPolicies.getPolicyByNamespace(nsObj.getNamespaceBundle().getNamespaceObject()));
-            ownedNsStatus.put(nsObj.getNamespaceBundle().toString(), nsStatus);
-        }
-
-        return ownedNsStatus;
-    }
-
     private NamespaceOwnershipStatus getNamespaceOwnershipStatus(OwnedBundle nsObj,
             NamespaceIsolationPolicy nsIsolationPolicy) {
         NamespaceOwnershipStatus nsOwnedStatus = new NamespaceOwnershipStatus(BrokerAssignment.shared, false,
