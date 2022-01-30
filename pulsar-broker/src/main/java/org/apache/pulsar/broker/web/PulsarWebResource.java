@@ -1049,9 +1049,12 @@ public abstract class PulsarWebResource {
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
         try {
-            validateTopicPolicyOperationAsync(topicName, policy, operation).get();
-        } catch (InterruptedException | ExecutionException e) {
-            Throwable cause = FutureUtil.unwrapCompletionException(e);
+            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            validateTopicPolicyOperationAsync(topicName, policy, operation).get(timeout, SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
             if (cause instanceof WebApplicationException){
                 throw (WebApplicationException) cause;
             } else {
@@ -1060,35 +1063,26 @@ public abstract class PulsarWebResource {
         }
     }
 
-    public CompletableFuture<Void> validateTopicPolicyOperationAsync(TopicName topicName, PolicyName policy,
-                                                                     PolicyOperation operation) {
+    public CompletableFuture<Void> validateTopicPolicyOperationAsync(TopicName topicName,
+                                                                     PolicyName policy, PolicyOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 return FutureUtil.failedFuture(
                         new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
-            final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-            pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal(),
-                            clientAppId(), clientAuthData())
-                    .thenAccept(isAuthorized -> {
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicPolicyOperationAsync(topicName, policy, operation, originalPrincipal(), clientAppId(),
+                            clientAuthData()).thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
-                            RestException restException = new RestException(Status.FORBIDDEN, String.format(
-                                    "Unauthorized to validateTopicPolicyOperation for operation [%s] on topic [%s] "
-                                            + "on policy [%s]", operation.toString(), topicName, policy.toString()));
-                            resultFuture.completeExceptionally(restException);
-                        } else {
-                            resultFuture.complete(null);
+                            throw new RestException(Status.FORBIDDEN,
+                                    String.format("Unauthorized to validateTopicPolicyOperation"
+                                            + " for operation [%s] on topic [%s] on policy [%s]", operation.toString(),
+                                    topicName, policy.toString()));
                         }
-                    }).exceptionally(e -> {
-                resultFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
-                return null;
-            });
-            return resultFuture;
-        } else {
-            return CompletableFuture.completedFuture(null);
+                    });
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
