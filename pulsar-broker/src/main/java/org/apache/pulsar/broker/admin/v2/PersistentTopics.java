@@ -898,6 +898,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Topic has active producers/subscriptions"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void deleteTopic(
+            @Suspended AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -912,7 +913,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Delete the topic's schema storage")
             @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopic(authoritative, force, deleteSchema);
+        internalDeleteTopic(asyncResponse, authoritative, force, deleteSchema);
     }
 
     @GET

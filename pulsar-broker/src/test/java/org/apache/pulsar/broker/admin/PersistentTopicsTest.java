@@ -1151,28 +1151,29 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         BrokerService brokerService = spy(pulsar.getBrokerService());
         doReturn(brokerService).when(pulsar).getBrokerService();
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, false, null);
+
         CompletableFuture<Void> deleteTopicFuture = new CompletableFuture<>();
         deleteTopicFuture.completeExceptionally(new MetadataStoreException.NotFoundException());
         doReturn(deleteTopicFuture).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
-        persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true, true);
-        //
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, true, true, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
         CompletableFuture<Void> deleteTopicFuture2 = new CompletableFuture<>();
         deleteTopicFuture2.completeExceptionally(new MetadataStoreException("test exception"));
         doReturn(deleteTopicFuture2).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
-        try {
-            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true, true);
-        } catch (Exception e) {
-            Assert.assertTrue(e instanceof RestException);
-        }
-        //
+        response = mock(AsyncResponse.class);
+        persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, true, true, true);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+
         CompletableFuture<Void> deleteTopicFuture3 = new CompletableFuture<>();
         deleteTopicFuture3.completeExceptionally(new MetadataStoreException.NotFoundException());
         doReturn(deleteTopicFuture3).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
-        try {
-            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, false, true, true);
-        } catch (RestException e) {
-            Assert.assertEquals(e.getResponse().getStatus(), 404);
-        }
+        response = mock(AsyncResponse.class);
+        persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, false, true, true);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
     }
 
     public void testAdminTerminatePartitionedTopic() throws Exception{
