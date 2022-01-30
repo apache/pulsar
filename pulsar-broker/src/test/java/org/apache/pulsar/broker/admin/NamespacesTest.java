@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.utils.PulsarAdminAssert.assertNotFound;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -33,6 +32,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -51,7 +51,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -1431,7 +1430,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().delete(topic);
             fail("should have failed");
-        } catch (NotFoundException e) {
+        } catch (PulsarAdminException.NotFoundException e) {
             // Expected
         }
 
@@ -1440,7 +1439,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().delete(topic);
             fail("should have failed");
-        } catch (NotFoundException e) {
+        } catch (PulsarAdminException.NotFoundException e) {
             // Expected
         }
     }
@@ -1460,7 +1459,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().deletePartitionedTopic(topic);
             fail("should have failed");
-        } catch (NotFoundException e) {
+        } catch (PulsarAdminException.NotFoundException e) {
             // Expected
         }
 
@@ -1469,7 +1468,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().deletePartitionedTopic(topic);
             fail("should have failed");
-        } catch (NotFoundException e) {
+        } catch (PulsarAdminException.NotFoundException e) {
             // Expected
         }
     }
@@ -1780,9 +1779,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         testResourceGroup.setPublishRateInBytes(10000L);
         final String resourceGroupName = "test-resource-group";
         admin.resourcegroups().createResourceGroup(resourceGroupName, testResourceGroup);
-        assertNotFound(__ -> admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName));
-        assertNotFound(__ -> admin.namespaces().getNamespaceResourceGroup(namespace));
-        assertNotFound(__ -> admin.namespaces().removeNamespaceResourceGroup(namespace));
+        assertEquals(expectThrows(PulsarAdminException.class,
+                () -> admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName)).getStatusCode(),
+                Response.Status.NOT_FOUND.getStatusCode());
+        assertEquals(expectThrows(PulsarAdminException.class,
+                        () -> admin.namespaces().getNamespaceResourceGroup(namespace)).getStatusCode(),
+                Response.Status.NOT_FOUND.getStatusCode());
+        assertEquals(expectThrows(PulsarAdminException.class,
+                        () -> admin.namespaces().removeNamespaceResourceGroup(namespace)).getStatusCode(),
+                Response.Status.NOT_FOUND.getStatusCode());
         admin.namespaces().createNamespace(namespace);
         String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
         assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
