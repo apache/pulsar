@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -717,6 +718,15 @@ public class NamespaceService implements AutoCloseable {
         return pulsar.getLocalMetadataStore().exists(ServiceUnitUtils.path(bundle));
     }
 
+    public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNameSpacesStatusAsync() {
+        return getLocalNamespaceIsolationPoliciesAsync()
+                .thenApply( nsIsolationPolicies -> ownershipCache.getOwnedBundles().values().stream()
+                        .map(bundle -> Pair.of(bundle.getNamespaceBundle().toString(),
+                                getNamespaceOwnershipStatus(bundle, nsIsolationPolicies
+                                        .getPolicyByNamespace(bundle.getNamespaceBundle().getNamespaceObject()))))
+                        .collect(Collectors.toMap(Pair::getLeft, Pair::getRight)));
+    }
+
     public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
         NamespaceIsolationPolicies nsIsolationPolicies = this.getLocalNamespaceIsolationPolicies();
         Map<String, NamespaceOwnershipStatus> ownedNsStatus = new HashMap<String, NamespaceOwnershipStatus>();
@@ -746,6 +756,14 @@ public class NamespaceService implements AutoCloseable {
         }
 
         return nsOwnedStatus;
+    }
+
+    private CompletableFuture<NamespaceIsolationPolicies> getLocalNamespaceIsolationPoliciesAsync() {
+        String localCluster = pulsar.getConfiguration().getClusterName();
+        return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
+                .getIsolationDataPoliciesAsync(localCluster)
+                .thenApply(namespaceIsolationPolicies -> namespaceIsolationPolicies
+                        .orElseGet(NamespaceIsolationPolicies::new));
     }
 
     private NamespaceIsolationPolicies getLocalNamespaceIsolationPolicies() throws Exception {

@@ -140,20 +140,21 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
+    public void getOwnedNamespaces(
+            @Suspended AsyncResponse asyncResponse,
+            @PathParam("clusterName") String cluster,
             @PathParam("broker-webserviceurl") String broker) throws Exception {
-        validateSuperUserAccess();
-        validateClusterOwnership(cluster);
-        validateBrokerName(broker);
-
-        try {
-            // now we validated that this is the broker specified in the request
-            return pulsar().getNamespaceService().getOwnedNameSpacesStatus();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}", clientAppId(),
-                    cluster, broker);
-            throw new RestException(e);
-        }
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
+                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
+                .thenAccept(ownedNamespaces -> {
+                    log.info("[{}] Successfully to get the owned namespaces.", clientAppId());
+                    asyncResponse.resume(ownedNamespaces);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get the owned namespaces.", clientAppId(), ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
+                });
     }
 
     @POST
