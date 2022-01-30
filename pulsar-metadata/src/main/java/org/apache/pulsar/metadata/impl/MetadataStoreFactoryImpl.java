@@ -46,12 +46,15 @@ public class MetadataStoreFactoryImpl {
                                              boolean enableSessionWatcher)
             throws MetadataStoreException {
 
-        if (metadataURL.startsWith("memory://")) {
+        if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
             return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
-        } else if (metadataURL.startsWith("rocksdb://")) {
+        } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
             return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
         } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
             return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+        } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
+            return new ZKMetadataStore(metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length()),
+                    metadataStoreConfig, enableSessionWatcher);
         } else {
             return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
         }

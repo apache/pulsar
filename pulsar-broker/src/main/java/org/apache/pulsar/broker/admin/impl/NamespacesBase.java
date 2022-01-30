@@ -98,6 +98,7 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -683,11 +684,15 @@ public abstract class NamespacesBase extends AdminResource {
             log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         } catch (ExecutionException e) {
-            if (e.getCause() instanceof IllegalArgumentException) {
+            // The IllegalArgumentException and the IllegalStateException were historically thrown by the
+            // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+            if (e.getCause() instanceof MetadataStoreException.NotFoundException
+                    || e.getCause() instanceof IllegalArgumentException) {
                 log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
                         namespaceName, e);
                 throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-            } else if (e.getCause() instanceof IllegalStateException) {
+            } else if (e.getCause() instanceof MetadataStoreException.BadVersionException
+                    || e.getCause() instanceof IllegalStateException) {
                 log.warn("[{}] Failed to set permissions for namespace {}: {}",
                         clientAppId(), namespaceName, e.getCause().getMessage(), e);
                 throw new RestException(Status.CONFLICT, "Concurrent modification");
@@ -2342,15 +2347,8 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
-        SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-        if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
-            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
-            }
-        }
-        return schemaCompatibilityStrategy;
+
+        return policies.schema_compatibility_strategy;
     }
 
     @Deprecated

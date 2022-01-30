@@ -148,6 +148,7 @@ public class NamespaceStatsAggregator {
         stats.msgOutCounter = tStatus.msgOutCounter;
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
+        stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {

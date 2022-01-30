@@ -276,11 +276,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         duringSeek = new AtomicBoolean(false);
 
         if (conf.getAckTimeoutMillis() != 0) {
-            if (conf.getTickDurationMillis() > 0) {
-                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis(),
-                        Math.min(conf.getTickDurationMillis(), conf.getAckTimeoutMillis()));
+            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
+                this.unAckedMessageTracker = new UnAckedMessageRedeliveryTracker(client, this, conf);
             } else {
-                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis());
+                this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf);
             }
         } else {
             this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
@@ -1202,7 +1201,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, msgMetadata, headersAndPayload, cnx);
+        ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, redeliveryCount, msgMetadata, headersAndPayload,
+                cnx);
 
         boolean isMessageUndecryptable = isMessageUndecryptable(msgMetadata);
 
@@ -1510,11 +1510,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected void trackMessage(Message<?> msg) {
         if (msg != null) {
-            trackMessage(msg.getMessageId());
+            trackMessage(msg.getMessageId(), msg.getRedeliveryCount());
         }
     }
 
     protected void trackMessage(MessageId messageId) {
+            trackMessage(messageId, 0);
+    }
+
+    protected void trackMessage(MessageId messageId, int redeliveryCount) {
         if (conf.getAckTimeoutMillis() > 0 && messageId instanceof MessageIdImpl) {
             MessageIdImpl id = (MessageIdImpl) messageId;
             if (id instanceof BatchMessageIdImpl) {
@@ -1526,7 +1530,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // we should no longer track this message, TopicsConsumer will take care from now onwards
                 unAckedMessageTracker.remove(id);
             } else {
-                unAckedMessageTracker.add(id);
+                unAckedMessageTracker.add(id, redeliveryCount);
             }
         }
     }
@@ -1570,8 +1574,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return connectionHandler.lastConnectionClosedTimestamp;
     }
 
-    private ByteBuf decryptPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
-            ClientCnx currentCnx) {
+    private ByteBuf decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount, MessageMetadata msgMetadata,
+                                           ByteBuf payload, ClientCnx currentCnx) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
             return payload.retain();
@@ -1597,7 +1601,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             "[{}][{}][{}][{}] Message delivery failed since CryptoKeyReader interface is not"
                                     + " implemented to consume encrypted message",
                             topic, subscription, consumerName, m);
-                    unAckedMessageTracker.add(m);
+                    unAckedMessageTracker.add(m, redeliveryCount);
                     return null;
             }
         }
@@ -1630,7 +1634,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.error(
                         "[{}][{}][{}][{}] Message delivery failed since unable to decrypt incoming message",
                         topic, subscription, consumerName, m);
-                unAckedMessageTracker.add(m);
+                unAckedMessageTracker.add(m, redeliveryCount);
                 return null;
         }
         return null;

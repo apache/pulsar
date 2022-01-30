@@ -23,16 +23,16 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * Interface for custom message is negativeAcked policy, users can specify a {@link NegativeAckRedeliveryBackoff} for
+ * Interface for custom message is negativeAcked policy, users can specify a {@link RedeliveryBackoff} for
  * a consumer.
  *
  * Notice: the consumer crashes will trigger the redelivery of the unacked message, this case will not respect the
- * {@link NegativeAckRedeliveryBackoff}, which means the message might get redelivered earlier than the delay time
+ * {@link RedeliveryBackoff}, which means the message might get redelivered earlier than the delay time
  * from the backoff.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface NegativeAckRedeliveryBackoff extends Serializable  {
+public interface RedeliveryBackoff extends Serializable  {
     /**
      * @param redeliveryCount indicates the number of times the message was redelivered
      */
