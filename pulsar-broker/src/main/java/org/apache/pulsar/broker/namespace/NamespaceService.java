@@ -720,7 +720,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNameSpacesStatusAsync() {
         return getLocalNamespaceIsolationPoliciesAsync()
-                .thenApply( nsIsolationPolicies -> ownershipCache.getOwnedBundles().values().stream()
+                .thenApply(nsIsolationPolicies -> ownershipCache.getOwnedBundles().values().stream()
                         .map(bundle -> Pair.of(bundle.getNamespaceBundle().toString(),
                                 getNamespaceOwnershipStatus(bundle, nsIsolationPolicies
                                         .getPolicyByNamespace(bundle.getNamespaceBundle().getNamespaceObject()))))
