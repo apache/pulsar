@@ -2739,44 +2739,56 @@ public class PersistentTopicsBase extends AdminResource {
         return responseBuilder.entity(stream).build();
     }
 
-    protected PersistentOfflineTopicStats internalGetBacklog(boolean authoritative) {
+    protected void internalGetBacklog(AsyncResponse asyncResponse, boolean authoritative) {
+
+        CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            ret = CompletableFuture.completedFuture(null);
         }
+
         // Validate that namespace exists, throw 404 if it doesn't exist
         // note that we do not want to load the topic and hence skip authorization check
-        try {
-            namespaceResources().getPolicies(namespaceName);
-        } catch (MetadataStoreException.NotFoundException e) {
-            log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(), namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to get topic backlog {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
-
-        PersistentOfflineTopicStats offlineTopicStats = null;
-        try {
-
-            offlineTopicStats = pulsar().getBrokerService().getOfflineTopicStat(topicName);
-            if (offlineTopicStats != null) {
-                // offline topic stat has a cost - so use cached value until TTL
-                long elapsedMs = System.currentTimeMillis() - offlineTopicStats.statGeneratedAt.getTime();
-                if (TimeUnit.MINUTES.convert(elapsedMs, TimeUnit.MILLISECONDS) < OFFLINE_TOPIC_STAT_TTL_MINS) {
-                    return offlineTopicStats;
-                }
+        ret.thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+           .thenCompose(__ -> {
+               PersistentOfflineTopicStats offlineTopicStats = pulsar().getBrokerService().getOfflineTopicStat(topicName);
+               if (offlineTopicStats != null) {
+                   // offline topic stat has a cost - so use cached value until TTL
+                   long elapsedMs = System.currentTimeMillis() - offlineTopicStats.statGeneratedAt.getTime();
+                   if (TimeUnit.MINUTES.convert(elapsedMs, TimeUnit.MILLISECONDS) < OFFLINE_TOPIC_STAT_TTL_MINS) {
+                       asyncResponse.resume(offlineTopicStats);
+                       return null;
+                   }
+               }
+               return pulsar().getBrokerService().getManagedLedgerConfig(topicName);
+           })
+          .thenAccept(config -> {
+              ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(config.getDigestType(),
+                      config.getPassword(), pulsar().getAdvertisedAddress(), false);
+              PersistentOfflineTopicStats offlineTopicStats;
+              try {
+                  offlineTopicStats = offlineTopicBacklog.estimateUnloadedTopicBacklog(
+                          (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory(), topicName);
+                  asyncResponse.resume(offlineTopicBacklog);
+              } catch (Exception ex) {
+                  throw new RestException(ex);
+              }
+              pulsar().getBrokerService().cacheOfflineTopicStats(topicName, offlineTopicStats);
+          })
+        .exceptionally(ex -> {
+            if (ex instanceof MetadataStoreException.NotFoundException) {
+                log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(),
+                        namespaceName);
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+            } else if (ex instanceof RestException) {
+                asyncResponse.resume(ex);
+            } else {
+                log.error("[{}] Failed TODO {}", clientAppId(), topicName, ex);
+                asyncResponse.resume(new RestException(ex));
             }
-            final ManagedLedgerConfig config = pulsar().getBrokerService().getManagedLedgerConfig(topicName)
-                    .get();
-            ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(config.getDigestType(),
-                    config.getPassword(), pulsar().getAdvertisedAddress(), false);
-            offlineTopicStats = offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory(), topicName);
-            pulsar().getBrokerService().cacheOfflineTopicStats(topicName, offlineTopicStats);
-        } catch (Exception exception) {
-            throw new RestException(exception);
-        }
-        return offlineTopicStats;
+            return null;
+        });
     }
 
     protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(

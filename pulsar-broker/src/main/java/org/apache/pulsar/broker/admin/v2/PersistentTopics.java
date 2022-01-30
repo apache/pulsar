@@ -58,7 +58,6 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -1595,7 +1594,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
-    public PersistentOfflineTopicStats getBacklog(
+    public void getBacklog(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1605,7 +1605,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetBacklog(authoritative);
+        internalGetBacklog(asyncResponse, authoritative);
     }
 
     @PUT
