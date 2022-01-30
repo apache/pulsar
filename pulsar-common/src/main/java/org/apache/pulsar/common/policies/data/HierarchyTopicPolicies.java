@@ -33,26 +33,35 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 @Getter
 public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<List<String>> replicationClusters;
+    final PolicyHierarchyValue<RetentionPolicies> retentionPolicies;
     final PolicyHierarchyValue<Boolean> deduplicationEnabled;
+    final PolicyHierarchyValue<Integer> deduplicationSnapshotIntervalSeconds;
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<EnumSet<SubType>> subscriptionTypesEnabled;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
+    final PolicyHierarchyValue<Integer> maxUnackedMessagesOnConsumer;
+    final PolicyHierarchyValue<Integer> maxUnackedMessagesOnSubscription;
     final PolicyHierarchyValue<Integer> maxProducersPerTopic;
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
     final PolicyHierarchyValue<Integer> topicMaxMessageSize;
     final PolicyHierarchyValue<Integer> messageTTLInSeconds;
+    final PolicyHierarchyValue<Long> compactionThreshold;
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
     final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
-
+    final PolicyHierarchyValue<SchemaCompatibilityStrategy> schemaCompatibilityStrategy;
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
+        retentionPolicies = new PolicyHierarchyValue<>();
         deduplicationEnabled = new PolicyHierarchyValue<>();
+        deduplicationSnapshotIntervalSeconds = new PolicyHierarchyValue<>();
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         subscriptionTypesEnabled = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
+        maxUnackedMessagesOnConsumer = new PolicyHierarchyValue<>();
+        maxUnackedMessagesOnSubscription = new PolicyHierarchyValue<>();
         maxProducersPerTopic = new PolicyHierarchyValue<>();
         maxConsumerPerTopic = new PolicyHierarchyValue<>();
         maxConsumersPerSubscription = new PolicyHierarchyValue<>();
@@ -64,5 +73,7 @@ public class HierarchyTopicPolicies {
         messageTTLInSeconds = new PolicyHierarchyValue<>();
         delayedDeliveryEnabled = new PolicyHierarchyValue<>();
         delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
+        compactionThreshold = new PolicyHierarchyValue<>();
+        schemaCompatibilityStrategy = new PolicyHierarchyValue<>();
     }
 }

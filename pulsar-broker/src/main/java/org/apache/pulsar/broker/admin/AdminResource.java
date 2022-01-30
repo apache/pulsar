@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +39,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -55,6 +57,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -568,6 +571,11 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,
                                                   boolean createLocalTopicOnly) {
+        internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly, null);
+    }
+
+    protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,
+                                                  boolean createLocalTopicOnly, Map<String, String> properties) {
         Integer maxTopicsPerNamespace = null;
 
         try {
@@ -634,7 +642,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 return;
             }
 
-            provisionPartitionedTopicPath(asyncResponse, numPartitions, createLocalTopicOnly)
+            provisionPartitionedTopicPath(asyncResponse, numPartitions, createLocalTopicOnly, properties)
                     .thenCompose(ignored -> tryCreatePartitionsAsync(numPartitions))
                     .whenComplete((ignored, ex) -> {
                         if (ex != null) {
@@ -673,7 +681,7 @@ public abstract class AdminResource extends PulsarWebResource {
                                 ((TopicsImpl) pulsar().getBrokerService()
                                         .getClusterPulsarAdmin(cluster, clusterDataOp).topics())
                                         .createPartitionedTopicAsync(
-                                                topicName.getPartitionedTopicName(), numPartitions, true);
+                                                topicName.getPartitionedTopicName(), numPartitions, true, null);
                             })
                             .exceptionally(throwable -> {
                                 log.error("Failed to create partition topic in cluster {}.", cluster, throwable);
@@ -712,13 +720,13 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-    private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse,
-                                                                  int numPartitions,
-                                                                  boolean createLocalTopicOnly) {
+    private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse, int numPartitions,
+                                                                  boolean createLocalTopicOnly,
+                                                                  Map<String, String> properties) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         namespaceResources()
                 .getPartitionedTopicResources()
-                .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions))
+                .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions, properties))
                 .whenComplete((ignored, ex) -> {
                     if (ex != null) {
                         if (ex instanceof AlreadyExistsException) {
@@ -749,10 +757,48 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
         if (throwable instanceof WebApplicationException) {
-            asyncResponse.resume((WebApplicationException) throwable);
+            asyncResponse.resume(throwable);
+        } else if (throwable instanceof BrokerServiceException.NotAllowedException) {
+            asyncResponse.resume(new RestException(Status.CONFLICT, throwable));
         } else {
             asyncResponse.resume(new RestException(throwable));
         }
+    }
+
+    protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
+        return validateTopicOperationAsync(topicName, TopicOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY)
+                .thenCompose((__) -> {
+                    CompletableFuture<SchemaCompatibilityStrategy> future;
+                    if (config().isTopicLevelPoliciesEnabled()) {
+                        future = getTopicPoliciesAsyncWithRetry(topicName)
+                                .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
+                    } else {
+                        future = CompletableFuture.completedFuture(null);
+                    }
+
+                    return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
+                        if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
+                            return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
+                        }
+                        return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
+                            SchemaCompatibilityStrategy schemaCompatibilityStrategy =
+                                    policies.schema_compatibility_strategy;
+                            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                                        policies.schema_auto_update_compatibility_strategy);
+                                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                                    schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+                                }
+                            }
+                            return schemaCompatibilityStrategy;
+                        });
+                    });
+                }).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
+                                clientAppId(), topicName, ex);
+                    }
+                });
     }
 
     @CanIgnoreReturnValue

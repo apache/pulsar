@@ -141,16 +141,17 @@ SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId)
 }
 
 PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint64_t producerId,
-                                   uint64_t sequenceId, ChecksumType checksumType, const Message& msg) {
-    const proto::MessageMetadata& metadata = msg.impl_->metadata;
-    SharedBuffer& payload = msg.impl_->payload;
-
+                                   uint64_t sequenceId, ChecksumType checksumType,
+                                   const proto::MessageMetadata& metadata, const SharedBuffer& payload) {
     cmd.set_type(BaseCommand::SEND);
     CommandSend* send = cmd.mutable_send();
     send->set_producer_id(producerId);
     send->set_sequence_id(sequenceId);
     if (metadata.has_num_messages_in_batch()) {
         send->set_num_messages(metadata.num_messages_in_batch());
+    }
+    if (metadata.has_chunk_id()) {
+        send->set_is_chunk(true);
     }
 
     // / Wire format
@@ -199,7 +200,8 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
         int metadataStartIndex = checksumReaderIndex + checksumSize;
         uint32_t metadataChecksum =
             computeChecksum(0, headers.data() + metadataStartIndex, (writeIndex - metadataStartIndex));
-        uint32_t computedChecksum = computeChecksum(metadataChecksum, payload.data(), payload.writerIndex());
+        uint32_t computedChecksum =
+            computeChecksum(metadataChecksum, payload.data(), payload.readableBytes());
         // set computed checksum
         headers.setWriterIndex(checksumReaderIndex);
         headers.writeUnsignedInt(computedChecksum);

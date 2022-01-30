@@ -20,7 +20,9 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.google.common.base.Strings;
 import java.util.function.Supplier;
+import lombok.NonNull;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 
@@ -74,6 +76,8 @@ public class CmdBookies extends CmdBase {
     @Parameters(commandDescription = "Updates the rack placement information for a specific bookie in the cluster "
             + "(note. bookie address format:`address:port`)")
     private class UpdateBookie extends CliCommand {
+        private static final String PATH_SEPARATOR = "/";
+
         @Parameter(names = { "-g", "--group" }, description = "Bookie group name", required = false)
         private String group = "default";
 
@@ -81,7 +85,13 @@ public class CmdBookies extends CmdBase {
                 description = "Bookie address (format: `address:port`)", required = true)
         private String bookieAddress;
 
-        @Parameter(names = { "-r", "--rack" }, description = "Bookie rack name", required = true)
+        @Parameter(names = { "-r", "--rack" }, description = "Bookie rack name. "
+                + "If you set a bookie rack name to slash (/) "
+                + "or an empty string (\"\"): "
+                + "if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2, "
+                + "an an exception is thrown; "
+                + "if you use Pulsar later than 2.7.5, 2.8.3, and 2.9.2, "
+                + "it falls back to /default-rack or /default-region/default-rack.", required = true)
         private String bookieRack;
 
         @Parameter(names = { "--hostname" }, description = "Bookie host name", required = false)
@@ -89,11 +99,20 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
+            checkArgument(!Strings.isNullOrEmpty(bookieRack) && !bookieRack.trim().equals(PATH_SEPARATOR),
+                    "rack name is invalid, it should not be null, empty or '/'");
+
             getAdmin().bookies().updateBookieRackInfo(bookieAddress, group,
                     BookieInfo.builder()
                             .rack(bookieRack)
                             .hostname(bookieHost)
                             .build());
+        }
+
+        private void checkArgument(boolean expression, @NonNull Object errorMessage) {
+            if (!expression) {
+                throw new IllegalArgumentException(String.valueOf(errorMessage));
+            }
         }
     }
 

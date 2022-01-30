@@ -976,7 +976,7 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/unsubscribe/{subscription}")
     @ApiOperation(value = "Unsubscribes the given subscription on all topics on a namespace.")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespacen"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void unsubscribeNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -995,7 +995,8 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{tenant}/{namespace}/{bundle}/unsubscribe/{subscription}")
     @ApiOperation(value = "Unsubscribes the given subscription on all topics on a namespace bundle.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void unsubscribeNamespaceBundle(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,

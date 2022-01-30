@@ -70,7 +70,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     @BeforeMethod
     public void setUp() throws Exception {
         timer = new HashedWheelTimer();
-        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
 
         writableBookies.add(new BookieSocketAddress(BOOKIE1).toBookieId());
         writableBookies.add(new BookieSocketAddress(BOOKIE2).toBookieId());

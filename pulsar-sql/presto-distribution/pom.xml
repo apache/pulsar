@@ -44,7 +44,7 @@
     <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
     <jackson.databind.version>2.12.6</jackson.databind.version>
     <maven.version>3.0.5</maven.version>
-    <guava.version>30.1-jre</guava.version>
+    <guava.version>31.0.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <errorprone.version>2.5.1</errorprone.version>
     <javax.servlet-api>4.0.1</javax.servlet-api>

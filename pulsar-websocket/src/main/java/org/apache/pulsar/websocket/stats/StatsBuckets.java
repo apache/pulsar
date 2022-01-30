@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.LongAdder;
@@ -63,8 +62,7 @@ public class StatsBuckets {
         }
         sumCounter.add(other.sum);
     }
-    
-    
+
     public void addValue(long value) {
         int idx = Arrays.binarySearch(boundaries, value);
         if (idx < 0) {

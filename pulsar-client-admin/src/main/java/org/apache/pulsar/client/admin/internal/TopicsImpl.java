@@ -95,6 +95,7 @@ import org.slf4j.LoggerFactory;
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
+    private final WebTarget adminV3Topics;
     // CHECKSTYLE.OFF: MemberName
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
     private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
@@ -132,6 +133,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
+        adminV3Topics = web.path("/admin/v3");
     }
 
     @Override
@@ -312,13 +314,14 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
-        sync(() -> createPartitionedTopicAsync(topic, numPartitions));
+    public void createPartitionedTopic(String topic, int numPartitions, Map<String, String> metadata)
+            throws PulsarAdminException {
+        sync(() -> createPartitionedTopicAsync(topic, numPartitions, metadata));
     }
 
     @Override
-    public void createNonPartitionedTopic(String topic) throws PulsarAdminException {
-        sync(() -> createNonPartitionedTopicAsync(topic));
+    public void createNonPartitionedTopic(String topic, Map<String, String> metadata) throws PulsarAdminException {
+        sync(() -> createNonPartitionedTopicAsync(topic, metadata));
     }
 
     @Override
@@ -327,24 +330,33 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic) {
+    public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties){
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn);
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        properties = properties == null ? new HashMap<>() : properties;
+        return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
-        return createPartitionedTopicAsync(topic, numPartitions, false);
+    public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions,
+                                                               Map<String, String> properties) {
+        return createPartitionedTopicAsync(topic, numPartitions, false, properties);
     }
 
     public CompletableFuture<Void> createPartitionedTopicAsync(
-            String topic, int numPartitions, boolean createLocalTopicOnly) {
+            String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitions")
+        WebTarget path = topicPath(tn, properties, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
-        return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
+        Entity entity;
+        if (properties != null) {
+            PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, properties);
+            entity = Entity.entity(metadata, MediaType.APPLICATION_JSON);
+        } else {
+            entity = Entity.entity(numPartitions, MediaType.APPLICATION_JSON);
+        }
+        return asyncPutRequest(path, entity);
     }
 
     @Override
@@ -1237,6 +1249,22 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget namespacePath = base.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
+    }
+
+    /**
+     *  As we support topic metadata, user can add some properties when create topic.
+     *  For compatibility, we have to define a new method, so when metadata is not null, v3 will be called.
+     *  Details could be found here : https://github.com/apache/pulsar/pull/12818#discussion_r789340203
+     * @param topic
+     * @param metadata
+     * @param parts
+     * @return
+     */
+    private WebTarget topicPath(TopicName topic, Map<String, String> metadata, String... parts) {
+        final WebTarget base = metadata != null ? adminV3Topics : (topic.isV2() ? adminV2Topics : adminTopics);
+        WebTarget topicPath = base.path(topic.getRestPath());
+        topicPath = WebTargets.addParts(topicPath, parts);
+        return topicPath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {

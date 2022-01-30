@@ -39,7 +39,11 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -1106,6 +1110,76 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    @Test(timeOut = 30_000)
+    public void testCheckConsumersWithSameName() throws Exception {
+        final String topicName = "persistent://public/default/same-name-" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final String consumerName = "name";
+
+        ConsumerBuilder<String> cb = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .consumerName(consumerName)
+                .subscriptionType(SubscriptionType.Key_Shared);
+
+        // Create 3 consumers with same name
+        Consumer<String> c1 = cb.subscribe();
+
+        @Cleanup
+        Consumer<String> c2 = cb.subscribe();
+        @Cleanup
+        Consumer<String> c3 = cb.subscribe();
+
+        Producer<String> p = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            p.newMessage()
+                    .key(Integer.toString(i))
+                    .value("msg-" + i)
+                    .send();
+        }
+
+        // C1 receives some messages and won't ack
+        for (int i = 0; i < 5; i++) {
+            c1.receive();
+        }
+
+        // Close C1, now all messages should go to c2 & c3
+        c1.close();
+
+        CountDownLatch l = new CountDownLatch(100);
+
+        @Cleanup("shutdownNow")
+        ExecutorService e = Executors.newCachedThreadPool();
+        e.submit(() -> {
+            while (l.getCount() > 0) {
+                try {
+                    Message<String> msg = c2.receive(1, TimeUnit.SECONDS);
+                    c2.acknowledge(msg);
+                    l.countDown();
+                } catch (PulsarClientException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        e.submit(() -> {
+            while (l.getCount() > 0) {
+                try {
+                    Message<String> msg = c3.receive(1, TimeUnit.SECONDS);
+                    c3.acknowledge(msg);
+                    l.countDown();
+                } catch (PulsarClientException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        l.await();
+    }
+
+
     private KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {
         if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.persistent)) {
             return ((PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subscription)
@@ -1336,5 +1410,132 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
             return null;
         }
+    }
+
+    @Test
+    public void testStickyKeyRangesRestartConsumers() throws PulsarClientException, InterruptedException {
+        final String topic = TopicName.get("persistent", "public", "default",
+                "testStickyKeyRangesRestartConsumers" + UUID.randomUUID()).toString();
+
+        final String subscriptionName = "my-sub";
+
+        final int numMessages = 100;
+        // start 2 consumers
+        Set<String> sentMessages = new ConcurrentSkipListSet<>();
+
+        CountDownLatch count1 = new CountDownLatch(2);
+        CountDownLatch count2 = new CountDownLatch(13); // consumer 2 usually receive the fix messages
+        CountDownLatch count3 = new CountDownLatch(numMessages);
+        Consumer<String> consumer1 = pulsarClient.newConsumer(
+                        Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65536 / 2)))
+                .messageListener((consumer, msg) -> {
+                    consumer.acknowledgeAsync(msg).whenComplete((m, e) -> {
+                        if (e != null) {
+                            log.error("error", e);
+                        } else {
+                            sentMessages.remove(msg.getKey());
+                            count1.countDown();
+                            count3.countDown();
+                        }
+                    });
+                })
+                .subscribe();
+
+        Consumer<String> consumer2 = pulsarClient.newConsumer(
+                        Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(65536 / 2 + 1, 65535)))
+                .messageListener((consumer, msg) -> {
+                    consumer.acknowledgeAsync(msg).whenComplete((m, e) -> {
+                        if (e != null) {
+                            log.error("error", e);
+                        } else {
+                            sentMessages.remove(msg.getKey());
+                            count2.countDown();
+                            count3.countDown();
+                        }
+                    });
+                })
+                .subscribe();
+
+        pulsar.getExecutor().submit(() -> {
+            try
+            {
+                try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                        .topic(topic)
+                        .enableBatching(false)
+                        .create();) {
+                    for (int i = 0; i < numMessages; i++)
+                    {
+                        String key = "test" + i;
+                        sentMessages.add(key);
+                        producer.newMessage()
+                                .key(key)
+                                .value("test" + i).
+                                send();
+                        Thread.sleep(100);
+                    }
+                }
+            } catch (Throwable t) {
+                log.error("error", t);
+            }});
+
+        // wait for some messages to be received by both of the consumers
+        count1.await();
+        count2.await();
+        consumer1.close();
+        consumer2.close();
+
+        // this sleep is to trigger a race condition that happens
+        // when there are some messages that cannot be dispatched while consuming
+        Thread.sleep(3000);
+
+        // start consuming again...
+
+        pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65536 / 2)))
+                .messageListener((consumer, msg) -> {
+                    consumer.acknowledgeAsync(msg).whenComplete((m, e) -> {
+                        if (e != null) {
+                            log.error("error", e);
+                        } else {
+                            sentMessages.remove(msg.getKey());
+                            count3.countDown();
+                        }
+                    });
+                })
+                .subscribe();
+        pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(65536 / 2 + 1, 65535)))
+                .messageListener((consumer, msg) -> {
+                    consumer.acknowledgeAsync(msg).whenComplete((m, e) -> {
+                        if (e != null) {
+                            log.error("error", e);
+                        } else {
+                            sentMessages.remove(msg.getKey());
+                            count3.countDown();
+                        }
+                    });
+                })
+                .subscribe();
+        // wait for all the messages to be delivered
+        count3.await();
+        assertTrue(sentMessages.isEmpty(), "didn't receive " + sentMessages);
     }
 }

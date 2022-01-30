@@ -1633,6 +1633,36 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testSetTopicMetadata() throws Exception {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        properties.put("key2", "value2");
+        final MetaStore store = factory.getMetaStore();
+        final CountDownLatch latch = new CountDownLatch(1);
+        final ManagedLedgerInfo[] storedMLInfo = new ManagedLedgerInfo[1];
+        store.getManagedLedgerInfo("my_test_ledger", true, properties, new MetaStoreCallback<ManagedLedgerInfo>() {
+            @Override
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
+                storedMLInfo[0] = result;
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                latch.countDown();
+                fail("Should have failed here");
+            }
+        });
+        latch.await();
+
+        assertEquals(storedMLInfo[0].getPropertiesCount(), 2);
+        assertEquals(storedMLInfo[0].getPropertiesList().get(0).getKey(), "key1");
+        assertEquals(storedMLInfo[0].getPropertiesList().get(0).getValue(), "value1");
+        assertEquals(storedMLInfo[0].getPropertiesList().get(1).getKey(), "key2");
+        assertEquals(storedMLInfo[0].getPropertiesList().get(1).getValue(), "value2");
+    }
+
+    @Test
     public void cursorReadsWithDiscardedEmptyLedgersStillListed() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -1775,11 +1805,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
 
-        Thread.sleep(2000);
-
         ledger.addEntry("data".getBytes());
         ledger.addEntry("data".getBytes());
-        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        });   
     }
 
     @Test
@@ -3128,7 +3159,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
         // Now we update the cursors that are still subscribing to ledgers that has been consumed completely
         managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
-        managedLedger.internalTrimConsumedLedgers(Futures.nullPromise_);
+        managedLedger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
         ManagedLedgerImpl finalManagedLedger = managedLedger;
         Awaitility.await().untilAsserted(() -> {
             // We only have one empty ledger at last [{entries=0}]
@@ -3224,7 +3255,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.ledgerCache.size(), 2);
         cursor.clearBacklog();
         cursor2.clearBacklog();
-        ledger.trimConsumedLedgersInBackground(Futures.nullPromise_);
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 1);
             assertEquals(ledger.ledgerCache.size(), 0);
@@ -3256,7 +3287,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.ledgerCache.size(), 2);
         cursor.clearBacklog();
         cursor2.clearBacklog();
-        ledger.trimConsumedLedgersInBackground(Futures.nullPromise_);
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 3);
             assertEquals(ledger.ledgerCache.size(), 0);
@@ -3268,7 +3299,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(entryList.size(), 3);
         assertEquals(ledger.ledgerCache.size(), 2);
         cursor3.clearBacklog();
-        ledger.trimConsumedLedgersInBackground(Futures.nullPromise_);
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 3);
             assertEquals(ledger.ledgerCache.size(), 0);
@@ -3307,7 +3338,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledgerOffloader = mock(NullLedgerOffloader.class);
         config.setLedgerOffloader(ledgerOffloader);
 
-        ledger.internalTrimConsumedLedgers(Futures.nullPromise_);
+        ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
         verify(ledgerOffloader, times(1)).getOffloadPolicies();
     }
 

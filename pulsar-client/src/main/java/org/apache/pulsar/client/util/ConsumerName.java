@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.util;
 
 import java.util.UUID;
-
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class ConsumerName {

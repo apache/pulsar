@@ -110,6 +110,12 @@ public class FileSourceConfig implements Serializable {
      */
     private Integer numWorkers = 1;
 
+    /**
+     * If set, do not delete but only rename file that has been processed.
+     * This config only work when 'keepFile' property is false.
+     */
+    private String processedFileSuffix;
+
     public static FileSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), FileSourceConfig.class);
@@ -162,6 +168,11 @@ public class FileSourceConfig implements Serializable {
 
         if (numWorkers != null && numWorkers <= 0) {
             throw new IllegalArgumentException("The property numWorkers must be greater than zero");
+        }
+
+        if (processedFileSuffix != null && keepFile) {
+            throw new IllegalArgumentException(
+                    "The property keepFile must be false if the property processedFileSuffix is set");
         }
     }
 }

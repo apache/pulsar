@@ -46,6 +46,10 @@
     <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <guice.version>4.2.3</guice.version>
+    <guava.version>31.0.1-jre</guava.version>
+    <ant.version>1.10.12</ant.version>
+    <snakeyaml.version>1.30</snakeyaml.version>
   </properties>
 
   <dependencyManagement>
@@ -61,6 +65,28 @@
   </dependencyManagement>
 
   <dependencies>
+
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>${snakeyaml.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.ant</groupId>
+      <artifactId>ant</artifactId>
+      <version>${ant.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>${guice.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
@@ -107,7 +133,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.72.Final</version>
+      <version>4.1.73.Final</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

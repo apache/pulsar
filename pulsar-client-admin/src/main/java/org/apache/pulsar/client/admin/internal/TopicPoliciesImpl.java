@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 
 public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
@@ -1373,6 +1374,62 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "replicatorDispatchRate");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String topic, boolean applied)
+            throws PulsarAdminException {
+        return sync(() -> getSchemaCompatibilityStrategyAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String topic,
+                                                                                              boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<SchemaCompatibilityStrategy> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<SchemaCompatibilityStrategy>() {
+                    @Override
+                    public void completed(SchemaCompatibilityStrategy schemaCompatibilityStrategy) {
+                        future.complete(schemaCompatibilityStrategy);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+
+        return future;
+    }
+
+    @Override
+    public void setSchemaCompatibilityStrategy(String topic, SchemaCompatibilityStrategy strategy)
+            throws PulsarAdminException {
+        sync(() -> setSchemaCompatibilityStrategyAsync(topic, strategy));
+    }
+
+    @Override
+    public CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String topic,
+                                                                       SchemaCompatibilityStrategy strategy) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        return asyncPutRequest(path, Entity.entity(strategy, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeSchemaCompatibilityStrategy(String topic)
+            throws PulsarAdminException {
+        sync(()->removeSchemaCompatibilityStrategyAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
         return asyncDeleteRequest(path);
     }
 

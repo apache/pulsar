@@ -73,7 +73,9 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             bkEnsemble.start();
 
             // start pulsar service
-            config = new ServiceConfiguration();
+            if (config == null) {
+                config = new ServiceConfiguration();
+            }
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
@@ -110,6 +112,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
     @Override
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
+        config = null;
         markCurrentSetupNumberCleaned();
         admin.close();
         pulsar.close();

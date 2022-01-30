@@ -37,6 +37,8 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -167,6 +169,25 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         // remove global topic policy
         admin1.topicPolicies(true).removePublishRate(topic);
         untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getPublishRate(topic)));
+    }
+
+    @Test
+    public void testReplicateDeduplicationSnapshotIntervalPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+        // set global topic policy
+        admin1.topicPolicies(true).setDeduplicationSnapshotInterval(topic, 100);
+
+        // get global topic policy
+        untilRemoteClustersAsserted(
+                admin -> assertEquals(admin.topicPolicies(true).getDeduplicationSnapshotInterval(topic),
+                        Integer.valueOf(100)));
+
+        // remove global topic policy
+        admin1.topicPolicies(true).removeDeduplicationSnapshotInterval(topic);
+        untilRemoteClustersAsserted(
+                admin -> assertNull(admin.topicPolicies(true).getDeduplicationSnapshotInterval(topic)));
     }
 
     private void untilRemoteClustersAsserted(ThrowingConsumer<PulsarAdmin> condition) {
@@ -550,6 +571,38 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         untilRemoteClustersAsserted(
                 admin -> assertNull(admin.topicPolicies(true).getMaxSubscriptionsPerTopic(persistentTopicName)));
     }
+
+    @Test
+    public void testReplicatorOffloadPolicies() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.create("s3", "region", "bucket", "endpoint", null, null, null, null,
+                8, 9, 10L, null, OffloadedReadPriority.BOOKKEEPER_FIRST);
+
+        // set offload policies
+        try{
+            admin1.topicPolicies(true).setOffloadPolicies(persistentTopicName, offloadPolicies);
+        }catch (Exception exception){
+            // driver not found exception.
+            assertTrue(exception instanceof PulsarAdminException.ServerSideErrorException);
+        }
+        // get offload policies
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName), offloadPolicies));
+
+        //remove offload policies
+        admin1.topicPolicies(true).removeOffloadPolicies(persistentTopicName);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
+    }
+
 
     private void init(String namespace, String topic)
             throws PulsarAdminException, PulsarClientException, PulsarServerException {
