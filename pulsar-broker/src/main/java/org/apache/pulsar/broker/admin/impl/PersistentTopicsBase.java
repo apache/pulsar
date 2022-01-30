@@ -2752,7 +2752,8 @@ public class PersistentTopicsBase extends AdminResource {
         // note that we do not want to load the topic and hence skip authorization check
         ret.thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
            .thenCompose(__ -> {
-               PersistentOfflineTopicStats offlineTopicStats = pulsar().getBrokerService().getOfflineTopicStat(topicName);
+               PersistentOfflineTopicStats offlineTopicStats = pulsar().getBrokerService()
+                       .getOfflineTopicStat(topicName);
                if (offlineTopicStats != null) {
                    // offline topic stat has a cost - so use cached value until TTL
                    long elapsedMs = System.currentTimeMillis() - offlineTopicStats.statGeneratedAt.getTime();
