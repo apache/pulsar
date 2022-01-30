@@ -1507,7 +1507,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalExamineMessage(asyncResponse, initialPosition, messagePosition, authoritative);
+        internalExamineMessageAsync(asyncResponse, initialPosition, messagePosition, authoritative);
     }
 
     @GET

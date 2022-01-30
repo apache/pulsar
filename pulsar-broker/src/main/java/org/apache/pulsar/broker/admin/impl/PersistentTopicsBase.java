@@ -2540,8 +2540,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalExamineMessage(AsyncResponse asyncResponse, String initialPosition, long messagePosition,
-                                          boolean authoritative) {
+    protected void internalExamineMessageAsync(AsyncResponse asyncResponse, String initialPosition,
+                                               long messagePosition, boolean authoritative) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -2561,9 +2561,7 @@ public class PersistentTopicsBase extends AdminResource {
                             String msg = "Examine messages on a partitioned topic is not allowed, "
                                     + "please try examine message on specific topic partition";
                             log.warn("[{}] {} topicName: {}", clientAppId(), msg, topicName);
-                            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                                    "Examine messages on a partitioned topic is not allowed, "
-                                            + "please try examine message on specific topic partition");
+                            throw new RestException(Status.METHOD_NOT_ALLOWED, msg);
                         }
                     });
         }
@@ -2572,7 +2570,6 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic)) {
-                        log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
                         throw new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Examine messages on a non-persistent topic is not allowed");
                     }
@@ -2598,28 +2595,24 @@ public class PersistentTopicsBase extends AdminResource {
                         }, null);
                         return readEntry;
                     } catch (Exception exception) {
-                        log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
-                                msgPos,
-                                topicName, exception);
                         throw new RestException(exception);
                     }
                 }).thenAccept(entry -> {
                     try {
-                        generateResponseWithEntry(entry);
+                        asyncResponse.resume(generateResponseWithEntry(entry));
                     } catch (IOException exception) {
-                        log.error("[{}] Failed to generate response with entry due to {}", clientAppId(), exception);
                         throw new RestException(exception);
+                    } finally {
+                        if(entry != null) {
+                            entry.release();
+                        }
                     }
                 }).exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    if (realCause instanceof RestException) {
-                        asyncResponse.resume(realCause);
-                    } else {
-                        log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
-                                msgPos,
-                                topicName, realCause);
-                        asyncResponse.resume(new RestException(realCause));
-                    }
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
+                            msgPos,
+                            topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
     }
