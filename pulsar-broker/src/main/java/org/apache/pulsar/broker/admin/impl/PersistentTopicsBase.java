@@ -2603,7 +2603,7 @@ public class PersistentTopicsBase extends AdminResource {
                     } catch (IOException exception) {
                         throw new RestException(exception);
                     } finally {
-                        if(entry != null) {
+                        if (entry != null) {
                             entry.release();
                         }
                     }
