@@ -1928,7 +1928,7 @@ public class Namespaces extends NamespacesBase {
                             clientAppId(), tenant, namespace);
                     asyncResponse.resume(resourceGroup);
                 }).exceptionally(ex -> {
-                    log.error("[{}] Fail to get namespace resource group, cause by {}", clientAppId(), ex);
+                    log.error("[{}] Fail to get namespace resource group.", clientAppId(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
@@ -1948,7 +1948,7 @@ public class Namespaces extends NamespacesBase {
                     log.info("[{}] Successfully to set namespace resource group {}", clientAppId(), rgName);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Fail to set namespace resource group {} cause by {}", clientAppId(), rgName, ex);
+                    log.error("[{}] Fail to set namespace resource group {}.", clientAppId(), rgName, ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
@@ -1968,7 +1968,7 @@ public class Namespaces extends NamespacesBase {
                     log.info("[{}] Successfully to remove namespace resource group.", clientAppId());
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Fail to remove namespace resource group, cause by {}", clientAppId(), ex);
+                    log.error("[{}] Fail to remove namespace resource group.", clientAppId(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
