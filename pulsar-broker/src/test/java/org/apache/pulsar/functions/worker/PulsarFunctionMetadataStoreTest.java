@@ -34,7 +34,7 @@ public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest 
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
         WorkerConfig wc = super.createWorkerConfig(config);
         wc.setStateStorageProviderImplementation(PulsarMetadataStateStoreProviderImpl.class.getName());
-        wc.setStateStorageServiceUrl("memory://local");
+        wc.setStateStorageServiceUrl("memory:local");
         return wc;
     }
 
