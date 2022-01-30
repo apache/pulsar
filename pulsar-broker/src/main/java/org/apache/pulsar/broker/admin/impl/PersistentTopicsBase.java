@@ -3316,7 +3316,7 @@ public class PersistentTopicsBase extends AdminResource {
                 })
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(e -> {
-                    Throwable cause = e.getCause();
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
                     log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, cause);
                     resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;

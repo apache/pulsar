@@ -46,7 +46,6 @@ import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -711,12 +710,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
             @ApiResponse(code = 406, message = "Need to provide a persistent topic name"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public MessageId terminate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public void terminate(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
+                          @PathParam("cluster") String cluster,
+                          @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+                          @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validatePersistentTopicName(property, cluster, namespace, encodedTopic);
-        return internalTerminate(authoritative);
+        internalTerminateAsync(asyncResponse, authoritative);
     }
 
     @POST
