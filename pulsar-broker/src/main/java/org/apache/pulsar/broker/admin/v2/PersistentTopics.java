@@ -1202,8 +1202,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("numMessages") int numMessages,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @POST
