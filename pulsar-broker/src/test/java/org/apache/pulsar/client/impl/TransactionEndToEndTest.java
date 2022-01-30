@@ -83,12 +83,13 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
-    private static final int TOPIC_PARTITION = 3;
-    private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
-    private static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
-    private static final int NUM_PARTITIONS = 16;
+    protected static final int TOPIC_PARTITION = 3;
+    protected static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
+    protected static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
+    protected static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }

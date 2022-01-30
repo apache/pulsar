@@ -404,7 +404,7 @@ public class Consumer {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
+                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets, false);
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
                     if (Subscription.isIndividualAckMode(subType)) {
@@ -414,7 +414,7 @@ public class Consumer {
                 }
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, false);
             }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
@@ -465,10 +465,10 @@ public class Consumer {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
+                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets, true);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, true);
             }
 
             if (msgId.hasBatchIndex()) {
@@ -518,32 +518,39 @@ public class Consumer {
         return batchSize;
     }
 
-    private long getAckedCountForMsgIdNoAckSets(long batchSize, PositionImpl position) {
+    private long getAckedCountForMsgIdNoAckSets(long batchSize, PositionImpl position, boolean isTransactionAck) {
         if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
-                return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET);
+                return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET, isTransactionAck);
             }
         }
         return batchSize;
     }
 
-    private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
+    private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets,
+            boolean isTransactionAck) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
-            long[] cursorAckSet = getCursorAckSet(position);
-            if (cursorAckSet != null) {
-                BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
-                int lastCardinality = cursorBitSet.cardinality();
-                BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
-                cursorBitSet.and(givenBitSet);
-                givenBitSet.recycle();
-                int currentCardinality = cursorBitSet.cardinality();
-                ackedCount = lastCardinality - currentCardinality;
-                cursorBitSet.recycle();
-            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
-                ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
+        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+            if(Subscription.isIndividualAckMode(subType)) {
+                long[] cursorAckSet = getCursorAckSet(position);
+                if (cursorAckSet != null) {
+                    BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
+                    int lastCardinality = cursorBitSet.cardinality();
+                    BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
+                    cursorBitSet.and(givenBitSet);
+                    givenBitSet.recycle();
+                    int currentCardinality = cursorBitSet.cardinality();
+                    ackedCount = lastCardinality - currentCardinality;
+                    cursorBitSet.recycle();
+                } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
+                    ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
+                }
             }
+        } else if (isTransactionAck) {
+            BitSetRecyclable bitset = BitSetRecyclable.create().resetWords(ackSets);
+            ackedCount = batchSize - bitset.cardinality();
+            bitset.recycle();
         }
         return ackedCount;
     }
