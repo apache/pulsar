@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -97,16 +98,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void noBatchProduceCommitTest() throws Exception {
-        produceCommitTest(false);
+    @DataProvider(name = "enableBatch")
+    public Object[][] enableBatch() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @Test
-    public void batchProduceCommitTest() throws Exception {
-        produceCommitTest(true);
-    }
-
+    @Test(dataProvider="enableBatch")
     private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient
@@ -247,6 +244,63 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         });
 
         log.info("finished test partitionAbortTest");
+    }
+
+    @Test(dataProvider="enableBatch")
+    private void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
+
+        final int messageCount = 50;
+        final String subName = "testAckWithTransactionReduceUnAckMessageCount";
+        final String topicName = NAMESPACE1 + "/testAckWithTransactionReduceUnAckMessageCount-" + enableBatch;
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+        Awaitility.await().until(consumer::isConnected);
+
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(enableBatch)
+                .batchingMaxMessages(10)
+                .create();
+
+        CountDownLatch countDownLatch = new CountDownLatch(messageCount);
+        for (int i = 0; i < messageCount; i++) {
+            producer.sendAsync((i + "").getBytes()).thenRun(countDownLatch::countDown);
+        }
+
+        countDownLatch.await();
+
+        Transaction txn = getTxn();
+
+        for (int i = 0; i < messageCount / 2; i++) {
+            Message<byte[]> message = consumer.receive();
+            consumer.acknowledgeAsync(message.getMessageId(), txn).get();
+        }
+
+        txn.commit().get();
+        boolean flag = false;
+        String topic = TopicName.get(topicName).toString();
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            CompletableFuture<Optional<Topic>> topicFuture = getPulsarServiceList().get(i)
+                    .getBrokerService().getTopic(topic, false);
+
+            if (topicFuture != null) {
+                Optional<Topic> topicOptional = topicFuture.get();
+                if (topicOptional.isPresent()) {
+                    PersistentSubscription persistentSubscription =
+                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+                    flag = true;
+                }
+            }
+        }
+        assertTrue(flag);
     }
 
     @Test
