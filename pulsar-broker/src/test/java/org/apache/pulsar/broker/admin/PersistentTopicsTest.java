@@ -373,13 +373,15 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         // 3) Assert terminate persistent topic
-        MessageId messageId = persistentTopics.terminate(testTenant, testNamespace, testLocalTopicName, true);
-        Assert.assertEquals(messageId, new MessageIdImpl(3, -1, -1));
+        AsyncResponse terminateResponse = mock(AsyncResponse.class);
+        persistentTopics.terminate(terminateResponse, testTenant, testNamespace, testLocalTopicName, true);
+        MessageId messageId = new MessageIdImpl(3, -1, -1);
+        verify(terminateResponse, timeout(5000).times(1)).resume(messageId);
 
         // 4) Assert terminate non-persistent topic
         String nonPersistentTopicName = "non-persistent-topic";
         try {
-            nonPersistentTopic.terminate(testTenant, testNamespace, nonPersistentTopicName, true);
+            nonPersistentTopic.terminate(terminateResponse, testTenant, testNamespace, nonPersistentTopicName, true);
             Assert.fail("Should fail validation on non-persistent topic");
         } catch (RestException e) {
             Assert.assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), e.getResponse().getStatus());
