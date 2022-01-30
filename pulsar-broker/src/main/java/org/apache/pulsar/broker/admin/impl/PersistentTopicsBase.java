@@ -410,11 +410,9 @@ public class PersistentTopicsBase extends AdminResource {
                    log.error("[{}] Topic {} already exists", clientAppId(), topicName);
                    throw new RestException(Status.CONFLICT, "This topic already exists");
                }
-           })
-           .thenAccept(__ ->
                pulsar().getBrokerService().getTopic(topicName.toString(), true, properties)
                        .thenApply(Optional::get)
-           );
+           });
     }
 
     /**
