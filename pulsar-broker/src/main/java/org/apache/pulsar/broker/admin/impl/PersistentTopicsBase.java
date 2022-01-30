@@ -81,7 +81,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -3736,12 +3735,20 @@ public class PersistentTopicsBase extends AdminResource {
         );
     }
 
-    protected LongRunningProcessStatus internalCompactionStatus(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.COMPACT);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        return topic.compactionStatus();
+    protected void internalCompactionStatusAsync(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.COMPACT))
+                .thenAccept(__ -> {
+                    PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+                    asyncResponse.resume(topic.compactionStatus());
+                })
+                .exceptionally(e -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Failed to get the status of a compaction operation for topic {} due to {}",
+                            clientAppId(), topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     protected void internalTriggerOffload(boolean authoritative, MessageIdImpl messageId) {
