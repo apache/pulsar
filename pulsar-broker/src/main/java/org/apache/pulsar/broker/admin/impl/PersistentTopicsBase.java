@@ -611,6 +611,7 @@ public class PersistentTopicsBase extends AdminResource {
                             log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
                                     clientAppId(), topicName, realCause);
                         }
+                        asyncResponse.resume(realCause);
                     } else if (realCause instanceof PreconditionFailedException) {
                         asyncResponse.resume(
                                 new RestException(Status.PRECONDITION_FAILED,
