@@ -1792,10 +1792,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         String namespaceResourceGroup = admin.namespaces().getNamespaceResourceGroup(namespace);
         assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
         admin.namespaces().removeNamespaceResourceGroup(namespace);
-        assertTrue(StringUtils.isEmpty(namespaceResourceGroup));
         admin.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
         assertEquals(admin.namespaces().getNamespaceResourceGroup(namespace), resourceGroupName);
     }
-
-
 }
