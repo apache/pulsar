@@ -349,7 +349,19 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateNamespaceName(tenant, namespace);
             validateTopicName(tenant, namespace, encodedTopic);
             validateCreateTopic(topicName);
-            internalCreateNonPartitionedTopic(asyncResponse, authoritative, properties);
+            internalCreateNonPartitionedTopicAsync(authoritative, properties)
+                    .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(ex -> {
+                        Throwable cause = ex.getCause();
+                        if (cause instanceof RestException) {
+                            asyncResponse.resume(cause);
+                        } else {
+                            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName,
+                                    cause);
+                            asyncResponse.resume(new RestException(cause));
+                        }
+                        return null;
+                    });
         } catch (Exception e) {
             log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);

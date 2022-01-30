@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Lists;
@@ -368,10 +369,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         String testLocalTopicName = "topic-not-found";
 
         // 1) Create the nonPartitionTopic topic
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, testLocalTopicName, true, null);
+        AsyncResponse response  = mock(AsyncResponse.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true, null);
 
         // 2) Create a subscription
-        AsyncResponse response  = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
                 new ResetCursorData(MessageId.earliest), false);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
@@ -410,45 +411,47 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(errorCaptor.getValue().getMessage().contains("zero partitions"));
         response = mock(AsyncResponse.class);
         final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopic2, true, null);
-        persistentTopics.getPartitionedMetadata(response, testTenant, testNamespace, nonPartitionTopic, true, false);
-        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor2 = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor2.capture());
-        Assert.assertEquals(responseCaptor2.getValue().partitions, 0);
-        response = mock(AsyncResponse.class);
-        responseCaptor2 = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        persistentTopics.getPartitionedMetadata(response, testTenant, testNamespace, nonPartitionTopic, true, true);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor2.capture());
-        Assert.assertEquals(responseCaptor2.getValue().partitions, 0);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, nonPartitionTopic2, true, null);
+        AsyncResponse metaResponse = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(metaResponse, testTenant, testNamespace, nonPartitionTopic, true, false);
+        Assert.assertEquals(metaResponseCaptor.getValue().partitions, 0);
+        metaResponse = mock(AsyncResponse.class);
+        metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
+        persistentTopics.getPartitionedMetadata(metaResponse, testTenant, testNamespace, nonPartitionTopic, true, true);
+        Assert.assertEquals(metaResponseCaptor.getValue().partitions, 0);
     }
 
     @Test
     public void testCreateNonPartitionedTopic() {
         final String topicName = "standard-topic-partition-a";
         AsyncResponse response = mock(AsyncResponse.class);
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
-        persistentTopics.getPartitionedMetadata(response,
-                testTenant, testNamespace, topicName, true, false);
-        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().partitions, 0);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+        AsyncResponse metaResponse = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(metaResponse, testTenant, testNamespace, topicName, true, false);
+        verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
+        Assert.assertEquals(metaResponseCaptor.getValue(), 0);
+
+        metaResponse = mock(AsyncResponse.class);
+        metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(metaResponse,
+                testTenant, testNamespace, topicName, true, true);
+        verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
+        Assert.assertEquals(metaResponseCaptor.getValue().partitions, 0);
 
         response = mock(AsyncResponse.class);
-        responseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        persistentTopics.getPartitionedMetadata(response,
-                testTenant, testNamespace, topicName, true, true);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().partitions, 0);
+        metaResponse = mock(AsyncResponse.class);
+        metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         final String topicName2 = "standard-topic-partition-b";
         Map<String, String> topicMetadata = Maps.newHashMap();
         topicMetadata.put("key1", "value1");
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName2, true, topicMetadata);
-        response = mock(AsyncResponse.class);
-        responseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        persistentTopics.getPartitionedMetadata(response,
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName2, true, topicMetadata);
+        persistentTopics.getPartitionedMetadata(metaResponse,
                 testTenant, testNamespace, topicName2, true, false);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertNull(responseCaptor.getValue().properties);
+        verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
+        Assert.assertNull(metaResponseCaptor.getValue().properties);
     }
 
     @Test
@@ -510,11 +513,15 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     public void testCreateNonPartitionedTopicWithInvalidName() {
         final String topicName = "standard-topic-partition-10";
         doAnswer(invocation -> {
-            TopicName partitionedTopicname = invocation.getArgument(0, TopicName.class);
-            assert(partitionedTopicname.getLocalName().equals("standard-topic"));
+            TopicName partitionedTopicName = invocation.getArgument(0, TopicName.class);
+            assert(partitionedTopicName.getLocalName().equals("standard-topic"));
             return new PartitionedTopicMetadata(10);
         }).when(persistentTopics).getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean());
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
+        final AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
 
     @Test
@@ -580,7 +587,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 2) create non partitioned topic and unload
         response = mock(AsyncResponse.class);
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
         persistentTopics.unloadTopic(response, testTenant, testNamespace, topicName, true);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
@@ -696,11 +703,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGrantNonPartitionedTopic() {
         final String topicName = "non-partitioned-topic";
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
         String role = "role";
         Set<AuthAction> expectActions = new HashSet<>();
         expectActions.add(AuthAction.produce);
-        AsyncResponse response = mock(AsyncResponse.class);
+        response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, topicName, role, expectActions);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
@@ -720,14 +728,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 3, true);
 
         final String partitionName = TopicName.get(topicName).getPartition(0).getLocalName();
-        try {
-            persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, partitionName, false, null);
-            Assert.fail();
-        } catch (RestException e) {
-            log.error("Failed to create {}: {}", partitionName, e.getMessage());
-            Assert.assertEquals(e.getResponse().getStatus(), 409);
-            Assert.assertEquals(e.getMessage(), "This topic already exists");
-        }
+        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, partitionName, false, null);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.CONFLICT.getStatusCode());
     }
 
     @Test
@@ -773,11 +777,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRevokeNonPartitionedTopic() {
         final String topicName = "non-partitioned-topic";
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
         String role = "role";
         Set<AuthAction> expectActions = new HashSet<>();
         expectActions.add(AuthAction.produce);
-        AsyncResponse response = mock(AsyncResponse.class);
+        response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, topicName, role, expectActions);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
@@ -852,7 +857,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // create non partitioned topic and compaction on it
         response = mock(AsyncResponse.class);
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopicName, true, null);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, nonPartitionTopicName, true, null);
         persistentTopics.compact(response, testTenant, testNamespace, nonPartitionTopicName, true);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
@@ -1030,9 +1035,9 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testOffloadWithNullMessageId() {
         final String topicName = "topic-123";
-        persistentTopics.createNonPartitionedTopic(
-                testTenant, testNamespace, topicName, true, null);
         AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+        response = mock(AsyncResponse.class);
         persistentTopics.triggerOffload(
                 response, testTenant, testNamespace, topicName, true, null);
         ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
@@ -1303,9 +1308,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testDeleteTopic() throws Exception {
         final String topicName = "topic-1";
+        AsyncResponse response = mock(AsyncResponse.class);
         BrokerService brokerService = spy(pulsar.getBrokerService());
         doReturn(brokerService).when(pulsar).getBrokerService();
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, false, null);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, false, null);
         CompletableFuture<Void> deleteTopicFuture = new CompletableFuture<>();
         deleteTopicFuture.completeExceptionally(new MetadataStoreException.NotFoundException());
         doReturn(deleteTopicFuture).when(brokerService).deleteTopic(anyString(), anyBoolean());

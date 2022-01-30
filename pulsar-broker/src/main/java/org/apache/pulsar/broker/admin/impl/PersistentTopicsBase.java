@@ -388,13 +388,13 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalCreateNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
+    protected CompletableFuture<Void> internalCreateNonPartitionedTopicAsync(boolean authoritative,
                                                      Map<String, String> properties) {
         CompletableFuture<Void> ret = validateNonPartitionTopicNameAsync(topicName.getLocalName());
         if (topicName.isGlobal()) {
             ret.thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
         }
-        ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+        return ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
            .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                    NamespaceOperation.CREATE_TOPIC))
            .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false, false))
@@ -414,16 +414,7 @@ public class PersistentTopicsBase extends AdminResource {
            .thenAccept(__ ->
                pulsar().getBrokerService().getTopic(topicName.toString(), true, properties)
                        .thenApply(Optional::get)
-           ).exceptionally(ex -> {
-               Throwable cause = ex.getCause();
-               if (cause instanceof RestException) {
-                   asyncResponse.resume(cause);
-               } else {
-                   log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, cause);
-                   asyncResponse.resume(new RestException(cause));
-               }
-               return null;
-           });
+           );
     }
 
     /**
