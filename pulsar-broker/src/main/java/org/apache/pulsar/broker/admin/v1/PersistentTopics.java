@@ -100,7 +100,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             clientAppId(), cluster, namespace);
                     asyncResponse.resume(partitionedTopicList);
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get partitioned topic list {}: {}", clientAppId(),
+                    log.error("[{}] Failed to get partitioned topic list {}", clientAppId(),
                             namespaceName, ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
