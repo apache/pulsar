@@ -532,7 +532,7 @@ public class Consumer {
             boolean isTransactionAck) {
         long ackedCount = 0;
         if (isAcknowledgmentAtBatchIndexLevelEnabled) {
-            if(Subscription.isIndividualAckMode(subType)) {
+            if (Subscription.isIndividualAckMode(subType)) {
                 long[] cursorAckSet = getCursorAckSet(position);
                 if (cursorAckSet != null) {
                     BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
