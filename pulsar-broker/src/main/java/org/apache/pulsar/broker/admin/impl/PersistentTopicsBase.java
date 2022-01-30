@@ -2495,16 +2495,23 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalPeekNthMessage(AsyncResponse asyncResponse, String subName, int messagePosition,
-                                              boolean authoritative) {
+                                          boolean authoritative) {
+        CompletableFuture<Void> future;
         // If the topic name is a partition name, no need to get partition topic metadata again
-        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
-                authoritative, false).partitions > 0) {
-            resumeAsyncResponseExceptionally(asyncResponse, new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Peek messages on a partitioned topic is not allowed"));
-            return;
+        if (!topicName.isPartitioned()) {
+            future = getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                    .thenCompose(topicMetadata -> {
+                        if (topicMetadata.partitions > 0) {
+                            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                    "Peek messages on a partitioned topic is not allowed");
+                        }
+                        return null;
+                    });
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
 
-        validateTopicOwnershipAsync(topicName, authoritative)
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
@@ -2531,8 +2538,6 @@ public class PersistentTopicsBase extends AdminResource {
                         try {
                             Response response = generateResponseWithEntry(entry);
                             asyncResponse.resume(response);
-                        } catch (NullPointerException npe) {
-                            throw new RestException(Status.NOT_FOUND, "Message not found");
                         } catch (Exception exception) {
                             log.error("[{}] Failed to peek message at position {} from {} {}",
                                     clientAppId(), messagePosition, topicName, subName, exception);
