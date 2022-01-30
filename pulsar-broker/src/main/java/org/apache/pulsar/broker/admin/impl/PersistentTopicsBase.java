@@ -3289,23 +3289,38 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected MessageId internalTerminate(boolean authoritative) {
+    protected void internalTerminateAsync(AsyncResponse asyncResponse, boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Termination of a partitioned topic is not allowed");
-        }
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.TERMINATE);
-        Topic topic = getTopicReference(topicName);
-        try {
-            return ((PersistentTopic) topic).terminate().get();
-        } catch (Exception exception) {
-            log.error("[{}] Failed to terminated topic {}", clientAppId(), topicName, exception);
-            throw new RestException(exception);
-        }
+
+        future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                .thenAccept(partitionMetadata -> {
+                    if (partitionMetadata.partitions > 0) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Termination of a partitioned topic is not allowed");
+                    }
+                })
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TERMINATE))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
+                    if (!(topic instanceof PersistentTopic)) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Termination of a non-persistent topic is not allowed");
+                    }
+                    return ((PersistentTopic) topic).terminate();
+                })
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    Throwable cause = e.getCause();
+                    log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, cause);
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     protected void internalTerminatePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
