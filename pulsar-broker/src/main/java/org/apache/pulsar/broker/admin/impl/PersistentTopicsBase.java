@@ -2540,58 +2540,88 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected Response internalExamineMessage(String initialPosition, long messagePosition, boolean authoritative) {
+    protected void internalExamineMessage(AsyncResponse asyncResponse, String initialPosition, long messagePosition,
+                                          boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
 
-        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
-                authoritative, false).partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Examine messages on a partitioned topic is not allowed, "
-                            + "please try examine message on specific topic partition");
-        }
-        validateTopicOwnership(topicName, authoritative);
-        if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
-            log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Examine messages on a non-persistent topic is not allowed");
+        long msgPos = messagePosition < 1 ? 1 : messagePosition;
+        String initPos = initialPosition == null ? "latest" : initialPosition;
+
+
+        if (!topicName.isPartitioned()) {
+            future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
+                            authoritative, false))
+                    .thenAccept(partitionedTopicMetadata -> {
+                        if (partitionedTopicMetadata.partitions > 0) {
+                            String msg = "Examine messages on a partitioned topic is not allowed, "
+                                    + "please try examine message on specific topic partition";
+                            log.warn("[{}] {} topicName: {}", clientAppId(), msg, topicName);
+                            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                    "Examine messages on a partitioned topic is not allowed, "
+                                            + "please try examine message on specific topic partition");
+                        }
+                    });
         }
 
-        if (messagePosition < 1) {
-            messagePosition = 1;
-        }
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
+                    if (!(topic instanceof PersistentTopic)) {
+                        log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Examine messages on a non-persistent topic is not allowed");
+                    }
 
-        if (null == initialPosition) {
-            initialPosition = "latest";
-        }
+                    try {
+                        PersistentTopic persistentTopic = (PersistentTopic) topic;
+                        long totalMessage = persistentTopic.getNumberOfEntries();
+                        PositionImpl startPosition = persistentTopic.getFirstPosition();
+                        long messageToSkip =
+                                initPos.equals("earliest") ? msgPos : totalMessage - msgPos + 1;
+                        CompletableFuture<Entry> readEntry = new CompletableFuture<>();
+                        PositionImpl readPosition = persistentTopic.getPositionAfterN(startPosition, messageToSkip);
+                        persistentTopic.asyncReadEntry(readPosition, new AsyncCallbacks.ReadEntryCallback() {
+                            @Override
+                            public void readEntryComplete(Entry entry, Object ctx) {
+                                readEntry.complete(entry);
+                            }
 
-        try {
-            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-            long totalMessage = topic.getNumberOfEntries();
-            PositionImpl startPosition = topic.getFirstPosition();
-            long messageToSkip =
-                    initialPosition.equals("earliest") ? messagePosition : totalMessage - messagePosition + 1;
-            CompletableFuture<Entry> future = new CompletableFuture<>();
-            PositionImpl readPosition = topic.getPositionAfterN(startPosition, messageToSkip);
-            topic.asyncReadEntry(readPosition, new AsyncCallbacks.ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    future.complete(entry);
-                }
-
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, null);
-            return generateResponseWithEntry(future.get());
-        } catch (Exception exception) {
-            exception.printStackTrace();
-            log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(), messagePosition,
-                    topicName, exception);
-            throw new RestException(exception);
-        }
+                            @Override
+                            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                readEntry.completeExceptionally(exception);
+                            }
+                        }, null);
+                        return readEntry;
+                    } catch (Exception exception) {
+                        log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
+                                msgPos,
+                                topicName, exception);
+                        throw new RestException(exception);
+                    }
+                }).thenAccept(entry -> {
+                    try {
+                        generateResponseWithEntry(entry);
+                    } catch (IOException exception) {
+                        log.error("[{}] Failed to generate response with entry due to {}", clientAppId(), exception);
+                        throw new RestException(exception);
+                    }
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof RestException) {
+                        asyncResponse.resume(realCause);
+                    } else {
+                        log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
+                                msgPos,
+                                topicName, realCause);
+                        asyncResponse.resume(new RestException(realCause));
+                    }
+                    return null;
+                });
     }
 
     private void verifyReadOperation(boolean authoritative) {
