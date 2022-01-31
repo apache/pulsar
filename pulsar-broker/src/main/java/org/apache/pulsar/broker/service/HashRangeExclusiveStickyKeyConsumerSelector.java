@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import com.google.common.collect.Lists;
 
 /**
  * This is a sticky-key consumer selector based user provided range.
@@ -76,9 +76,9 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
                             .map(Map.Entry::getKey)
                             .sorted(Integer::compareTo)
                             .collect(Collectors.toList());
-                    List<Range> ranges = Lists.newArrayList();
+                    List<Range> ranges = new ArrayList<>();
                     for (int i = 0; i < consumerHash.size(); i++) {
-                        if (i % 2 != 0) {
+                        if (i % 2 == 0) {
                             ranges.add(Range.of(consumerHash.get(i), consumerHash.get(i + 1)));
                         }
                     }
