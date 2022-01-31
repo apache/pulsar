@@ -50,7 +50,7 @@ public class PublisherStatsImpl implements PublisherStats {
     public long producerId;
 
     /** Whether partial producer is supported at client. */
-    public boolean partialProducerSupported;
+    public boolean supportsPartialProducer;
 
     /** Producer name. */
     @JsonIgnore

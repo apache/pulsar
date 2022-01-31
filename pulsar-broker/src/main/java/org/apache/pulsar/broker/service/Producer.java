@@ -100,7 +100,7 @@ public class Producer {
             boolean userProvidedProducerName,
             ProducerAccessMode accessMode,
             Optional<Long> topicEpoch,
-            boolean partialProducerSupported) {
+            boolean supportsPartialProducer) {
         final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
 
         this.topic = topic;
@@ -132,10 +132,10 @@ public class Producer {
             // If true and the client supports partial producer,
             // aggregate publisher stats of PartitionedTopicStats by producerName.
             // Otherwise, aggregate it by list index.
-            stats.setPartialProducerSupported(partialProducerSupported);
+            stats.setSupportsPartialProducer(supportsPartialProducer);
         } else {
             // aggregate publisher stats of PartitionedTopicStats by list index.
-            stats.setPartialProducerSupported(false);
+            stats.setSupportsPartialProducer(false);
         }
         stats.metadata = this.metadata;
         stats.accessMode = Commands.convertProducerAccessMode(accessMode);

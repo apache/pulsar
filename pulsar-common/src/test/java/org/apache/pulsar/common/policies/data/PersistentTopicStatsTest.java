@@ -86,7 +86,7 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
-        publisherStats1.setPartialProducerSupported(false);
+        publisherStats1.setSupportsPartialProducer(false);
         publisherStats1.setProducerName("name1");
         topicStats1.addPublisher(publisherStats1);
         topicStats1.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -100,7 +100,7 @@ public class PersistentTopicStatsTest {
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
         final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setPartialProducerSupported(false);
+        publisherStats2.setSupportsPartialProducer(false);
         publisherStats2.setProducerName("name1");
         topicStats2.addPublisher(publisherStats2);
         topicStats2.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -131,7 +131,7 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
-        publisherStats1.setPartialProducerSupported(true);
+        publisherStats1.setSupportsPartialProducer(true);
         publisherStats1.setProducerName("name1");
         topicStats1.addPublisher(publisherStats1);
         topicStats1.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -145,7 +145,7 @@ public class PersistentTopicStatsTest {
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
         final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setPartialProducerSupported(true);
+        publisherStats2.setSupportsPartialProducer(true);
         publisherStats2.setProducerName("name1");
         topicStats2.addPublisher(publisherStats2);
         topicStats2.subscriptions.put("test_ns", new SubscriptionStatsImpl());
@@ -177,7 +177,7 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
-        publisherStats1.setPartialProducerSupported(true);
+        publisherStats1.setSupportsPartialProducer(true);
         publisherStats1.msgRateIn = 1;
         publisherStats1.setProducerName("name1");
         topicStats1.addPublisher(publisherStats1);
@@ -192,7 +192,7 @@ public class PersistentTopicStatsTest {
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
         final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setPartialProducerSupported(true);
+        publisherStats2.setSupportsPartialProducer(true);
         publisherStats2.msgRateIn = 1;
         publisherStats2.setProducerName("name1");
         topicStats2.addPublisher(publisherStats2);
@@ -207,7 +207,7 @@ public class PersistentTopicStatsTest {
         topicStats3.averageMsgSize = 0;
         topicStats3.storageSize = 0;
         final PublisherStatsImpl publisherStats3 = new PublisherStatsImpl();
-        publisherStats3.setPartialProducerSupported(true);
+        publisherStats3.setSupportsPartialProducer(true);
         publisherStats3.msgRateIn = 1;
         publisherStats3.setProducerName("name2");
         topicStats3.addPublisher(publisherStats3);

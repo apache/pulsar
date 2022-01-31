@@ -106,7 +106,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     public void addPublisher(NonPersistentPublisherStatsImpl stats) {
-        if (stats.isPartialProducerSupported()) {
+        if (stats.isSupportsPartialProducer()) {
             nonPersistentPublishersMap.put(stats.getProducerName(), stats);
         } else {
             nonPersistentPublishers.add(stats);
@@ -153,11 +153,11 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         this.msgDropRate += stats.msgDropRate;
 
         stats.getNonPersistentPublishers().forEach(s -> {
-            if (s.isPartialProducerSupported()) {
+            if (s.isSupportsPartialProducer()) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
                         .computeIfAbsent(s.getProducerName(), key -> {
                             final NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
-                            newStats.setPartialProducerSupported(true);
+                            newStats.setSupportsPartialProducer(true);
                             newStats.setProducerName(s.getProducerName());
                             return newStats;
                         })).add((NonPersistentPublisherStatsImpl) s);
@@ -165,7 +165,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
                 if (this.nonPersistentPublishers.size() != stats.getNonPersistentPublishers().size()) {
                     for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
                         NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
-                        newStats.setPartialProducerSupported(false);
+                        newStats.setSupportsPartialProducer(false);
                         this.nonPersistentPublishers.add(newStats.add((NonPersistentPublisherStatsImpl) s));
                     }
                 } else {

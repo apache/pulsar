@@ -2325,7 +2325,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 10);
         assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
         assertEquals(topicStats.getPublishers().size(), 2);
-        topicStats.getPublishers().forEach(p -> assertTrue(p.isPartialProducerSupported()));
+        topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
 
     @Test(dataProvider = "topicType")
@@ -2349,6 +2349,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 2);
         assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
         assertEquals(topicStats.getPublishers().size(), 2);
-        topicStats.getPublishers().forEach(p -> assertTrue(p.isPartialProducerSupported()));
+        topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
 }

@@ -180,6 +180,7 @@ public class Commands {
     private static void setFeatureFlags(FeatureFlags flags) {
         flags.setSupportsAuthRefresh(true);
         flags.setSupportsBrokerEntryMetadata(true);
+        flags.setSupportsPartialProducer(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -775,8 +776,7 @@ public class Commands {
                 .setUserProvidedProducerName(userProvidedProducerName)
                 .setEncrypted(encrypted)
                 .setTxnEnabled(isTxnEnabled)
-                .setProducerAccessMode(convertProducerAccessMode(accessMode))
-                .setPartialProducerSupported(true);
+                .setProducerAccessMode(convertProducerAccessMode(accessMode));
         if (producerName != null) {
             producer.setProducerName(producerName);
         }

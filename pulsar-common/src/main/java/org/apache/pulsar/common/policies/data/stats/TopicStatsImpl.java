@@ -142,7 +142,7 @@ public class TopicStatsImpl implements TopicStats {
     }
 
     public void addPublisher(PublisherStatsImpl stats) {
-        if (stats.isPartialProducerSupported()) {
+        if (stats.isSupportsPartialProducer()) {
             publishersMap.put(stats.getProducerName(), stats);
         } else {
             publishers.add(stats);
@@ -218,10 +218,10 @@ public class TopicStatsImpl implements TopicStats {
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
 
         stats.getPublishers().forEach(s -> {
-           if (s.isPartialProducerSupported()) {
+           if (s.isSupportsPartialProducer()) {
                this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
-                   newStats.setPartialProducerSupported(true);
+                   newStats.setSupportsPartialProducer(true);
                    newStats.setProducerName(s.getProducerName());
                    return newStats;
                }).add((PublisherStatsImpl) s);
@@ -229,7 +229,7 @@ public class TopicStatsImpl implements TopicStats {
                if (this.publishers.size() != stats.publishers.size()) {
                    for (int i = 0; i < stats.publishers.size(); i++) {
                        PublisherStatsImpl newStats = new PublisherStatsImpl();
-                       newStats.setPartialProducerSupported(false);
+                       newStats.setSupportsPartialProducer(false);
                        this.publishers.add(newStats.add(stats.publishers.get(i)));
                    }
                } else {

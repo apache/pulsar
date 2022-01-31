@@ -292,6 +292,7 @@ message CommandConnect {
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
   optional bool supports_broker_entry_metadata = 2 [default = false];
+  optional bool supports_partial_producer = 3 [default = false];
 }
 
 message CommandConnected {
@@ -490,8 +491,6 @@ message CommandProducer {
     optional uint64 topic_epoch = 11;
 
     optional bool txn_enabled = 12 [default = false];
-
-    optional bool partial_producer_supported = 13 [default = false];
 }
 
 message CommandSend {
