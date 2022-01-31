@@ -94,6 +94,7 @@
     ],
     "Security": [
       "security-overview",
+      "security-and-versioning-policy",
       "security-tls-transport",
       "security-tls-authentication",
       "security-tls-keystore",
