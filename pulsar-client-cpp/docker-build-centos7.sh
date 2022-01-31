@@ -32,7 +32,7 @@ cd -
 
 VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
 COMMAND="cd /pulsar/pulsar-client-cpp && mkdir -p _builds && cd _builds &&
- /opt/cmake/cmake-3.4.0-Linux-x86_64/bin/cmake .. -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF && make"
+ /opt/cmake/cmake-3.4.0-Linux-x86_64/bin/cmake .. -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=ON && make -j8"
 
 DOCKER_CMD="docker run -i ${VOLUME_OPTION} ${IMAGE}"
 
