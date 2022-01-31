@@ -21,6 +21,9 @@ Feature release branches will, generally, be maintained with security fix and bu
 after initial release. For example, branch 2.5.x is no longer considered maintained as of January 2021, 12 months after
 the release of 2.5.0 in January 2020. No more 2.5.x releases should be expected at this point, even for security fixes.
 
+Note that a minor version can be maintained past it's 12 month initial support period. For example, version 2.7 is still
+actively maintained.
+
 Security fixes will be given priority when it comes to back porting fixes to older versions that are within the
 supported time window. It is challenging to decide which bug fixes to back port to old versions. As such, the latest
 versions will have the most bug fixes.
