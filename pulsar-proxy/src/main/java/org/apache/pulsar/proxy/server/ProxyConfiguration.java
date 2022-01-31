@@ -49,6 +49,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_BROKER_DISCOVERY = "Broker Discovery";
     @Category
+    private static final String CATEGORY_BROKER_PROXY = "Broker Proxy";
+    @Category
     private static final String CATEGORY_AUTHENTICATION = "Proxy Authentication";
     @Category
     private static final String CATEGORY_AUTHORIZATION = "Proxy Authorization";
@@ -161,6 +163,26 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURLTLS;
+
+    @FieldContext(category = CATEGORY_BROKER_PROXY,
+            doc = "When enabled, checks that the target broker is active before connecting. "
+                    + "zookeeperServers and configurationStoreServers must be configured in proxy configuration "
+                    + "for retrieving the active brokers.")
+    private boolean checkActiveBrokers = true;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Broker proxy connect timeout.\n"
+                    + "The timeout value for Broker proxy connect timeout is in millisecond. Set to 0 to disable."
+    )
+    private int brokerProxyConnectTimeoutMs = 10000;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Broker proxy read timeout.\n"
+                    + "The timeout value for Broker proxy read timeout is in millisecond. Set to 0 to disable."
+    )
+    private int brokerProxyReadTimeoutMs = 75000;
 
     @FieldContext(
         category = CATEGORY_SERVER,
