@@ -19,12 +19,10 @@
 package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v1.ConsumerV1Impl;
 /**
@@ -198,7 +196,7 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     * Sets a {@link CryptoKeyReader}
+     * Sets a {@link CryptoKeyReader}.
      *
      * @param cryptoKeyReader
      *            CryptoKeyReader object
@@ -210,7 +208,7 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     * Sets the ConsumerCryptoFailureAction to the value specified
+     * Sets the ConsumerCryptoFailureAction to the value specified.
      *
      * @param action
      *            consumer action
@@ -282,9 +280,9 @@ public class ConsumerConfiguration implements Serializable {
 
     /**
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
-     * messages. Here, broker follows descending priorities. (eg: 0=max-priority, 1, 2,..) </br>
+     * messages. Here, broker follows descending priorities. (eg: 0=max-priority, 1, 2,..) <br>
      * In Shared subscription mode, broker will first dispatch messages to max priority-level consumers if they have
-     * permits, else broker will consider next priority level consumers. </br>
+     * permits, else broker will consider next priority level consumers. <br>
      * If subscription has consumer-A with priorityLevel 0 and Consumer-B with priorityLevel 1 then broker will dispatch
      * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
      *
@@ -341,7 +339,7 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     * Add all the properties in the provided map
+     * Add all the properties in the provided map.
      *
      * @param properties
      * @return
@@ -364,7 +362,8 @@ public class ConsumerConfiguration implements Serializable {
      * set cursor  when subscribing to the topic first time
      * Default is {@value InitialPosition.Latest}
      */
-    public ConsumerConfiguration setSubscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition) {
+    public ConsumerConfiguration setSubscriptionInitialPosition(
+            SubscriptionInitialPosition subscriptionInitialPosition) {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
         return this;
     }
@@ -377,19 +376,36 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     * @return the configured {@link NegativeAckRedeliveryBackoff} for the consumer
+     * @return the configured {@link RedeliveryBackoff} for the consumer
      */
-    public NegativeAckRedeliveryBackoff getNegativeAckRedeliveryBackoff() {
+    public RedeliveryBackoff getNegativeAckRedeliveryBackoff() {
         return conf.getNegativeAckRedeliveryBackoff();
     }
 
     /**
      * @param negativeAckRedeliveryBackoff the negative ack redelivery backoff policy.
-     * Default value is: NegativeAckRedeliveryExponentialBackoff
+     * Default value is: MultiplierRedeliveryBackoff
      * @return the {@link ConsumerConfiguration}
      */
-    public ConsumerConfiguration setNegativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff) {
+    public ConsumerConfiguration setNegativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff) {
         conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
+        return this;
+    }
+
+    /**
+     * @return the configured {@link RedeliveryBackoff} for the consumer
+     */
+    public RedeliveryBackoff getAckTimeoutRedeliveryBackoff() {
+        return conf.getAckTimeoutRedeliveryBackoff();
+    }
+
+    /**
+     * @param ackTimeoutRedeliveryBackoff redelivery backoff policy for ack timeout.
+     * Default value is: MultiplierRedeliveryBackoff
+     * @return the {@link ConsumerConfiguration}
+     */
+    public ConsumerConfiguration setAckTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff) {
+        conf.setAckTimeoutRedeliveryBackoff(ackTimeoutRedeliveryBackoff);
         return this;
     }
 }

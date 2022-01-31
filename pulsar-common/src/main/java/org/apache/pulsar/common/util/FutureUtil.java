@@ -99,11 +99,13 @@ public class FutureUtil {
         return future;
     }
 
-    public static Throwable unwrapCompletionException(Throwable t) {
-        if (t instanceof CompletionException) {
-            return unwrapCompletionException(t.getCause());
+    public static Throwable unwrapCompletionException(Throwable ex) {
+        if (ex instanceof CompletionException) {
+            return ex.getCause();
+        } else if (ex instanceof ExecutionException) {
+            return ex.getCause();
         } else {
-            return t;
+            return ex;
         }
     }
 

@@ -124,7 +124,7 @@ All the BookKeeper client metric are labelled with the following label:
 
 | Name | Type | Description |
 |---|---|---|
-| bookkeeper_server_BOOKIE_QUARANTINE_count | Counter | The number of bookie clients to be quarantined. |
+| pulsar_managedLedger_client_bookkeeper_client_BOOKIE_QUARANTINE | Counter | The number of bookie clients to be quarantined.<br /><br />If you want to expose this metric, set `bookkeeperClientExposeStatsToPrometheus` to `true` in the `broker.conf` file.|
 
 ### Namespace metrics
 
@@ -190,6 +190,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_consumers_count | Gauge | The number of active consumers of the topic connected to this broker. |
 | pulsar_rate_in | Gauge | The total message rate of the topic coming into this broker (messages/second). |
 | pulsar_rate_out | Gauge | The total message rate of the topic going out from this broker (messages/second). |
+| pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered. |
 | pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (bytes/second). |
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (bytes/second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
@@ -303,14 +304,14 @@ All the cursor acknowledgment state metrics are labelled with the following labe
 
 Name	|Type	|Description
 |---|---|---
-brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to a ledger.|
-brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.|
-brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
-brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.
-brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of non-contiguous deleted messages ranges.
-brk_ml_cursor_writeLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger.
-brk_ml_cursor_writeLedgerLogicalSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger (accounting for without replicas).
-brk_ml_cursor_readLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of read from ledger.
+brk_ml_cursor_persistLedgerSucceed|Gauge|The number of acknowledgment states that is persistent to a ledger.|
+brk_ml_cursor_persistLedgerErrors|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.|
+brk_ml_cursor_persistZookeeperSucceed|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
+brk_ml_cursor_persistZookeeperErrors|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.
+brk_ml_cursor_nonContiguousDeletedMessagesRange|Gauge|The number of non-contiguous deleted messages ranges.
+brk_ml_cursor_writeLedgerSize|Gauge|The size of write to ledger.
+brk_ml_cursor_writeLedgerLogicalSize|Gauge|The size of write to ledger (accounting for without replicas).
+brk_ml_cursor_readLedgerSize|Gauge|The size of read from ledger.
 
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:
@@ -350,7 +351,7 @@ All the bundle metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
 - bundle: bundle=${bundle}. ${bundle} is the bundle range on this broker
-- metric: metric="loadBalancing".
+- metric: metric="bundle".
 
 | Name | Type | Description |
 | --- | --- | --- |

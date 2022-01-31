@@ -42,26 +42,22 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Integer>> positions,
-                                                                boolean isInCacheRequest) {
+                                                                List<MutablePair<PositionImpl, Integer>> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions,
-                                                                boolean isInCacheRequest) {
+    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark,
-                                             boolean isInCacheRequest) {
+    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark,
-                                            boolean isInCacheRequest) {
+    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 

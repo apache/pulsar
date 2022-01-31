@@ -196,7 +196,7 @@ public class AuthenticationTokenTest {
     }
 
     private String getTokenFileUri(File file) {
-        return "file:///" + file.toString().replace('\\', '/');
+        return file.toURI().toString();
     }
 
     public static class SerializableSupplier implements Supplier<String>, Serializable {

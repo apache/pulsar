@@ -46,9 +46,9 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
-import org.apache.pulsar.client.api.NegativeAckRedeliveryBackoff;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
+import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -68,9 +68,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private final Schema<T> schema;
     private List<ConsumerInterceptor<T>> interceptorList;
 
-    private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
-    private static long MIN_TICK_TIME_MILLIS = 100;
-    private static long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
+    private static final long MIN_ACK_TIMEOUT_MILLIS = 1000;
+    private static final long MIN_TICK_TIME_MILLIS = 100;
+    private static final long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
 
 
     public ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
@@ -119,14 +119,18 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
-        if(conf.isRetryEnable() && conf.getTopicNames().size() > 0 ) {
+        if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
-            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            String retryLetterTopic =
+                    topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String deadLetterTopic =
+                    topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
 
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
-            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
+                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
+                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
             try {
                 if (client.getPartitionedTopicMetadata(oldRetryLetterTopic)
                         .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
@@ -142,7 +146,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 return FutureUtil.failedFuture(e.getCause());
             }
 
-            if(conf.getDeadLetterPolicy() == null) {
+            if (conf.getDeadLetterPolicy() == null) {
                 conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
                                         .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
                                         .retryLetterTopic(retryLetterTopic)
@@ -158,9 +162,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             }
             conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
         }
-        return interceptorList == null || interceptorList.size() == 0 ?
-                client.subscribeAsync(conf, schema, null) :
-                client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
+        return interceptorList == null || interceptorList.size() == 0
+                ? client.subscribeAsync(conf, schema, null)
+                : client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
     }
 
     @Override
@@ -341,7 +345,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setAutoAckOldestChunkedMessageOnQueueFull(autoAckOldestChunkedMessageOnQueueFull);
         return this;
     }
-    
+
     @Override
     public ConsumerBuilder<T> property(String key, String value) {
         checkArgument(StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
@@ -363,7 +367,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
-        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= 0, "maxTotalReceiverQueueSizeAcrossPartitions needs to be >= 0");
+        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= 0,
+                "maxTotalReceiverQueueSizeAcrossPartitions needs to be >= 0");
         conf.setMaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions);
         return this;
     }
@@ -389,12 +394,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
-	@Override
-	public ConsumerBuilder<T> subscriptionInitialPosition(@NonNull SubscriptionInitialPosition
+    @Override
+    public ConsumerBuilder<T> subscriptionInitialPosition(@NonNull SubscriptionInitialPosition
                                                                       subscriptionInitialPosition) {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
-		return this;
-	}
+        return this;
+    }
 
     @Override
     public ConsumerBuilder<T> subscriptionTopicsMode(@NonNull RegexSubscriptionMode mode) {
@@ -497,9 +502,16 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff) {
+    public ConsumerBuilder<T> negativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff) {
         checkArgument(negativeAckRedeliveryBackoff != null, "negativeAckRedeliveryBackoff must not be null.");
         conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> ackTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff) {
+        checkArgument(ackTimeoutRedeliveryBackoff != null, "ackTimeoutRedeliveryBackoff must not be null.");
+        conf.setAckTimeoutRedeliveryBackoff(ackTimeoutRedeliveryBackoff);
         return this;
     }
 

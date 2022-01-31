@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.crypto;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -44,7 +43,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -54,9 +52,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -108,7 +104,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     // Map of key name and encrypted gcm key, metadata pair which is sent with encrypted message
     private ConcurrentHashMap<String, EncryptionKeyInfo> encryptedDataKeyMap;
 
-    static final SecureRandom secureRandom;
+
+    private static final SecureRandom secureRandom;
     static {
         SecureRandom rand = null;
         try {
@@ -156,8 +153,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             keyGenerator = KeyGenerator.getInstance("AES");
             int aesKeyLength = Cipher.getMaxAllowedKeyLength("AES");
             if (aesKeyLength <= 128) {
-                log.warn(
-                        "{} AES Cryptographic strength is limited to {} bits. Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
+                log.warn("{} AES Cryptographic strength is limited to {} bits. "
+                        + "Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
                         logCtx, aesKeyLength);
                 keyGenerator.init(aesKeyLength, secureRandom);
             } else {
@@ -389,6 +386,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             return;
         }
 
+        msgMetadata.clearEncryptionKeys();
         // Update message metadata with encrypted data key
         for (String keyName : encKeys) {
             if (encryptedDataKeyMap.get(keyName) == null) {
