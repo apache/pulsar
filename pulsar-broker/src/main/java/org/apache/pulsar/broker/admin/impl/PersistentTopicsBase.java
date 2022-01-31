@@ -2554,7 +2554,7 @@ public class PersistentTopicsBase extends AdminResource {
 
 
         if (!topicName.isPartitioned()) {
-            future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
+            future = future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
                             authoritative, false))
                     .thenAccept(partitionedTopicMetadata -> {
                         if (partitionedTopicMetadata.partitions > 0) {
