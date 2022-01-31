@@ -308,12 +308,13 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85|
 |loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quota |15|
 |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65|
-|loadBalancerAutoBundleSplitEnabled|  Enable/disable namespace bundle auto split  |false|
-|loadBalancerNamespaceBundleMaxTopics|  Maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
-|loadBalancerNamespaceBundleMaxSessions|  Maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered. <br />To disable the threshold check, set the value to -1.  |1000|
-|loadBalancerNamespaceBundleMaxMsgRate| Maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000|
-|loadBalancerNamespaceBundleMaxBandwidthMbytes| Maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100|
-|loadBalancerNamespaceMaximumBundles| Maximum number of bundles in a namespace  |128|
+|loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false|
+|loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
+|loadBalancerNamespaceBundleMaxSessions|  maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered  |1000|
+|loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000|
+|loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100|
+|loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128|
+|loadBalancerLoadSheddingStrategy | The shedding strategy of load balance. <br /><br />Available values: <li>`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`</li><br />For the comparisons of the shedding strategies, see [here](administration-load-balance/#shed-load-automatically).|`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
 |replicationMetricsEnabled| Enable replication metrics  |true|
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|

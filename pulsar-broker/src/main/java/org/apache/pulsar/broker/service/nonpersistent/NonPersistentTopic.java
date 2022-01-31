@@ -160,7 +160,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                        setSchemaCompatibilityStrategy(policies);
                         schemaValidationEnforced = policies.schema_validation_enforced;
                     }
                 });
@@ -1002,7 +1001,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         updateTopicPolicyByNamespacePolicy(data);
 
         isEncryptionRequired = data.encryption_required;
-        setSchemaCompatibilityStrategy(data);
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
 

@@ -122,6 +122,7 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> AVG_MESSAGES_PER_ENTRY =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "avgMessagesPerEntry");
     private volatile int avgMessagesPerEntry = 1000;
+    private static final long [] EMPTY_ACK_SET = new long[0];
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
@@ -413,16 +414,7 @@ public class Consumer {
                 }
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
-                    long[] cursorAckSet = getCursorAckSet(position);
-                    if (cursorAckSet != null) {
-                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
-                    } else {
-                        ackedCount = batchSize;
-                    }
-                } else {
-                    ackedCount = batchSize;
-                }
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
             }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
@@ -464,14 +456,19 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
+            long ackedCount = 0;
+            long batchSize = getBatchSize(msgId);
+            Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
             if (msgId.getAckSetsCount() > 0) {
-                long[] acksSets = new long[msgId.getAckSetsCount()];
+                long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                    acksSets[j] = msgId.getAckSetAt(j);
+                    ackSets[j] = msgId.getAckSetAt(j);
                 }
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), acksSets);
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
             }
 
             if (msgId.hasBatchIndex()) {
@@ -479,6 +476,8 @@ public class Consumer {
             } else {
                 positionsAcked.add(new MutablePair<>(position, 0));
             }
+
+            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
@@ -519,9 +518,19 @@ public class Consumer {
         return batchSize;
     }
 
+    private long getAckedCountForMsgIdNoAckSets(long batchSize, PositionImpl position) {
+        if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
+            long[] cursorAckSet = getCursorAckSet(position);
+            if (cursorAckSet != null) {
+                return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET);
+            }
+        }
+        return batchSize;
+    }
+
     private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
