@@ -482,7 +482,7 @@ int main() {
 
 ### Consumer with a message listener
 
-You can avoid  running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
+You can avoid running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
