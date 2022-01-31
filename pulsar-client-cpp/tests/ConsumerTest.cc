@@ -445,7 +445,7 @@ TEST(ConsumerTest, testGetTopicNameFromReceivedMessage) {
 
     // 2. MultiTopicsConsumerImpl
     Consumer consumer2;
-    ASSERT_EQ(ResultOk, client.subscribe({topic1, topic2}, "sub-2", consumer2));
+    ASSERT_EQ(ResultOk, client.subscribe(std::vector<std::string>{topic1, topic2}, "sub-2", consumer2));
 
     sendMessage(topic1, true);
     validateTopicName(consumer1, topic1);

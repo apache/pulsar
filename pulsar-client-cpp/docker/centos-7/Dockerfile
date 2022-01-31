@@ -29,3 +29,10 @@ RUN mkdir -p /opt/cmake
 WORKDIR /opt/cmake
 RUN curl -L -O https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz \
   && tar zxf cmake-3.4.0-Linux-x86_64.tar.gz
+
+# googletest
+RUN curl -O -L https://github.com/google/googletest/archive/refs/tags/release-1.10.0.tar.gz \
+  && tar zxf release-1.10.0.tar.gz \
+  && cd googletest-release-1.10.0 \
+  && mkdir build && cd build \
+  && /opt/cmake/cmake-3.4.0-Linux-x86_64/bin/cmake .. && make install
