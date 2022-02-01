@@ -324,6 +324,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             authProvider,
             authenticationEnabled,
             grpcPort,
+            metricsPort,
             narExtractionDirectory,
             manifestCustomizer,
             functionInstanceClassPath,
