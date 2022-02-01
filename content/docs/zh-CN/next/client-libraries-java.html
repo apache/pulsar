@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and \[TableView]\](#tableview) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). Java 客户端的当前版本是 **2.9.1**。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Java 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and \[TableView]\](#tableview) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). Java 客户端的当前版本是 **2.9.1**。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). Java 客户端的当前版本是 **2.9.1**。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Java 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). Java 客户端的当前版本是 **2.9.1**。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -75,8 +75,8 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java 客户端</h1></header><article><div><span><p>You can use a Pulsar Java client to create the Java <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and [TableView]](#tableview) of messages and to perform <a href="/docs/zh-CN/next/admin-api-overview">administrative tasks</a>. Java 客户端的当前版本是 <strong>2.9.1</strong>。</p>
-<p>All the methods in <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and [TableView]](#tableview) of a Java client are thread-safe.</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java 客户端</h1></header><article><div><span><p>You can use a Pulsar Java client to create the Java <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and <a href="#tableview">TableView</a> of messages and to perform <a href="/docs/zh-CN/next/admin-api-overview">administrative tasks</a>. Java 客户端的当前版本是 <strong>2.9.1</strong>。</p>
+<p>All the methods in <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and <a href="#tableview">TableView</a> of a Java client are thread-safe.</p>
 <p>Pulsar 客户端的Javadoc 分为如下两个包：</p>
 <table>
 <thead>
@@ -251,13 +251,13 @@ If it is set to <code>false</code>，当传出消息队列已满时， <code>Sen
 <ul>
 <li><p><strong>FAIL</strong>：如果加密失败，则未加密的消息将会发送失败。</p></li>
 <li><p><strong>SEND</strong>：如果加密失败，则未加密的消息将会发送成功。 |
-<code>ProducerCryptoFailureAction.FAIL</code> <code>batchingMaxPublishDelayMicros</code>| long | 发送消息时的批处理时间。| TimeUnit.MILLISECONDS.toMicros(1) <code>batchingMaxMessages</code> | int | 一批消息中允许的最大消息个数。| 1000 <code>batchingEnabled</code>| boolean | 启用消息批处理。| true <code>compressionType</code>| CompressionType | 生产者使用的消息数据压缩类型。<br>
-可用选项：</p></li>
+<code>ProducerCryptoFailureAction.FAIL</code> <code>batchingMaxPublishDelayMicros</code>| long | 发送消息时的批处理时间。| TimeUnit.MILLISECONDS.toMicros(1) <code>batchingMaxMessages</code> | int | 一批消息中允许的最大消息个数。| 1000 <code>batchingEnabled</code>| boolean | 启用消息批处理。| true <code>chunkingEnabled</code> | boolean | Enable chunking of messages. |false <code>compressionType</code>|CompressionType|Message data compression type used by a producer.<br>
+Available options:</p></li>
 <li><p><a href="https://github.com/lz4/lz4"><code>LZ4</code></a></p></li>
 <li><p><a href="https://zlib.net/"><code>ZLIB</code></a></p>
 <ul>
 <li><a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a></li>
-<li><a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| 无压缩</p>
+<li><a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| No compression</p>
 You can configure parameters if you do not want to use the default configuration.</li>
 </ul>
 <p>如需查看所有参数，可参考 <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
@@ -290,12 +290,24 @@ You can configure parameters if you do not want to use the default configuration
     .send();
 </code></pre>
 <p>You can terminate the builder chain with <code>sendAsync()</code> and get a future return.</p>
+<h3><a class="anchor" aria-hidden="true" id="enable-chunking"></a><a href="#enable-chunking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable chunking</h3>
+<p>Message <a href="/docs/zh-CN/next/concepts-messaging#chunking">chunking</a> enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.</p>
+<p>The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+        .topic(topic)
+        .enableChunking(<span class="hljs-keyword">true</span>)
+        .enableBatching(<span class="hljs-keyword">false</span>)
+        .create();
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> To enable chunking, you need to disable batching (<code>enableBatching</code>=<code>false</code>) concurrently.</p>
+</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="消费者consumer"></a><a href="#消费者consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者（Consumer）</h2>
 <p>在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个<a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
 对象并传递给他一个borker(<a href="#client-configuration">如上所示</a>) URL来实例化一个<a href="/docs/zh-CN/next/reference-terminology#consumer">消费者</a>。</p>
-<p>当 <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
- 对象实例化完成后，您可以创建一个 <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
- 对象，并指定一个 <a href="/docs/zh-CN/next/reference-terminology#topic">主题</a> 和 <a href="/docs/zh-CN/next/concepts-messaging#subscription-types">订阅</a>.</p>
+<p>Once you've instantiated a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ object, you can create a <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
+ by specifying a <a href="/docs/zh-CN/next/reference-terminology#topic">topic</a> and a <a href="/docs/zh-CN/next/concepts-messaging#subscription-types">subscription</a>.</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
@@ -336,88 +348,88 @@ Consumer consumer = client.newConsumer()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="配置消费者"></a><a href="#配置消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置消费者</h3>
 <p>If you instantiate a <code>Consumer</code> object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration.</p>
-<p>当您创建消费者时，可以采用 <code>loadConf</code> 方式进行配置。<code>loadConf</code> 可用的参数如下。</p>
+<p>When you create a consumer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
 <p>名称 | 类型 |</p>
 <p><div style="width:300px">
 说明
 </div>
-| 默认值 |---|---|---|--- <code>topicNames</code>| Set<String>| 主题名称 | Sets.newTreeSet() <code>topicsPattern</code>| Pattern | 主题模式 | 无 <code>subscriptionName</code>| String | 订阅名称 | 无 <code>subscriptionType</code>| SubscriptionType | 订阅模式<br>
-共有四种订阅模式：</p>
+| 默认值 |---|---|---|--- <code>topicNames</code>| Set<String>| Topic name| Sets.newTreeSet() <code>topicsPattern</code>|Pattern| Topic pattern |None <code>subscriptionName</code>|String| Subscription name| None <code>subscriptionType</code>|SubscriptionType| Subscription type<br>
+Four subscription types are available:</p>
 <ul>
 <li>Exclusive</li>
 <li>Failover（灾备）</li>
 <li>Shared（共享）</li>
-<li>Key_Shared| SubscriptionType.Exclusive
-<code>receiverQueueSize</code> | int | 消费者接收队列的大小。</li>
+<li>Key_Shared|SubscriptionType.Exclusive
+<code>receiverQueueSize</code> |int | Size of a consumer's receiver queue.</li>
 </ul>
-<p>例如，在应用程序调用 Receive 方法之前消费者累积的消息数量。 <code></code>.</p>
-<p>设置为高于默认值会提高消费者吞吐量，但会增加内存开销。| 1000 <code>acknowledgementsGroupTimeMicros</code>| long | 将消费者确认按指定时间分组。</p>
-<p>默认情况下，消费者使用 100ms 分组时间向 broker 发送确认。</p>
-<p>如果分组时间设置为 0，则会立即发送确认。</p>
-<p>分组时间越长则越有效率，而代价是消息失败后的重传次数会略有增加。| TimeUnit.MILLISECONDS.toMicros(100) <code>negativeAckRedeliveryDelayMicros</code>| long | 在重新发送处理失败的消息之前的延迟等待时间。</p>
-<p>当应用程序使用 {@link Consumer#negativeAcknowledge(Message)}，失败的消息会在一个固定的超时时间之后重传。| TimeUnit.MINUTES.toMicros(1) <code>maxTotalReceiverQueueSizeAcrossPartitions</code>| int | 跨分区的接收队列最大总长度。</p>
-<p>如果接收队列总长度超过此值，则此设置会降低单个分区的接收队列长度。| 50000 <code>consumerName</code>| String | 消费者名称 | null <code>ackTimeoutMillis</code>| long | 未确认消息的超时时间 | 0 <code>tickDurationMillis</code>| ack-timeout 重传粒度。</p>
-<p>使用更高的 <code>tickDurationMillis</code> 在将确认超时设置为较大值时 (例如1小时)，增大 tickDurationMillis 会降低追踪消息是的内存开销。|1000 <code>priorityLevel</code>| int | 在共享订阅模式下，broker 分发消息时给予消费者的优先级别。</p>
-<p>Broker 按照优先级降序排序。例如 0 表示最大优先级，其次是 1，2……</p>
-<p>在共享订阅模式下，broker <strong>优先将消息分发给优先级最高的消费者，只要他们有许可。</strong>否则，broker 会分发给下一个优先级别的消费者。</p>
+<p>For example, the number of messages accumulated by a consumer before an application calls <code>Receive</code>.</p>
+<p>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000 <code>acknowledgementsGroupTimeMicros</code>|long|Group a consumer acknowledgment for a specified time.</p>
+<p>By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.</p>
+<p>Setting a group time of 0 sends out acknowledgments immediately.</p>
+<p>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100) <code>negativeAckRedeliveryDelayMicros</code>|long|Delay to wait before redelivering messages that failed to be processed.</p>
+<p>When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1) <code>maxTotalReceiverQueueSizeAcrossPartitions</code>|int |The max total receiver queue size across partitions.</p>
+<p>This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.|50000 <code>consumerName</code>|String|Consumer name|null <code>ackTimeoutMillis</code>|long|Timeout of unacked messages|0 <code>tickDurationMillis</code>|long|Granularity of the ack-timeout redelivery.</p>
+<p>Using an higher <code>tickDurationMillis</code> reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000 <code>priorityLevel</code>|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in Shared subscription type.</p>
+<p>The broker follows descending priorities. For example, 0=max-priority, 1, 2,...</p>
+<p>In Shared subscription type, the broker <strong>first dispatches messages to the max priority level consumers if they have permits</strong>. Otherwise, the broker considers next priority level consumers.</p>
 <p><strong>示例 1</strong>  <br>
-如果一个订阅有消费者 consumerA <code>priorityLevel</code> 为0，另一个消费者 consumerB <code>priorityLevel</code> 为 1，则 broker <strong>只会向 consumerA 分发消息，直到其用完许可，</strong> 然后才会开始向 consumerB 分发消息。</p>
+If a subscription has consumerA with <code>priorityLevel</code> 0 and consumerB with <code>priorityLevel</code> 1, then the broker <strong>only dispatches messages to consumerA until it runs out permits</strong> and then starts dispatching messages to consumerB.</p>
 <p><strong>示例 2</strong>  <br>
-消费者，优先级别，许可<br>
+Consumer Priority, Level, Permits<br>
 C1, 0, 2<br>
 C2, 0, 1<br>
 C3, 0, 1<br>
 C4, 1, 2<br>
 C5, 1, 1</p>
-<p>Broker 分发消息给消费者的顺序是：C1, C2, C3, C1, C4, C5, C4。| 0 <code>cryptoFailureAction</code>| ConsumerCryptoFailureAction | 当接收到无法解密的消息时，消费者应该采取的行动。</p></li>
+<p>Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0 <code>cryptoFailureAction</code>|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.</p></li>
 </ul>
-<pre><code class="hljs">* **FAIL**：这是在加密成功之前对于失败消息采取的默认选项。
-* **DISCARD**：静默地确认消息，而不将消息分发给应用程序。
-* **CONSUME**：向应用程序分发加密的消息。而由应用程序负责解密消息。
+<pre><code class="hljs">* **FAIL**: this is the default option to fail messages until crypto succeeds.
+* **DISCARD**:silently acknowledge and not deliver message to an application.
+* **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.
   
 消息解压失败。   
   
-如果消息包含批处理消息，则客户端无法在 batch 中检索单条消息。  
+If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
   
-分发的加密消息包含 {@link EncryptionContext}，其中包含加密和压缩信息，应用程序可以利用这些信息解密消息载荷。| ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `properties`| SortedMap&lt;String, String&gt; | 此消费者的名称或值属性。  
+Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `properties`|SortedMap&lt;String, String&gt;|A name or value property of this consumer.  
   
-`properties` 是附加到消费者上的应用程序定义的元数据。   
+`properties` is application defined metadata attached to a consumer.   
   
-获取主题统计信息时，可以将此元数据与消费者统计信息相关联，以便于识别。| new TreeMap&lt;&gt;() `readCompacted`| boolean | 如果启用 `readCompacted`，则消费者从压缩主题中读取消息，而不是读取主题的完整消息 backlog。  
+When getting a topic stats, associate this metadata with the consumer stats for easier identification.|new TreeMap&lt;&gt;() `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.  
   
-消费者只能看到压缩主题中每个 key 的最新值，直到压缩 backlog 时主题消息中对应的位点。 超过这一位点，消息照常发送。  
+A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
   
-仅启用 `readCompacted` 在持久化主题的订阅上，持久化主题仅有单个活跃消费者 (类似故障或独占订阅模式)。   
+Only enabling `readCompacted` on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).   
   
-如果试图在非持久化主题或者共享订阅上开启该功能，则会导致订阅调用抛出 `PulsarClientException`。|false `subscriptionInitialPosition`| SubscriptionInitialPosition | 首次订阅主题时游标的初始位置。| SubscriptionInitialPosition.Latest `patternAutoDiscoveryPeriod`| int | 当主题消费者使用模式匹配时，自动发现主题的时间周期。  
+Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false `subscriptionInitialPosition`|SubscriptionInitialPosition|Initial position at which to set cursor when subscribing to a topic at first time.|SubscriptionInitialPosition.Latest `patternAutoDiscoveryPeriod`|int|Topic auto discovery period when using a pattern for topic's consumer.  
   
-默认值和最小值都为 1 分钟。| 1 `regexSubscriptionMode`| RegexSubscriptionMode | 当使用正则表达式订阅主题时，可以选择特定类型的主题。  
+The default and minimum value is 1 minute.|1 `regexSubscriptionMode`|RegexSubscriptionMode|When subscribing to a topic using a regular expression, you can pick a certain type of topics.  
   
 
 
-* **PersistentOnly**：只订阅持久化主题。
-* **NonPersistentOnly**：只订阅非持久化主题。
-* **AllTopics**：同时订阅持久化和非持久化主题。|RegexSubscriptionMode.PersistentOnly 
-`deadLetterPolicy`| DeadLetterPolicy | 消费者的死信策略。  
+* **PersistentOnly**: only subscribe to persistent topics.
+* **NonPersistentOnly**: only subscribe to non-persistent topics.
+* **AllTopics**: subscribe to both persistent and non-persistent topics.|RegexSubscriptionMode.PersistentOnly 
+`deadLetterPolicy`|DeadLetterPolicy|Dead letter policy for consumers.  
   
-默认情况下，一些消息可能会被多次重传，甚至可能一直重传。  
+By default, some messages are probably redelivered many times, even to the extent that it never stops.  
   
-利用死信机制，可以限制消息的最大重传次数。 **当超过最大重传次数时，消息会被发送到死信主题并自动确认。**.  
+By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.  
   
-如果要启动死信机制，可以配置 `deadLetterPolicy`.  
+You can enable the dead letter mechanism by setting `deadLetterPolicy`.  
   
 **示例**  
   
 `client.newConsumer()&lt;br /&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())&lt;br /&gt;.subscribe();`  
   
-默认的死信主题名称是 `{TopicName}-{Subscription}-DLQ`.  
+Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.  
   
-设置自定义的死信主题名称：  
+To set a custom dead letter topic name:  
 `client.newConsumer()&lt;br /&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)&lt;br /&gt;.deadLetterTopic(&quot;your-topic-name&quot;).build())&lt;br /&gt;.subscribe();`  
   
-如果设置了死信策略，但没有指定 `ackTimeoutMillis`，则可以将确认超时时间设置为 30000 毫秒。| 无 `autoUpdatePartitions`| boolean | 如果 `autoUpdatePartitions` 被启动，则消费者会自动订阅新增分区。  
+When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.  
   
-**Note**：仅适用于分区消费者。| true `replicateSubscriptionState`| boolean | 如果 `replicateSubscriptionState`  被启动，则订阅状态会被复制到跨地域复制的集群中。| false `negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` 为一个消费者。| `MultiplierRedeliveryBackoff` `ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` 为一个消费者。| `MultiplierRedeliveryBackoff`
+**Note**: this is only for partitioned consumers.|true `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false `negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff` `ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff` `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true `maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10 `expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
 
@@ -460,7 +472,7 @@ consumer.acknowledge(messages)
 
 &gt; 注意：
 &gt; 
-&gt; 批量接收策略会限制每个批次中消息的数量和字节大小。可以指定一个超时时间以等待足够的消息。
+&gt; Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
 &gt; 
 &gt; 如果满足以下任一条件，则批量接收完成：足够的消息数量、足够的消息字节数、等待超时。
 &gt; 
@@ -486,7 +498,23 @@ consumer.acknowledge(messages)
 &gt;     .build();
 &gt; ```
 
-### 否定确认重传退避
+### Configure chunking
+
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `maxPendingChunkedMessage` and `autoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. The `expireTimeOfIncompleteChunkedMessage` parameter decides the time interval to expire incomplete chunks if the consumer fails to receive all chunks of a message within the specified time period.
+
+The following is an example of how to configure message chunking.
+
+```java
+Consumer&lt;byte[]&gt; consumer = client.newConsumer()
+        .topic(topic)
+        .subscriptionName(&quot;test&quot;)
+        .autoAckOldestChunkedMessageOnQueueFull(true)
+        .maxPendingChunkedMessage(100)
+        .expireTimeOfIncompleteChunkedMessage(10, TimeUnit.MINUTES)
+        .subscribe();
+```
+
+### Negative acknowledgment redelivery backoff
 
 The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount` of messages.
 
@@ -531,7 +559,7 @@ The message redelivery behavior should be as follows.
 | 7                | 10 + 60 seconds  |
 | 8                | 10 + 60 seconds  |
 
-&gt; **注意** - `negativeAckRedeliveryBackoff` 不适用于 `consumer.negativeAcknowledge(MessageId messageId)`，因为无法通过消息 ID 获取重传次数。 - 如果消费者崩溃，则会触发重传未确认的消息。 In this case, `RedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
+&gt; **Note** - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID. - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `RedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
 
 ### 多主题订阅
 
@@ -574,8 +602,8 @@ pulsarClient.newConsumer()
         .subscribe();
 ```
 
-&gt; **注意**  
-&gt; 默认情况下，消费者的 `subscriptionTopicsMode` 是 `PersistentOnly`。 `subscriptionTopicsMode` 的可用选项为： `PersistentOnly`，`NonPersistentOnly`，以及 `AllTopics`。
+&gt; **Note**  
+&gt; By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. `subscriptionTopicsMode` 的可用选项为： `PersistentOnly`，`NonPersistentOnly`，以及 `AllTopics`。
 
 你还可以订阅明确的主题列表 (如果愿意, 可跨命名空间):
 
@@ -845,29 +873,29 @@ When you create a reader, you can use the `loadConf` configuration. The followin
 &lt;/div&gt;
 | Default |\---|\---|\---|\--- `topicName`|String|Topic name. |None `receiverQueueSize`|int|Size of a consumer's receiver queue.  
   
-For example, the number of messages that can be accumulated by a consumer before an application calls ` `.  
+For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.  
   
 A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 `readerListener`|ReaderListener&lt;T&gt;|A listener that is called for message received.|None `readerName`|String|Reader name.|null `subscriptionName`|String| Subscription name|When there is a single topic, the default subscription name is `&quot;reader-&quot; + 10-digit UUID`.  
-When there are multiple topics, the default subscription name is `&quot;multiTopicsReader-&quot; + 10-digit UUID`. `subscriptionRolePrefix`|String|Prefix of subscription role. |null `cryptoKeyReader`|CryptoKeyReader|Interface that abstracts the access to a key store.|null `cryptoFailureAction`| ConsumerCryptoFailureAction | 当接收到无法解密的消息时，消费者应该采取的行动。  
+When there are multiple topics, the default subscription name is `&quot;multiTopicsReader-&quot; + 10-digit UUID`. `subscriptionRolePrefix`|String|Prefix of subscription role. |null `cryptoKeyReader`|CryptoKeyReader|Interface that abstracts the access to a key store.|null `cryptoFailureAction`|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.  
 
 
-* **FAIL**：这是在加密成功之前对于失败消息采取的默认选项。
+* **FAIL**: this is the default option to fail messages until crypto succeeds.
 * **DISCARD**: silently acknowledge and not deliver message to an application.
-* **CONSUME**：向应用程序分发加密的消息。而由应用程序负责解密消息。
+* **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.
   
 消息解压失败。   
   
-如果消息包含批处理消息，则客户端无法在 batch 中检索单条消息。  
+If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
   
-分发的加密消息包含 {@link EncryptionContext}，其中包含加密和压缩信息，应用程序可以利用这些信息解密消息载荷。| ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `readCompacted`| boolean | 如果启用 `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.  
+Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.  
   
-消费者只能看到压缩主题中每个 key 的最新值，直到压缩 backlog 时主题消息中对应的位点。 超过这一位点，消息照常发送。  
+A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
   
 `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).   
   
-如果试图在非持久化主题或者共享订阅上开启该功能，则会导致订阅调用抛出 `PulsarClientException`。|false `resetIncludeHead`|boolean|If set to true, the first message to be returned is the one specified by `messageId`.  
+Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false `resetIncludeHead`|boolean|If set to true, the first message to be returned is the one specified by `messageId`.  
   
-If set to false, the first message to be returned is the one next to the message specified by `messageId`。|false
+If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
 
 ### Sticky key range reader
 
@@ -1103,7 +1131,7 @@ PulsarClient client = PulsarClient.builder()
     .authentication(auth)
     .build();
 ```</code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li><li><a href="#客户端内存分配器配置">客户端内存分配器配置</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#配置消息">配置消息</a></li></ul></li><li><a href="#消费者consumer">消费者（Consumer）</a><ul class="toc-headings"><li><a href="#配置消费者">配置消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li><li><a href="#客户端内存分配器配置">客户端内存分配器配置</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#配置消息">配置消息</a></li><li><a href="#enable-chunking">Enable chunking</a></li></ul></li><li><a href="#消费者consumer">消费者（Consumer）</a><ul class="toc-headings"><li><a href="#配置消费者">配置消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -177,7 +177,7 @@
 <tr><td>readBufferSizeBytes</td><td>The number of bytes we should use as capacity for BufferedReadChannel.</td><td>4096</td></tr>
 <tr><td>writeBufferSizeBytes</td><td>The number of bytes used as capacity for the write buffer</td><td>65536</td></tr>
 <tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ip address for the registration.</td><td>false</td></tr>
-<tr><td>bookieId</td><td>If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set the <code>bookieId</code>. <br><br>Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>). If you set the <code>bookieId</code>, then the <code>useHostNameAsBookieID</code> does not take effect.<br><br>The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.</td><td>N/A</td></tr>
+<tr><td>bookieId</td><td>If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set the <code>bookieId</code>. <br /><br />Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>). If you set the <code>bookieId</code>, then the <code>useHostNameAsBookieID</code> does not take effect.<br /><br />The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.</td><td>N/A</td></tr>
 <tr><td>allowEphemeralPorts</td><td>Whether the bookie is allowed to use an ephemeral port (port 0) as its server port. By default, an ephemeral port is not allowed. Using an ephemeral port as the service port usually indicates a configuration error. However, in unit tests, using an ephemeral port will address port conflict problems and allow running tests in parallel.</td><td>false</td></tr>
 <tr><td>enableLocalTransport</td><td>Whether the bookie is allowed to listen for the BookKeeper clients executed on the local JVM.</td><td>false</td></tr>
 <tr><td>disableServerSocketBind</td><td>Whether the bookie is allowed to disable bind on network interfaces. This bookie will be available only to BookKeeper clients executed on the local JVM.</td><td>false</td></tr>
@@ -206,8 +206,8 @@
 <tr><th>Name</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
-<tr><td>advertisedListeners</td><td>Specify multiple advertised listeners for the broker.<br><br>The format is <code>&lt;listener_name&gt;:pulsar://&lt;host&gt;:&lt;port&gt;</code>.<br><br>If there are multiple listeners, separate them with commas.<br><br><strong>Note</strong>: do not use this configuration with <code>advertisedAddress</code> and <code>brokerServicePort</code>. If the value of this configuration is empty, the broker uses <code>advertisedAddress</code> and <code>brokerServicePort</code></td><td>/</td></tr>
-<tr><td>internalListenerName</td><td>Specify the internal listener name for the broker.<br><br><strong>Note</strong>: the listener name must be contained in <code>advertisedListeners</code>.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.</td><td>/</td></tr>
+<tr><td>advertisedListeners</td><td>Specify multiple advertised listeners for the broker.<br /><br />The format is <code>&lt;listener_name&gt;:pulsar://&lt;host&gt;:&lt;port&gt;</code>.<br /><br />If there are multiple listeners, separate them with commas.<br /><br /><strong>Note</strong>: do not use this configuration with <code>advertisedAddress</code> and <code>brokerServicePort</code>. If the value of this configuration is empty, the broker uses <code>advertisedAddress</code> and <code>brokerServicePort</code></td><td>/</td></tr>
+<tr><td>internalListenerName</td><td>Specify the internal listener name for the broker.<br /><br /><strong>Note</strong>: the listener name must be contained in <code>advertisedListeners</code>.<br /><br /> If the value of this configuration is empty, the broker uses the first listener as the internal listener.</td><td>/</td></tr>
 <tr><td>authenticateOriginalAuthData</td><td>If this flag is set to <code>true</code>, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required).</td><td>false</td></tr>
 <tr><td>enablePersistentTopics</td><td>Whether persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>enableNonPersistentTopics</td><td>Whether non-persistent topics are enabled on the broker</td><td>true</td></tr>
@@ -268,7 +268,7 @@
 <tr><td>forceDeleteNamespaceAllowed</td><td>Enable you to delete a namespace forcefully.</td><td>false</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>The frequency of proactively checking and purging expired messages.</td><td>5</td></tr>
 <tr><td>brokerServiceCompactionMonitorIntervalInSeconds</td><td>Interval between checks to determine whether topics with compaction policies need compaction.</td><td>60</td></tr>
-<tr><td>brokerServiceCompactionThresholdInBytes</td><td>If the estimated backlog size is greater than this threshold, compression is triggered.<br><br>Set this threshold to 0 means disabling the compression check.</td><td>N/A</td></tr>
+<tr><td>brokerServiceCompactionThresholdInBytes</td><td>If the estimated backlog size is greater than this threshold, compression is triggered.<br /><br />Set this threshold to 0 means disabling the compression check.</td><td>N/A</td></tr>
 <tr><td>delayedDeliveryEnabled</td><td>Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead.</td><td>true</td></tr>
 <tr><td>delayedDeliveryTickTimeMillis</td><td>Control the tick time for retrying on delayed delivery, which affects the accuracy of the delivery time compared to the scheduled time. By default, it is 1 second.</td><td>1000</td></tr>
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
@@ -296,6 +296,10 @@
 <tr><td>brokerClientTlsTrustStorePassword</td><td>TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers</td><td></td></tr>
 <tr><td>brokerClientTlsCiphers</td><td>Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]</td><td></td></tr>
 <tr><td>brokerClientTlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  <code>TLSv1.3</code>, <code>TLSv1.2</code></td><td></td></tr>
+<tr><td>metadataStoreBatchingEnabled</td><td>Enable metadata operations batching.</td><td>true</td></tr>
+<tr><td>metadataStoreBatchingMaxDelayMillis</td><td>Maximum delay to impose on batching grouping.</td><td>5</td></tr>
+<tr><td>metadataStoreBatchingMaxOperations</td><td>Maximum number of operations to include in a singular batch.</td><td>1000</td></tr>
+<tr><td>metadataStoreBatchingMaxSizeKb</td><td>Maximum size of a batch.</td><td>128</td></tr>
 <tr><td>ttlDurationDefaultInSeconds</td><td>The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to <code>0</code>, TTL is disabled. By default, TTL is disabled.</td><td>0</td></tr>
 <tr><td>tokenSettingPrefix</td><td>Configure the prefix of the token-related settings, such as <code>tokenSecretKey</code>, <code>tokenPublicKey</code>, <code>tokenAuthClaim</code>, <code>tokenPublicAlg</code>, <code>tokenAudienceClaim</code>, and <code>tokenAudience</code>.</td><td></td></tr>
 <tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.</td><td></td></tr>
@@ -365,7 +369,7 @@
 <tr><td>loadBalancerEnabled</td><td>Enable load balancer</td><td>true</td></tr>
 <tr><td>loadBalancerPlacementStrategy</td><td>Strategy to assign a new bundle weightedRandomSelection</td><td></td></tr>
 <tr><td>loadBalancerReportUpdateThresholdPercentage</td><td>Percentage of change to trigger load report update</td><td>10</td></tr>
-<tr><td>loadBalancerReportUpdateMaxIntervalMinutes</td><td>maximum interval to update load report</td><td>15</td></tr>
+<tr><td>loadBalancerReportUpdateMaxIntervalMinutes</td><td>Maximum interval to update load report</td><td>15</td></tr>
 <tr><td>loadBalancerHostUsageCheckIntervalMinutes</td><td>Frequency of report to collect</td><td>1</td></tr>
 <tr><td>loadBalancerSheddingIntervalMinutes</td><td>Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers</td><td>30</td></tr>
 <tr><td>loadBalancerSheddingGracePeriodMinutes</td><td>Prevent the same topics to be shed and moved to other broker more than once within this timeframe</td><td>30</td></tr>
@@ -430,8 +434,8 @@
 <tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
 <tr><td>maxTopicsPerNamespace</td><td>The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check.</td><td>0</td></tr>
 <tr><td>subscriptionTypesEnabled</td><td>Enable all subscription types, which are exclusive, shared, failover, and key_shared.</td><td>Exclusive, Shared, Failover, Key_Shared</td></tr>
-<tr><td>managedLedgerInfoCompressionType</td><td>Compression type of managed ledger information. <br><br>Available options are <code>NONE</code>, <code>LZ4</code>, <code>ZLIB</code>, <code>ZSTD</code>, and <code>SNAPPY</code>). <br><br>If this value is <code>NONE</code> or invalid, the <code>managedLedgerInfo</code> is not compressed. <br><br><strong>Note</strong> that after enabling this configuration, if you want to degrade a broker, you need to change the value to <code>NONE</code> and make sure all ledger metadata is saved without compression.</td><td>None</td></tr>
-<tr><td>additionalServlets</td><td>Additional servlet name. <br><br>If you have multiple additional servlets, separate them by commas. <br><br>For example, additionalServlet_1, additionalServlet_2</td><td>N/A</td></tr>
+<tr><td>managedLedgerInfoCompressionType</td><td>Compression type of managed ledger information. <br /><br />Available options are <code>NONE</code>, <code>LZ4</code>, <code>ZLIB</code>, <code>ZSTD</code>, and <code>SNAPPY</code>). <br /><br />If this value is <code>NONE</code> or invalid, the <code>managedLedgerInfo</code> is not compressed. <br /><br /><strong>Note</strong> that after enabling this configuration, if you want to degrade a broker, you need to change the value to <code>NONE</code> and make sure all ledger metadata is saved without compression.</td><td>None</td></tr>
+<tr><td>additionalServlets</td><td>Additional servlet name. <br /><br />If you have multiple additional servlets, separate them by commas. <br /><br />For example, additionalServlet_1, additionalServlet_2</td><td>N/A</td></tr>
 <tr><td>additionalServletDirectory</td><td>Location of broker additional servlet NAR directory</td><td>./brokerAdditionalServlet</td></tr>
 <tr><td>brokerEntryMetadataInterceptors</td><td>Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</td><td>N/A</td></tr>
 <tr><td>enableExposingBrokerEntryMetadataToClient</td><td>Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true</td><td>false</td></tr>
@@ -596,7 +600,10 @@
 <tr><td>maxProducersPerTopic</td><td>Maximum number of producers allowed to connect to topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, maxProducersPerTopic-limit check is disabled.</td><td>0</td></tr>
 <tr><td>maxConsumersPerTopic</td><td>Maximum number of consumers allowed to connect to topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerTopic-limit check is disabled.</td><td>0</td></tr>
 <tr><td>maxConsumersPerSubscription</td><td>Maximum number of consumers allowed to connect to subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerSubscription-limit check is disabled.</td><td>0</td></tr>
-<tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled.</td><td>0</td></tr>
+<tr><td>metadataStoreBatchingEnabled</td><td>Enable metadata operations batching.</td><td>true</td></tr>
+<tr><td>metadataStoreBatchingMaxDelayMillis</td><td>Maximum delay to impose on batching grouping.</td><td>5</td></tr>
+<tr><td>metadataStoreBatchingMaxOperations</td><td>Maximum number of operations to include in a singular batch.</td><td>1000</td></tr>
+<tr><td>metadataStoreBatchingMaxSizeKb</td><td>Maximum size of a batch.</td><td>128</td></tr>
 <tr><td>tlsCertRefreshCheckDurationSec</td><td>TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection.</td><td>300</td></tr>
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file.</td><td></td></tr>
 <tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file.</td><td></td></tr>
@@ -724,7 +731,7 @@
 <tr><td>loadBalancerAutoBundleSplitEnabled</td><td></td><td>false</td></tr>
 <tr><td>loadBalancerAutoUnloadSplitBundlesEnabled</td><td>Enable/Disable automatic unloading of split bundles.</td><td>true</td></tr>
 <tr><td>loadBalancerNamespaceBundleMaxTopics</td><td></td><td>1000</td></tr>
-<tr><td>loadBalancerNamespaceBundleMaxSessions</td><td></td><td>1000</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxSessions</td><td>Maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered. <br />To disable the threshold check, set the value to -1.</td><td>1000</td></tr>
 <tr><td>loadBalancerNamespaceBundleMaxMsgRate</td><td></td><td>1000</td></tr>
 <tr><td>loadBalancerNamespaceBundleMaxBandwidthMbytes</td><td></td><td>100</td></tr>
 <tr><td>loadBalancerNamespaceMaximumBundles</td><td></td><td>128</td></tr>
@@ -747,7 +754,7 @@
 <tr><td>defaultRetentionSizeInMB</td><td></td><td>0</td></tr>
 <tr><td>keepAliveIntervalSeconds</td><td></td><td>30</td></tr>
 <tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
-<tr><td>bookieId</td><td>If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the <code>bookieId</code>. <br><br>Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>).<br><br> The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.</td><td>/</td></tr>
+<tr><td>bookieId</td><td>If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the <code>bookieId</code>. <br /><br />Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>).<br /><br /> The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.</td><td>/</td></tr>
 <tr><td>maxTopicsPerNamespace</td><td>The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check.</td><td>0</td></tr>
 <tr><td>metadataStoreConfigPath</td><td>The configuration file path of the local metadata store. Standalone Pulsar uses <a href="http://rocksdb.org/">RocksDB</a> as the local metadata store. The format is <code>/xxx/xx/rocksdb.ini</code>.</td><td>N/A</td></tr>
 </tbody>
