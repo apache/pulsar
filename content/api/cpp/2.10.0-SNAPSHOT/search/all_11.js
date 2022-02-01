@@ -14,7 +14,7 @@ var searchData=
   ['setallocatedcontent',['setAllocatedContent',['../classpulsar_1_1_message_builder.html#ae991bf6b34952c2ee0fee1c756b269cf',1,'pulsar::MessageBuilder']]],
   ['setallowoutoforderdelivery',['setAllowOutOfOrderDelivery',['../classpulsar_1_1_key_shared_policy.html#a81aa3f6f9f2c91f5f4ce5b89363dbcbb',1,'pulsar::KeySharedPolicy']]],
   ['setauth',['setAuth',['../classpulsar_1_1_client_configuration.html#a16a85a3a43b649d3e45b4e998695b723',1,'pulsar::ClientConfiguration']]],
-  ['setautooldestchunkedmessageonqueuefull',['setAutoOldestChunkedMessageOnQueueFull',['../classpulsar_1_1_consumer_configuration.html#a6f7baa3c6a8afeb405048db13dd187b3',1,'pulsar::ConsumerConfiguration']]],
+  ['setautoackoldestchunkedmessageonqueuefull',['setAutoAckOldestChunkedMessageOnQueueFull',['../classpulsar_1_1_consumer_configuration.html#aa2cc2670291f23564167751c3bb03f86',1,'pulsar::ConsumerConfiguration']]],
   ['setbatchingenabled',['setBatchingEnabled',['../classpulsar_1_1_producer_configuration.html#aa29902ddd89933de49cf792b3bba7f8e',1,'pulsar::ProducerConfiguration']]],
   ['setbatchingmaxallowedsizeinbytes',['setBatchingMaxAllowedSizeInBytes',['../classpulsar_1_1_producer_configuration.html#a921ad99d2e855c8bff229d818abde0cf',1,'pulsar::ProducerConfiguration']]],
   ['setbatchingmaxmessages',['setBatchingMaxMessages',['../classpulsar_1_1_producer_configuration.html#a5dfba6693e11101e0e10cdf9820bfc9f',1,'pulsar::ProducerConfiguration']]],

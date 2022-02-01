@@ -213,10 +213,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:af1049d0a6572cb00b041dd16f53462b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa8a8e277b8d52036f30b0cf896cd71d3"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#aa8a8e277b8d52036f30b0cf896cd71d3">getMaxPendingChunkedMessage</a> () const </td></tr>
 <tr class="separator:aa8a8e277b8d52036f30b0cf896cd71d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6f7baa3c6a8afeb405048db13dd187b3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a6f7baa3c6a8afeb405048db13dd187b3">setAutoOldestChunkedMessageOnQueueFull</a> (bool autoAckOldestChunkedMessageOnQueueFull)</td></tr>
-<tr class="separator:a6f7baa3c6a8afeb405048db13dd187b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2cdfceeeecdfd7c4540b61061958237a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a2cdfceeeecdfd7c4540b61061958237a">isAutoOldestChunkedMessageOnQueueFull</a> () const </td></tr>
-<tr class="separator:a2cdfceeeecdfd7c4540b61061958237a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa2cc2670291f23564167751c3bb03f86"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#aa2cc2670291f23564167751c3bb03f86">setAutoAckOldestChunkedMessageOnQueueFull</a> (bool autoAckOldestChunkedMessageOnQueueFull)</td></tr>
+<tr class="separator:aa2cc2670291f23564167751c3bb03f86"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa74a8e5dabc7399680c15894b50cce4b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#aa74a8e5dabc7399680c15894b50cce4b">isAutoAckOldestChunkedMessageOnQueueFull</a> () const </td></tr>
+<tr class="separator:aa74a8e5dabc7399680c15894b50cce4b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -664,19 +664,19 @@ false if the property is not defined </dd></dl>
 
 </div>
 </div>
-<a class="anchor" id="a2cdfceeeecdfd7c4540b61061958237a"></a>
+<a class="anchor" id="aa74a8e5dabc7399680c15894b50cce4b"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool pulsar::ConsumerConfiguration::isAutoOldestChunkedMessageOnQueueFull </td>
+          <td class="memname">bool pulsar::ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>The associated getter of setAutoOldestChunkedMessageOnQueueFull </p>
+<p>The associated getter of setAutoAckOldestChunkedMessageOnQueueFull </p>
 
 </div>
 </div>
@@ -774,12 +774,12 @@ false if the property is not defined </dd></dl>
 
 </div>
 </div>
-<a class="anchor" id="a6f7baa3c6a8afeb405048db13dd187b3"></a>
+<a class="anchor" id="aa2cc2670291f23564167751c3bb03f86"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a>&amp; pulsar::ConsumerConfiguration::setAutoOldestChunkedMessageOnQueueFull </td>
+          <td class="memname"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a>&amp; pulsar::ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQueueFull </td>
           <td>(</td>
           <td class="paramtype">bool&#160;</td>
           <td class="paramname"><em>autoAckOldestChunkedMessageOnQueueFull</em></td><td>)</td>
@@ -958,9 +958,9 @@ false if the property is not defined </dd></dl>
 </div><div class="memdoc">
 <p><a class="el" href="classpulsar_1_1_consumer.html">Consumer</a> buffers chunk messages into memory until it receives all the chunks of the original message. While consuming chunk-messages, chunks from same message might not be contiguous in the stream and they might be mixed with other messages' chunks. so, consumer has to maintain multiple buffers to manage chunks coming from different messages. This mainly happens when multiple publishers are publishing messages on the topic concurrently or publisher failed to publish all chunks of the messages.</p>
 <p>eg: M1-C1, M2-C1, M1-C2, M2-C2 Here, Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 belong to M2 message.</p>
-<p>Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be guarded by providing this maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked. See setAutoOldestChunkedMessageOnQueueFull.</p>
+<p>Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be guarded by providing this maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked. See setAutoAckOldestChunkedMessageOnQueueFull.</p>
 <p>If it's zero, the pending chunked messages will not be limited.</p>
-<p>Default: 100</p>
+<p>Default: 10</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">maxPendingChunkedMessage</td><td>the number of max pending chunked messages </td></tr>

@@ -6,7 +6,7 @@ var searchData=
   ['int64',['INT64',['../namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a11fafed4115309cf1f33eac044e704a2',1,'pulsar']]],
   ['int8',['INT8',['../namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a2c52dde965d6ba972179fa14116160e9',1,'pulsar']]],
   ['isallowoutoforderdelivery',['isAllowOutOfOrderDelivery',['../classpulsar_1_1_key_shared_policy.html#aaf3b6759f7617fbefc6a144944fa890e',1,'pulsar::KeySharedPolicy']]],
-  ['isautooldestchunkedmessageonqueuefull',['isAutoOldestChunkedMessageOnQueueFull',['../classpulsar_1_1_consumer_configuration.html#a2cdfceeeecdfd7c4540b61061958237a',1,'pulsar::ConsumerConfiguration']]],
+  ['isautoackoldestchunkedmessageonqueuefull',['isAutoAckOldestChunkedMessageOnQueueFull',['../classpulsar_1_1_consumer_configuration.html#aa74a8e5dabc7399680c15894b50cce4b',1,'pulsar::ConsumerConfiguration']]],
   ['isblockedconsumeronunackedmsgs',['isBlockedConsumerOnUnackedMsgs',['../classpulsar_1_1_broker_consumer_stats.html#a3fd64309f7ebc4ebf1322f3f52693aa5',1,'pulsar::BrokerConsumerStats']]],
   ['ischunkingenabled',['isChunkingEnabled',['../classpulsar_1_1_producer_configuration.html#a46d2bb0dba7a7c342fcedafe17bad471',1,'pulsar::ProducerConfiguration']]],
   ['isconnected',['isConnected',['../classpulsar_1_1_consumer.html#a71d9db9e6155dbcc6b723fee738c6d61',1,'pulsar::Consumer::isConnected()'],['../classpulsar_1_1_producer.html#a19d7395a2927bd71ae6041b092a0664e',1,'pulsar::Producer::isConnected()'],['../classpulsar_1_1_reader.html#aa8d2b38a8fe60438a4a3c4ea9bc4def8',1,'pulsar::Reader::isConnected()']]],
