@@ -450,11 +450,11 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it
      * can be guarded by providing this maxPendingChunkedMessage threshold. Once, consumer reaches this
      * threshold, it drops the outstanding unchunked-messages by silently acking or asking broker to redeliver
-     * later by marking it unacked. See setAutoOldestChunkedMessageOnQueueFull.
+     * later by marking it unacked. See setAutoAckOldestChunkedMessageOnQueueFull.
      *
      * If it's zero, the pending chunked messages will not be limited.
      *
-     * Default: 100
+     * Default: 10
      *
      * @param maxPendingChunkedMessage the number of max pending chunked messages
      */
@@ -475,13 +475,13 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      *
      * @param autoAckOldestChunkedMessageOnQueueFull whether to ack the discarded chunked message
      */
-    ConsumerConfiguration& setAutoOldestChunkedMessageOnQueueFull(
+    ConsumerConfiguration& setAutoAckOldestChunkedMessageOnQueueFull(
         bool autoAckOldestChunkedMessageOnQueueFull);
 
     /**
-     * The associated getter of setAutoOldestChunkedMessageOnQueueFull
+     * The associated getter of setAutoAckOldestChunkedMessageOnQueueFull
      */
-    bool isAutoOldestChunkedMessageOnQueueFull() const;
+    bool isAutoAckOldestChunkedMessageOnQueueFull() const;
 
     friend class PulsarWrapper;
 
