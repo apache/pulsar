@@ -2326,6 +2326,7 @@ flexible messaging model and an intuitive client API.</description>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-false-positives.xml</suppressionFile>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-suppressions.xml</suppressionFile>
               </suppressionFiles>
+              <failBuildOnCVSS>7</failBuildOnCVSS>
               <msbuildAnalyzerEnabled>false</msbuildAnalyzerEnabled>
               <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
               <yarnAuditAnalyzerEnabled>false</yarnAuditAnalyzerEnabled>
