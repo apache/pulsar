@@ -293,11 +293,13 @@ public class SinkConfigUtils {
         }
         if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
             sinkConfig.setRetainOrdering(true);
+            sinkConfig.setRetainKeyOrdering(false);
         } else if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.KEY_SHARED) {
             sinkConfig.setRetainOrdering(false);
             sinkConfig.setRetainKeyOrdering(true);
         } else {
             sinkConfig.setRetainOrdering(false);
+            sinkConfig.setRetainKeyOrdering(false);
         }
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
