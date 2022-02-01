@@ -1,7 +1,7 @@
 ---
-id: security-and-versioning-policy
-title: Security and Versioning Policy
-sidebar_label: Security and Versioning Policy
+id: security-policy-and-supported-versions
+title: Security Policy and Supported Versions
+sidebar_label: Security Policy and Supported Versions
 ---
 
 ## Reporting a Vulnerability
@@ -19,6 +19,11 @@ https://pulsar.apache.org/docs/en/security-overview/.
 
 The Pulsar community will announce security vulnerabilities and how to mitigate them on the [users@pulsar.apache.org](mailto:users@pulsar.apache.org).
 For instructions on how to subscribe, please see https://pulsar.apache.org/contact/.
+
+## Versioning Policy
+
+The Pulsar project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html). Existing releases can expect
+patches for bugs and security vulnerabilities. New features will target minor releases.
 
 ## Supported Versions
 
