@@ -167,7 +167,7 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 500, message = "Internal server error") })
     public void updateDynamicConfiguration(@Suspended AsyncResponse asyncResponse,
                                            @PathParam("configName") String configName,
-                                           @PathParam("configValue") String configValue) throws Exception {
+                                           @PathParam("configValue") String configValue) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> persistDynamicConfiguration(configName, configValue))
                 .thenAccept(__ -> {
