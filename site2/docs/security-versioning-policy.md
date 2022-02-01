@@ -15,11 +15,17 @@ to send your report to the Apache Pulsar Project Management Committee. This is a
 You can find documentation on Pulsar's available security features and how to use them here:
 https://pulsar.apache.org/docs/en/security-overview/.
 
+## Security Vulnerability Announcements
+
+The Pulsar community will announce security vulnerabilities and how to mitigate them on the [users@pulsar.apache.org](mailto:users@pulsar.apache.org).
+For instructions on how to subscribe, please see https://pulsar.apache.org/contact/.
+
 ## Supported Versions
 
-Feature release branches will, generally, be maintained with security fix and bug fix releases for a period of 12 months
+Feature release branches will be maintained with security fix and bug fix releases for a period of at least 12 months
 after initial release. For example, branch 2.5.x is no longer considered maintained as of January 2021, 12 months after
-the release of 2.5.0 in January 2020. No more 2.5.x releases should be expected at this point, even for security fixes.
+the release of 2.5.0 in January 2020. No more 2.5.x releases should be expected at this point, even to fix security
+vulnerabilities.
 
 Note that a minor version can be maintained past it's 12 month initial support period. For example, version 2.7 is still
 actively maintained.
@@ -31,9 +37,9 @@ versions will have the most bug fixes.
 When 3.0.0 is released, the community will decide how to continue supporting 2.x. It is possible that the last minor
 release within 2.x will be maintained for longer as an “LTS” release, but it has not been officially decided.
 
-The following table shows version support timelines and will be updated with releases.
+The following table shows version support timelines and will be updated with each release.
 
-| Version | Supported          | Initial Release | At least Until |
+| Version | Supported          | Initial Release | At Least Until |
 |:-------:|:------------------:|:---------------:|:--------------:|
 | 2.9.x   | :white_check_mark: | November 2021   | November 2022  |
 | 2.8.x   | :white_check_mark: | June 2021       | June 2022      |
