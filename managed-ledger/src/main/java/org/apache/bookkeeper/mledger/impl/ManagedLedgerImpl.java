@@ -333,28 +333,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void initializeComplete() {
                 if (lastConfirmedEntry != null && lastConfirmedEntry.entryId != -1) {
                     // check that ledger used by lastConfirmedEntry actually exists
-                    try {
-                        getLedgerMetadata(lastConfirmedEntry.getLedgerId()).get();
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        log.info("[{}] Unexpected InterruptedException", name, ie);
-                    } catch (ExecutionException ex) {
-                        if (ex.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
-                            log.error("[{}] Managed ledger initialization found deleted ledger {} "
-                                            + "used by lastConfirmedEntry {}.",
-                                    name, lastConfirmedEntry.getLedgerId(), lastConfirmedEntry, ex);
-                            originalCb.initializeFailed(new ManagedLedgerException.NonRecoverableLedgerException(
-                                    "Initialization of managed ledger: "
-                                            + name
-                                            + " failed. Deleted ledger: "
-                                            + lastConfirmedEntry.getLedgerId()
-                                            + " used by lastConfirmedEntry: " + lastConfirmedEntry));
-                            return;
-                        }
-                    }
-
+                    getLedgerHandle(lastConfirmedEntry.getLedgerId())
+                        .whenCompleteAsync((ignored, ex) -> {
+                            if (ex instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                                log.error("[{}] Managed ledger initialization found deleted ledger {} "
+                                                + "used by lastConfirmedEntry {}.",
+                                        name, lastConfirmedEntry.getLedgerId(), lastConfirmedEntry, ex);
+                                originalCb.initializeFailed(new ManagedLedgerException.NonRecoverableLedgerException(
+                                        "Initialization of managed ledger: "
+                                        + name
+                                        + " failed. Deleted ledger: "
+                                        + lastConfirmedEntry.getLedgerId()
+                                        + " used by lastConfirmedEntry: " + lastConfirmedEntry));
+                                return;
+                            }
+                            originalCb.initializeComplete();
+                        }, executor).join();
+                } else {
+                    originalCb.initializeComplete();
                 }
-                originalCb.initializeComplete();
             }
 
             @Override
