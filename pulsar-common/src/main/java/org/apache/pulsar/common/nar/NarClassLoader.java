@@ -160,16 +160,6 @@ public class NarClassLoader extends URLClassLoader {
 
     public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
 
-    private static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
-                                                String narExtractionDirectory) throws IOException {
-        return  NarClassLoader.Factory.createFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
-                                                narExtractionDirectory);
-    }
-
-    private static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        return NarClassLoader.Factory.createFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
-    }
-
     private static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
                                                 String narExtractionDirectory)
         throws IOException {
