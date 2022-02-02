@@ -369,7 +369,7 @@ public class ClusterMetadataSetupTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        localZkS = new ZookeeperServerTest(9998);
+        localZkS = new ZookeeperServerTest(0);
         localZkS.start();
     }
 

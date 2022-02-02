@@ -262,7 +262,6 @@ public class PulsarClusterMetadataSetup {
             } else {
                 uriStr = "zk+null://" + metadataStoreUrlNoIdentifer + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
             }
-            System.out.println("uriStr:" + uriStr);
 
             // initial distributed log metadata
             initialDlogNamespaceMetadata(arguments.configurationMetadataStore, uriStr);
@@ -271,7 +270,6 @@ public class PulsarClusterMetadataSetup {
             // Format BookKeeper stream storage metadata
             if (arguments.numStreamStorageContainers > 0) {
                 ClusterInitializer initializer = new ZkClusterInitializer(metadataStoreUrlNoIdentifer);
-                System.out.println("bkMetadataServiceUri-uri: " + bkMetadataServiceUri.getUri());
                 initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
             }
         }
