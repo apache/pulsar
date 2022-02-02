@@ -341,7 +341,7 @@ The Apache Software License, Version 2.0
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
  * Apache Commons
-    - commons-cli-commons-cli-1.2.jar
+    - commons-cli-commons-cli-1.5.0.jar
     - commons-codec-commons-codec-1.15.jar
     - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.10.jar
