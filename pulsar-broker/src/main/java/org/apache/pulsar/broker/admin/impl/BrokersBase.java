@@ -329,11 +329,9 @@ public class BrokersBase extends PulsarWebResource {
     }
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
-        NamespaceName namespaceName = (topicVersion == TopicVersion.V2) ?
-                NamespaceService.getHeartbeatNamespaceV2(pulsar().getAdvertisedAddress(),
-                        pulsar().getConfiguration()) :
-                NamespaceService.getHeartbeatNamespace(pulsar().getAdvertisedAddress(),
-                        pulsar().getConfiguration());
+        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
+                ? NamespaceService.getHeartbeatNamespaceV2(pulsar().getAdvertisedAddress(), pulsar().getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
         String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
         String messageStr = UUID.randomUUID().toString();
