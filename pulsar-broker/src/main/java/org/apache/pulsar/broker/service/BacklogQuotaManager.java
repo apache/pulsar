@@ -62,8 +62,8 @@ public class BacklogQuotaManager {
     public BacklogQuotaImpl getBacklogQuota(NamespaceName namespace, BacklogQuotaType backlogQuotaType) {
         try {
             if (namespaceResources == null) {
-                log.warn("Failed to read policies data from metadata store because namespaceResources is null." +
-                        "default backlog quota will be applied: namespace={}", namespace);
+                log.warn("Failed to read policies data from metadata store because namespaceResources is null."
+                        + "default backlog quota will be applied: namespace={}", namespace);
                 return this.defaultQuota;
             } else {
                 return namespaceResources.getPolicies(namespace)
@@ -72,8 +72,8 @@ public class BacklogQuotaManager {
                         .orElse(defaultQuota);
             }
         } catch (MetadataStoreException e) {
-            log.warn("Failed to read policies data from metadata store," +
-                    " will apply the default backlog quota: namespace={}", namespace, e);
+            log.warn("Failed to read policies data from metadata store,"
+                    + " will apply the default backlog quota: namespace={}", namespace, e);
             return this.defaultQuota;
         }
     }
