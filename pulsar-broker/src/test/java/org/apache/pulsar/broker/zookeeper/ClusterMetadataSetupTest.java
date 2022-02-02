@@ -48,6 +48,7 @@ import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
@@ -55,6 +56,7 @@ import org.apache.zookeeper.server.ZooKeeperServer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -84,15 +86,28 @@ public class ClusterMetadataSetupTest {
         assertEquals(data1, data3);
     }
 
+    @DataProvider(name = "useMetadataStoreUrl")
+    public static Object[][] useMetadataStoreUrlDataSet() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
 
-    @Test
-    public void testSetupClusterZookkeeperDefault() throws Exception {
+    @Test(dataProvider = "useMetadataStoreUrl")
+    public void testSetupClusterDefault(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin", "zookeeper"
         ));
+        final String metadataStoreParam;
+        final String metadataStoreValue;
+        if (useMetadataStoreUrl) {
+            metadataStoreParam = "--metadata-store";
+            metadataStoreValue = "zk:127.0.0.1:" + localZkS.getZookeeperPort();
+        } else {
+            metadataStoreParam = "--zookeeper";
+            metadataStoreValue = "127.0.0.1:" + localZkS.getZookeeperPort();
+        }
         String[] args = {
                 "--cluster", "testReSetupClusterMetadata-cluster",
-                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
+                metadataStoreParam, metadataStoreValue,
                 "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort(),
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
@@ -112,15 +127,25 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test
-    public void testSetupClusterInChrootMode() throws Exception {
+    @Test(dataProvider = "useMetadataStoreUrl")
+    public void testSetupClusterInChrootMode(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin"
         ));
-        String rootPath = "/test-prefix";
+        final String rootPath = "/test-prefix";
+        final String metadataStoreParam;
+        final String metadataStoreValue;
+        if (useMetadataStoreUrl) {
+            metadataStoreParam = "--metadata-store";
+            metadataStoreValue = "zk:127.0.0.1:" + localZkS.getZookeeperPort() + rootPath;
+        } else {
+            metadataStoreParam = "--zookeeper";
+            metadataStoreValue = "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath;
+        }
+
         String[] args = {
                 "--cluster", "testReSetupClusterMetadata-cluster",
-                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
+                metadataStoreParam, metadataStoreValue,
                 "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
@@ -137,15 +162,24 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test
-    public void testSetupClusterInNestedChrootMode() throws Exception {
+    @Test(dataProvider = "useMetadataStoreUrl")
+    public void testSetupClusterInNestedChrootMode(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin"
         ));
-        String rootPath = "/test-prefix/nested";
+        final String rootPath = "/test-prefix/nested";
+        final String metadataStoreParam;
+        final String metadataStoreValue;
+        if (useMetadataStoreUrl) {
+            metadataStoreParam = "--metadata-store";
+            metadataStoreValue = "zk:127.0.0.1:" + localZkS.getZookeeperPort() + rootPath;
+        } else {
+            metadataStoreParam = "--zookeeper";
+            metadataStoreValue = "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath;
+        }
         String[] args = {
                 "--cluster", "testReSetupClusterMetadata-cluster",
-                "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
+                metadataStoreParam, metadataStoreValue,
                 "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort() + rootPath,
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
@@ -335,7 +369,7 @@ public class ClusterMetadataSetupTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        localZkS = new ZookeeperServerTest(0);
+        localZkS = new ZookeeperServerTest(9998);
         localZkS.start();
     }
 

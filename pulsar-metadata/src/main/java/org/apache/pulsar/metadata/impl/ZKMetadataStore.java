@@ -68,7 +68,7 @@ import org.apache.zookeeper.ZooKeeper;
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
 
-    static final String ZK_SCHEME_IDENTIFIER = "zk:";
+    public static final String ZK_SCHEME_IDENTIFIER = "zk:";
 
     private final String zkConnectString;
     private final MetadataStoreConfig metadataStoreConfig;

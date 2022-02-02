@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
  * Pulsar service configuration object.
@@ -2586,9 +2587,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             } else {
                 // Fallback to old setting
                 // Note: chroot is not settable by using 'zookeeperServers' config.
-                suffix = "zk:" + zookeeperServers + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+                suffix = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
             }
-            return "metadata-store:" + suffix;
+            return "metadata-store:" + suffix + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         }
     }
 
