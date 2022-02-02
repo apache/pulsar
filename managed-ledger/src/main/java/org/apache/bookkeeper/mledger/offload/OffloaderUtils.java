@@ -54,7 +54,7 @@ public class OffloaderUtils {
         // need to load offloader NAR to the classloader that also loaded LedgerOffloaderFactory in case
         // LedgerOffloaderFactory is loaded by a classloader that is not the default classloader
         // as is the case for the pulsar presto plugin
-        NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
+        NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(new File(narPath), Collections.emptySet(),
                 LedgerOffloaderFactory.class.getClassLoader(), narExtractionDirectory);
         String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
@@ -110,7 +110,7 @@ public class OffloaderUtils {
 
     public static OffloaderDefinition getOffloaderDefinition(String narPath, String narExtractionDirectory)
             throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
+        try (NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(new File(narPath), Collections.emptySet(),
                 narExtractionDirectory)) {
             String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 

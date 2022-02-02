@@ -151,7 +151,7 @@ public class ConnectorUtils {
             for (Path archive : stream) {
                 try {
 
-                    NarClassLoader ncl = NarClassLoader.getFromArchive(new File(archive.toString()), Collections.emptySet(), narExtractionDirectory);
+                    NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(new File(archive.toString()), Collections.emptySet(), narExtractionDirectory);
 
                     Connector.ConnectorBuilder connectorBuilder = Connector.builder();
                     ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(ncl);

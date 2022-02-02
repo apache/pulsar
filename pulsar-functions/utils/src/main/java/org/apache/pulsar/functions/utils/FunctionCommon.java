@@ -260,7 +260,7 @@ public class FunctionCommon {
                                                        String narExtractionDirectory) {
         if (packageFile != null) {
             try {
-                return NarClassLoader.getFromArchive(packageFile,
+                return NarClassLoader.Factory.createFromArchive(packageFile,
                         Collections.emptySet(), narExtractionDirectory);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());

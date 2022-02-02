@@ -50,7 +50,7 @@ class ProtocolHandlerUtils {
      */
     public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath, String narExtractionDirectory)
             throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
+        try (NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(new File(narPath), Collections.emptySet(),
                 narExtractionDirectory)) {
             return getProtocolHandlerDefinition(ncl);
         }
@@ -117,7 +117,7 @@ class ProtocolHandlerUtils {
      */
     static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata,
                                                String narExtractionDirectory) throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
+        NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
             metadata.getArchivePath().toAbsolutePath().toFile(),
             Collections.emptySet(),
             ProtocolHandler.class.getClassLoader(), narExtractionDirectory);

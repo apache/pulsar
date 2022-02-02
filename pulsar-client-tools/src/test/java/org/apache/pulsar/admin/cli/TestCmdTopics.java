@@ -52,14 +52,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-@PrepareForTest({CmdFunctions.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*" })
 public class TestCmdTopics {
 
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
     private static final String PERSISTENT_TOPIC_URL = "persistent://";
     private static final String PARTITIONED_TOPIC_NAME = "my-topic";
     private static final String URL_SLASH = "/";
@@ -79,8 +73,6 @@ public class TestCmdTopics {
         when(pulsarAdmin.lookups()).thenReturn(mockLookup);
         cmdTopics = spy(new CmdTopics(() -> pulsarAdmin));
         partitionedLookup = spy(cmdTopics.getPartitionedLookup());
-
-        mockStatic(CmdFunctions.class);
     }
 
     @AfterMethod(alwaysRun = true)

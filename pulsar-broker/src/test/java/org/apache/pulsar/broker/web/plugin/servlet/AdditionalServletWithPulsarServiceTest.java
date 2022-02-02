@@ -30,24 +30,11 @@ import java.nio.file.Paths;
 import java.util.Set;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
-import org.testng.annotations.ObjectFactory;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-@PrepareForTest({
-        NarClassLoader.class
-})
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class AdditionalServletWithPulsarServiceTest {
-
-    // Necessary to make PowerMockito.mockStatic work with TestNG.
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     @Test
     public void testLoadAdditionalServlet() throws Exception {
@@ -68,18 +55,19 @@ public class AdditionalServletWithPulsarServiceTest {
         when(mockLoader.loadClass(eq(MockAdditionalServletWithClassLoader.class.getName())))
                 .thenReturn(additionalServletClass);
 
-        PowerMockito.mockStatic(NarClassLoader.class);
-        PowerMockito.when(NarClassLoader.getFromArchive(
-                any(File.class),
-                any(Set.class),
-                any(ClassLoader.class),
-                any(String.class)
-        )).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
+            factory.when(() -> NarClassLoader.Factory.createFromArchive(
+                    any(File.class),
+                    any(Set.class),
+                    any(ClassLoader.class),
+                    any(String.class)
+            )).thenReturn(mockLoader);
 
-        AdditionalServletWithClassLoader returnedASWithCL = AdditionalServletUtils.load(metadata, "");
-        AdditionalServlet returnedPh = returnedASWithCL.getServlet();
+            AdditionalServletWithClassLoader returnedASWithCL = AdditionalServletUtils.load(metadata, "");
+            AdditionalServlet returnedPh = returnedASWithCL.getServlet();
 
-        assertSame(mockLoader, returnedASWithCL.getClassLoader());
-        assertTrue(returnedPh instanceof MockAdditionalServletWithClassLoader);
+            assertSame(mockLoader, returnedASWithCL.getClassLoader());
+            assertTrue(returnedPh instanceof MockAdditionalServletWithClassLoader);
+        }
     }
 }

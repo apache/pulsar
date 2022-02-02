@@ -127,6 +127,25 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NarClassLoader extends URLClassLoader {
 
+    public static class Factory {
+
+        public static NarClassLoader createFromArchive(File narPath, Set<String> additionalJars,
+                                                    String narExtractionDirectory) throws IOException {
+            return createFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
+                    narExtractionDirectory);
+        }
+
+        public static NarClassLoader createFromArchive(File narPath, Set<String> additionalJars) throws IOException {
+            return createFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+        }
+
+        public static NarClassLoader createFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+                                                    String narExtractionDirectory)
+                throws IOException {
+            return getFromArchive(narPath, additionalJars, parent, narExtractionDirectory);
+        }
+    }
+
     private static final FileFilter JAR_FILTER = pathname -> {
         final String nameToTest = pathname.getName().toLowerCase();
         return nameToTest.endsWith(".jar") && pathname.isFile();
@@ -141,17 +160,17 @@ public class NarClassLoader extends URLClassLoader {
 
     public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
+    private static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
                                                 String narExtractionDirectory) throws IOException {
-        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
+        return  NarClassLoader.Factory.createFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
                                                 narExtractionDirectory);
     }
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+    private static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
+        return NarClassLoader.Factory.createFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
     }
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+    private static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));

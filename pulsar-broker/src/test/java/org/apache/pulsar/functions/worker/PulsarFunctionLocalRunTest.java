@@ -1120,7 +1120,7 @@ public class PulsarFunctionLocalRunTest {
 
     private void runWithNarClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try (NarClassLoader classLoader = NarClassLoader.getFromArchive(getPulsarIODataGeneratorNar(), Collections.emptySet(), originalClassLoader, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR)) {
+        try (NarClassLoader classLoader = NarClassLoader.Factory.createFromArchive(getPulsarIODataGeneratorNar(), Collections.emptySet(), originalClassLoader, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR)) {
             try {
                 Thread.currentThread().setContextClassLoader(classLoader);
                 throwingRunnable.run();

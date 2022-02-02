@@ -50,7 +50,7 @@ public class WorkerServiceLoader {
      */
     public static WorkerServiceDefinition getWorkerServiceDefinition(String narPath, String narExtractionDirectory)
         throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(
+        try (NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
             new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             return getWorkerServiceDefinition(ncl);
         }
@@ -72,7 +72,7 @@ public class WorkerServiceLoader {
      */
     static WorkerServiceWithClassLoader load(WorkerServiceMetadata metadata,
                                              String narExtractionDirectory) throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
+        NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
             metadata.getArchivePath().toAbsolutePath().toFile(),
             Collections.emptySet(),
             WorkerService.class.getClassLoader(), narExtractionDirectory);

@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.pulsar.functions.utils.FunctionCommon.mergeJson;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -43,6 +44,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -76,6 +78,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -87,6 +90,8 @@ import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
 import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -195,9 +200,6 @@ public class FunctionApiV2ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         FunctionsImpl functions = spy(new FunctionsImpl(() -> mockedWorkerService));
-
-        mockStatic(InstanceUtils.class);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
 
         this.resource = spy(new FunctionsImplV2(functions));
 
@@ -588,17 +590,29 @@ public class FunctionApiV2ResourceTest {
     @Test
     public void testRegisterFunctionSuccess() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookKeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            try (MockedStatic mocked = Mockito.mockStatic(WorkerUtils.class)) {
+                mocked.when(() -> WorkerUtils.uploadToBookKeeper(
+                        any(Namespace.class),
+                        any(InputStream.class),
+                        anyString())).thenAnswer((i) -> null);
+                mocked.when(() -> WorkerUtils.dumpToTmpFile(any())).thenAnswer(i ->
+                        {
+                            try {
+                                File tmpFile = FunctionCommon.createPkgTempFile();
+                                tmpFile.deleteOnExit();
+                                Files.copy((InputStream) i.getArguments()[0], tmpFile.toPath(), REPLACE_EXISTING);
+                                return tmpFile;
+                            } catch (IOException e) {
+                                throw new RuntimeException("Cannot create a temporary file", e);
+                            }
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+                        }
+                );
+                WorkerUtils.uploadToBookKeeper(null, null, null);
+                when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-            registerDefaultFunction();
+                registerDefaultFunction();
+            }
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
             throw re;

@@ -24,11 +24,8 @@ import java.nio.file.Paths;
 import java.util.Set;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
-import org.testng.annotations.ObjectFactory;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -38,17 +35,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 
-@PrepareForTest({
-        NarClassLoader.class
-})
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class AdditionalServletUtilsTest {
-
-    // Necessary to make PowerMockito.mockStatic work with TestNG.
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     @Test
     public void testLoadEventListener() throws Exception {
@@ -69,19 +56,20 @@ public class AdditionalServletUtilsTest {
         when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
                 .thenReturn(listenerClass);
 
-        PowerMockito.mockStatic(NarClassLoader.class);
-        PowerMockito.when(NarClassLoader.getFromArchive(
-                any(File.class),
-                any(Set.class),
-                any(ClassLoader.class),
-                any(String.class)
-        )).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
+            factory.when(() -> NarClassLoader.Factory.createFromArchive(
+                    any(File.class),
+                    any(Set.class),
+                    any(ClassLoader.class),
+                    any(String.class)
+            )).thenReturn(mockLoader);
 
-        AdditionalServletWithClassLoader returnedPhWithCL = AdditionalServletUtils.load(metadata, "");
-        AdditionalServlet returnedPh = returnedPhWithCL.getServlet();
+            AdditionalServletWithClassLoader returnedPhWithCL = AdditionalServletUtils.load(metadata, "");
+            AdditionalServlet returnedPh = returnedPhWithCL.getServlet();
 
-        assertSame(mockLoader, returnedPhWithCL.getClassLoader());
-        assertTrue(returnedPh instanceof MockAdditionalServlet);
+            assertSame(mockLoader, returnedPhWithCL.getClassLoader());
+            assertTrue(returnedPh instanceof MockAdditionalServlet);
+        }
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -102,15 +90,16 @@ public class AdditionalServletUtilsTest {
         when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
                 .thenReturn(listenerClass);
 
-        PowerMockito.mockStatic(NarClassLoader.class);
-        PowerMockito.when(NarClassLoader.getFromArchive(
-                any(File.class),
-                any(Set.class),
-                any(ClassLoader.class),
-                any(String.class)
-        )).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
+            factory.when(() -> NarClassLoader.Factory.createFromArchive(
+                    any(File.class),
+                    any(Set.class),
+                    any(ClassLoader.class),
+                    any(String.class)
+            )).thenReturn(mockLoader);
 
-        AdditionalServletUtils.load(metadata, "");
+            AdditionalServletUtils.load(metadata, "");
+        }
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -132,14 +121,15 @@ public class AdditionalServletUtilsTest {
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
                 .thenReturn(listenerClass);
 
-        PowerMockito.mockStatic(NarClassLoader.class);
-        PowerMockito.when(NarClassLoader.getFromArchive(
-                any(File.class),
-                any(Set.class),
-                any(ClassLoader.class),
-                any(String.class)
-        )).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
+            factory.when(() -> NarClassLoader.Factory.createFromArchive(
+                    any(File.class),
+                    any(Set.class),
+                    any(ClassLoader.class),
+                    any(String.class)
+            )).thenReturn(mockLoader);
 
-        AdditionalServletUtils.load(metadata, "");
+            AdditionalServletUtils.load(metadata, "");
+        }
     }
 }

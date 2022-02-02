@@ -51,7 +51,7 @@ public class AdditionalServletUtils {
     public AdditionalServletDefinition getAdditionalServletDefinition(
             String narPath, String narExtractionDirectory) throws IOException {
 
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(
+        try (NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
                 new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             return getAdditionalServletDefinition(ncl);
         }
@@ -118,7 +118,7 @@ public class AdditionalServletUtils {
     public AdditionalServletWithClassLoader load(
             AdditionalServletMetadata metadata, String narExtractionDirectory) throws IOException {
 
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
+        NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),
                 AdditionalServlet.class.getClassLoader(), narExtractionDirectory);

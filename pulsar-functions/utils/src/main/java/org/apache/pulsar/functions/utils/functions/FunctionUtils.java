@@ -72,7 +72,7 @@ public class FunctionUtils {
     }
 
     public static FunctionDefinition getFunctionDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
+        try (NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(new File(narPath), Collections.emptySet())) {
             String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
             return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, FunctionDefinition.class);
         }

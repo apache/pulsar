@@ -104,7 +104,7 @@ public class EntryFilterProvider {
     private static EntryFilterDefinition getEntryFilterDefinition(String narPath,
                                                                               String narExtractionDirectory)
             throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
+        try (NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(new File(narPath), Collections.emptySet(),
                 narExtractionDirectory)) {
             return getEntryFilterDefinition(ncl);
         }
@@ -121,7 +121,7 @@ public class EntryFilterProvider {
     private static EntryFilterWithClassLoader load(EntryFilterMetaData metadata,
                                                                String narExtractionDirectory)
             throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
+        NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),
                 EntryFilter.class.getClassLoader(), narExtractionDirectory);
