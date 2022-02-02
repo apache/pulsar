@@ -1404,6 +1404,7 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.exit_on_oom=false
             -Dpulsar.allocator.out_of_memory_policy=FallbackToHeap
             -Dio.netty.tryReflectionSetAccessible=true
+            --add-opens java.base/java.lang=ALL-UNNAMED
             ${test.additional.args}
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
