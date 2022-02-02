@@ -150,16 +150,26 @@ nettyMaxFrameSizeBytes=5253120
 <p>为了避免批量的向 consumer 重发已确认的消息，Pulsar 从 Pulsar 2.6.0 开始采用批量索引确认机制。如果启用批量索引确认机制，consumer 将筛选出已被确认的批量索引，并将批量索引确认请求发送给 broker。 Broker 维护批量索引的确认状态并跟踪每批索引的确认状态，以避免向 consumer 发送已确认的消息。 当该批信息的所有索引都被确认后，该批信息将被删除。</p>
 <p>By default, batch index acknowledgement is disabled (<code>acknowledgmentAtBatchIndexLevelEnabled=false</code>). You can enable batch index acknowledgement by setting the <code>acknowledgmentAtBatchIndexLevelEnabled</code> parameter to <code>true</code> at the broker side. 启用批量索引确认将会导致更多内存开销。</p>
 <h3><a class="anchor" aria-hidden="true" id="分块"></a><a href="#分块" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分块</h3>
-<p>当你想要启用分块(chunking) 时，请阅读以下说明。 - 不能同时启动批量处理和分块(chunking) 。 如果想要启用分块(chunking) ，您必须提前禁用批量处理。 - 只对持久主题(persisted topics) 支持分块(chunking) 。 - 仅独占 ( Exclusive) 和故障转移 ( Failover) 订阅模式支持分块 (chunking) 。</p>
-<p>当启用分块(chunking) 时(<code>chunkingEnabled=true</code>) ，如果消息大小大于允许的最大发布有效载荷大小，则 producer 将原始消息分割成分块的消息，并将它们与块状的元数据一起单独和按顺序发布到 broker。 在 broker 中，分块的消息将和普通的消息以相同的方式存储在 Managed Ledger 上。 唯一的区别是，consumer 需要缓冲分块消息，并在收集完所有分块消息后将其合并成真正的消息。 Managed Ledger 上的分块消息可以和普通消息交织在一起。 如果 producer 未能发布消息的所有分块，则当 consumer 未能在过期时间(expire time) 内接收所有分块时，consumer 可以过期未完成的分块。 By default, the expire time is set to one minute.</p>
-<p>Consumer 会缓存收到的块状消息，直到收到消息的所有分块为止。 然后 consumer 将分块的消息拼接在一起，并将它们放入接收器队列中。 客户端从接收器队列中消费消息。 一旦 consumer 使用整个大消息并确认，consumer 就会在内部发送与该大消息关联的所有分块消息的确认。 You can set the <code>maxPendingChunkedMessage</code> parameter on the consumer. 当达到阈值时，consumer 通过静默确认未分块的消息或通过将其标记为未确认，要求 broker 稍后重新发送这些消息。</p>
-<p>Broker 不需要进行任何更改以支持非共享订阅的分块。 Broker 只使用 <code>chuckedMessageRate</code> 记录主题上的分块消息速率。</p>
-<h4><a class="anchor" aria-hidden="true" id="处理一个-producer-和一个订阅-consumer-的分块消息"></a><a href="#处理一个-producer-和一个订阅-consumer-的分块消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>处理一个 producer 和一个订阅 consumer 的分块消息</h4>
-<p>如下图所示，当生产者向主题发送一批大的分块消息和普通的非分块消息时。 假设生产者发送的消息为 M1，M1 有三个分块 M1-C1，M1-C2 和 M1-C3。 这个 broker 在其管理的ledger里面保存所有的三个块消息，然后以相同的顺序分发给消费者（独占/灾备模式）。 消费者将在内存缓存所有的块消息，直到收到所有的消息块。将这些消息合并成为原始的消息M1，发送给处理进程。</p>
+<p>Message chunking enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.</p>
+<p>With message chunking enabled, when the size of a message exceeds the allowed maximum payload size (the <code>maxMessageSize</code> parameter of broker), the workflow of messaging is as follows: 1. The producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. 2. The broker stores the chunked messages in one managed-ledger in the same way as that of ordinary messages, and it uses the <code>chunkedMessageRate</code> parameter to record chunked message rate on the topic. 3. The consumer buffers the chunked messages and aggregates them into the receiver queue when it receives all the chunks of a message. 4. The client consumes the aggregated message from the receiver queue.</p>
+<p><strong>Limitations:</strong> - Chunking is only available for persisted topics. - Chunking is only available for the exclusive and failover subscription types. - Chunking cannot be enabled simultaneously with batching.</p>
+<h4><a class="anchor" aria-hidden="true" id="handle-consecutive-chunked-messages-with-one-ordered-consumer"></a><a href="#handle-consecutive-chunked-messages-with-one-ordered-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Handle consecutive chunked messages with one ordered consumer</h4>
+<p>The following figure shows a topic with one producer which publishes a large message payload in chunked messages along with regular non-chunked messages. The producer publishes message M1 in three chunks labeled M1-C1, M1-C2 and M1-C3. The broker stores all the three chunked messages in the managed-ledger and dispatches them to the ordered (exclusive/failover) consumer in the same order. The consumer buffers all the chunked messages in memory until it receives all the chunked messages, aggregates them into one message and then hands over the original message M1 to the client.</p>
 <p><img src="/docs/assets/chunking-01.png" alt=""></p>
-<h4><a class="anchor" aria-hidden="true" id="多个生产者和一个生产者处理块消息"></a><a href="#多个生产者和一个生产者处理块消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多个生产者和一个生产者处理块消息。</h4>
-<p>当多个生产者发布块消息到单个主题，这个 Broker 在同一个 Ledger 里面保存来自不同生产者的所有块消息。 如下所示，生产者1发布的消息 M1，M1 由 M1-C1, M1-C2 和 M1-C3 三个块组成。 生产者2发布的消息 M2，M2 由 M2-C1, M2-C2 和 M2-C3 三个块组成。 这些特定消息的所有分块是顺序排列的，但是其在 ledger 里面可能不是连续的。 这种方式会给消费者带来一定的内存负担。因为消费者会为每个大消息在内存开辟一块缓冲区，以便将所有的块消息合并为原始的大消息。</p>
+<h4><a class="anchor" aria-hidden="true" id="handle-interwoven-chunked-messages-with-one-ordered-consumer"></a><a href="#handle-interwoven-chunked-messages-with-one-ordered-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Handle interwoven chunked messages with one ordered consumer</h4>
+<p>When multiple producers publish chunked messages into a single topic, the broker stores all the chunked messages coming from different producers in the same managed-ledger. The chunked messages in the managed-ledger can be interwoven with each other. 如下所示，生产者1发布的消息 M1，M1 由 M1-C1, M1-C2 和 M1-C3 三个块组成。 生产者2发布的消息 M2，M2 由 M2-C1, M2-C2 和 M2-C3 三个块组成。 这些特定消息的所有分块是顺序排列的，但是其在 ledger 里面可能不是连续的。</p>
 <p><img src="/docs/assets/chunking-02.png" alt=""></p>
+<blockquote>
+<p><strong>Note</strong>  <br>
+In this case, interwoven chunked messages may bring some memory pressure to the consumer because the consumer keeps a separate buffer for each large message to aggregate all its chunks in one message. You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the <code>maxPendingChunkedMessage</code> parameter. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later, optimizing memory utilization.</p>
+</blockquote>
+<h4><a class="anchor" aria-hidden="true" id="enable-message-chunking"></a><a href="#enable-message-chunking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Message Chunking</h4>
+<p><strong>Prerequisite:</strong> Disable batching by setting the <code>enableBatching</code> parameter to <code>false</code>.</p>
+<p>The message chunking feature is OFF by default. To enable message chunking, set the <code>chunkingEnabled</code> parameter to <code>true</code> when creating a producer.</p>
+<blockquote>
+<p><strong>Note</strong>  <br>
+If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default value is 1 minute. For more information about the <code>expireTimeOfIncompleteChunkedMessage</code> parameter, refer to <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/">org.apache.pulsar.client.api</a>.</p>
+</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="消费者"></a><a href="#消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者</h2>
 <p>A consumer is a process that attaches to a topic via a subscription and then receives messages.</p>
 <p>Consumer 向 broker 发送消息流获取申请（<a href="/docs/zh-CN/next/develop-binary-protocol#flow-control">flow permit request</a>）以获取消息。 在 Consumer 端有一个队列，用于接收从 broker 推送来的消息。 你能够通过<a href="/docs/zh-CN/next/client-libraries-java#configure-consumer"><code>receiverQueueSize</code></a>参数配置队列的长度 (队列的默认长度是<code>1000</code>) 每当 <code>consumer.receive()</code> 被调用一次，就从缓冲区（buffer）获取一条消息。</p>
@@ -192,14 +202,14 @@ nettyMaxFrameSizeBytes=5253120
 <pre><code class="hljs css language-java">consumer.acknowledgeCumulative(msg);
 </code></pre>
 <blockquote>
-<p><strong>注意事项</strong>  <br>
-累积确认不能用于<a href="#subscription-types"> Shared subscription 类型</a>，因为Shared subscription 类型涉及多个消费者，他们可以访问同一个订阅。 在共享订阅模式，消息都是单条确认模式。</p>
+<p><strong>Note</strong>  <br>
+Cumulative acknowledgement cannot be used in <a href="#subscription-types">Shared subscription type</a>, because Shared subscription type involves multiple consumers which have access to the same subscription. 在共享订阅模式，消息都是单条确认模式。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="取消确认"></a><a href="#取消确认" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>取消确认</h3>
 <p>The <a href="#negative-acknowledgement">negative acknowledgement</a> mechanism allows you to send a notification to the broker indicating the consumer did not process a message. When a consumer fails to consume a message and needs to re-consume it, the consumer sends a negative acknowledgement (nack) to the broker, triggering the broker to redeliver this message to the consumer.</p>
-<p>消息取消确认也有单条取消模式和累积取消模式 ，这依赖于消费者使用的订阅模式。</p>
-<p>在 Exclusive 模式和 Failover 订阅模式中，消费者仅仅只能对收到的最后一条消息进行取消确认。</p>
-<p>在 Shared 和 Key_Shared 的订阅类型中，消费者可以单独否定确认消息。</p>
+<p>Messages are negatively acknowledged individually or cumulatively, depending on the consumption subscription type.</p>
+<p>In Exclusive and Failover subscription types, consumers only negatively acknowledge the last message they receive.</p>
+<p>In Shared and Key_Shared subscription types, consumers can negatively acknowledge messages individually.</p>
 <p>请注意，订单订阅类型为否定， 比如Exclusive，Failover和Key_Shared之类的消息可能会导致发送失败的消息以不符合原始顺序的方式到达使用者。</p>
 <p>Use the following API to negatively acknowledge message consumption.</p>
 <pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer()
@@ -218,12 +228,12 @@ message = consumer.receive();
 consumer.acknowledge(message);
 </code></pre>
 <blockquote>
-<p><strong>注意事项</strong>  <br>
-如果启用了批处理，一个批处理中的所有邮件都会重新交付给消费者。</p>
+<p><strong>Note</strong>  <br>
+If batching is enabled, all messages in one batch are redelivered to the consumer.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="negative-redelivery-backoff"></a><a href="#negative-redelivery-backoff" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Negative redelivery backoff</h3>
 <p>It happens sometimes that consumers fail to process messages successfully. In this case, you can use <a href="#negative-acknowledgement">negative acknowledgement</a> to redeliver the messages after consumption failures. For the Shared subscription type, the messages are redelivered to other consumers; for other subscription types, the messages are redelivered to the same consumer.</p>
-<p>但这还不够灵活。 一个更好的方法是使用** redelivery backoff 机制**。 You can redeliver messages with different delays by setting the number of times the messages are retried.</p>
+<p>But this is not flexible enough. A better way is to use the <strong>redelivery backoff mechanism</strong>. You can redeliver messages with different delays by setting the number of times the messages are retried.</p>
 <p>Use the following API to enable <code>Negative Redelivery Backoff</code>.</p>
 <pre><code class="hljs css language-java">consumer.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
         .minDelayMs(<span class="hljs-number">1000</span>)
@@ -309,8 +319,8 @@ consumer.acknowledge(message);
 </code></pre>
 <p>死信主题依赖消息重试 Messages are redelivered either due to <a href="#acknowledgement-timeout">acknowledgement timeout</a> or <a href="#negative-acknowledgement">negative acknowledgement</a>. If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout.</p>
 <blockquote>
-<p><strong>注意事项</strong>  <br>
-目前，死信主题在 Shared 和Key_Stared 的订阅类型中是启用的。</p>
+<p><strong>Note</strong>  <br>
+Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="retry-letter-topic"></a><a href="#retry-letter-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retry letter topic</h3>
 <p>For many online business systems, a message is re-consumed when exception occurs in the business logic processing. 若需要允许延时重新消费失败的消息，你可以配置生产者同时发送消息到业务主题和重试主题，并允许消费者自动重试消费。 With this setting, the messages that are not consumed will be stored in the retry letter topic. After the specified delay time, the consumer automatically consumes these messages from the retry letter topic.</p>
@@ -361,8 +371,8 @@ consumer.reconsumeLater(msg, customProperties, <span class="hljs-number">3</span
 </tbody>
 </table>
 <blockquote>
-<p>**不需要明确地创建新 topic **<br>
-。 你不需要在 Pulsar 中明确地创建 topic 。 如果客户端尝试从不存在的主题当中生产消息或消费消息，Pulsar 将会自动使用该<a href="#topics">主题名称</a>在该命名空间下创建同名的主题。 If no tenant or namespace is specified when a client creates a topic, the topic is created in the default tenant and namespace. You can also create a topic in a specified tenant and namespace, such as <code>persistent://my-tenant/my-namespace/my-topic</code>. <code>persistent://my-tenant/my-namespace/my-topic</code> means the <code>my-topic</code> topic is created in the <code>my-namespace</code> namespace of the <code>my-tenant</code> tenant.</p>
+<p><strong>No need to explicitly create new topics</strong>  <br>
+You do not need to explicitly create topics in Pulsar. 如果客户端尝试从不存在的主题当中生产消息或消费消息，Pulsar 将会自动使用该<a href="#topics">主题名称</a>在该命名空间下创建同名的主题。 If no tenant or namespace is specified when a client creates a topic, the topic is created in the default tenant and namespace. You can also create a topic in a specified tenant and namespace, such as <code>persistent://my-tenant/my-namespace/my-topic</code>. <code>persistent://my-tenant/my-namespace/my-topic</code> means the <code>my-topic</code> topic is created in the <code>my-namespace</code> namespace of the <code>my-tenant</code> tenant.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="命名空间"></a><a href="#命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命名空间</h2>
 <p>命名空间是租户内部逻辑上的命名术语。 可以通过<a href="/docs/zh-CN/next/admin-api-namespaces#create">admin API</a>在租户下创建多个命名空间。 例如，包含多个应用程序的租户可以为每个应用程序创建单独的命名空间。 Namespace使得程序可以以层级的方式创建和管理topic Topic<code>my-tenant/app1</code> ，它的namespace是<code>app1</code>这个应用，对应的租户是 <code>my-tenant</code>。 你可以在namespace下创建任意数量的<a href="#topics">topic</a>。</p>
@@ -370,8 +380,8 @@ consumer.reconsumeLater(msg, customProperties, <span class="hljs-number">3</span
 <p>订阅是命名好的配置规则，指导消息如何投递给消费者。 Four subscription types are available in Pulsar: <a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, <a href="#failover">failover</a>, and <a href="#key_shared">key_shared</a>. These types are illustrated in the figure below.</p>
 <p><img src="/docs/assets/pulsar-subscription-types.png" alt="Subscription types"></p>
 <blockquote>
-<p><strong>Pub-Sub or Queuing</strong></p>
-<p>在Pulsar中，你可以灵活地使用不同的订阅模式。 如果你想在消费者当中使用传统的”发布-订阅消息“，你可以为每个消费者指定一个特定的订阅名称， 这就是独占模式。 如果你想在消费者当中实现”消息队列“的效果，则多个消费者会拥有相同的订阅名称(如共享模式，灾备模式，key共享模式)。 如果你想同时实现两种效果，则可以将订阅模式和其他的订阅模式结合起来使用。</p>
+<p><strong>Pub-Sub or Queuing</strong>  <br>
+In Pulsar, you can use different subscriptions flexibly. 如果你想在消费者当中使用传统的”发布-订阅消息“，你可以为每个消费者指定一个特定的订阅名称， 这就是独占模式。 如果你想在消费者当中实现”消息队列“的效果，则多个消费者会拥有相同的订阅名称(如共享模式，灾备模式，key共享模式)。 如果你想同时实现两种效果，则可以将订阅模式和其他的订阅模式结合起来使用。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="subscription-types"></a><a href="#subscription-types" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription types</h3>
 <p>When a subscription has no consumers, its subscription type is undefined. The type of a subscription is defined when a consumer connects to it, and the type can be changed by restarting all consumers with a different configuration.</p>
@@ -392,8 +402,8 @@ consumer.reconsumeLater(msg, customProperties, <span class="hljs-number">3</span
 <p>In <em>shared</em> or <em>round robin</em> type, multiple consumers can attach to the same subscription. 消息通过round robin轮询机制分发给不同的消费者，并且每个消息仅会被分发给一个消费者。 当消费者断开连接，所有被发送给他，但没有被确认的消息将被重新安排，分发给其它存活的消费者。</p>
 <p>In the diagram below, <strong>Consumer-C-1</strong> and <strong>Consumer-C-2</strong> are able to subscribe to the topic, but <strong>Consumer-C-3</strong> and others could as well.</p>
 <blockquote>
-<p><strong>Shared 类型的局限性</strong></p>
-<p>当使用 Shared 类型时，要注意以下几点。 * 不保证消息排序。 * 你不能用Shared类型来使用累积确认。</p>
+<p><strong>Limitations of Shared type</strong>  <br>
+When using Shared type, be aware that: * Message ordering is not guaranteed. * You cannot use cumulative acknowledgment with Shared type.</p>
 </blockquote>
 <p><img src="/docs/assets/pulsar-shared-subscriptions.png" alt="共享订阅"></p>
 <h4><a class="anchor" aria-hidden="true" id="key_shared"></a><a href="#key_shared" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Key_Shared</h4>
@@ -407,8 +417,8 @@ consumer.reconsumeLater(msg, customProperties, <span class="hljs-number">3</span
 </span></div></div><div id="tab-group-2492-content-2495" class="tab-pane" data-group="group_2492" tabindex="-1"><div><span><pre><code class="hljs">producer = client.create_producer(topic='my-topic', batching_type=pulsar.BatchingType.KeyBased)<br /></code></pre>
 </span></div></div></div></div>
 <blockquote>
-<p><strong>Key_Shared类型的局限性</strong></p>
-<p>当你使用Key_Shared类型时，要注意以下几点。 * 你需要为消息指定一个密钥或顺序密钥。 * 你不能为Key_Shared类型使用累积确认。</p>
+<p><strong>Limitations of Key_Shared type</strong>  <br>
+When you use Key_Shared type, be aware that: * You need to specify a key or orderingKey for messages. * 你不能为Key_Shared类型使用累积确认。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="订阅模式"></a><a href="#订阅模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>订阅模式</h3>
 <h4><a class="anchor" aria-hidden="true" id="什么是订阅模式"></a><a href="#什么是订阅模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>什么是订阅模式</h4>
@@ -582,7 +592,7 @@ Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = client.newCo
 <p>最上面的场景中，消息去重被关闭。 Producer发布消息1到一个topic，消息到达broker后，被<a href="/docs/zh-CN/next/concepts-architecture-overview#persistent-storage">持久化</a>到BookKeeper。 然后producer又发送了消息1（可能因为某些重试逻辑），然后消息被接收后又持久化在BookKeeper，这意味着消息重复发生了。</p>
 <p>在第二个场景中，producer发送了消息1，消息被broker接收然后持久化，和第一个场景是一样的。 当producer再次发送消息时，broker知道已经收到个消息1，所以不会再持久化消息1.</p>
 <blockquote>
-<p>消息去重特性可以在命名空间级别或者主题级别设置。更多的介绍，参考[消息去重指南](cookbooks-deduplication. md)</p>
+<p>Message deduplication is handled at the namespace level or the topic level. For more instructions, see the <a href="/docs/zh-CN/next/cookbooks-deduplication">message deduplication cookbook</a>.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="生产者幂等"></a><a href="#生产者幂等" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者幂等</h3>
 <p>消息去重的另外一种方法是确保每条消息<em>仅生产一次</em>。 这种方法通常被叫做<strong>生产者幂等</strong>。 这种方式的缺点是，把消息去重的工作推给了应用去做。 在 Pulsar 中，消息去重是在 <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>上处理的，用户不需要去修改客户端的代码。 相反，你只需要通过修改配置就可以实现。 可以通过查看<a href="/docs/zh-CN/next/cookbooks-deduplication">消息去重指南</a>去了解更多详细信息。</p>
