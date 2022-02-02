@@ -32,8 +32,8 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 
 public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
@@ -48,7 +48,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
     protected TransactionCoordinatorClient transactionCoordinatorClient;
 
-    @BeforeClass(alwaysRun = true)
+    @BeforeMethod(alwaysRun = true)
     protected final void setup() throws Exception {
         log.info("---- Initializing {} -----", getClass().getSimpleName());
         // Start local bookkeeper ensemble
@@ -112,7 +112,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
         // template methods to override in subclasses
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public final void shutdownAll() throws Exception {
         cleanup();
     }

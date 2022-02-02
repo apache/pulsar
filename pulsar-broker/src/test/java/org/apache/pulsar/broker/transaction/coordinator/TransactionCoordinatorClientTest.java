@@ -18,25 +18,37 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
+import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient.State;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
+
+    private static final String CONSUME_TOPIC = "persistent://public/default/consume-test";
 
     @Override
     protected void afterSetup() throws Exception {
@@ -90,5 +102,41 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         } catch (TransactionCoordinatorClientException ignore) {
            // Ok here
         }
+    }
+
+    @BeforeMethod
+    public void setupCluster() throws Exception {
+        pulsarAdmins[0].clusters().createCluster("my-cluster", ClusterData.builder().build());
+        pulsarAdmins[0].tenants().createTenant("public",
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
+        pulsarAdmins[0].namespaces().createNamespace("public/default", Sets.newHashSet("my-cluster"));
+        pulsarAdmins[0].topics().createNonPartitionedTopic(CONSUME_TOPIC);
+    }
+
+    @DataProvider(name = "clientTransactionEnabled")
+    public Object[][] codecProvider() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
+    @Test(dataProvider = "clientTransactionEnabled", timeOut = 30_000)
+    public void testProduceConsumeNoTransaction(boolean enableTransaction) throws Exception {
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarServices[0].getBrokerServiceUrl())
+                .enableTransaction(enableTransaction)
+                .build();
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+                .topic(CONSUME_TOPIC)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> exclusiveConsumer = client.newConsumer()
+                .topic(CONSUME_TOPIC)
+                .subscriptionName("exclusive-test")
+                .subscribe();
+
+
+        producer.send("simple-message".getBytes(UTF_8));
+        exclusiveConsumer.receive();
     }
 }
