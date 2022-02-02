@@ -47,7 +47,7 @@ ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
+     && apt-get -y install --no-install-recommends openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
                  python3 python3-yaml python3-kazoo python3-pip \
                  curl \
      && apt-get -y --purge autoremove \
