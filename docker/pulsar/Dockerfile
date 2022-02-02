@@ -41,9 +41,11 @@ RUN mkdir /pulsar/data
 FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 
 # Install some utilities
-RUN apt-get update \
+RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
+     && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
                  python3 python3-dev python3-setuptools python3-yaml python3-kazoo \
