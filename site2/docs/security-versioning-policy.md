@@ -25,6 +25,9 @@ For instructions on how to subscribe, please see https://pulsar.apache.org/conta
 The Pulsar project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html). Existing releases can expect
 patches for bugs and security vulnerabilities. New features will target minor releases.
 
+When upgrading an existing cluster, it is important to upgrade components linearly through each minor version. For
+example, when upgrading from 2.8.x to 2.10.x, it is important to upgrade to 2.9.x before going to 2.10.x.
+
 ## Supported Versions
 
 Feature release branches will be maintained with security fix and bug fix releases for a period of at least 12 months
