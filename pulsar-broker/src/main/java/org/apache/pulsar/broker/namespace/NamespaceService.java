@@ -703,12 +703,18 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
+        return unloadNamespaceBundle(bundle, timeout, timeoutUnit, true);
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout,
+                                                         TimeUnit timeoutUnit,
+                                                         boolean closeWithoutWaitingClientDisconnect) {
         // unload namespace bundle
         OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
         if (ob == null) {
             return FutureUtil.failedFuture(new IllegalStateException("Bundle " + bundle + " is not currently owned"));
         } else {
-            return ob.handleUnloadRequest(pulsar, timeout, timeoutUnit);
+            return ob.handleUnloadRequest(pulsar, timeout, timeoutUnit, closeWithoutWaitingClientDisconnect);
         }
     }
 

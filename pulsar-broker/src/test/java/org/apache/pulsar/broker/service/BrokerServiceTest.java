@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,6 +80,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -89,10 +91,12 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -125,6 +129,37 @@ public class BrokerServiceTest extends BrokerTestBase {
     private void resetState() throws Exception {
         cleanup();
         setup();
+    }
+
+    @Test
+    public void testShutDownWithMaxConcurrentUnload() throws Exception {
+        int bundleNum = 5;
+        cleanup();
+        conf.setDefaultNumberOfNamespaceBundles(bundleNum);
+        setup();
+        final String topic = "persistent://prop/ns-abc/successTopic";
+        admin.topics().createPartitionedTopic(topic, 64);
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+
+        BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
+        assertEquals(bundlesData.getNumBundles(), bundleNum);
+        List<String> list = admin.brokers().getActiveBrokers("test");
+        assertEquals(list.size(), 1);
+        admin.brokers().shutDownBrokerGracefully(1, false);
+        //We can only unload one bundle per second, so it takes at least 5 seconds.
+        Awaitility.await().atLeast(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            Map<String, NamespaceOwnershipStatus> temp = admin.brokers().getOwnedNamespaces("test", list.get(0));
+            assertEquals(temp.size(), 0);
+        });
+        try {
+            producer.send("1".getBytes(StandardCharsets.UTF_8));
+            fail("sending msg should timeout, because broker is down and there is only one broker");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.TimeoutException);
+        }
+
+        producer.close();
+        resetState();
     }
 
     @Test
