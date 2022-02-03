@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.intercept;
 
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 
 public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterceptor{

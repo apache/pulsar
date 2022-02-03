@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import java.util.Optional;
 import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
@@ -76,7 +77,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             config.setTransactionCoordinatorEnabled(true);
             configurations[i] = config;
 
-            pulsarServices[i] = Mockito.spy(new PulsarService(config));
+            pulsarServices[i] = spyWithClassAndConstructorArgs(PulsarService.class, config);
             pulsarServices[i].start();
 
             pulsarAdmins[i] = PulsarAdmin.builder()

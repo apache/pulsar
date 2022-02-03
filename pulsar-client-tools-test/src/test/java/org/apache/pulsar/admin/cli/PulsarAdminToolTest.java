@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -896,6 +897,19 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-subscription-types-enabled persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
+                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+        verify(mockTopicsPolicies)
+                .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
+                        OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
+                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+
         cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getRetention("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M"));
@@ -936,6 +950,18 @@ public class PulsarAdminToolTest {
                 .dispatchThrottlingRateInByte(-1)
                 .ratePeriodInSecond(2)
                 .build());
+
+        cmdTopics.run(split("set-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
+        verify(mockTopicsPolicies).setReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1",
+                DispatchRate.builder()
+                        .dispatchThrottlingRateInMsg(-1)
+                        .dispatchThrottlingRateInByte(-1)
+                        .ratePeriodInSecond(2)
+                        .build());
+        cmdTopics.run(split("get-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
         verify(mockTopicsPolicies).setSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1",
@@ -1028,6 +1054,20 @@ public class PulsarAdminToolTest {
         verify(mockTopicsPolicies).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -s 1024"));
+        verify(mockTopicsPolicies).setMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1", 1024);
+        cmdTopics.run(split("remove-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1 -i 100"));
+        verify(mockTopicsPolicies).setDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1", 100);
+        cmdTopics.run(split("remove-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1");
 
         // Reset the cmd, and check global option
         cmdTopics = new CmdTopicPolicies(() -> admin);
@@ -1161,6 +1201,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("get-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1 -i 100 -g"));
+        verify(mockGlobalTopicsPolicies).setDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1", 100);
+        cmdTopics.run(split("remove-deduplication-snapshot-interval persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("get-max-consumers-per-subscription persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).getMaxConsumersPerSubscription("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-max-consumers-per-subscription persistent://myprop/clust/ns1/ds1 -c 5 -g"));
@@ -1190,6 +1237,18 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-compaction-threshold persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeCompactionThreshold("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("set-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2 -g"));
+        verify(mockGlobalTopicsPolicies).setReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1",
+                DispatchRate.builder()
+                        .dispatchThrottlingRateInMsg(-1)
+                        .dispatchThrottlingRateInByte(-1)
+                        .ratePeriodInSecond(2)
+                        .build());
+        cmdTopics.run(split("get-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("set-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2 -g"));
         verify(mockGlobalTopicsPolicies).setSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1",
                 DispatchRate.builder()
@@ -1201,6 +1260,26 @@ public class PulsarAdminToolTest {
         verify(mockGlobalTopicsPolicies).getSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -s 1024 -g"));
+        verify(mockGlobalTopicsPolicies).setMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1", 1024);
+        cmdTopics.run(split("remove-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
+                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first -g"));
+        verify(mockGlobalTopicsPolicies)
+                .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
+                        OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
+                                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
     }
 
     @Test
@@ -1330,13 +1409,13 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
-        verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);
+        verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, new HashMap<>());
 
         cmdTopics.run(split("create-missed-partitions persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("create persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", new HashMap<>());
 
         cmdTopics.run(split("list-partitioned-topics myprop/clust/ns1"));
         verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1");
@@ -1769,7 +1848,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/ns1/ds1 --partitions 32"));
-        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32);
+        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, new HashMap<>());
 
         topics.run(split("list myprop/ns1"));
         verify(mockTopics).getList("myprop/ns1", null);
@@ -1810,6 +1889,23 @@ public class PulsarAdminToolTest {
                         .rack("rack-1")
                         .hostname("host-1")
                         .build());
+
+        // test invalid rack name ""
+        try {
+            BookieInfo.builder().rack("").hostname("host-1").build();
+            fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
+        // test invalid rack name "/"
+        try {
+            BookieInfo.builder().rack("/").hostname("host-1").build();
+            fail();
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "rack name is invalid, it should not be null, empty or '/'");
+        }
+
     }
 
     @Test

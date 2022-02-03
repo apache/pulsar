@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.security.KeyManagementException;
@@ -28,14 +29,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 public class AuthenticationDataTls implements AuthenticationDataProvider {
     private static final long serialVersionUID = 1L;
@@ -44,7 +42,8 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     private transient FileModifiedTimeUpdater certFile, keyFile;
     // key and cert using stream
     private transient InputStream certStream, keyStream;
-    @SuppressFBWarnings(value="SE_TRANSIENT_FIELD_NOT_RESTORED", justification = "Using custom serializer which Findbugs can't detect")
+    @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
+            justification = "Using custom serializer which Findbugs can't detect")
     private transient Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {

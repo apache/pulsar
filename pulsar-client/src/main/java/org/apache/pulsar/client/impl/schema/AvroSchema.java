@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -39,11 +41,6 @@ import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
-
 /**
  * An AVRO schema implementation.
  */
@@ -57,7 +54,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
         super(schemaInfo);
         this.pojoClassLoader = pojoClassLoader;
         boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
-        setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader, getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
+        setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader,
+                getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
         setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
     }
 
@@ -106,7 +104,14 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {
-        reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        addLogicalTypeConversions(reflectData, jsr310ConversionEnabled, true);
+    }
+
+    public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled,
+                                                 boolean decimalConversionEnabled) {
+        if (decimalConversionEnabled) {
+            reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        }
         reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
@@ -147,7 +152,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
 
         @Override
         public org.apache.avro.Schema getRecommendedSchema() {
-            return LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
+            return LogicalTypes.timestampMillis().addToSchema(
+                    org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
         }
     }
 

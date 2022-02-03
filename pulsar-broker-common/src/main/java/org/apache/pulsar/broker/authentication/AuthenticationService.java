@@ -28,7 +28,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -37,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Authentication service
+ * Authentication service.
  *
  */
 public class AuthenticationService implements Closeable {
@@ -104,7 +103,8 @@ public class AuthenticationService implements Closeable {
                 return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + ": " + e.getMessage(), e);
+                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
+                            + e.getMessage(), e);
                 }
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = e;
@@ -117,7 +117,8 @@ public class AuthenticationService implements Closeable {
                     return provider.authenticate(authenticationState.getAuthDataSource());
                 } catch (AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": " + e.getMessage(), e);
+                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
+                                + e.getMessage(), e);
                     }
                     // Ignore the exception because we don't know which authentication method is expected here.
                 }

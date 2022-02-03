@@ -214,6 +214,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 groupedEntries.computeIfAbsent(c, k -> new ArrayList<>()).add(entry);
                 consumerStickyKeyHashesMap.computeIfAbsent(c, k -> new HashSet<>()).add(stickyKeyHash);
             } else {
+                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
                 entry.release();
             }
         }
@@ -285,6 +286,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // acquire message-dispatch permits for already delivered messages
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
+            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
+                topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(permits, totalBytesSent);
+            }
             if (topic.getDispatchRateLimiter().isPresent()) {
                 topic.getDispatchRateLimiter().get().tryDispatchPermit(permits, totalBytesSent);
             }

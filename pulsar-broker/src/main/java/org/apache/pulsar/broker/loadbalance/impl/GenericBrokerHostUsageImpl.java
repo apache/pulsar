@@ -54,9 +54,9 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         this.totalCpuLimit = getTotalCpuLimit();
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkCpuLoad), CPU_CHECK_MILLIS,
+        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::checkCpuLoad), CPU_CHECK_MILLIS,
                 CPU_CHECK_MILLIS, TimeUnit.MILLISECONDS);
-        executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::doCalculateBrokerHostUsage),
+        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::doCalculateBrokerHostUsage),
                 hostUsageCheckIntervalMin,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }

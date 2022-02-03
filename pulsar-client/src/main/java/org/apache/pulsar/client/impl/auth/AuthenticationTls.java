@@ -18,20 +18,17 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import com.google.common.annotations.VisibleForTesting;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
-
-import com.google.common.annotations.VisibleForTesting;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  *

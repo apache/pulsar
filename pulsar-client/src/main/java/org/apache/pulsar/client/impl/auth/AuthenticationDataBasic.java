@@ -19,13 +19,11 @@
 
 package org.apache.pulsar.client.impl.auth;
 
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import java.util.Base64;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";

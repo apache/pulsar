@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.topologies;
 
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.testng.annotations.DataProvider;
 
 import java.util.stream.Stream;
@@ -75,6 +76,8 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         };
     }
 
+    protected PulsarAdmin pulsarAdmin;
+
     protected PulsarCluster pulsarCluster;
 
     public PulsarCluster getPulsarCluster() {
@@ -120,6 +123,8 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         beforeStartCluster();
 
         pulsarCluster.start();
+
+        pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
 
         log.info("Cluster {} is setup", spec.clusterName());
     }

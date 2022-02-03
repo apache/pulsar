@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
 public class ElasticSearchSinkRawDataTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
 
     private static ElasticsearchContainer container;
 

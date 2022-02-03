@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static java.util.Objects.requireNonNull;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -87,7 +86,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
                 // if lower and upper has different key/ledger then set ranges for lower-key only if
                 // a. bitSet already exist and given value is not the last value in the bitset.
                 // it will prevent setting up values which are not actually expected to set
-                // eg: (2:10..4:10] in this case , don't set any value for 2:10 and set [4:0..4:10]
+                // eg: (2:10..4:10] in this case, don't set any value for 2:10 and set [4:0..4:10]
                 if (rangeBitSet != null && (rangeBitSet.previousSetBit(rangeBitSet.size()) > lowerValueOpen)) {
                     int lastValue = rangeBitSet.previousSetBit(rangeBitSet.size());
                     rangeBitSet.set((int) lowerValue, (int) Math.max(lastValue, lowerValue) + 1);

@@ -25,7 +25,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -63,7 +62,7 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Gets a caller id (IP + role)
+     * Gets a caller id (IP + role).
      *
      * @return the web service caller identification
      */
@@ -117,7 +116,7 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Checks if user has super-user access or user is authorized to produce/consume on a given topic
+     * Checks if user has super-user access or user is authorized to produce/consume on a given topic.
      *
      * @param topic
      * @throws RestException
@@ -142,7 +141,7 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Checks if user is authorized to produce/consume on a given topic
+     * Checks if user is authorized to produce/consume on a given topic.
      *
      * @param topic
      * @return

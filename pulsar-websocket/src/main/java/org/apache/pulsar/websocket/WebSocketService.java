@@ -180,11 +180,11 @@ public class WebSocketService implements Closeable {
         }
 
         if (config.isBrokerClientTlsEnabled()) {
-			if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
-			} else if (isNotBlank(clusterData.getServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
-			}
+            if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
+            } else if (isNotBlank(clusterData.getServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
+            }
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
         } else {
@@ -234,14 +234,16 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean isAuthenticationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthenticationEnabled();
     }
 
     public boolean isAuthorizationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthorizationEnabled();
     }
 

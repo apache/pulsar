@@ -151,6 +151,7 @@
               <tag>${project.version}</tag>
               <buildArgs>
                 <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
+                <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
               </buildArgs>
             </configuration>
           </plugin>

@@ -105,6 +105,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
 
         sinkConfig.setConfigs(configs);
         sinkConfig.setRetainOrdering(false);
+        sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setAutoAck(true);
         sinkConfig.setCleanupSubscription(false);
         sinkConfig.setTimeoutMs(2000l);
@@ -114,11 +115,32 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setResources(Resources.getDefaultResources());
 
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        assertEquals(Function.SubscriptionType.SHARED, functionDetails.getSource().getSubscriptionType());
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertEquals(
                 new Gson().toJson(convertedConfig),
                 new Gson().toJson(sinkConfig)
         );
+
+        sinkConfig.setRetainOrdering(true);
+        sinkConfig.setRetainKeyOrdering(false);
+
+        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        assertEquals(Function.SubscriptionType.FAILOVER, functionDetails.getSource().getSubscriptionType());
+        convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(
+                new Gson().toJson(convertedConfig),
+                new Gson().toJson(sinkConfig));
+
+        sinkConfig.setRetainOrdering(false);
+        sinkConfig.setRetainKeyOrdering(true);
+
+        functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+        assertEquals(Function.SubscriptionType.KEY_SHARED, functionDetails.getSource().getSubscriptionType());
+        convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(
+                new Gson().toJson(convertedConfig),
+                new Gson().toJson(sinkConfig));
     }
 
     @Test
@@ -130,6 +152,18 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
             Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getRetainOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
+        }
+    }
+
+    @Test
+    public void testParseKeyRetainOrderingField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setRetainKeyOrdering(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getRetainKeyOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
         }
     }
 
@@ -254,6 +288,13 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     public void testMergeDifferentRetainOrdering() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("retainOrdering", true);
+        SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Retain Key Ordering cannot be altered")
+    public void testMergeDifferentRetainKeyOrdering() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("retainKeyOrdering", true);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
@@ -427,6 +468,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         sinkConfig.setRetainOrdering(false);
+        sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setConfigs(new HashMap<>());
         sinkConfig.setAutoAck(true);
         sinkConfig.setTimeoutMs(2000l);
