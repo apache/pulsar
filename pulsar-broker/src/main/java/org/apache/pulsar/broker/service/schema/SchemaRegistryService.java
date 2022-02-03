@@ -42,7 +42,8 @@ public interface SchemaRegistryService extends SchemaRegistry {
         return checkers;
     }
 
-    static SchemaRegistryService create(String schemaRegistryName, SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers) {
+    static SchemaRegistryService create(String schemaRegistryName, SchemaStorage schemaStorage,
+          Set<String> schemaRegistryCompatibilityCheckers) {
         if (schemaStorage != null) {
             try {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
@@ -52,7 +53,9 @@ public interface SchemaRegistryService extends SchemaRegistry {
                 return SchemaRegistryServiceWithSchemaDataValidator
                       .of(new SchemaRegistryServiceImpl(schemaStorage, checkers));
                 } else {
-                    return (SchemaRegistryService) Class.forName(schemaRegistryName).getDeclaredConstructor(SchemaStorage.class, Map.class).newInstance(schemaStorage, checkers);
+                    return (SchemaRegistryService) Class.forName(schemaRegistryName)
+                          .getDeclaredConstructor(SchemaStorage.class, Map.class)
+                          .newInstance(schemaStorage, checkers);
                 }
             } catch (Exception e) {
                 LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
