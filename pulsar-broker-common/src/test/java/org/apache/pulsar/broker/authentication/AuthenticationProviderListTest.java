@@ -202,7 +202,7 @@ public class AuthenticationProviderListTest {
     @Test
     public void testNewHttpAuthState() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getRemoteHost()).thenReturn("127.0.0.1");
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
         when(request.getRemotePort()).thenReturn(8080);
         AuthenticationState authStateAA = newHttpAuthState(request, SUBJECT_A);
         AuthenticationState authStateAB = newHttpAuthState(request, SUBJECT_B);
