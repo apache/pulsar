@@ -42,7 +42,29 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                           final String functionPkgUrl,
                           final FunctionConfig functionConfig,
                           final String clientRole,
-                          AuthenticationDataHttps clientAuthenticationDataHttps);
+                          AuthenticationDataSource clientAuthenticationDataHttps);
+
+    @Deprecated
+    default void registerFunction(final String tenant,
+                          final String namespace,
+                          final String functionName,
+                          final InputStream uploadedInputStream,
+                          final FormDataContentDisposition fileDetail,
+                          final String functionPkgUrl,
+                          final FunctionConfig functionConfig,
+                          final String clientRole,
+                          AuthenticationDataHttps clientAuthenticationDataHttps) {
+        registerFunction(
+                tenant,
+                namespace,
+                functionName,
+                uploadedInputStream,
+                fileDetail,
+                functionPkgUrl,
+                functionConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
 
     void updateFunction(final String tenant,
                         final String namespace,
@@ -52,8 +74,32 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                         final String functionPkgUrl,
                         final FunctionConfig functionConfig,
                         final String clientRole,
-                        AuthenticationDataHttps clientAuthenticationDataHttps,
+                        AuthenticationDataSource clientAuthenticationDataHttps,
                         UpdateOptionsImpl updateOptions);
+
+    @Deprecated
+    default void updateFunction(final String tenant,
+                        final String namespace,
+                        final String functionName,
+                        final InputStream uploadedInputStream,
+                        final FormDataContentDisposition fileDetail,
+                        final String functionPkgUrl,
+                        final FunctionConfig functionConfig,
+                        final String clientRole,
+                        AuthenticationDataHttps clientAuthenticationDataHttps,
+                        UpdateOptionsImpl updateOptions) {
+        updateFunction(
+                tenant,
+                namespace,
+                functionName,
+                uploadedInputStream,
+                fileDetail,
+                functionPkgUrl,
+                functionConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps,
+                updateOptions);
+    }
 
     void updateFunctionOnWorkerLeader(final String tenant,
                                       final String namespace,

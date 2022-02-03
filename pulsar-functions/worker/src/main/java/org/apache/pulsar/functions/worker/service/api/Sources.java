@@ -45,7 +45,29 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                         final String sourcePkgUrl,
                         final SourceConfig sourceConfig,
                         final String clientRole,
-                        AuthenticationDataHttps clientAuthenticationDataHttps);
+                        AuthenticationDataSource clientAuthenticationDataHttps);
+
+    @Deprecated
+    default void registerSource(final String tenant,
+                        final String namespace,
+                        final String sourceName,
+                        final InputStream uploadedInputStream,
+                        final FormDataContentDisposition fileDetail,
+                        final String sourcePkgUrl,
+                        final SourceConfig sourceConfig,
+                        final String clientRole,
+                        AuthenticationDataHttps clientAuthenticationDataHttps) {
+        registerSource(
+                tenant,
+                namespace,
+                sourceName,
+                uploadedInputStream,
+                fileDetail,
+                sourcePkgUrl,
+                sourceConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
 
     void updateSource(final String tenant,
                       final String namespace,
@@ -55,8 +77,32 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                       final String sourcePkgUrl,
                       final SourceConfig sourceConfig,
                       final String clientRole,
-                      AuthenticationDataHttps clientAuthenticationDataHttps,
+                      AuthenticationDataSource clientAuthenticationDataHttps,
                       UpdateOptionsImpl updateOptions);
+
+    @Deprecated
+    default void updateSource(final String tenant,
+                      final String namespace,
+                      final String sourceName,
+                      final InputStream uploadedInputStream,
+                      final FormDataContentDisposition fileDetail,
+                      final String sourcePkgUrl,
+                      final SourceConfig sourceConfig,
+                      final String clientRole,
+                      AuthenticationDataHttps clientAuthenticationDataHttps,
+                      UpdateOptionsImpl updateOptions) {
+        updateSource(
+                tenant,
+                namespace,
+                sourceName,
+                uploadedInputStream,
+                fileDetail,
+                sourcePkgUrl,
+                sourceConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps,
+                updateOptions);
+    }
 
 
     SourceStatus getSourceStatus(final String tenant,

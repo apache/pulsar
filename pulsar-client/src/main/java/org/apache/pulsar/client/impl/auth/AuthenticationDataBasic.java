@@ -29,7 +29,6 @@ import java.util.Base64;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
-    private static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
     private String httpAuthToken;
     private String commandAuthToken;
 

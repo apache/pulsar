@@ -45,7 +45,29 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                       final String sinkPkgUrl,
                       final SinkConfig sinkConfig,
                       final String clientRole,
-                      AuthenticationDataHttps clientAuthenticationDataHttps);
+                      AuthenticationDataSource clientAuthenticationDataHttps);
+
+    @Deprecated
+    default void registerSink(final String tenant,
+                      final String namespace,
+                      final String sinkName,
+                      final InputStream uploadedInputStream,
+                      final FormDataContentDisposition fileDetail,
+                      final String sinkPkgUrl,
+                      final SinkConfig sinkConfig,
+                      final String clientRole,
+                      AuthenticationDataHttps clientAuthenticationDataHttps) {
+        registerSink(
+                tenant,
+                namespace,
+                sinkName,
+                uploadedInputStream,
+                fileDetail,
+                sinkPkgUrl,
+                sinkConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
 
     void updateSink(final String tenant,
                     final String namespace,
@@ -55,8 +77,32 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                     final String sinkPkgUrl,
                     final SinkConfig sinkConfig,
                     final String clientRole,
-                    AuthenticationDataHttps clientAuthenticationDataHttps,
+                    AuthenticationDataSource clientAuthenticationDataHttps,
                     UpdateOptionsImpl updateOptions);
+
+    @Deprecated
+    default void updateSink(final String tenant,
+                    final String namespace,
+                    final String sinkName,
+                    final InputStream uploadedInputStream,
+                    final FormDataContentDisposition fileDetail,
+                    final String sinkPkgUrl,
+                    final SinkConfig sinkConfig,
+                    final String clientRole,
+                    AuthenticationDataHttps clientAuthenticationDataHttps,
+                    UpdateOptionsImpl updateOptions) {
+        updateSink(
+                tenant,
+                namespace,
+                sinkName,
+                uploadedInputStream,
+                fileDetail,
+                sinkPkgUrl,
+                sinkConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps,
+                updateOptions);
+    }
 
     SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
                                                  final String namespace,

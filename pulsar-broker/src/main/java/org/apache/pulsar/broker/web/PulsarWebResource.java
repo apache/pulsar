@@ -48,7 +48,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
@@ -135,8 +134,8 @@ public abstract class PulsarWebResource {
         return httpRequest.getHeader(ORIGINAL_PRINCIPAL_HEADER);
     }
 
-    public AuthenticationDataHttps clientAuthData() {
-        return (AuthenticationDataHttps) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
+    public AuthenticationDataSource clientAuthData() {
+        return (AuthenticationDataSource) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
     }
 
     public boolean isRequestHttps() {
@@ -1051,7 +1050,7 @@ public abstract class PulsarWebResource {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
 
-            AuthenticationDataHttps authData = clientAuthData();
+            AuthenticationDataSource authData = clientAuthData();
             authData.setSubscription(subscription);
 
             Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()

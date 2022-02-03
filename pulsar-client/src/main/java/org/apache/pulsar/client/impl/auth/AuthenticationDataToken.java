@@ -28,9 +28,6 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataToken implements AuthenticationDataProvider {
     public static final String HTTP_HEADER_NAME = "Authorization";
-
-    private static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
-
     private final Supplier<String> tokenSupplier;
 
     public AuthenticationDataToken(Supplier<String> tokenSupplier) {

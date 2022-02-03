@@ -48,6 +48,8 @@ public class AuthenticationFilter implements Filter {
 
     public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
     public static final String AuthenticatedDataAttributeName = AuthenticationFilter.class.getName() + "-data";
+    public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
+
 
     public AuthenticationFilter(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
@@ -75,17 +77,24 @@ public class AuthenticationFilter implements Filter {
 
             if (!isSaslRequest(httpRequest)) {
                 // not sasl type, return role directly.
-                String role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
-                request.setAttribute(AuthenticatedRoleAttributeName, role);
-                String authMethodName = httpRequest.getHeader("X-Pulsar-Auth-Method-Name");
+                String authMethodName = httpRequest.getHeader(PULSAR_AUTH_METHOD_NAME);
+                AuthenticationState authenticationState = null;
                 if (authMethodName != null && authenticationService.getAuthenticationProvider(authMethodName) != null) {
-                    AuthenticationState authenticationState = authenticationService
+                    authenticationState = authenticationService
                             .getAuthenticationProvider(authMethodName).newHttpAuthState(httpRequest);
                     request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
                 } else {
                     request.setAttribute(AuthenticatedDataAttributeName,
                             new AuthenticationDataHttps((HttpServletRequest) request));
                 }
+                String role;
+                if (authenticationState != null ) {
+                    role = authenticationService.authenticateHttpRequest((HttpServletRequest) request, authenticationState.getAuthDataSource());
+                } else {
+                    role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
+                }
+                request.setAttribute(AuthenticatedRoleAttributeName, role);
+
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);
                 }

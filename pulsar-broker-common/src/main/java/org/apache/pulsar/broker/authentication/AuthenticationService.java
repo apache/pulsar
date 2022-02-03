@@ -32,6 +32,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,9 +86,9 @@ public class AuthenticationService implements Closeable {
         }
     }
 
-    public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
+    public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData) throws AuthenticationException {
         AuthenticationException authenticationException = null;
-        String authMethodName = request.getHeader("X-Pulsar-Auth-Method-Name");
+        String authMethodName = request.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
 
         if (authMethodName != null) {
             AuthenticationProvider providerToUse = providers.get(authMethodName);
@@ -95,8 +96,10 @@ public class AuthenticationService implements Closeable {
                 throw new AuthenticationException(
                         String.format("Unsupported authentication method: [%s].", authMethodName));
             }
-            AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
-            AuthenticationDataSource authData = authenticationState.getAuthDataSource();
+            if (authData == null) {
+                AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
+                authData = authenticationState.getAuthDataSource();
+            }
             try {
                 return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
@@ -111,8 +114,7 @@ public class AuthenticationService implements Closeable {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     AuthenticationState authenticationState = provider.newHttpAuthState(request);
-                    AuthenticationDataSource authData = authenticationState.getAuthDataSource();
-                    return provider.authenticate(authData);
+                    return provider.authenticate(authenticationState.getAuthDataSource());
                 } catch (AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": " + e.getMessage(), e);
@@ -137,6 +139,10 @@ public class AuthenticationService implements Closeable {
             // No authentication required
             return "<none>";
         }
+    }
+
+    public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
+        return authenticateHttpRequest(request, null);
     }
 
     public AuthenticationProvider getAuthenticationProvider(String authMethodName) {
