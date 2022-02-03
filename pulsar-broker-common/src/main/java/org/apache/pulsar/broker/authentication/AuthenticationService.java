@@ -85,7 +85,8 @@ public class AuthenticationService implements Closeable {
         }
     }
 
-    public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData) throws AuthenticationException {
+    public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData)
+            throws AuthenticationException {
         AuthenticationException authenticationException = null;
         String authMethodName = request.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
 
