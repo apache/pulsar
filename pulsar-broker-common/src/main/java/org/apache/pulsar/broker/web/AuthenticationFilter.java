@@ -85,7 +85,7 @@ public class AuthenticationFilter implements Filter {
                             new AuthenticationDataHttps((HttpServletRequest) request));
                 }
                 String role;
-                if (authenticationState != null ) {
+                if (authenticationState != null) {
                     role = authenticationService.authenticateHttpRequest(
                             (HttpServletRequest) request, authenticationState.getAuthDataSource());
                 } else {
