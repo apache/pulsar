@@ -26,6 +26,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.naming.TopicName;
@@ -86,8 +87,12 @@ public class WebSocketWebResource {
     public AuthenticationDataSource authData() throws AuthenticationException {
         if (authData == null) {
             String authMethodName = httpRequest.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
-            authData = service().getAuthenticationService().getAuthenticationProvider(authMethodName)
-                    .newHttpAuthState(httpRequest).getAuthDataSource();
+            if (authMethodName != null && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
+                authData = service().getAuthenticationService().getAuthenticationProvider(authMethodName)
+                        .newHttpAuthState(httpRequest).getAuthDataSource();
+            } else {
+                authData = new AuthenticationDataHttps(httpRequest);
+            }
         }
         return authData;
     }
