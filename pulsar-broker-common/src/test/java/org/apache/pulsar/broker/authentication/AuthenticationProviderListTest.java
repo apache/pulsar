@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.authentication;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import javax.servlet.http.HttpServletRequest;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -201,6 +202,8 @@ public class AuthenticationProviderListTest {
     @Test
     public void testNewHttpAuthState() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRemoteHost()).thenReturn("127.0.0.1");
+        when(request.getRemotePort()).thenReturn(8080);
         AuthenticationState authStateAA = newHttpAuthState(request, SUBJECT_A);
         AuthenticationState authStateAB = newHttpAuthState(request, SUBJECT_B);
         AuthenticationState authStateBA = newHttpAuthState(request, SUBJECT_A);
