@@ -231,8 +231,15 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
         }
-        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        for (int i = 0; i < 500; i++) {
+            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+            if (message == null) {
+                return;
+            } else {
+                log.warn("Received redundant messages {}", message.getMessageId());
+            }
+        }
+        fail("No messages are consumed in PerformanceConsumer");
     }
 
 }
