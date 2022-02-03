@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import io.netty.channel.EventLoopGroup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -70,6 +71,8 @@ import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -119,6 +122,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
+
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        doReturn(eventLoopGroup).when(brokerMock).executor();
+        doAnswer(invocation -> {
+            ((Runnable)invocation.getArguments()[0]).run();
+            return null;
+        }).when(eventLoopGroup).execute(any(Runnable.class));
 
         topicMock = mock(PersistentTopic.class);
         doReturn(brokerMock).when(topicMock).getBrokerService();
