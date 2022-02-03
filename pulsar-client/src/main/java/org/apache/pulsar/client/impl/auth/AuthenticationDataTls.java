@@ -93,7 +93,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return Collections.singletonMap(PULSAR_AUTH_METHOD_NAME, "tls").entrySet();
+        return Collections.singletonMap(PULSAR_AUTH_METHOD_NAME, AuthenticationTls.AUTH_METHOD_NAME).entrySet();
     }
 
     @Override

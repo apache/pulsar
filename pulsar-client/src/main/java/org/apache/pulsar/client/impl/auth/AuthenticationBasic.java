@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.Map;
 
 public class AuthenticationBasic implements Authentication, EncodedAuthenticationParameterSupport {
+    static final String AUTH_METHOD_NAME = "basic";
     private String userId;
     private String password;
 
@@ -40,7 +41,7 @@ public class AuthenticationBasic implements Authentication, EncodedAuthenticatio
 
     @Override
     public String getAuthMethodName() {
-        return "basic";
+        return AUTH_METHOD_NAME;
     }
 
     @Override

@@ -42,7 +42,7 @@ public class AuthenticationDataToken implements AuthenticationDataProvider {
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
         Map<String, String> headers = new HashMap<>();
-        headers.put(PULSAR_AUTH_METHOD_NAME, "token");
+        headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationToken.AUTH_METHOD_NAME);
         headers.put(HTTP_HEADER_NAME, "Bearer " + getToken());
         return headers.entrySet();
     }

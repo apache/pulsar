@@ -41,7 +41,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  *
  */
 public class AuthenticationTls implements Authentication, EncodedAuthenticationParameterSupport {
-    private static final String AUTH_NAME = "tls";
+    static final String AUTH_METHOD_NAME = "tls";
     private static final long serialVersionUID = 1L;
 
     private String certFilePath;
@@ -76,7 +76,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     @Override
     public String getAuthMethodName() {
-        return AUTH_NAME;
+        return AUTH_METHOD_NAME;
     }
 
     @Override

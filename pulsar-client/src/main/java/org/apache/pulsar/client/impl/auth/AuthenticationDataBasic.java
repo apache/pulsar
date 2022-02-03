@@ -46,7 +46,7 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
     public Set<Map.Entry<String, String>> getHttpHeaders() {
         Map<String, String> headers = new HashMap<>();
         headers.put(HTTP_HEADER_NAME, httpAuthToken);
-        headers.put(PULSAR_AUTH_METHOD_NAME, "basic");
+        headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationBasic.AUTH_METHOD_NAME);
         return headers.entrySet();
     }
 
