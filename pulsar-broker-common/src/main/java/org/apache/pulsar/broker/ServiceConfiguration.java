@@ -2235,6 +2235,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + ".BookkeeperSchemaStorageFactory";
 
     @FieldContext(
+          category = CATEGORY_SCHEMA,
+          doc = "The schema registry implementation used by this broker"
+    )
+    private String schemaRegistryClassName = "org.apache.pulsar.broker.service.schema"
+          + ".SchemaRegistryServiceImpl";
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The list compatibility checkers to be used in schema registry"
     )
