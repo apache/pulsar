@@ -86,7 +86,8 @@ public class WebSocketWebResource {
     public AuthenticationDataSource authData() throws AuthenticationException {
         if (authData == null) {
             String authMethodName = httpRequest.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
-            if (authMethodName != null && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
+            if (authMethodName != null
+                    && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
                 authData = service().getAuthenticationService().getAuthenticationProvider(authMethodName)
                         .newHttpAuthState(httpRequest).getAuthDataSource();
             } else {
