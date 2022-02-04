@@ -69,14 +69,14 @@ public final class AuthenticationFactoryOAuth2 {
      *              If the value contains multiple space-delimited strings, their order does not matter,
      *              and each string adds an additional access range to the requested scope.
      *              From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
-     * @param expiryAdjustment A field that represents how early to start attempting to refresh the access token.
-     *                         See {@link AuthenticationOAuth2} for details.
+     * @param earlyTokenRefreshPercent A field that represents how early to start attempting to refresh the access
+     *                                 token. See {@link AuthenticationOAuth2} for details.
      * @return an Authentication object
      */
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope,
-                                                   double expiryAdjustment) {
+                                                   double earlyTokenRefreshPercent) {
         ClientCredentialsFlow flow = buildFlow(issuerUrl, credentialsUrl, audience, scope);
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), expiryAdjustment);
+        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), earlyTokenRefreshPercent);
     }
 
     /**

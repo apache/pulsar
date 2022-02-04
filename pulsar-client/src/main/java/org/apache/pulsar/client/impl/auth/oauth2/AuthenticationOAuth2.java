@@ -76,7 +76,6 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     private static final long serialVersionUID = 1L;
     private static final transient ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1);
 
-    private volatile double earlyTokenRefreshPercent;
     final Clock clock;
     volatile Flow flow;
     private transient volatile CachedToken cachedToken;
@@ -84,7 +83,8 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     // Only ever updated in synchronized block on class.
     private boolean isClosed = false;
 
-    // Only ever updated on the single scheduler thread. Does not need to be volatile.
+    // Only ever updated on the single scheduler thread. Do not need to be volatile.
+    private double earlyTokenRefreshPercent;
     private transient Backoff backoff;
     private transient ScheduledFuture<?> nextRefreshAttempt;
 
@@ -182,7 +182,8 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     /**
      * When we successfully get a token, we need to schedule the next attempt to refresh it.
      * This is done completely based on the "expires_in" value returned by the identity provider.
-     * The code is run on the single scheduler thread in order to ensure that the backoff is updated correctly.
+     * The code is run on the single scheduler thread in order to ensure that the backoff and the nextRefreshAttempt are
+     * updated safely.
      */
     private void handleSuccessfulTokenRefresh() {
         scheduler.execute(() -> {
@@ -232,11 +233,18 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         });
     }
 
-    private void setEarlyTokenRefreshPercent(double earlyRefreshPercent) {
-        if (earlyRefreshPercent <= 0) {
-            throw new IllegalArgumentException("ExpiryAdjustment must be greater than 0.");
+    /**
+     * Update the {@link #earlyTokenRefreshPercent}. By running this command on the single {@link #scheduler} thread,
+     * we remove a potential data race for updating {@link #earlyTokenRefreshPercent}.
+     * @param earlyTokenRefreshPercent - see javadoc for {@link AuthenticationOAuth2}. Must be greater than 0.
+     */
+    private void setEarlyTokenRefreshPercent(double earlyTokenRefreshPercent) {
+        if (earlyTokenRefreshPercent <= 0) {
+            throw new IllegalArgumentException("EarlyTokenRefreshPercent must be greater than 0.");
         }
-        this.earlyTokenRefreshPercent = earlyRefreshPercent;
+        scheduler.execute(() -> {
+            this.earlyTokenRefreshPercent = earlyTokenRefreshPercent;
+        });
     }
 
     private Backoff buildBackoff(int expiresInSeconds) {
@@ -252,7 +260,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     public synchronized void close() throws IOException {
         try {
             isClosed = true;
-            flow.close();
+            if (flow != null) {
+                flow.close();
+            }
         } catch (Exception e) {
             throw new IOException(e);
         } finally {

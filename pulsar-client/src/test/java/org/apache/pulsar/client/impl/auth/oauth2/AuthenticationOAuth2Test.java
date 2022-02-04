@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -35,7 +37,10 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
+
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import org.testng.annotations.BeforeMethod;
@@ -56,7 +61,7 @@ public class AuthenticationOAuth2Test {
     public void before() {
         this.clock = new MockClock(Instant.EPOCH, ZoneOffset.UTC);
         this.flow = mock(Flow.class);
-        this.auth = new AuthenticationOAuth2(flow, this.clock, 0.9);
+        this.auth = new AuthenticationOAuth2(flow, this.clock, 1);
     }
 
     @Test
@@ -112,7 +117,7 @@ public class AuthenticationOAuth2Test {
     }
 
     @Test
-    public void testGetAuthData() throws Exception {
+    public void testGetAuthDataNoEarlyRefresh() throws Exception {
         AuthenticationDataProvider data;
         TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(TEST_EXPIRES_IN).build();
         doReturn(tr).when(this.flow).authenticate();
@@ -125,11 +130,51 @@ public class AuthenticationOAuth2Test {
         verify(this.flow, times(1)).authenticate();
         assertEquals(data.getCommandData(), tr.getAccessToken());
 
-        // cache miss
-        clock.advance(Duration.ofSeconds(TEST_EXPIRES_IN));
+        // cache miss (have to move passed expiration b/c we refresh when token is expired now)
+        // NOTE: this works because the token uses the mocked clock.
+        clock.advance(Duration.ofSeconds(TEST_EXPIRES_IN + 1));
         data = this.auth.getAuthData();
         verify(this.flow, times(2)).authenticate();
         assertEquals(data.getCommandData(), tr.getAccessToken());
+    }
+
+    // This test skips the early refresh logic and just ensures that if the class were to somehow fail
+    // to refresh the token before expiration, the caller will get one final attempt at calling authenticate
+    @Test
+    public void testGetAuthDataWithEarlyRefresh() throws Exception {
+        @Cleanup AuthenticationOAuth2 auth = new AuthenticationOAuth2(flow, this.clock, 0.8);
+        AuthenticationDataProvider data;
+        TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(TEST_EXPIRES_IN).build();
+        doReturn(tr).when(this.flow).authenticate();
+        data = auth.getAuthData();
+        verify(this.flow, times(1)).authenticate();
+        assertEquals(data.getCommandData(), tr.getAccessToken());
+
+        // cache hit
+        data = auth.getAuthData();
+        verify(this.flow, times(1)).authenticate();
+        assertEquals(data.getCommandData(), tr.getAccessToken());
+
+        // cache miss (have to move passed expiration b/c we refresh when token is expired now)
+        clock.advance(Duration.ofSeconds(TEST_EXPIRES_IN + 1));
+        data = auth.getAuthData();
+        verify(this.flow, times(2)).authenticate();
+        assertEquals(data.getCommandData(), tr.getAccessToken());
+    }
+
+    // This test ensures that the early token refresh actually calls the authenticate method in the background.
+    @Test
+    public void testEarlyTokenRefreshCallsAuthenticate() throws Exception {
+        @Cleanup AuthenticationOAuth2 auth = new AuthenticationOAuth2(flow, this.clock, 0.1);
+        TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(1).build();
+        doReturn(tr).when(this.flow).authenticate();
+        // Initialize the flow
+        auth.getAuthData();
+        // Give the auth token refresh a chance to run multiple times
+        Thread.sleep(1000);
+        auth.close();
+        verify(this.flow, atLeast(2)).authenticate();
+        verify(this.flow).close();
     }
 
     @Test
@@ -142,5 +187,6 @@ public class AuthenticationOAuth2Test {
     public void testClose() throws Exception {
         this.auth.close();
         verify(this.flow).close();
+        assertThrows(PulsarClientException.AlreadyClosedException.class, () -> this.auth.getAuthData());
     }
 }
