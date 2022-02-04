@@ -90,23 +90,20 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Tenant does not exist")})
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
-        final String clientAppId = clientAppId();
-        try {
-            validateSuperUserAccess();
-        } catch (Exception e) {
-            asyncResponse.resume(e);
-        }
-
-        tenantResources().getTenantAsync(tenant).whenComplete((tenantInfo, e) -> {
-            if (e != null) {
-                log.error("[{}] Failed to get Tenant {}", clientAppId, e.getMessage());
-                asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get Tenant"));
-                return;
-            }
-            boolean response = tenantInfo.isPresent() ? asyncResponse.resume(tenantInfo.get())
-                    : asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant does not exist"));
-            return;
-        });
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
+                .thenAccept(tenantInfo -> {
+                    if (!tenantInfo.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
+                    } else {
+                        log.info("[{}] Successfully get Tenant.", clientAppId());
+                        asyncResponse.resume(tenantInfo.get());
+                    }
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to get Tenant {}", clientAppId(), realCause);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
+                });
     }
 
     @PUT
