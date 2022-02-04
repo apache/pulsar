@@ -29,15 +29,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
@@ -120,58 +116,34 @@ public class TenantsBase extends PulsarWebResource {
     public void createTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl tenantInfo) {
-
-        final String clientAppId = clientAppId();
-        try {
-            validateSuperUserAccess();
-            validatePoliciesReadOnlyAccess();
-            validateClusters(tenantInfo);
-            NamedEntity.checkName(tenant);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create tenant with invalid name {}", clientAppId(), tenant, e);
-            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
-            return;
-        } catch (Exception e) {
-            asyncResponse.resume(e);
-            return;
-        }
-
-        tenantResources().listTenantsAsync().whenComplete((tenants, e) -> {
-            if (e != null) {
-                log.error("[{}] Failed to create tenant ", clientAppId, e.getCause());
-                asyncResponse.resume(new RestException(e));
-                return;
-            }
-
-            int maxTenants = pulsar().getConfiguration().getMaxTenants();
-            // Due to the cost of distributed locks, no locks are added here.
-            // In a concurrent scenario, the threshold will be exceeded.
-            if (maxTenants > 0) {
-                if (tenants != null && tenants.size() >= maxTenants) {
-                    asyncResponse.resume(
-                            new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants"));
-                    return;
-                }
-            }
-            tenantResources().tenantExistsAsync(tenant).thenAccept(exist -> {
-                if (exist) {
-                    asyncResponse.resume(new RestException(Status.CONFLICT, "Tenant already exist"));
-                    return;
-                }
-                tenantResources().createTenantAsync(tenant, tenantInfo).thenAccept((r) -> {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> validateClustersAsync(tenantInfo))
+                .thenCompose(__ -> {
+                    NamedEntity.checkName(tenant);
+                    return tenantResources().listTenantsAsync();
+                }).thenCompose(tenants -> {
+                    int maxTenants = pulsar().getConfiguration().getMaxTenants();
+                    // Due to the cost of distributed locks, no locks are added here.
+                    // In a concurrent scenario, the threshold will be exceeded.
+                    if (maxTenants > 0) {
+                        if (tenants != null && tenants.size() >= maxTenants) {
+                           throw new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants");
+                        }
+                    }
+                    return tenantResources().tenantExistsAsync(tenant);
+                }).thenCompose(tenantExist -> {
+                    if (tenantExist) {
+                        throw new RestException(Status.CONFLICT, "Tenant already exist");
+                    }
+                    return tenantResources().createTenantAsync(tenant, tenantInfo);
+                }).thenAccept(__ -> {
                     log.info("[{}] Created tenant {}", clientAppId(), tenant);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to create tenant {}", clientAppId, tenant, e);
-                    asyncResponse.resume(new RestException(ex));
-                    return null;
+                    log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
                 });
-            }).exceptionally(ex -> {
-                log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, e);
-                asyncResponse.resume(new RestException(ex));
-                return null;
-            });
-        });
     }
 
     @POST
@@ -332,29 +304,39 @@ public class TenantsBase extends PulsarWebResource {
         });
     }
 
-    private void validateClusters(TenantInfo info) {
+    private CompletableFuture<Void> validateClustersAsync(TenantInfo info) {
         // empty cluster shouldn't be allowed
         if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c))
                 .collect(Collectors.toSet()).isEmpty()
-                || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
+                || info.getAllowedClusters().stream().anyMatch(StringUtils::isBlank)) {
             log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
-            throw new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty"));
         }
+       return clusterResources().listAsync()
+                .thenAccept(availableClusters -> {
+                    Set<String> allowedClusters = info.getAllowedClusters();
+                    List<String>  nonexistentClusters = allowedClusters.stream().filter(
+                                    cluster -> !(availableClusters.contains(cluster)
+                                            || Constants.GLOBAL_CLUSTER.equals(cluster)))
+                            .collect(Collectors.toList());
+                    if (nonexistentClusters.size() > 0) {
+                        log.warn("[{}] Failed to validate due to clusters {} do not exist",
+                                clientAppId(), nonexistentClusters);
+                        throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
+                    }
+                });
+    }
 
-        List<String> nonexistentClusters;
+    private void validateClusters(TenantInfo info) {
         try {
-            Set<String> availableClusters = clusterResources().list();
-            Set<String> allowedClusters = info.getAllowedClusters();
-            nonexistentClusters = allowedClusters.stream().filter(
-                    cluster -> !(availableClusters.contains(cluster) || Constants.GLOBAL_CLUSTER.equals(cluster)))
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("[{}] Failed to get available clusters", clientAppId(), e);
-            throw new RestException(e);
-        }
-        if (nonexistentClusters.size() > 0) {
-            log.warn("[{}] Failed to validate due to clusters {} do not exist", clientAppId(), nonexistentClusters);
-            throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
+            validateClustersAsync(info).get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(ex);
+            }
         }
     }
 }

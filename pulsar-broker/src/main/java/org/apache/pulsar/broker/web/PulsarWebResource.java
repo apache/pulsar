@@ -1010,14 +1010,26 @@ public abstract class PulsarWebResource {
 
     public void validatePoliciesReadOnlyAccess() {
         try {
-            if (namespaceResources().getPoliciesReadOnly()) {
-                log.debug("Policies are read-only. Broker cannot do read-write operations");
-                throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
+            validatePoliciesReadOnlyAccessAsync()
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(ex);
             }
-        } catch (Exception e) {
-            log.warn("Unable to fetch read-only policy config ", e);
-            throw new RestException(e);
         }
+    }
+
+    public CompletableFuture<Void> validatePoliciesReadOnlyAccessAsync() {
+        return namespaceResources().getPoliciesReadOnlyAsync()
+                .thenAccept(readOnly -> {
+                    if (readOnly) {
+                        log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
+                    }
+                });
     }
 
     protected CompletableFuture<Void> hasActiveNamespace(String tenant) {
@@ -1175,4 +1187,5 @@ public abstract class PulsarWebResource {
         }
         return null;
     }
+
 }
