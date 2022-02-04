@@ -96,7 +96,7 @@ public class TenantsBase extends PulsarWebResource {
                     if (!tenantInfo.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     } else {
-                        log.info("[{}] Successfully get Tenant.", clientAppId());
+                        log.info("[{}] Successful get Tenant.", clientAppId());
                         asyncResponse.resume(tenantInfo.get());
                     }
                 }).exceptionally(ex -> {
