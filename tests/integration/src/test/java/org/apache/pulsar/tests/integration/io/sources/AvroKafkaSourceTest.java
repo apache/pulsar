@@ -78,7 +78,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     final Duration ONE_MINUTE = Duration.ofMinutes(1);
     final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-    final RetryPolicy statusRetryPolicy = dev.failsafe.RetryPolicy.builder()
+    final RetryPolicy statusRetryPolicy = RetryPolicy.builder()
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "))
