@@ -514,8 +514,9 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            Map<String, String> map = new HashMap<>();
-            if (metadata != null) {
+            Map<String, String> map = null;
+            if (metadata != null && !metadata.isEmpty()) {
+                map = new HashMap<>();
                 for (String property : metadata) {
                     if (!property.contains("=")) {
                         throw new ParameterException(String.format("Invalid key value pair '%s', "
