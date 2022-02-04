@@ -63,24 +63,19 @@ public class TenantsBase extends PulsarWebResource {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant doesn't exist")})
     public void getTenants(@Suspended final AsyncResponse asyncResponse) {
-        final String clientAppId = clientAppId();
-        try {
-            validateSuperUserAccess();
-        } catch (Exception e) {
-            asyncResponse.resume(e);
-            return;
-        }
-        tenantResources().listTenantsAsync().whenComplete((tenants, e) -> {
-            if (e != null) {
-                log.error("[{}] Failed to get tenants list", clientAppId, e);
-                asyncResponse.resume(new RestException(e));
-                return;
-            }
-            // deep copy the tenants to avoid concurrent sort exception
-            List<String> deepCopy = new ArrayList<>(tenants);
-            deepCopy.sort(null);
-            asyncResponse.resume(deepCopy);
-        });
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> tenantResources().listTenantsAsync())
+                .thenAccept(tenants -> {
+                    // deep copy the tenants to avoid concurrent sort exception
+                    List<String> deepCopy = new ArrayList<>(tenants);
+                    deepCopy.sort(null);
+                    asyncResponse.resume(deepCopy);
+                    log.info("[{}] Successfully get tenants list", clientAppId());
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to get tenants list", clientAppId(), realCause);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
+                });
     }
 
     @GET
