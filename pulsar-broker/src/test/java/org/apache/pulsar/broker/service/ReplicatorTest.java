@@ -1315,9 +1315,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
             Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
             Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
         });
-        cleanup();
-        setup();
-
     }
 
     private void initTransaction(int coordinatorSize, PulsarAdmin admin, String ServiceUrl,

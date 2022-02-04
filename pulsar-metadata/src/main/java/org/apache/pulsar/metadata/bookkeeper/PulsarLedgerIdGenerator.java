@@ -80,8 +80,19 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                         // Proceed
                         return internalGenerateShortLedgerId();
                     } else {
-                        return store.put(shortIdGenPath, new byte[0], Optional.empty())
-                                .thenCompose(__ -> internalGenerateShortLedgerId());
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        store.put(shortIdGenPath, new byte[0], Optional.of(-1L))
+                                .whenComplete((stat, throwable) -> {
+                                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+                                    if (cause == null
+                                            || cause instanceof MetadataStoreException.BadVersionException) {
+                                        // creat shortIdGenPath success or it already created by others.
+                                        future.complete(null);
+                                    } else {
+                                        future.completeExceptionally(throwable);
+                                    }
+                                });
+                        return future.thenCompose(__ -> internalGenerateShortLedgerId());
                     }
                 });
     }
