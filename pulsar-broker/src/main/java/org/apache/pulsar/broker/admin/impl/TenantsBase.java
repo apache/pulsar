@@ -100,8 +100,7 @@ public class TenantsBase extends PulsarWebResource {
                         asyncResponse.resume(tenantInfo.get());
                     }
                 }).exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to get Tenant {}", clientAppId(), realCause);
+                    log.error("[{}] Failed to get Tenant {}", clientAppId(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
