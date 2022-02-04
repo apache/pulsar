@@ -1885,7 +1885,10 @@ flexible messaging model and an intuitive client API.</description>
         <!-- see https://github.com/apache/pulsar/issues/8445 -->
         <maven.compiler.release>${maven.compiler.target}</maven.compiler.release>
         <!-- required for running tests on JDK11+ -->
-        <test.additional.args> --add-opens java.base/jdk.internal.loader=ALL-UNNAMED </test.additional.args>
+        <test.additional.args>
+          --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+          --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+        </test.additional.args>
       </properties>
       <build>
         <pluginManagement>
