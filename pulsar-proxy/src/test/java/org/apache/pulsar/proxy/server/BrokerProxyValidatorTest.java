@@ -29,6 +29,7 @@ import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.SucceededFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.concurrent.ExecutionException;
 import org.apache.curator.shaded.com.google.common.net.InetAddresses;
 import org.testng.annotations.Test;
 
@@ -47,8 +48,8 @@ public class BrokerProxyValidatorTest {
         assertEquals(inetSocketAddress.getPort(), 6650);
     }
 
-    @Test(expectedExceptions = TargetAddressDeniedException.class,
-            expectedExceptionsMessageRegExp = "Given host in 'myhost:6650' isn't allowed.")
+    @Test(expectedExceptions = ExecutionException.class,
+            expectedExceptionsMessageRegExp = ".*Given host in 'myhost:6650' isn't allowed.")
     public void shouldPreventInvalidHostName() throws Exception {
         BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
                 createMockedAddressResolver("1.2.3.4"),
