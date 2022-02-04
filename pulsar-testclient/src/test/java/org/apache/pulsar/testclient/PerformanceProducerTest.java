@@ -120,7 +120,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         }
 
         //use msg key generator,so every consumer can get msg
-        String newArgString = "%s -r 10 -u %s -m 500 -mk random";
+        String newArgString = "%s -r 10 -u %s -m 500 -mk autoIncrement";
         String topic2 = testTopic + UUID.randomUUID().toString();
         String newArgs = String.format(newArgString, topic2, pulsar.getBrokerServiceUrl());
         Thread thread2 = new Thread(() -> {

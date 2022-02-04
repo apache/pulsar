@@ -736,7 +736,7 @@ public class PerformanceProducer {
                     }
                     //generate msg key
                     if (msgKeyMode == MessageKeyGenerationMode.random) {
-                        messageBuilder.key(String.valueOf(random.nextInt(Integer.MAX_VALUE)));
+                        messageBuilder.key(String.valueOf(random.nextInt()));
                     } else if (msgKeyMode == MessageKeyGenerationMode.autoIncrement) {
                         messageBuilder.key(String.valueOf(totalSent));
                     }
