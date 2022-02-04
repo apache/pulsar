@@ -345,10 +345,10 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, properties, "partitions")
+        WebTarget path = topicPath(tn, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         Entity entity;
-        if (properties != null) {
+        if (properties != null && !properties.isEmpty()) {
             PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, properties);
             entity = Entity.entity(metadata, MediaType.valueOf(PartitionedTopicMetadata.MEDIA_TYPE));
         } else {
@@ -1247,22 +1247,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget namespacePath = base.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
-    }
-
-    /**
-     *  As we support topic metadata, user can add some properties when create topic.
-     *  For compatibility, we have to define a new method, so when metadata is not null, v3 will be called.
-     *  Details could be found here : https://github.com/apache/pulsar/pull/12818#discussion_r789340203
-     * @param topic
-     * @param metadata
-     * @param parts
-     * @return
-     */
-    private WebTarget topicPath(TopicName topic, Map<String, String> metadata, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2Topics : adminTopics;
-        WebTarget topicPath = base.path(topic.getRestPath());
-        topicPath = WebTargets.addParts(topicPath, parts);
-        return topicPath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
