@@ -201,13 +201,29 @@ public class AuthenticationProviderListTest {
 
     @Test
     public void testNewHttpAuthState() throws Exception {
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
-        when(request.getRemotePort()).thenReturn(8080);
-        AuthenticationState authStateAA = newHttpAuthState(request, SUBJECT_A);
-        AuthenticationState authStateAB = newHttpAuthState(request, SUBJECT_B);
-        AuthenticationState authStateBA = newHttpAuthState(request, SUBJECT_A);
-        AuthenticationState authStateBB = newHttpAuthState(request, SUBJECT_B);
+        HttpServletRequest requestAA = mock(HttpServletRequest.class);
+        when(requestAA.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestAA.getRemotePort()).thenReturn(8080);
+        when(requestAA.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenAA);
+        AuthenticationState authStateAA = newHttpAuthState(requestAA, SUBJECT_A);
+
+        HttpServletRequest requestAB = mock(HttpServletRequest.class);
+        when(requestAB.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestAB.getRemotePort()).thenReturn(8080);
+        when(requestAB.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenAB);
+        AuthenticationState authStateAB = newHttpAuthState(requestAB, SUBJECT_B);
+
+        HttpServletRequest requestBA = mock(HttpServletRequest.class);
+        when(requestBA.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestBA.getRemotePort()).thenReturn(8080);
+        when(requestBA.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenBA);
+        AuthenticationState authStateBA = newHttpAuthState(requestBA, SUBJECT_A);
+
+        HttpServletRequest requestBB = mock(HttpServletRequest.class);
+        when(requestBB.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(requestBB.getRemotePort()).thenReturn(8080);
+        when(requestBB.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenBB);
+        AuthenticationState authStateBB = newHttpAuthState(requestBB, SUBJECT_B);
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(6));
 

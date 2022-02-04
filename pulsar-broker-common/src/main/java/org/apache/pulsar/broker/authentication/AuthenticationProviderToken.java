@@ -38,6 +38,7 @@ import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -163,6 +164,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
             throws AuthenticationException {
         return new TokenAuthenticationState(this, authData, remoteAddress, sslSession);
+    }
+
+    @Override
+    public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
+        return new TokenAuthenticationHttpState(this, request);
     }
 
     public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
@@ -362,5 +368,60 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         public boolean isExpired() {
             return expiration < System.currentTimeMillis();
         }
+    }
+
+    private static final class TokenAuthenticationHttpState implements AuthenticationState {
+
+        private final AuthenticationProviderToken provider;
+        private AuthenticationDataSource authenticationDataSource;
+        private Jwt<?, Claims> jwt;
+        private long expiration;
+
+        TokenAuthenticationHttpState(AuthenticationProviderToken provider, HttpServletRequest request)
+                throws AuthenticationException {
+            this.provider = provider;
+            String httpHeaderValue = request.getHeader(HTTP_HEADER_NAME);
+            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+                throw new AuthenticationException("Invalid HTTP Authorization header");
+            }
+
+            // Remove prefix
+            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            this.jwt = provider.authenticateToken(token);
+            this.authenticationDataSource = new AuthenticationDataHttps(request);
+            if (jwt.getBody().getExpiration() != null) {
+                this.expiration = jwt.getBody().getExpiration().getTime();
+            } else {
+                // Disable expiration
+                this.expiration = Long.MAX_VALUE;
+            }
+        }
+
+        @Override
+        public String getAuthRole() throws AuthenticationException {
+            return provider.getPrincipal(jwt);
+        }
+
+        @Override
+        public AuthenticationDataSource getAuthDataSource() {
+            return authenticationDataSource;
+        }
+
+        @Override
+        public AuthData authenticate(AuthData authData) throws AuthenticationException {
+            return null;
+        }
+
+        @Override
+        public boolean isComplete() {
+            // The authentication of tokens is always done in one single stage
+            return true;
+        }
+
+        @Override
+        public boolean isExpired() {
+            return expiration < System.currentTimeMillis();
+        }
+
     }
 }
