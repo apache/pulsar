@@ -236,7 +236,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                         waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
                         return true;
                     } catch (Throwable ex) {
-                        log.error("Error while getting source status, will retry", ex);
+                        log.error("Error while processing source messages, will retry", ex);
                         return false;
                     }
                 });
