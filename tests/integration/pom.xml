@@ -172,7 +172,7 @@
     </dependency>
 
     <dependency>
-      <groupId>net.jodah</groupId>
+      <groupId>dev.failsafe</groupId>
       <artifactId>failsafe</artifactId>
       <version>${failsafe.version}</version>
       <scope>test</scope>

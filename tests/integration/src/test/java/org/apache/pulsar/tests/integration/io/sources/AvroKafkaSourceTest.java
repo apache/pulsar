@@ -19,11 +19,11 @@
 package org.apache.pulsar.tests.integration.io.sources;
 
 import com.google.gson.Gson;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
@@ -78,10 +78,11 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     final Duration ONE_MINUTE = Duration.ofMinutes(1);
     final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-    final RetryPolicy statusRetryPolicy = new RetryPolicy()
+    final RetryPolicy statusRetryPolicy = dev.failsafe.RetryPolicy.builder()
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
-            .onRetry(e -> log.error("Retry ... "));
+            .onRetry(e -> log.error("Retry ... "))
+            .build();
 
     private final String kafkaTopicName = "kafkasourcetopic";
 

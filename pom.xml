@@ -221,7 +221,7 @@ flexible messaging model and an intuitive client API.</description>
     <mockito.version>3.12.4</mockito.version>
     <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
-    <failsafe.version>2.3.1</failsafe.version>
+    <failsafe.version>3.2.0</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.0.3</awaitility.version>
