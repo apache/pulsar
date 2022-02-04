@@ -79,6 +79,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private LookupProxyHandler lookupProxyHandler = null;
     @Getter
     private DirectProxyHandler directProxyHandler = null;
+    private final BrokerProxyValidator brokerProxyValidator;
     String clientAuthRole;
     AuthData clientAuthData;
     String clientAuthMethod;
@@ -124,6 +125,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         this.service = proxyService;
         this.state = State.Init;
         this.sslHandlerSupplier = sslHandlerSupplier;
+        this.brokerProxyValidator = service.getBrokerProxyValidator();
     }
 
     @Override
@@ -252,7 +254,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         }
 
         LOG.info("[{}] complete connection, init proxy handler. authenticated with {} role {}, hasProxyToBrokerUrl: {}",
-            remoteAddress, authMethod, clientAuthRole, hasProxyToBrokerUrl);
+                remoteAddress, authMethod, clientAuthRole, hasProxyToBrokerUrl);
         if (hasProxyToBrokerUrl) {
             // Optimize proxy connection to fail-fast if the target broker isn't active
             // Pulsar client will retry connecting after a back off timeout
@@ -267,12 +269,25 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                         .addListener(future -> ctx().close());
                 return;
             }
-            // Client already knows which broker to connect. Let's open a
-            // connection there and just pass bytes in both directions
-            state = State.ProxyConnectionToBroker;
-            directProxyHandler = new DirectProxyHandler(service, this, proxyToBrokerUrl,
-                protocolVersionToAdvertise, sslHandlerSupplier);
-            cancelKeepAliveTask();
+
+            brokerProxyValidator.resolveAndCheckTargetAddress(proxyToBrokerUrl)
+                    .thenAccept(address -> ctx().executor().submit(() -> {
+                        // Client already knows which broker to connect. Let's open a
+                        // connection there and just pass bytes in both directions
+                        state = State.ProxyConnectionToBroker;
+                        directProxyHandler = new DirectProxyHandler(service, this, proxyToBrokerUrl, address,
+                                protocolVersionToAdvertise, sslHandlerSupplier);
+                    }))
+                    .exceptionally(throwable -> {
+                        LOG.warn("[{}] Target broker '{}' cannot be validated. authenticated with {} role {}.",
+                                remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole);
+                        ctx()
+                                .writeAndFlush(
+                                        Commands.newError(-1, ServerError.ServiceNotReady,
+                                                "Target broker cannot be validated."))
+                                .addListener(future -> ctx().close());
+                        return null;
+                    });
         } else {
             // Client is doing a lookup, we can consider the handshake complete
             // and we'll take care of just topics and

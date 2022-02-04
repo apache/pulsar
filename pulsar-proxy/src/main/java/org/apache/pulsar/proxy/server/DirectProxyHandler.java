@@ -84,9 +84,11 @@ public class DirectProxyHandler {
     private final Authentication authentication;
     private AuthenticationDataProvider authenticationDataProvider;
     private final ProxyService service;
+    private final Runnable onHandshakeCompleteAction;
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl,
-            int protocolVersion, Supplier<SslHandler> sslHandlerSupplier) {
+                              InetSocketAddress targetBrokerAddress, int protocolVersion,
+                              Supplier<SslHandler> sslHandlerSupplier) {
         this.service = service;
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
@@ -94,6 +96,7 @@ public class DirectProxyHandler {
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
+        this.onHandshakeCompleteAction = proxyConnection::cancelKeepAliveTask;
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -135,7 +138,7 @@ public class DirectProxyHandler {
             return;
         }
 
-        ChannelFuture f = b.connect(targetBroker.getHost(), targetBroker.getPort());
+        ChannelFuture f = b.connect(targetBrokerAddress);
         outboundChannel = f.channel();
         f.addListener(future -> {
             if (!future.isSuccess()) {
@@ -338,6 +341,7 @@ public class DirectProxyHandler {
 
             state = BackendState.HandshakeCompleted;
 
+            onHandshakeCompleteAction.run();
             startDirectProxying(connected);
 
             int maxMessageSize =

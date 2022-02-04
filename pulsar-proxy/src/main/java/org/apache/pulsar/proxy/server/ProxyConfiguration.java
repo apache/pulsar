@@ -168,7 +168,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "When enabled, checks that the target broker is active before connecting. "
                     + "zookeeperServers and configurationStoreServers must be configured in proxy configuration "
                     + "for retrieving the active brokers.")
-    private boolean checkActiveBrokers = true;
+    private boolean checkActiveBrokers = false;
 
     @FieldContext(
             category = CATEGORY_BROKER_PROXY,
@@ -183,6 +183,23 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "The timeout value for Broker proxy read timeout is in millisecond. Set to 0 to disable."
     )
     private int brokerProxyReadTimeoutMs = 75000;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target host names. "
+                    + "Supports multiple comma separated entries and a wildcard.")
+    private String brokerProxyAllowedHostNames = "*";
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target ip addresses or ip networks / netmasks. "
+                    + "Supports multiple comma separated entries.")
+    private String brokerProxyAllowedIPAddresses = "*";
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target ports")
+    String brokerProxyAllowedTargetPorts = "6650,6651";
 
     @FieldContext(
         category = CATEGORY_SERVER,
