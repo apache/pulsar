@@ -97,6 +97,11 @@ PulsarClient client = PulsarClient.builder()
     .build();
 ```
 
+In the Java Client, you can also specify a configuration named `earlyTokenRefreshPercent` via the `AuthenticationFactoryOAuth2`
+and the encoded parameters. The `earlyTokenRefreshPercent` must be greater than 0. If it is less than 1, the Java Client
+will start attempting to retrieve a new token when the `earlyTokenRefreshPercent` percent of the `expires_in` value has
+passed. If the value is greater than or equal to 1, the Java Client will not refresh the token until it has expired.
+
 ### C++ client
 
 The C++ client is similar to the Java client. You need to provide parameters of `issuerUrl`, `private_key` (the credentials file path), and `audience`.
