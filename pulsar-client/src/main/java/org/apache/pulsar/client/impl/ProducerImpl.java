@@ -1444,7 +1444,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
                             // schedule the first batch message task
                             batchTimerTask = cnx.ctx().executor()
-                                    .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                                    .scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
                                         if (log.isTraceEnabled()) {
                                             log.trace(
                                                     "[{}] [{}] Batching the messages from the batch container from "
