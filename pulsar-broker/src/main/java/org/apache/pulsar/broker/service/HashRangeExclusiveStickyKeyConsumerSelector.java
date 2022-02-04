@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.stream.Collectors;
-
-import com.google.common.collect.Lists;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This is a sticky-key consumer selector based user provided range.
@@ -68,22 +67,20 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
-        return rangeMap.entrySet().stream()
-                .collect(Collectors.groupingBy(Map.Entry::getValue))
-                .entrySet().stream().map(groupedEntry -> {
-                    Consumer consumer = groupedEntry.getKey();
-                    List<Integer> consumerHash = groupedEntry.getValue().stream()
-                            .map(Map.Entry::getKey)
-                            .sorted(Integer::compareTo)
-                            .collect(Collectors.toList());
-                    List<Range> ranges = Lists.newArrayList();
-                    for (int i = 0; i < consumerHash.size(); i++) {
-                        if (i % 2 != 0) {
-                            ranges.add(Range.of(consumerHash.get(i), consumerHash.get(i + 1)));
-                        }
-                    }
-                    return Pair.of(consumer, ranges);
-                }).collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+        Map<Consumer, List<Range>> result = new HashMap<>();
+        Map.Entry<Integer, Consumer> prev = null;
+        for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
+            if (prev == null) {
+                prev = entry;
+            } else {
+                if (prev.getValue().equals(entry.getValue())) {
+                    result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
+                            .add(Range.of(prev.getKey(), entry.getKey()));
+                }
+                prev = null;
+            }
+        }
+        return result;
     }
 
     @Override
