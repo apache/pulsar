@@ -47,9 +47,11 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
         super(delayInSeconds);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
-        this.tlsCertsFilePath = new FileModifiedTimeUpdater(authData.getTlsCerificateFilePath());
-        this.tlsPrivateKeyFilePath = new FileModifiedTimeUpdater(authData.getTlsPrivateKeyFilePath());
         this.authData = authData;
+        this.tlsCertsFilePath = new FileModifiedTimeUpdater(
+                authData != null ? authData.getTlsCerificateFilePath() : null);
+        this.tlsPrivateKeyFilePath = new FileModifiedTimeUpdater(
+                authData != null ? authData.getTlsPrivateKeyFilePath() : null);
     }
 
     @Override
