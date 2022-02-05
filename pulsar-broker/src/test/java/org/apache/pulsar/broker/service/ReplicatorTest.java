@@ -1317,7 +1317,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
         cleanup();
         setup();
-
     }
 
     private void initTransaction(int coordinatorSize, PulsarAdmin admin, String ServiceUrl,
