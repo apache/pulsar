@@ -70,11 +70,12 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
 
     public static final String CONFIG_PARAM_TYPE = "type";
     public static final String TYPE_CLIENT_CREDENTIALS = "client_credentials";
-    public static final String EARLY_TOKEN_REFRESH_PERCENT = "early_token_refresh_percent";
     public static final int EARLY_TOKEN_REFRESH_PERCENT_DEFAULT = 1; // feature disabled by default
     public static final String AUTH_METHOD_NAME = "token";
     private static final long serialVersionUID = 1L;
-    private static final transient ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1);
+    private final transient ScheduledThreadPoolExecutor scheduler;
+    private final boolean createdScheduler;
+    private final double earlyTokenRefreshPercent;
 
     final Clock clock;
     volatile Flow flow;
@@ -84,27 +85,49 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
     private boolean isClosed = false;
 
     // Only ever updated on the single scheduler thread. Do not need to be volatile.
-    private double earlyTokenRefreshPercent;
     private transient Backoff backoff;
     private transient ScheduledFuture<?> nextRefreshAttempt;
 
     // No args constructor used when creating class with reflection
     public AuthenticationOAuth2() {
-        this(null, Clock.systemDefaultZone());
+        this(Clock.systemDefaultZone(), EARLY_TOKEN_REFRESH_PERCENT_DEFAULT, null);
     }
 
-    AuthenticationOAuth2(Flow flow, Clock clock) {
-        this(flow, clock, EARLY_TOKEN_REFRESH_PERCENT_DEFAULT);
+    AuthenticationOAuth2(Flow flow,
+                         double earlyTokenRefreshPercent,
+                         ScheduledThreadPoolExecutor scheduler) {
+        this(flow, Clock.systemDefaultZone(), earlyTokenRefreshPercent, scheduler);
     }
 
-    AuthenticationOAuth2(Flow flow, Clock clock, double earlyTokenRefreshPercent) {
-        this(clock, earlyTokenRefreshPercent);
+    AuthenticationOAuth2(Flow flow,
+                         Clock clock,
+                         double earlyTokenRefreshPercent,
+                         ScheduledThreadPoolExecutor scheduler) {
+        this(clock, earlyTokenRefreshPercent, scheduler);
         this.flow = flow;
     }
 
-    private AuthenticationOAuth2(Clock clock, double earlyRefreshPercent) {
+    /**
+     * @param clock - clock to use when determining token expiration.
+     * @param earlyTokenRefreshPercent - see javadoc for {@link AuthenticationOAuth2}. Must be greater than 0.
+     * @param scheduler - The scheduler to use for background refreshes of the token. If null and the
+     *                  {@link #earlyTokenRefreshPercent} is less than 1, the client will create an internal scheduler.
+     *                  Otherwise, it will use the passed in scheduler. If the caller supplies a scheduler, the
+     *                  {@link AuthenticationOAuth2} will not close it.
+     */
+    private AuthenticationOAuth2(Clock clock, double earlyTokenRefreshPercent, ScheduledThreadPoolExecutor scheduler) {
+        if (earlyTokenRefreshPercent <= 0) {
+            throw new IllegalArgumentException("EarlyTokenRefreshPercent must be greater than 0.");
+        }
+        this.earlyTokenRefreshPercent = earlyTokenRefreshPercent;
         this.clock = clock;
-        setEarlyTokenRefreshPercent(earlyRefreshPercent);
+        if (scheduler == null && earlyTokenRefreshPercent < 1) {
+            this.scheduler = new ScheduledThreadPoolExecutor(1);
+            this.createdScheduler = true;
+        } else {
+            this.scheduler = scheduler;
+            this.createdScheduler = false;
+        }
     }
 
     @Override
@@ -124,16 +147,11 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
             throw new IllegalArgumentException("Malformed authentication parameters", e);
         }
 
-        setEarlyTokenRefreshPercent(Double.parseDouble(params.getOrDefault(EARLY_TOKEN_REFRESH_PERCENT,
-                Integer.toString(EARLY_TOKEN_REFRESH_PERCENT_DEFAULT))));
-
         String type = params.getOrDefault(CONFIG_PARAM_TYPE, TYPE_CLIENT_CREDENTIALS);
-        switch(type) {
-            case TYPE_CLIENT_CREDENTIALS:
-                this.flow = ClientCredentialsFlow.fromParameters(params);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported authentication type: " + type);
+        if (TYPE_CLIENT_CREDENTIALS.equals(type)) {
+            this.flow = ClientCredentialsFlow.fromParameters(params);
+        } else {
+            throw new IllegalArgumentException("Unsupported authentication type: " + type);
         }
     }
 
@@ -186,13 +204,15 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
      * updated safely.
      */
     private void handleSuccessfulTokenRefresh() {
-        scheduler.execute(() -> {
-            if (earlyTokenRefreshPercent < 1) {
-                backoff = buildBackoff(cachedToken.latest.getExpiresIn());
-                long expiresInMillis = TimeUnit.SECONDS.toMillis(cachedToken.latest.getExpiresIn());
-                scheduleRefresh((long) (expiresInMillis * earlyTokenRefreshPercent));
-            }
-        });
+        if (scheduler != null) {
+            scheduler.execute(() -> {
+                if (earlyTokenRefreshPercent < 1) {
+                    backoff = buildBackoff(cachedToken.latest.getExpiresIn());
+                    long expiresInMillis = TimeUnit.SECONDS.toMillis(cachedToken.latest.getExpiresIn());
+                    scheduleRefresh((long) (expiresInMillis * earlyTokenRefreshPercent));
+                }
+            });
+        }
     }
 
     /**
@@ -220,33 +240,6 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         nextRefreshAttempt = scheduler.schedule(this::refreshToken, delayMillis, TimeUnit.MILLISECONDS);
     }
 
-    /**
-     * Cancel the all subsequent refresh attempts by canceling the next token refresh attempt. By running this command
-     * on the single {@link #scheduler} thread, we remove the chance for a race condition that could allow a currently
-     * executing refresh attempt to schedule another refresh attempt.
-     */
-    private void cancelTokenRefresh() {
-        scheduler.execute(() -> {
-            if (nextRefreshAttempt != null) {
-                nextRefreshAttempt.cancel(false);
-            }
-        });
-    }
-
-    /**
-     * Update the {@link #earlyTokenRefreshPercent}. By running this command on the single {@link #scheduler} thread,
-     * we remove a potential data race for updating {@link #earlyTokenRefreshPercent}.
-     * @param earlyTokenRefreshPercent - see javadoc for {@link AuthenticationOAuth2}. Must be greater than 0.
-     */
-    private void setEarlyTokenRefreshPercent(double earlyTokenRefreshPercent) {
-        if (earlyTokenRefreshPercent <= 0) {
-            throw new IllegalArgumentException("EarlyTokenRefreshPercent must be greater than 0.");
-        }
-        scheduler.execute(() -> {
-            this.earlyTokenRefreshPercent = earlyTokenRefreshPercent;
-        });
-    }
-
     private Backoff buildBackoff(int expiresInSeconds) {
         return new BackoffBuilder()
                 .setInitialTime(1, TimeUnit.SECONDS)
@@ -266,7 +259,18 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         } catch (Exception e) {
             throw new IOException(e);
         } finally {
-            cancelTokenRefresh();
+            if (createdScheduler) {
+                this.scheduler.shutdownNow();
+            } else if (scheduler != null) {
+                // Cancel the all subsequent refresh attempts by canceling the next token refresh attempt. By running
+                // this command on the single scheduler thread, we remove the chance for a race condition that could
+                // allow a currently executing refresh attempt to schedule another refresh attempt.
+                scheduler.execute(() -> {
+                    if (nextRefreshAttempt != null) {
+                        nextRefreshAttempt.cancel(false);
+                    }
+                });
+            }
         }
     }
 

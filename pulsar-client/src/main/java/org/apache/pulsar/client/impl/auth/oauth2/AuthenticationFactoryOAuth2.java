@@ -19,13 +19,15 @@
 package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.net.URL;
-import java.time.Clock;
 import org.apache.pulsar.client.api.Authentication;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
  * for OAuth 2.0 authentication methods.
+ *
+ * Use {@link AuthenticationOAuth2Builder}.
  */
+@Deprecated
 public final class AuthenticationFactoryOAuth2 {
 
     /**
@@ -35,7 +37,9 @@ public final class AuthenticationFactoryOAuth2 {
      * @param credentialsUrl the credentials URL
      * @param audience An optional field. The audience identifier used by some Identity Providers, like Auth0.
      * @return an Authentication object
+     * @deprecated use {@link AuthenticationOAuth2Builder}, instead.
      */
+    @Deprecated
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience) {
         return clientCredentials(issuerUrl, credentialsUrl, audience, null);
     }
@@ -52,42 +56,16 @@ public final class AuthenticationFactoryOAuth2 {
      *              and each string adds an additional access range to the requested scope.
      *              From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
      * @return an Authentication object
+     * @deprecated use {@link AuthenticationOAuth2Builder}, instead.
      */
+    @Deprecated
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
-        ClientCredentialsFlow flow = buildFlow(issuerUrl, credentialsUrl, audience, scope);
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
-    }
-
-    /**
-     * Authenticate with client credentials.
-     *
-     * @param issuerUrl the issuer URL
-     * @param credentialsUrl the credentials URL
-     * @param audience An optional field. The audience identifier used by some Identity Providers, like Auth0.
-     * @param scope An optional field. The value of the scope parameter is expressed as a list of space-delimited,
-     *              case-sensitive strings. The strings are defined by the authorization server.
-     *              If the value contains multiple space-delimited strings, their order does not matter,
-     *              and each string adds an additional access range to the requested scope.
-     *              From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
-     * @param earlyTokenRefreshPercent A field that represents how early to start attempting to refresh the access
-     *                                 token. See {@link AuthenticationOAuth2} for details.
-     * @return an Authentication object
-     */
-    public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope,
-                                                   double earlyTokenRefreshPercent) {
-        ClientCredentialsFlow flow = buildFlow(issuerUrl, credentialsUrl, audience, scope);
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone(), earlyTokenRefreshPercent);
-    }
-
-    /**
-     * Internal method to build a {@link ClientCredentialsFlow}.
-     */
-    private static ClientCredentialsFlow buildFlow(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
-        return ClientCredentialsFlow.builder()
+        ClientCredentialsConfiguration config = ClientCredentialsConfiguration.builder()
                 .issuerUrl(issuerUrl)
-                .privateKey(credentialsUrl.toExternalForm())
+                .keyFileUrl(credentialsUrl)
                 .audience(audience)
                 .scope(scope)
                 .build();
+        return new AuthenticationOAuth2Builder().setClientCredentialsConfiguration(config).build();
     }
 }

@@ -46,25 +46,37 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
+    // Maps to the keyFileUrl
     public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
     public static final String CONFIG_PARAM_SCOPE = "scope";
 
     private static final long serialVersionUID = 1L;
 
     private final String audience;
-    private final String privateKey;
+    private final String keyFileUrl;
     private final String scope;
 
     private transient ClientCredentialsExchanger exchanger;
 
     private boolean initialized = false;
 
+    /**
+     * See {@link ClientCredentialsConfiguration} for field documentation.
+     */
     @Builder
-    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope) {
+    public ClientCredentialsFlow(URL issuerUrl, String audience, String keyFileUrl, String scope) {
         super(issuerUrl);
         this.audience = audience;
-        this.privateKey = privateKey;
+        this.keyFileUrl = keyFileUrl;
         this.scope = scope;
+    }
+
+    /**
+     * Constructor.
+     * @param config - see {@link ClientCredentialsConfiguration}.
+     */
+    public ClientCredentialsFlow(ClientCredentialsConfiguration config) {
+        this(config.getIssuerUrl(), config.getAudience(), config.getKeyFileUrl().toExternalForm(), config.getScope());
     }
 
     @Override
@@ -81,7 +93,7 @@ class ClientCredentialsFlow extends FlowBase {
         // read the private key from storage
         KeyFile keyFile;
         try {
-            keyFile = loadPrivateKey(this.privateKey);
+            keyFile = loadPrivateKey(this.keyFileUrl);
         } catch (IOException e) {
             throw new PulsarClientException.AuthenticationException("Unable to read private key: " + e.getMessage());
         }
@@ -126,7 +138,7 @@ class ClientCredentialsFlow extends FlowBase {
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .audience(audience)
-                .privateKey(privateKeyUrl)
+                .keyFileUrl(privateKeyUrl)
                 .scope(scope)
                 .build();
     }

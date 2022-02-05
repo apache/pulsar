@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -37,7 +38,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
-
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -61,7 +62,7 @@ public class AuthenticationOAuth2Test {
     public void before() {
         this.clock = new MockClock(Instant.EPOCH, ZoneOffset.UTC);
         this.flow = mock(Flow.class);
-        this.auth = new AuthenticationOAuth2(flow, this.clock, 1);
+        this.auth = new AuthenticationOAuth2(flow, this.clock, 1, null);
     }
 
     @Test
@@ -142,7 +143,7 @@ public class AuthenticationOAuth2Test {
     // to refresh the token before expiration, the caller will get one final attempt at calling authenticate
     @Test
     public void testGetAuthDataWithEarlyRefresh() throws Exception {
-        @Cleanup AuthenticationOAuth2 auth = new AuthenticationOAuth2(flow, this.clock, 0.8);
+        @Cleanup AuthenticationOAuth2 auth = new AuthenticationOAuth2(flow, this.clock, 0.8, null);
         AuthenticationDataProvider data;
         TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(TEST_EXPIRES_IN).build();
         doReturn(tr).when(this.flow).authenticate();
@@ -165,7 +166,7 @@ public class AuthenticationOAuth2Test {
     // This test ensures that the early token refresh actually calls the authenticate method in the background.
     @Test
     public void testEarlyTokenRefreshCallsAuthenticate() throws Exception {
-        @Cleanup AuthenticationOAuth2 auth = new AuthenticationOAuth2(flow, this.clock, 0.1);
+        @Cleanup AuthenticationOAuth2 auth = new AuthenticationOAuth2(flow, this.clock, 0.1, null);
         TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(1).build();
         doReturn(tr).when(this.flow).authenticate();
         // Initialize the flow
@@ -175,6 +176,23 @@ public class AuthenticationOAuth2Test {
         auth.close();
         verify(this.flow, atLeast(2)).authenticate();
         verify(this.flow).close();
+    }
+
+    // This test ensures scheduler is used when passed in
+    @Test
+    public void testEarlyTokenRefreshCallsAuthenticateWithParameterizedScheduler() throws Exception {
+        ScheduledThreadPoolExecutor scheduler = mock(ScheduledThreadPoolExecutor.class);
+        @Cleanup AuthenticationOAuth2 auth = new AuthenticationOAuth2(flow, this.clock, 0.1, scheduler);
+        TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(1).build();
+        doReturn(tr).when(this.flow).authenticate();
+        // Initialize the flow and trigger scheduling
+        auth.getAuthData();
+        verify(scheduler, times(1)).execute(any(Runnable.class));
+        // Close and verify that the passed in scheduler isn't shutdown
+        auth.close();
+        verify(this.flow).close();
+        verify(scheduler, times(0)).shutdownNow();
+        verify(scheduler, times(2)).execute(any(Runnable.class));
     }
 
     @Test
