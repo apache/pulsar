@@ -35,6 +35,8 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
     private volatile SslContext sslNettyContext;
     private boolean tlsAllowInsecureConnection;
     protected final FileModifiedTimeUpdater tlsTrustCertsFilePath;
+    protected final FileModifiedTimeUpdater tlsCertsFilePath;
+    protected final FileModifiedTimeUpdater tlsPrivateKeyFilePath;
     private AuthenticationDataProvider authData;
 
     public NettyClientSslContextRefresher(boolean allowInsecure,
@@ -45,6 +47,8 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
         super(delayInSeconds);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
+        this.tlsCertsFilePath = new FileModifiedTimeUpdater(authData.getTlsCerificateFilePath());
+        this.tlsPrivateKeyFilePath = new FileModifiedTimeUpdater(authData.getTlsPrivateKeyFilePath());
         this.authData = authData;
     }
 
@@ -73,6 +77,8 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
 
     @Override
     public boolean needUpdate() {
-        return  tlsTrustCertsFilePath.checkAndRefresh();
+        return tlsTrustCertsFilePath.checkAndRefresh() || tlsCertsFilePath.checkAndRefresh()
+                || tlsPrivateKeyFilePath.checkAndRefresh();
+
     }
 }
