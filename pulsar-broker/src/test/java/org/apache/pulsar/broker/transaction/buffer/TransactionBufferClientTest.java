@@ -248,16 +248,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferHandlerSemaphore() throws Exception {
-
-        Field field = TransactionBufferClientImpl.class.getDeclaredField("tbHandler");
-        field.setAccessible(true);
-        TransactionBufferHandlerImpl transactionBufferHandler = (TransactionBufferHandlerImpl) field.get(tbClient);
-
-        field = TransactionBufferHandlerImpl.class.getDeclaredField("semaphore");
-        field.setAccessible(true);
-        field.set(transactionBufferHandler, new Semaphore(2));
-
-
         String topic = "persistent://" + namespace + "/testTransactionBufferHandlerSemaphore";
         String subName = "test";
 
