@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10,"i61":10,"i62":10,"i63":10,"i64":10,"i65":10,"i66":10,"i67":10,"i68":10,"i69":10,"i70":10,"i71":10,"i72":10,"i73":10,"i74":10,"i75":10,"i76":10,"i77":10,"i78":10,"i79":10,"i80":10,"i81":10,"i82":10,"i83":10,"i84":10,"i85":10,"i86":10,"i87":10,"i88":10,"i89":10,"i90":10,"i91":10,"i92":10,"i93":10,"i94":10,"i95":10,"i96":10,"i97":10,"i98":10,"i99":10,"i100":10,"i101":10,"i102":10,"i103":10,"i104":10,"i105":10,"i106":10,"i107":10,"i108":10,"i109":10,"i110":10,"i111":10,"i112":10,"i113":10,"i114":10,"i115":10,"i116":10,"i117":10,"i118":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10,"i61":10,"i62":10,"i63":10,"i64":10,"i65":10,"i66":10,"i67":10,"i68":10,"i69":10,"i70":10,"i71":10,"i72":10,"i73":10,"i74":10,"i75":10,"i76":10,"i77":10,"i78":10,"i79":10,"i80":10,"i81":10,"i82":10,"i83":10,"i84":10,"i85":10,"i86":10,"i87":10,"i88":10,"i89":10,"i90":10,"i91":10,"i92":10,"i93":10,"i94":10,"i95":10,"i96":10,"i97":10,"i98":10,"i99":10,"i100":10,"i101":10,"i102":10,"i103":10,"i104":10,"i105":10,"i106":10,"i107":10,"i108":10,"i109":10,"i110":10,"i111":10,"i112":10,"i113":10,"i114":10,"i115":10,"i116":10,"i117":10,"i118":10,"i119":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -265,6 +265,16 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createPartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.common.partition.PartitionedTopicMetadata,boolean)">createPartitionedTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                      java.lang.String&nbsp;tenant,
+                      java.lang.String&nbsp;namespace,
+                      java.lang.String&nbsp;encodedTopic,
+                      org.apache.pulsar.common.partition.PartitionedTopicMetadata&nbsp;metadata,
+                      boolean&nbsp;createLocalTopicOnly)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#createSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.client.impl.ResetCursorData,boolean)">createSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
                   java.lang.String&nbsp;namespace,
@@ -275,7 +285,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;replicated)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteDeduplicationSnapshotInterval(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">deleteDeduplicationSnapshotInterval</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                    java.lang.String&nbsp;tenant,
@@ -285,7 +295,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                    boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteDelayedDeliveryPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">deleteDelayedDeliveryPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                              java.lang.String&nbsp;tenant,
@@ -295,7 +305,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                              boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteInactiveTopicPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">deleteInactiveTopicPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -305,7 +315,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteMaxUnackedMessagesOnConsumer(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">deleteMaxUnackedMessagesOnConsumer</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                   java.lang.String&nbsp;tenant,
@@ -315,7 +325,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                   boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteMaxUnackedMessagesOnSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">deleteMaxUnackedMessagesOnSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                       java.lang.String&nbsp;tenant,
@@ -325,7 +335,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                       boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deletePartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">deletePartitionedTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                       java.lang.String&nbsp;tenant,
@@ -336,7 +346,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                       boolean&nbsp;deleteSchema)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">deleteSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -347,7 +357,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteTopic(java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">deleteTopic</a></span>&#8203;(java.lang.String&nbsp;tenant,
            java.lang.String&nbsp;namespace,
@@ -357,7 +367,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
            boolean&nbsp;deleteSchema)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>javax.ws.rs.core.Response</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#examineMessage(java.lang.String,java.lang.String,java.lang.String,java.lang.String,long,boolean)">examineMessage</a></span>&#8203;(java.lang.String&nbsp;tenant,
               java.lang.String&nbsp;namespace,
@@ -367,7 +377,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#expireMessagesForAllSubscriptions(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,int,boolean)">expireMessagesForAllSubscriptions</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                  java.lang.String&nbsp;tenant,
@@ -377,7 +387,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                  boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#expireTopicMessages(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.client.impl.ResetCursorData)">expireTopicMessages</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                    java.lang.String&nbsp;tenant,
@@ -388,7 +398,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                    org.apache.pulsar.client.impl.ResetCursorData&nbsp;resetCursorData)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#expireTopicMessages(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,boolean)">expireTopicMessages</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                    java.lang.String&nbsp;tenant,
@@ -399,7 +409,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                    boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getBacklog(java.lang.String,java.lang.String,java.lang.String,boolean)">getBacklog</a></span>&#8203;(java.lang.String&nbsp;tenant,
           java.lang.String&nbsp;namespace,
@@ -407,7 +417,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
           boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getBacklogQuotaMap(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getBacklogQuotaMap</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -418,7 +428,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getBacklogSizeByMessageId(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.client.impl.MessageIdImpl)">getBacklogSizeByMessageId</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                          java.lang.String&nbsp;tenant,
@@ -428,7 +438,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                          org.apache.pulsar.client.impl.MessageIdImpl&nbsp;messageId)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getCompactionThreshold(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getCompactionThreshold</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                       java.lang.String&nbsp;tenant,
@@ -439,7 +449,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                       boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i23" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDeduplication(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getDeduplication</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;tenant,
@@ -450,7 +460,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i24" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDeduplicationSnapshotInterval(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getDeduplicationSnapshotInterval</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                 java.lang.String&nbsp;tenant,
@@ -460,7 +470,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                 boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDelayedDeliveryPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getDelayedDeliveryPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                           java.lang.String&nbsp;tenant,
@@ -471,7 +481,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                           boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -482,7 +492,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getInactiveTopicPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getInactiveTopicPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                         java.lang.String&nbsp;tenant,
@@ -493,7 +503,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                         boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.PersistentTopicInternalStats</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getInternalStats(java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getInternalStats</a></span>&#8203;(java.lang.String&nbsp;tenant,
                 java.lang.String&nbsp;namespace,
@@ -502,7 +512,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 boolean&nbsp;metadata)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getLastMessageId(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean)">getLastMessageId</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;tenant,
@@ -511,14 +521,14 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getList(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String)">getList</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
        java.lang.String&nbsp;tenant,
        java.lang.String&nbsp;namespace)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getManagedLedgerInfo(java.lang.String,java.lang.String,boolean,java.lang.String,javax.ws.rs.container.AsyncResponse)">getManagedLedgerInfo</a></span>&#8203;(java.lang.String&nbsp;tenant,
                     java.lang.String&nbsp;namespace,
@@ -527,7 +537,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                     javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i32" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaxConsumers(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getMaxConsumers</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -538,7 +548,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaxConsumersPerSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getMaxConsumersPerSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               java.lang.String&nbsp;tenant,
@@ -548,7 +558,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaxMessageSize(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getMaxMessageSize</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                  java.lang.String&nbsp;tenant,
@@ -558,7 +568,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                  boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaxProducers(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getMaxProducers</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -569,7 +579,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaxSubscriptionsPerTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getMaxSubscriptionsPerTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -579,7 +589,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaxUnackedMessagesOnConsumer(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getMaxUnackedMessagesOnConsumer</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                java.lang.String&nbsp;tenant,
@@ -590,7 +600,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMaxUnackedMessagesOnSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getMaxUnackedMessagesOnSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                    java.lang.String&nbsp;tenant,
@@ -601,7 +611,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                    boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMessageById(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,long,long,boolean)">getMessageById</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
               java.lang.String&nbsp;tenant,
@@ -612,7 +622,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMessageIdByTimestamp(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,long,boolean)">getMessageIdByTimestamp</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                        java.lang.String&nbsp;tenant,
@@ -622,7 +632,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                        boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i40" class="altColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getMessageTTL(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getMessageTTL</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
              java.lang.String&nbsp;tenant,
@@ -633,7 +643,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
              boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i41" class="rowColor">
+<tr id="i42" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getOffloadPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getOffloadPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -644,7 +654,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i42" class="altColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.partition.PartitionedTopicMetadata</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionedMetadata(java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getPartitionedMetadata</a></span>&#8203;(java.lang.String&nbsp;tenant,
                       java.lang.String&nbsp;namespace,
@@ -653,7 +663,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                       boolean&nbsp;checkAllowAutoCreation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionedStats(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean,boolean)">getPartitionedStats</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                    java.lang.String&nbsp;tenant,
@@ -666,7 +676,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                    boolean&nbsp;getEarliestTimeInBacklog)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionedStatsInternal(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean)">getPartitionedStatsInternal</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -675,20 +685,20 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>java.util.List&lt;java.lang.String&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPartitionedTopicList(java.lang.String,java.lang.String)">getPartitionedTopicList</a></span>&#8203;(java.lang.String&nbsp;tenant,
                        java.lang.String&nbsp;namespace)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code>java.util.Map&lt;java.lang.String,&#8203;java.util.Set&lt;org.apache.pulsar.common.policies.data.AuthAction&gt;&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPermissionsOnTopic(java.lang.String,java.lang.String,java.lang.String)">getPermissionsOnTopic</a></span>&#8203;(java.lang.String&nbsp;tenant,
                      java.lang.String&nbsp;namespace,
                      java.lang.String&nbsp;encodedTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPersistence(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getPersistence</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
               java.lang.String&nbsp;tenant,
@@ -699,7 +709,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getPublishRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getPublishRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
               java.lang.String&nbsp;tenant,
@@ -709,7 +719,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getReplicatedSubscriptionStatus(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean)">getReplicatedSubscriptionStatus</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                java.lang.String&nbsp;tenant,
@@ -719,7 +729,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i50" class="altColor">
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getReplicationClusters(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getReplicationClusters</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                       java.lang.String&nbsp;tenant,
@@ -729,7 +739,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                       boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i51" class="rowColor">
+<tr id="i52" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getReplicatorDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getReplicatorDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                          java.lang.String&nbsp;tenant,
@@ -740,7 +750,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                          boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i52" class="altColor">
+<tr id="i53" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getRetention(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getRetention</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
             java.lang.String&nbsp;tenant,
@@ -751,7 +761,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
             boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i53" class="rowColor">
+<tr id="i54" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSchemaCompatibilityStrategy(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getSchemaCompatibilityStrategy</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               java.lang.String&nbsp;tenant,
@@ -761,7 +771,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i54" class="altColor">
+<tr id="i55" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.TopicStats</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getStats(java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,boolean)">getStats</a></span>&#8203;(java.lang.String&nbsp;tenant,
         java.lang.String&nbsp;namespace,
@@ -772,7 +782,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
         boolean&nbsp;getEarliestTimeInBacklog)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i55" class="rowColor">
+<tr id="i56" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscribeRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getSubscribeRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;tenant,
@@ -783,7 +793,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i56" class="altColor">
+<tr id="i57" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscriptionDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean)">getSubscriptionDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -794,7 +804,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i57" class="rowColor">
+<tr id="i58" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscriptions(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean)">getSubscriptions</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;tenant,
@@ -803,7 +813,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i58" class="altColor">
+<tr id="i59" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscriptionTypesEnabled(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getSubscriptionTypesEnabled</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -813,7 +823,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i59" class="rowColor">
+<tr id="i60" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#grantPermissionsOnTopic(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Set)">grantPermissionsOnTopic</a></span>&#8203;(java.lang.String&nbsp;tenant,
                        java.lang.String&nbsp;namespace,
@@ -822,7 +832,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                        java.util.Set&lt;org.apache.pulsar.common.policies.data.AuthAction&gt;&nbsp;actions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i60" class="altColor">
+<tr id="i61" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.client.admin.OffloadProcessStatus</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#offloadStatus(java.lang.String,java.lang.String,java.lang.String,boolean)">offloadStatus</a></span>&#8203;(java.lang.String&nbsp;tenant,
              java.lang.String&nbsp;namespace,
@@ -830,7 +840,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
              boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i61" class="rowColor">
+<tr id="i62" class="altColor">
 <td class="colFirst"><code>javax.ws.rs.core.Response</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#peekNthMessage(java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,boolean)">peekNthMessage</a></span>&#8203;(java.lang.String&nbsp;tenant,
               java.lang.String&nbsp;namespace,
@@ -840,7 +850,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i62" class="altColor">
+<tr id="i63" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeBacklogQuota(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType,boolean,boolean)">removeBacklogQuota</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -851,7 +861,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;isGlobal)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i63" class="rowColor">
+<tr id="i64" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeCompactionThreshold(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeCompactionThreshold</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                          java.lang.String&nbsp;tenant,
@@ -861,7 +871,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                          boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i64" class="altColor">
+<tr id="i65" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeDeduplication(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeDeduplication</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                    java.lang.String&nbsp;tenant,
@@ -871,7 +881,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                    boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i65" class="rowColor">
+<tr id="i66" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -881,7 +891,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i66" class="altColor">
+<tr id="i67" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeMaxConsumers(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeMaxConsumers</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -891,7 +901,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i67" class="rowColor">
+<tr id="i68" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeMaxConsumersPerSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeMaxConsumersPerSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                  java.lang.String&nbsp;tenant,
@@ -901,7 +911,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                  boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i68" class="altColor">
+<tr id="i69" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeMaxMessageSize(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeMaxMessageSize</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                     java.lang.String&nbsp;tenant,
@@ -911,7 +921,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                     boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i69" class="rowColor">
+<tr id="i70" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeMaxProducers(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeMaxProducers</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -921,7 +931,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i70" class="altColor">
+<tr id="i71" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeMaxSubscriptionsPerTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeMaxSubscriptionsPerTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               java.lang.String&nbsp;tenant,
@@ -931,7 +941,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i71" class="rowColor">
+<tr id="i72" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeMessageTTL(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeMessageTTL</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;tenant,
@@ -941,7 +951,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i72" class="altColor">
+<tr id="i73" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeOffloadPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeOffloadPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                      java.lang.String&nbsp;tenant,
@@ -951,7 +961,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                      boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i73" class="rowColor">
+<tr id="i74" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removePersistence(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removePersistence</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                  java.lang.String&nbsp;tenant,
@@ -961,7 +971,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                  boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i74" class="altColor">
+<tr id="i75" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removePublishRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removePublishRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                  java.lang.String&nbsp;tenant,
@@ -971,7 +981,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                  boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i75" class="rowColor">
+<tr id="i76" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeReplicationClusters(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType,boolean)">removeReplicationClusters</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                          java.lang.String&nbsp;tenant,
@@ -981,7 +991,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                          boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i76" class="altColor">
+<tr id="i77" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeReplicatorDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeReplicatorDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                             java.lang.String&nbsp;tenant,
@@ -991,7 +1001,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                             boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i77" class="rowColor">
+<tr id="i78" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeRetention(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeRetention</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -1001,7 +1011,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i78" class="altColor">
+<tr id="i79" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeSchemaCompatibilityStrategy(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy)">removeSchemaCompatibilityStrategy</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                  java.lang.String&nbsp;tenant,
@@ -1011,7 +1021,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                  org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy&nbsp;strategy)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i79" class="rowColor">
+<tr id="i80" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeSubscribeRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.SubscribeRate)">removeSubscribeRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                    java.lang.String&nbsp;tenant,
@@ -1022,7 +1032,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                    org.apache.pulsar.common.policies.data.SubscribeRate&nbsp;subscribeRate)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i80" class="altColor">
+<tr id="i81" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeSubscriptionDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeSubscriptionDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               java.lang.String&nbsp;tenant,
@@ -1032,7 +1042,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i81" class="rowColor">
+<tr id="i82" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeSubscriptionTypesEnabled(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">removeSubscriptionTypesEnabled</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               java.lang.String&nbsp;tenant,
@@ -1042,7 +1052,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                               boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i82" class="altColor">
+<tr id="i83" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resetCursor(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,long,boolean)">resetCursor</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
            java.lang.String&nbsp;tenant,
@@ -1053,7 +1063,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i83" class="rowColor">
+<tr id="i84" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resetCursorOnPosition(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.client.impl.ResetCursorData)">resetCursorOnPosition</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                      java.lang.String&nbsp;tenant,
@@ -1064,7 +1074,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                      org.apache.pulsar.client.impl.ResetCursorData&nbsp;resetCursorData)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i84" class="altColor">
+<tr id="i85" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#revokePermissionsOnTopic(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">revokePermissionsOnTopic</a></span>&#8203;(java.lang.String&nbsp;tenant,
                         java.lang.String&nbsp;namespace,
@@ -1072,7 +1082,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                         java.lang.String&nbsp;role)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i85" class="rowColor">
+<tr id="i86" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setBacklogQuota(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType,org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl)">setBacklogQuota</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -1084,7 +1094,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl&nbsp;backlogQuota)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i86" class="altColor">
+<tr id="i87" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setCompactionThreshold(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,long)">setCompactionThreshold</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                       java.lang.String&nbsp;tenant,
@@ -1095,7 +1105,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                       long&nbsp;compactionThreshold)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i87" class="rowColor">
+<tr id="i88" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setDeduplication(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.Boolean)">setDeduplication</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;tenant,
@@ -1106,7 +1116,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 java.lang.Boolean&nbsp;enabled)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i88" class="altColor">
+<tr id="i89" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setDeduplicationSnapshotInterval(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,boolean,boolean)">setDeduplicationSnapshotInterval</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                 java.lang.String&nbsp;tenant,
@@ -1117,7 +1127,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                 boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i89" class="rowColor">
+<tr id="i90" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setDelayedDeliveryPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies)">setDelayedDeliveryPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                           java.lang.String&nbsp;tenant,
@@ -1128,7 +1138,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                           org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies&nbsp;deliveryPolicies)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i90" class="altColor">
+<tr id="i91" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.impl.DispatchRateImpl)">setDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -1139,7 +1149,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i91" class="rowColor">
+<tr id="i92" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setInactiveTopicPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.InactiveTopicPolicies)">setInactiveTopicPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                         java.lang.String&nbsp;tenant,
@@ -1150,7 +1160,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                         org.apache.pulsar.common.policies.data.InactiveTopicPolicies&nbsp;inactiveTopicPolicies)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i92" class="altColor">
+<tr id="i93" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMaxConsumers(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,int)">setMaxConsumers</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -1161,7 +1171,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                int&nbsp;maxConsumers)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i93" class="rowColor">
+<tr id="i94" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMaxConsumersPerSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,int)">setMaxConsumersPerSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               java.lang.String&nbsp;tenant,
@@ -1172,7 +1182,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                               int&nbsp;maxConsumersPerSubscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i94" class="altColor">
+<tr id="i95" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMaxMessageSize(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,int)">setMaxMessageSize</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                  java.lang.String&nbsp;tenant,
@@ -1183,7 +1193,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                  int&nbsp;maxMessageSize)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i95" class="rowColor">
+<tr id="i96" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMaxProducers(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,int)">setMaxProducers</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -1194,7 +1204,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                int&nbsp;maxProducers)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i96" class="altColor">
+<tr id="i97" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMaxSubscriptionsPerTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,int)">setMaxSubscriptionsPerTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -1205,7 +1215,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            int&nbsp;maxSubscriptionsPerTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i97" class="rowColor">
+<tr id="i98" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMaxUnackedMessagesOnConsumer(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.Integer)">setMaxUnackedMessagesOnConsumer</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                java.lang.String&nbsp;tenant,
@@ -1216,7 +1226,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                java.lang.Integer&nbsp;maxUnackedNum)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i98" class="altColor">
+<tr id="i99" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMaxUnackedMessagesOnSubscription(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.lang.Integer)">setMaxUnackedMessagesOnSubscription</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                    java.lang.String&nbsp;tenant,
@@ -1227,7 +1237,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                    java.lang.Integer&nbsp;maxUnackedNum)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i99" class="rowColor">
+<tr id="i100" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setMessageTTL(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.Integer,boolean,boolean)">setMessageTTL</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
              java.lang.String&nbsp;tenant,
@@ -1238,7 +1248,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
              boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i100" class="altColor">
+<tr id="i101" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setOffloadPolicies(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.OffloadPoliciesImpl)">setOffloadPolicies</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                   java.lang.String&nbsp;tenant,
@@ -1249,7 +1259,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                   org.apache.pulsar.common.policies.data.OffloadPoliciesImpl&nbsp;offloadPolicies)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i101" class="rowColor">
+<tr id="i102" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setPersistence(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.PersistencePolicies)">setPersistence</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
               java.lang.String&nbsp;tenant,
@@ -1260,7 +1270,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistencePolicies)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i102" class="altColor">
+<tr id="i103" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setPublishRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.PublishRate)">setPublishRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
               java.lang.String&nbsp;tenant,
@@ -1271,7 +1281,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               org.apache.pulsar.common.policies.data.PublishRate&nbsp;publishRate)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i103" class="rowColor">
+<tr id="i104" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setReplicatedSubscriptionStatus(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">setReplicatedSubscriptionStatus</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                java.lang.String&nbsp;tenant,
@@ -1282,7 +1292,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                                boolean&nbsp;enabled)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i104" class="altColor">
+<tr id="i105" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setReplicationClusters(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,java.util.List)">setReplicationClusters</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                       java.lang.String&nbsp;tenant,
@@ -1292,7 +1302,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                       java.util.List&lt;java.lang.String&gt;&nbsp;clusterIds)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i105" class="rowColor">
+<tr id="i106" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setReplicatorDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.impl.DispatchRateImpl)">setReplicatorDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                          java.lang.String&nbsp;tenant,
@@ -1303,7 +1313,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                          org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i106" class="altColor">
+<tr id="i107" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setRetention(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.RetentionPolicies)">setRetention</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
             java.lang.String&nbsp;tenant,
@@ -1314,7 +1324,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
             org.apache.pulsar.common.policies.data.RetentionPolicies&nbsp;retention)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i107" class="rowColor">
+<tr id="i108" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setSchemaCompatibilityStrategy(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy)">setSchemaCompatibilityStrategy</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               java.lang.String&nbsp;tenant,
@@ -1324,7 +1334,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                               org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy&nbsp;strategy)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i108" class="altColor">
+<tr id="i109" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setSubscribeRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.SubscribeRate)">setSubscribeRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;tenant,
@@ -1335,7 +1345,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                 org.apache.pulsar.common.policies.data.SubscribeRate&nbsp;subscribeRate)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i109" class="rowColor">
+<tr id="i110" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setSubscriptionDispatchRate(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.policies.data.impl.DispatchRateImpl)">setSubscriptionDispatchRate</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -1346,7 +1356,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            org.apache.pulsar.common.policies.data.impl.DispatchRateImpl&nbsp;dispatchRate)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i110" class="altColor">
+<tr id="i111" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setSubscriptionTypesEnabled(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,java.util.Set)">setSubscriptionTypesEnabled</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                            java.lang.String&nbsp;tenant,
@@ -1357,7 +1367,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                            java.util.Set&lt;org.apache.pulsar.client.api.SubscriptionType&gt;&nbsp;subscriptionTypesEnabled)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i111" class="rowColor">
+<tr id="i112" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#skipAllMessages(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean)">skipAllMessages</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                java.lang.String&nbsp;tenant,
@@ -1367,7 +1377,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i112" class="altColor">
+<tr id="i113" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#skipMessages(java.lang.String,java.lang.String,java.lang.String,java.lang.String,int,boolean)">skipMessages</a></span>&#8203;(java.lang.String&nbsp;tenant,
             java.lang.String&nbsp;namespace,
@@ -1377,7 +1387,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
             boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i113" class="rowColor">
+<tr id="i114" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.client.api.MessageId</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#terminate(java.lang.String,java.lang.String,java.lang.String,boolean)">terminate</a></span>&#8203;(java.lang.String&nbsp;tenant,
          java.lang.String&nbsp;namespace,
@@ -1385,7 +1395,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
          boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i114" class="altColor">
+<tr id="i115" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#terminatePartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean)">terminatePartitionedTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                          java.lang.String&nbsp;tenant,
@@ -1394,7 +1404,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
                          boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i115" class="rowColor">
+<tr id="i116" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#triggerOffload(java.lang.String,java.lang.String,java.lang.String,boolean,org.apache.pulsar.client.impl.MessageIdImpl)">triggerOffload</a></span>&#8203;(java.lang.String&nbsp;tenant,
               java.lang.String&nbsp;namespace,
@@ -1403,7 +1413,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
               org.apache.pulsar.client.impl.MessageIdImpl&nbsp;messageId)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i116" class="altColor">
+<tr id="i117" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#truncateTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean)">truncateTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
              java.lang.String&nbsp;tenant,
@@ -1412,7 +1422,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
              boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i117" class="rowColor">
+<tr id="i118" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#unloadTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean)">unloadTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
            java.lang.String&nbsp;tenant,
@@ -1421,7 +1431,7 @@ extends <a href="../impl/PersistentTopicsBase.html" title="class in org.apache.p
            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i118" class="altColor">
+<tr id="i119" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updatePartitionedTopic(java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,int)">updatePartitionedTopic</a></span>&#8203;(java.lang.String&nbsp;tenant,
                       java.lang.String&nbsp;namespace,
@@ -1598,6 +1608,28 @@ public&nbsp;void&nbsp;createPartitionedTopic&#8203;(@Suspended
                                    @PathParam("topic") @Encoded
                                    java.lang.String&nbsp;encodedTopic,
                                    int&nbsp;numPartitions,
+                                   @QueryParam("createLocalTopicOnly") @DefaultValue("false")
+                                   boolean&nbsp;createLocalTopicOnly)</pre>
+</li>
+</ul>
+<a id="createPartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.common.partition.PartitionedTopicMetadata,boolean)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>createPartitionedTopic</h4>
+<pre class="methodSignature">@PUT
+@Consumes("application/vnd.partitioned-topic-metadata+json")
+@Path("/{tenant}/{namespace}/{topic}/partitions")
+public&nbsp;void&nbsp;createPartitionedTopic&#8203;(@Suspended
+                                   javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                                   @PathParam("tenant")
+                                   java.lang.String&nbsp;tenant,
+                                   @PathParam("namespace")
+                                   java.lang.String&nbsp;namespace,
+                                   @PathParam("topic") @Encoded
+                                   java.lang.String&nbsp;encodedTopic,
+                                   org.apache.pulsar.common.partition.PartitionedTopicMetadata&nbsp;metadata,
                                    @QueryParam("createLocalTopicOnly") @DefaultValue("false")
                                    boolean&nbsp;createLocalTopicOnly)</pre>
 </li>
