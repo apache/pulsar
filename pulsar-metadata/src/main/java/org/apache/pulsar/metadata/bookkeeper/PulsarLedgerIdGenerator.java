@@ -198,8 +198,8 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         CompletableFuture<Long> future = new CompletableFuture<>();
         store.put(ledgerPrefix + formatHalfId(hob), new byte[0], Optional.empty())
                 .whenComplete((__, ex) -> {
-                    if (ex != null && !(ex.getCause()
-                            .getCause() instanceof MetadataStoreException.BadVersionException)) {
+                    ex = FutureUtil.unwrapCompletionException(ex);
+                    if (ex != null && !(ex instanceof MetadataStoreException.BadVersionException)) {
                         // BadVersion is OK here because we can have multiple threads (or nodes) trying to create the
                         // new HOB path
                         future.completeExceptionally(ex);
