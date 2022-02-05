@@ -27,6 +27,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -751,6 +753,12 @@ public class PulsarClientImpl implements PulsarClient {
                     throwable = t;
                 }
             }
+
+            // close the service url provider allocated resource.
+            if (conf != null && conf.getServiceUrlProvider() != null) {
+                conf.getServiceUrlProvider().close();
+            }
+
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
@@ -855,6 +863,26 @@ public class PulsarClientImpl implements PulsarClient {
         conf.setServiceUrl(serviceUrl);
         lookup.updateServiceUrl(serviceUrl);
         cnxPool.closeAllConnections();
+    }
+
+    public void updateAuthentication(Authentication authentication) throws IOException {
+        log.info("Updating authentication to {}", authentication);
+        if (conf.getAuthentication() != null) {
+            conf.getAuthentication().close();
+        }
+        conf.setAuthentication(authentication);
+        conf.getAuthentication().start();
+    }
+
+    public void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
+        log.info("Updating tlsTrustCertsFilePath to {}", tlsTrustCertsFilePath);
+        conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
+    }
+
+    public void updateTlsTrustStorePathAndPassword(String tlsTrustStorePath, String tlsTrustStorePassword) {
+        log.info("Updating tlsTrustStorePath to {}, tlsTrustStorePassword to *****", tlsTrustStorePath);
+        conf.setTlsTrustStorePath(tlsTrustStorePath);
+        conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
 
     public CompletableFuture<ClientCnx> getConnection(final String topic) {

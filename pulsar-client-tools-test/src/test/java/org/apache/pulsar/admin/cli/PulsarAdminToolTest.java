@@ -1409,7 +1409,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
-        verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, new HashMap<>());
+        verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, null);
 
         cmdTopics.run(split("create-missed-partitions persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1");
@@ -1848,7 +1848,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/ns1/ds1 --partitions 32"));
-        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, new HashMap<>());
+        verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, null);
 
         topics.run(split("list myprop/ns1"));
         verify(mockTopics).getList("myprop/ns1", null);
