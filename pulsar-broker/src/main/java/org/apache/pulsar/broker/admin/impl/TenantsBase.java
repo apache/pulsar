@@ -100,7 +100,7 @@ public class TenantsBase extends PulsarWebResource {
                         asyncResponse.resume(tenantInfo.get());
                     }
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get Tenant {}", clientAppId(), ex);
+                    log.error("[{}] Failed to get Tenant.", clientAppId(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
