@@ -411,7 +411,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     public void properties() throws Throwable {
         Object response = asynRequests(ctx -> properties.getTenants(ctx));
         assertEquals(response, Lists.newArrayList());
-        verify(properties, times(1)).validateSuperUserAccess();
+        verify(properties, times(1)).validateSuperUserAccessAsync();
 
         // create local cluster
         clusters.createCluster(configClusterName, ClusterDataImpl.builder().build());
@@ -423,22 +423,22 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(allowedClusters)
                 .build();
         response = asynRequests(ctx -> properties.createTenant(ctx, "test-property", tenantInfo));
-        verify(properties, times(2)).validateSuperUserAccess();
+        verify(properties, times(1)).validateSuperUserAccess();
 
         response = asynRequests(ctx -> properties.getTenants(ctx));
         assertEquals(response, Lists.newArrayList("test-property"));
-        verify(properties, times(3)).validateSuperUserAccess();
+        verify(properties, times(2)).validateSuperUserAccessAsync();
 
         response = asynRequests(ctx -> properties.getTenantAdmin(ctx, "test-property"));
         assertEquals(response, tenantInfo);
-        verify(properties, times(4)).validateSuperUserAccess();
+        verify(properties, times(2)).validateSuperUserAccess();
 
         final TenantInfoImpl newPropertyAdmin = TenantInfoImpl.builder()
                 .adminRoles(Sets.newHashSet("role1", "other-role"))
                 .allowedClusters(allowedClusters)
                 .build();
         response = asynRequests(ctx -> properties.updateTenant(ctx, "test-property", newPropertyAdmin));
-        verify(properties, times(5)).validateSuperUserAccess();
+        verify(properties, times(3)).validateSuperUserAccess();
 
         // Wait for updateTenant to take effect
         Thread.sleep(100);
@@ -447,7 +447,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(response, newPropertyAdmin);
         response = asynRequests(ctx -> properties.getTenantAdmin(ctx, "test-property"));
         assertNotSame(response, tenantInfo);
-        verify(properties, times(7)).validateSuperUserAccess();
+        verify(properties, times(5)).validateSuperUserAccess();
 
         // Check creating existing property
         try {

@@ -2149,7 +2149,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testGetListInBundle() throws Exception {
         final String namespace = "prop-xyz/ns11";
         admin.namespaces().createNamespace(namespace, 3);
-
         final String persistentTopicName = TopicName.get(
                 "persistent", NamespaceName.get(namespace),
                 "get_topics_mode_" + UUID.randomUUID()).toString();
