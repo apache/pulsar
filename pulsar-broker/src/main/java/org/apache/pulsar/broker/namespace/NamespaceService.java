@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -1098,9 +1099,14 @@ public class NamespaceService implements AutoCloseable {
         if (topic.isPersistent()) {
             return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
         } else {
-            return pulsar.getBrokerService()
-                    .getTopicIfExists(topic.toString())
-                    .thenApply(optTopic -> optTopic.isPresent());
+            // only checks and don't do any topic creating and loading.
+            CompletableFuture<Optional<Topic>> topicFuture =
+                    pulsar.getBrokerService().getTopics().get(topic.toString());
+            if (topicFuture == null) {
+                return CompletableFuture.completedFuture(false);
+            } else {
+                return topicFuture.thenApply(Optional::isPresent).exceptionally(throwable -> false);
+            }
         }
     }
 
