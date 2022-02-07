@@ -143,7 +143,7 @@ public final class FieldParser {
                     if (!StringUtils.isBlank(v)) {
                         try {
                             Method method = Reflections.getSetMethod(obj.getClass(), f);
-                            method.invoke(obj, value(v, f));
+                            method.invoke(obj, value(trim(v), f));
                         } catch (NoSuchMethodException e) {
                             f.set(obj, value(trim(v), f));
                         }
