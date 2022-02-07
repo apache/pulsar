@@ -195,10 +195,10 @@ public class TenantsBase extends PulsarWebResource {
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenCompose(tenantInfo -> {
-                    if (!tenantAdmin.isPresent()) {
+                    if (!tenantInfo.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found");
                     } else {
-                        return canUpdateCluster(tenant, tenantAdmin.get().getAllowedClusters(),
+                        return canUpdateCluster(tenant, tenantInfo.get().getAllowedClusters(),
                                 new HashSet<>(newTenantAdmin.getAllowedClusters()));
                     }
                 }).thenCompose(__ -> tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin))
