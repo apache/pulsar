@@ -405,58 +405,74 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertTrue(errorCaptor.getValue().getMessage().contains("zero partitions"));
-
+        response = mock(AsyncResponse.class);
         final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, nonPartitionTopic2, true, null);
-        Assert.assertEquals(persistentTopics
-                        .getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true, false).partitions,
-                0);
-
-        Assert.assertEquals(persistentTopics
-                        .getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true, true).partitions,
-                0);
+        persistentTopics.getPartitionedMetadata(response, testTenant, testNamespace, nonPartitionTopic, true, false);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor2 = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor2.capture());
+        Assert.assertEquals(responseCaptor2.getValue().partitions, 0);
+        response = mock(AsyncResponse.class);
+        responseCaptor2 = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(response, testTenant, testNamespace, nonPartitionTopic, true, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor2.capture());
+        Assert.assertEquals(responseCaptor2.getValue().partitions, 0);
     }
 
     @Test
     public void testCreateNonPartitionedTopic() {
         final String topicName = "standard-topic-partition-a";
+        AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
-        PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
+        persistentTopics.getPartitionedMetadata(response,
                 testTenant, testNamespace, topicName, true, false);
-        Assert.assertEquals(pMetadata.partitions, 0);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().partitions, 0);
 
-        PartitionedTopicMetadata metadata = persistentTopics.getPartitionedMetadata(
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(response,
                 testTenant, testNamespace, topicName, true, true);
-        Assert.assertEquals(metadata.partitions, 0);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().partitions, 0);
         final String topicName2 = "standard-topic-partition-b";
         Map<String, String> topicMetadata = Maps.newHashMap();
         topicMetadata.put("key1", "value1");
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName2, true, topicMetadata);
-        PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(response,
                 testTenant, testNamespace, topicName2, true, false);
-        Assert.assertNull(pMetadata2.properties);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertNull(responseCaptor.getValue().properties);
     }
 
     @Test
     public void testCreatePartitionedTopic() {
         AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         final String topicName = "standard-partitioned-topic-a";
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
         Awaitility.await().untilAsserted(() -> {
-            PartitionedTopicMetadata pMetadata = persistentTopics.getPartitionedMetadata(
+            persistentTopics.getPartitionedMetadata(response,
                     testTenant, testNamespace, topicName, true, false);
-            Assert.assertNull(pMetadata.properties);
+            verify(response, timeout(5000).atLeast(1)).resume(responseCaptor.capture());
+            Assert.assertNull(responseCaptor.getValue().properties);
         });
+        AsyncResponse response2 = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor2 = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         final String topicName2 = "standard-partitioned-topic-b";
         Map<String, String> topicMetadata = Maps.newHashMap();
         topicMetadata.put("key1", "value1");
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
-        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName2, metadata, true);
+        persistentTopics.createPartitionedTopic(response2, testTenant, testNamespace, topicName2, metadata, true);
         Awaitility.await().untilAsserted(() -> {
-            PartitionedTopicMetadata pMetadata2 = persistentTopics.getPartitionedMetadata(
+            persistentTopics.getPartitionedMetadata(response2,
                     testTenant, testNamespace, topicName2, true, false);
-            Assert.assertEquals(pMetadata2.properties.size(), 1);
-            Assert.assertEquals(pMetadata2.properties, topicMetadata);
+            verify(response2, timeout(5000).atLeast(1)).resume(responseCaptor2.capture());
+            Assert.assertEquals(responseCaptor2.getValue().properties.size(), 1);
+            Assert.assertEquals(responseCaptor2.getValue().properties, topicMetadata);
         });
     }
 
