@@ -430,6 +430,9 @@ public class PersistentTopicsBase extends AdminResource {
      * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
      *
      * @param numPartitions
+     * @param updateLocalTopicOnly
+     * @param authoritative
+     * @param force
      */
     protected CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int numPartitions,
                                                                           boolean updateLocalTopicOnly,
