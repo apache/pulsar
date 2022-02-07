@@ -457,7 +457,6 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_ACCEPTABLE,
                             "Number of partitions should be less than or equal to " + maxPartitions);
                 }
-                CompletableFuture<Void> ret;
                 // Only do the validation if it's the first hop.
                 if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
                     return getNamespaceReplicatedClustersAsync(topicName.getNamespaceObject())
