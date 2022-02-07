@@ -199,7 +199,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_BROKER_PROXY,
             doc = "Allowed broker target ports")
-    String brokerProxyAllowedTargetPorts = "6650,6651";
+    private String brokerProxyAllowedTargetPorts = "6650,6651";
 
     @FieldContext(
         category = CATEGORY_SERVER,
