@@ -72,7 +72,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         this.serde = serde;
 
         this.objCache = Caffeine.newBuilder()
-                .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
+                .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS / 2, TimeUnit.MILLISECONDS)
+                .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
