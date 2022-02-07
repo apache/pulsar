@@ -22,9 +22,10 @@ package org.apache.pulsar.functions.secretsprovider;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
-import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
 
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
 public class EnvironmentBasedSecretsProviderTest {
@@ -40,30 +41,14 @@ public class EnvironmentBasedSecretsProviderTest {
             throws Exception {
 
         Class<?> processEnvironment = Class.forName("java.lang.ProcessEnvironment");
+        Map<String,String> unmodifiableMap = new HashMap<>(Whitebox
+                .getInternalState(processEnvironment, "theUnmodifiableEnvironment"));
+        unmodifiableMap.put(key, value);
+        Whitebox.setInternalState(processEnvironment, "theUnmodifiableEnvironment", unmodifiableMap);
 
-        Field unmodifiableMapField = getAccessibleField(processEnvironment, "theUnmodifiableEnvironment");
-        Object unmodifiableMap = unmodifiableMapField.get(null);
-        injectIntoUnmodifiableMap(key, value, unmodifiableMap);
-
-        Field mapField = getAccessibleField(processEnvironment, "theEnvironment");
-        Map<String, String> map = (Map<String, String>) mapField.get(null);
-        map.put(key, value);
-    }
-
-    private static Field getAccessibleField(Class<?> clazz, String fieldName)
-            throws NoSuchFieldException {
-
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return field;
-    }
-
-    private static void injectIntoUnmodifiableMap(String key, String value, Object map)
-            throws ReflectiveOperationException {
-
-        Class unmodifiableMap = Class.forName("java.util.Collections$UnmodifiableMap");
-        Field field = getAccessibleField(unmodifiableMap, "m");
-        Object obj = field.get(map);
-        ((Map<String, String>) obj).put(key, value);
+        Map<String,String> envMap = new HashMap<>(Whitebox
+                .getInternalState(processEnvironment, "theEnvironment"));
+        envMap.put(key, value);
+        Whitebox.setInternalState(processEnvironment, "theEnvironment", envMap);
     }
 }

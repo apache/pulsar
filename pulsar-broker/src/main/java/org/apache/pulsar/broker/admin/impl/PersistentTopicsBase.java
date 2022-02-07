@@ -1776,39 +1776,58 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected void internalSkipMessages(String subName, int numMessages, boolean authoritative) {
+    protected void internalSkipMessages(AsyncResponse asyncResponse, String subName, int numMessages,
+                                        boolean authoritative) {
+        CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName,
-                authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Skip messages on a partitioned topic is not allowed");
-        }
-
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.SKIP);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        try {
-            if (subName.startsWith(topic.getReplicatorPrefix())) {
-                String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                checkNotNull(repl);
-                repl.skipMessages(numMessages).get();
-            } else {
-                PersistentSubscription sub = topic.getSubscription(subName);
-                checkNotNull(sub);
-                sub.skipMessages(numMessages).get();
-            }
-            log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages, topicName, subName);
-        } catch (NullPointerException npe) {
-            throw new RestException(Status.NOT_FOUND, "Subscription not found");
-        } catch (Exception exception) {
-            log.error("[{}] Failed to skip {} messages {} {}", clientAppId(), numMessages, topicName, subName,
-                    exception);
-            throw new RestException(exception);
-        }
+        future.thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SKIP))
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                     .thenCompose(partitionMetadata -> {
+                         if (partitionMetadata.partitions > 0) {
+                             String msg = "Skip messages on a partitioned topic is not allowed";
+                             log.warn("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
+                             throw new  RestException(Status.METHOD_NOT_ALLOWED, msg);
+                         }
+                         return getTopicReferenceAsync(topicName).thenCompose(t -> {
+                             PersistentTopic topic = (PersistentTopic) t;
+                             if (topic == null) {
+                                 throw new RestException(new RestException(Status.NOT_FOUND, "Topic not found"));
+                             }
+                             if (subName.startsWith(topic.getReplicatorPrefix())) {
+                                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                                 PersistentReplicator repl =
+                                         (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                                 checkNotNull(repl);
+                                 return repl.skipMessages(numMessages).thenAccept(unused -> {
+                                     log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages,
+                                             topicName, subName);
+                                     asyncResponse.resume(Response.noContent().build());
+                                     }
+                                 );
+                             } else {
+                                 PersistentSubscription sub = topic.getSubscription(subName);
+                                 checkNotNull(sub);
+                                 return sub.skipMessages(numMessages).thenAccept(unused -> {
+                                     log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages,
+                                             topicName, subName);
+                                     asyncResponse.resume(Response.noContent().build());
+                                     }
+                                 );
+                             }
+                         });
+                     }).exceptionally(ex -> {
+                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                            log.error("[{}] Failed to skip {} messages {} {}", clientAppId(), numMessages, topicName,
+                                    subName, cause);
+                            resumeAsyncResponseExceptionally(asyncResponse, cause);
+                            return null;
+                     })
+                );
     }
 
     protected void internalExpireMessagesForAllSubscriptions(AsyncResponse asyncResponse, int expireTimeInSeconds,
@@ -2907,57 +2926,57 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
-        validateTopicPolicyOperation(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
 
-        Set<String> replicationClusters = Sets.newHashSet(clusterIds);
-        if (replicationClusters.contains("global")) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "Cannot specify global in the list of replication clusters");
-        }
-        Set<String> clusters = clusters();
-        for (String clusterId : replicationClusters) {
-            if (!clusters.contains(clusterId)) {
-                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
-            }
-            validatePeerClusterConflict(clusterId, replicationClusters);
-            validateClusterForTenant(namespaceName.getTenant(), clusterId);
-        }
-
-        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
-                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.setReplicationClusters(Lists.newArrayList(replicationClusters));
-                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                            .thenRun(() -> {
-                                log.info("[{}] Successfully set replication clusters for namespace={}, "
-                                                + "topic={}, clusters={}",
-                                        clientAppId(),
-                                        namespaceName,
-                                        topicName.getLocalName(),
-                                        topicPolicies.getReplicationClusters());
-                            });
-                }
-        );
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> {
+                    Set<String> replicationClusters = Sets.newHashSet(clusterIds);
+                    if (replicationClusters.contains("global")) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot specify global in the list of replication clusters");
+                    }
+                    Set<String> clusters = clusters();
+                    for (String clusterId : replicationClusters) {
+                        if (!clusters.contains(clusterId)) {
+                            throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
+                        }
+                        validatePeerClusterConflict(clusterId, replicationClusters);
+                        validateClusterForTenant(namespaceName.getTenant(), clusterId);
+                    }
+                }).thenCompose(__ ->
+                    getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                            topicPolicies.setReplicationClusters(clusterIds);
+                            return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                                    .thenRun(() -> {
+                                        log.info("[{}] Successfully set replication clusters for namespace={}, "
+                                                        + "topic={}, clusters={}",
+                                                clientAppId(),
+                                                namespaceName,
+                                                topicName.getLocalName(),
+                                                topicPolicies.getReplicationClusters());
+                                    });
+                        }
+                ));
     }
 
     protected CompletableFuture<Void> internalRemoveReplicationClusters() {
-        validateTopicPolicyOperation(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
-        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
-                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.setReplicationClusters(null);
-                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                            .thenRun(() -> {
-                                log.info("[{}] Successfully set replication clusters for namespace={}, "
-                                                + "topic={}, clusters={}",
-                                        clientAppId(),
-                                        namespaceName,
-                                        topicName.getLocalName(),
-                                        topicPolicies.getReplicationClusters());
-                            });
-                }
-        );
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                            topicPolicies.setReplicationClusters(null);
+                            return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                                    .thenRun(() -> {
+                                        log.info("[{}] Successfully set replication clusters for namespace={}, "
+                                                        + "topic={}, clusters={}",
+                                                clientAppId(),
+                                                namespaceName,
+                                                topicName.getLocalName(),
+                                                topicPolicies.getReplicationClusters());
+                                    });
+                        })
+                );
     }
 
     protected CompletableFuture<Boolean> internalGetDeduplication(boolean applied, boolean isGlobal) {

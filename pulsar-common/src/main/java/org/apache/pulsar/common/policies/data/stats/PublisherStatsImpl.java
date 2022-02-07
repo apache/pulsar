@@ -49,6 +49,9 @@ public class PublisherStatsImpl implements PublisherStats {
     /** Id of this publisher. */
     public long producerId;
 
+    /** Whether partial producer is supported at client. */
+    public boolean supportsPartialProducer;
+
     /** Producer name. */
     @JsonIgnore
     private int producerNameOffset = -1;

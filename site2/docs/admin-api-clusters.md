@@ -83,8 +83,8 @@ Here's an example cluster metadata initialization command:
 ```shell
 bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
-  --zookeeper zk1.us-west.example.com:2181 \
-  --configuration-store zk1.us-west.example.com:2184 \
+  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \

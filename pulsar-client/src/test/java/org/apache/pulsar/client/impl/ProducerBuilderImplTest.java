@@ -324,7 +324,7 @@ public class ProducerBuilderImplTest {
                 .create();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void testProducerBuilderImplWhenPropertiesIsEmpty() throws PulsarClientException {
         Map<String, String> properties = new HashMap<>();
 

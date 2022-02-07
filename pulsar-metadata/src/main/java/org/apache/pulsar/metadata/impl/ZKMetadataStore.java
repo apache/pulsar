@@ -68,9 +68,9 @@ import org.apache.zookeeper.ZooKeeper;
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
 
-    static final String ZK_SCHEME_IDENTIFIER = "zk:";
+    public static final String ZK_SCHEME_IDENTIFIER = "zk:";
 
-    private final String metadataURL;
+    private final String zkConnectString;
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
@@ -81,10 +81,14 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         super(metadataStoreConfig);
 
         try {
-            this.metadataURL = metadataURL;
+            if (metadataURL.startsWith("zk:")) {
+                this.zkConnectString = metadataURL.substring(3);
+            } else {
+                this.zkConnectString = metadataURL;
+            }
             this.metadataStoreConfig = metadataStoreConfig;
             isZkManaged = true;
-            zkc = PulsarZooKeeperClient.newBuilder().connectString(metadataURL)
+            zkc = PulsarZooKeeperClient.newBuilder().connectString(zkConnectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
@@ -110,7 +114,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     public ZKMetadataStore(ZooKeeper zkc) {
         super(MetadataStoreConfig.builder().build());
 
-        this.metadataURL = null;
+        this.zkConnectString = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
@@ -382,7 +386,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
                                                 s -> future.complete(s))
                                         .exceptionally(ex -> {
-                                            future.completeExceptionally(new MetadataStoreException(ex.getCause()));
+                                            future.completeExceptionally(MetadataStoreException.wrap(ex.getCause()));
                                             return null;
                                         });
                             }
@@ -500,16 +504,16 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     public CompletableFuture<Void> initializeCluster() {
-        if (this.metadataURL == null) {
+        if (this.zkConnectString == null) {
             return FutureUtil.failedFuture(new MetadataStoreException("metadataURL is not set"));
         }
         if (this.metadataStoreConfig == null) {
             return FutureUtil.failedFuture(new MetadataStoreException("metadataStoreConfig is not set"));
         }
-        int chrootIndex = metadataURL.indexOf("/");
+        int chrootIndex = zkConnectString.indexOf("/");
         if (chrootIndex > 0) {
-            String chrootPath = metadataURL.substring(chrootIndex);
-            String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex);
+            String chrootPath = zkConnectString.substring(chrootIndex);
+            String zkConnectForChrootCreation = zkConnectString.substring(0, chrootIndex);
             try (ZooKeeper chrootZk = PulsarZooKeeperClient.newBuilder()
                     .connectString(zkConnectForChrootCreation)
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())

@@ -109,7 +109,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |readBufferSizeBytes|The number of bytes we should use as capacity for BufferedReadChannel.|4096|
 |writeBufferSizeBytes|The number of bytes used as capacity for the write buffer|65536|
 |useHostNameAsBookieID|Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ip address for the registration.|false|
-|bookieId | If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set the `bookieId`. <br><br>Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`). If you set the `bookieId`, then the `useHostNameAsBookieID` does not take effect.<br><br>The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|N/A|
+|bookieId | If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`). If you set the `bookieId`, then the `useHostNameAsBookieID` does not take effect.<br /><br />The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|N/A|
 |allowEphemeralPorts|Whether the bookie is allowed to use an ephemeral port (port 0) as its server port. By default, an ephemeral port is not allowed. Using an ephemeral port as the service port usually indicates a configuration error. However, in unit tests, using an ephemeral port will address port conflict problems and allow running tests in parallel.|false|
 |enableLocalTransport|Whether the bookie is allowed to listen for the BookKeeper clients executed on the local JVM.|false|
 |disableServerSocketBind|Whether the bookie is allowed to disable bind on network interfaces. This bookie will be available only to BookKeeper clients executed on the local JVM.|false|
@@ -136,8 +136,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 
 |Name|Description|Default|
 |---|---|---|
-|advertisedListeners|Specify multiple advertised listeners for the broker.<br><br>The format is `<listener_name>:pulsar://<host>:<port>`.<br><br>If there are multiple listeners, separate them with commas.<br><br>**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
-|internalListenerName|Specify the internal listener name for the broker.<br><br>**Note**: the listener name must be contained in `advertisedListeners`.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
+|advertisedListeners|Specify multiple advertised listeners for the broker.<br /><br />The format is `<listener_name>:pulsar://<host>:<port>`.<br /><br />If there are multiple listeners, separate them with commas.<br /><br />**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
+|internalListenerName|Specify the internal listener name for the broker.<br /><br />**Note**: the listener name must be contained in `advertisedListeners`.<br /><br /> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
 |enablePersistentTopics|  Whether persistent topics are enabled on the broker |true|
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
@@ -198,7 +198,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |forceDeleteNamespaceAllowed| Enable you to delete a namespace forcefully. |false|
 |messageExpiryCheckIntervalInMinutes| The frequency of proactively checking and purging expired messages. |5|
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to determine whether topics with compaction policies need compaction. |60|
-brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater than this threshold, compression is triggered.<br><br>Set this threshold to 0 means disabling the compression check.|N/A
+brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater than this threshold, compression is triggered.<br /><br />Set this threshold to 0 means disabling the compression check.|N/A
 |delayedDeliveryEnabled| Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead.|true|
 |delayedDeliveryTickTimeMillis|Control the tick time for retrying on delayed delivery, which affects the accuracy of the delivery time compared to the scheduled time. By default, it is 1 second.|1000|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
@@ -225,6 +225,10 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |brokerClientTlsTrustStorePassword| TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers ||
 |brokerClientTlsCiphers| Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]||
 |brokerClientTlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  `TLSv1.3`, `TLSv1.2` ||
+| metadataStoreBatchingEnabled | Enable metadata operations batching. | true |
+| metadataStoreBatchingMaxDelayMillis | Maximum delay to impose on batching grouping. | 5 |
+| metadataStoreBatchingMaxOperations | Maximum number of operations to include in a singular batch. | 1000 |
+| metadataStoreBatchingMaxSizeKb | Maximum size of a batch. | 128 |
 |ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |tokenSettingPrefix| Configure the prefix of the token-related settings, such as `tokenSecretKey`, `tokenPublicKey`, `tokenAuthClaim`, `tokenPublicAlg`, `tokenAudienceClaim`, and `tokenAudience`. ||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:;base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
@@ -294,7 +298,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
 |loadBalancerReportUpdateThresholdPercentage| Percentage of change to trigger load report update  |10|
-|loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15|
+|loadBalancerReportUpdateMaxIntervalMinutes|  Maximum interval to update load report  |15|
 |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1|
 |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30|
 |loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more than once within this timeframe |30|
@@ -357,8 +361,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 |subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared |
-| managedLedgerInfoCompressionType | Compression type of managed ledger information. <br><br>Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br><br>If this value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br><br>**Note** that after enabling this configuration, if you want to degrade a broker, you need to change the value to `NONE` and make sure all ledger metadata is saved without compression. | None |
-| additionalServlets | Additional servlet name. <br><br>If you have multiple additional servlets, separate them by commas. <br><br>For example, additionalServlet_1, additionalServlet_2 | N/A |
+| managedLedgerInfoCompressionType | Compression type of managed ledger information. <br /><br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br /><br />If this value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br /><br />**Note** that after enabling this configuration, if you want to degrade a broker, you need to change the value to `NONE` and make sure all ledger metadata is saved without compression. | None |
+| additionalServlets | Additional servlet name. <br /><br />If you have multiple additional servlets, separate them by commas. <br /><br />For example, additionalServlet_1, additionalServlet_2 | N/A |
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
@@ -531,7 +535,10 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | maxProducersPerTopic | Maximum number of producers allowed to connect to topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, maxProducersPerTopic-limit check is disabled. | 0 |
 | maxConsumersPerTopic | Maximum number of consumers allowed to connect to topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerTopic-limit check is disabled. | 0 |
 | maxConsumersPerSubscription | Maximum number of consumers allowed to connect to subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerSubscription-limit check is disabled. | 0 |
-| maxNumPartitionsPerPartitionedTopic | Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled. | 0 |
+| metadataStoreBatchingEnabled | Enable metadata operations batching. | true |
+| metadataStoreBatchingMaxDelayMillis | Maximum delay to impose on batching grouping. | 5 |
+| metadataStoreBatchingMaxOperations | Maximum number of operations to include in a singular batch. | 1000 |
+| metadataStoreBatchingMaxSizeKb | Maximum size of a batch. | 128 |
 | tlsCertRefreshCheckDurationSec | TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection. | 300 |
 | tlsCertificateFilePath | Path for the TLS certificate file. | |
 | tlsKeyFilePath | Path for the TLS private key file. | |
@@ -659,7 +666,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |loadBalancerAutoBundleSplitEnabled|    |false|
 | loadBalancerAutoUnloadSplitBundlesEnabled | Enable/Disable automatic unloading of split bundles. | true |
 |loadBalancerNamespaceBundleMaxTopics|    |1000|
-|loadBalancerNamespaceBundleMaxSessions|    |1000|
+|loadBalancerNamespaceBundleMaxSessions|  Maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered. <br />To disable the threshold check, set the value to -1.  |1000|
 |loadBalancerNamespaceBundleMaxMsgRate|   |1000|
 |loadBalancerNamespaceBundleMaxBandwidthMbytes|   |100|
 |loadBalancerNamespaceMaximumBundles|   |128|
@@ -682,8 +689,10 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
-|bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br><br>Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br><br> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
+|bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
+| metadataStoreConfigPath | The configuration file path of the local metadata store. Standalone Pulsar uses [RocksDB](http://rocksdb.org/) as the local metadata store. The format is `/xxx/xx/rocksdb.ini`. |N/A|
+
 
 ## WebSocket
 
