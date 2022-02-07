@@ -244,7 +244,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }
 
         executor.shutdownNow();
-        eventLoopGroup.shutdownGracefully().get();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+        }
     }
 
     @Test

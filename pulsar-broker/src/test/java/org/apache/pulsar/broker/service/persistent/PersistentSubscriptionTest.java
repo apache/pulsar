@@ -216,7 +216,9 @@ public class PersistentSubscriptionTest {
 
         store.close();
         executor.shutdownNow();
-        eventLoopGroup.shutdownGracefully().get();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+        }
     }
 
     @Test

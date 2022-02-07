@@ -200,7 +200,9 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
 
         executor.shutdown();
-        eventLoopGroup.shutdownGracefully().get();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+        }
         store.close();
     }
 
