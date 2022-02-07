@@ -279,8 +279,19 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                                 protocolVersionToAdvertise, sslHandlerSupplier);
                     }))
                     .exceptionally(throwable -> {
-                        LOG.warn("[{}] Target broker '{}' cannot be validated. authenticated with {} role {}.",
-                                remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole);
+                        if (throwable instanceof TargetAddressDeniedException
+                                || throwable.getCause() instanceof TargetAddressDeniedException) {
+                            TargetAddressDeniedException targetAddressDeniedException =
+                                    (TargetAddressDeniedException) (throwable instanceof TargetAddressDeniedException
+                                            ? throwable : throwable.getCause());
+
+                            LOG.warn("[{}] Target broker '{}' cannot be validated. {}. authenticated with {} role {}.",
+                                    remoteAddress, proxyToBrokerUrl, targetAddressDeniedException.getMessage(),
+                                    authMethod, clientAuthRole);
+                        } else {
+                            LOG.error("[{}] Error validating target broker '{}'. authenticated with {} role {}.",
+                                    remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole, throwable);
+                        }
                         ctx()
                                 .writeAndFlush(
                                         Commands.newError(-1, ServerError.ServiceNotReady,
