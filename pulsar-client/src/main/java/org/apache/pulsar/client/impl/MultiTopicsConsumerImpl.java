@@ -714,6 +714,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void seekByIndex(long index) throws PulsarClientException {
+        try {
+            seekAsync(index).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
     public void seek(Function<String, Object> function) throws PulsarClientException {
         try {
             seekAsync(function).get();
@@ -753,6 +762,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     public CompletableFuture<Void> seekAsync(long timestamp) {
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(timestamp)));
+        return FutureUtil.waitForAll(futures);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekByIndexAsync(long index) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
+        consumers.values().forEach(consumer -> futures.add(consumer.seekByIndexAsync(index)));
         return FutureUtil.waitForAll(futures);
     }
 

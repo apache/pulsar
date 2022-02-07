@@ -264,6 +264,12 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
+    public CompletableFuture<Void> resetCursorByIndex(long index) {
+        // No-op
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Entry> peekNthMessage(int messagePosition) {
         // No-op
         return CompletableFuture.completedFuture(null); // TODO: throw exception

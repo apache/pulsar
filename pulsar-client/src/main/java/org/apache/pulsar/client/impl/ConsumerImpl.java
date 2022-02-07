@@ -1927,6 +1927,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public void seekByIndex(long index) throws PulsarClientException {
+        try {
+            seekByIndexAsync(index).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
     public void seek(Function<String, Object> function) throws PulsarClientException {
         try {
             seekAsync(function).get();
@@ -2010,6 +2019,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             long requestId = client.newRequestId();
             return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
                 MessageId.earliest, seekBy);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> seekByIndexAsync(long index){
+        String seekBy = String.format("the index %d", index);
+        return seekAsyncCheckState(seekBy).orElseGet(() -> {
+            long requestId = client.newRequestId();
+            return seekAsyncInternal(requestId, Commands.newSeekByIndex(consumerId, requestId, index),
+                    MessageId.earliest, seekBy);
         });
     }
 

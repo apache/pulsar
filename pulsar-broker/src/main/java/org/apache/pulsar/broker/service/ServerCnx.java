@@ -1533,9 +1533,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long requestId = seek.getRequestId();
         CompletableFuture<Consumer> consumerFuture = consumers.get(seek.getConsumerId());
 
-        if (!seek.hasMessageId() && !seek.hasMessagePublishTime()) {
+        if (!seek.hasMessageId() && !seek.hasMessagePublishTime() && !seek.hasIndex()) {
             commandSender.sendErrorResponse(requestId, ServerError.MetadataError,
-                    "Message id and message publish time were not present");
+                    "Message id and  message publish time and message index were not present");
             return;
         }
 
@@ -1584,6 +1584,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         subscription, ex.getMessage(), ex);
                 commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
                         "Reset subscription to publish time error: " + ex.getCause().getMessage());
+                return null;
+            });
+        } else if (consumerCreated && seek.hasIndex()) {
+            Consumer consumer = consumerFuture.getNow(null);
+            Subscription subscription = consumer.getSubscription();
+            long index = seek.getIndex();
+
+            subscription.resetCursorByIndex(index).thenRun(() -> {
+                log.info("[{}] [{}][{}] Reset subscription to index {}", remoteAddress,
+                        subscription.getTopic().getName(), subscription.getName(), index);
+                commandSender.sendSuccessResponse(requestId);
+            }).exceptionally(ex -> {
+                log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress,
+                        subscription, ex.getMessage(), ex);
+                commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
+                        "Reset subscription to index error: " + ex.getCause().getMessage());
                 return null;
             });
         } else {

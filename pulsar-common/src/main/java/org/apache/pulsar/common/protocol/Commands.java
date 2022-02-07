@@ -696,6 +696,15 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    public static ByteBuf newSeekByIndex(long consumerId, long requestId, long index) {
+        BaseCommand cmd = localCmd(Type.SEEK);
+        cmd.setSeek()
+                .setConsumerId(consumerId)
+                .setRequestId(requestId)
+                .setIndex(index);
+        return serializeWithSize(cmd);
+    }
+
     public static ByteBuf newCloseConsumer(long consumerId, long requestId) {
         BaseCommand cmd = localCmd(Type.CLOSE_CONSUMER);
         cmd.setCloseConsumer()

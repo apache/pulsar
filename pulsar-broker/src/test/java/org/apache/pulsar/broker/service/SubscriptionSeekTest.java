@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -65,6 +66,16 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        Set<String> interceptorNames = new HashSet<>();
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        interceptorNames.add("org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor");
+        conf.setBrokerEntryMetadataInterceptors(interceptorNames);
+        conf.setExposingBrokerEntryMetadataToClientEnabled(true);
+        conf.setManagedLedgerMaxEntriesPerLedger(2);
+        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        conf.setDefaultRetentionSizeInMB(-1);
+        conf.setDefaultRetentionTimeInMinutes(-1);
+        enableBrokerInterceptor = true;
         super.baseSetup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
@@ -112,9 +123,10 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         consumer.seek(messageIds.get(5));
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 5);
 
-        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(5);
+        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(0);
         MessageIdImpl beforeEarliest = new MessageIdImpl(
                 messageId.getLedgerId() - 1, messageId.getEntryId(), messageId.getPartitionIndex());
+        messageId = (MessageIdImpl) messageIds.get(9);
         MessageIdImpl afterLatest = new MessageIdImpl(
                 messageId.getLedgerId() + 1, messageId.getEntryId(), messageId.getPartitionIndex());
 
@@ -187,8 +199,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekForBatchMessageAndSpecifiedBatchIndex() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
-        String subscriptionName = "my-subscription-batch";
+        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchMessageAndSpecifiedBatchIndex";
+        String subscriptionName = "my-subscription-testSeekForBatchMessageAndSpecifiedBatchIndex";
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(true)
@@ -269,7 +281,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     @Test
     public void testSeekForBatchByAdmin() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchByAdmin-" + UUID.randomUUID().toString();
-        String subscriptionName = "my-subscription-batch";
+        String subscriptionName = "my-subscription-testSeekForBatchByAdmin";
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(true)
@@ -779,5 +791,107 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             assertTrue(e.getCause() instanceof PulsarClientException);
             assertTrue(e.getCause().getMessage().contains("Only support seek by messageId or timestamp"));
         }
+    }
+
+    @Test
+    public void testConsumerSeekByIndex() throws Exception {
+        String topic = "persistent://prop/ns-abc/testConsumerSeekByIndex";
+        String subscription = "sub-testConsumerSeekByIndex";
+
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer =
+                pulsarClient.newConsumer()
+                        .topic(topic)
+                        .subscriptionName(subscription)
+                        .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getSubscriptions().size(), 1);
+        PersistentSubscription sub = topicRef.getSubscription(subscription);
+
+
+        //seek when no message in topic.
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(0);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
+
+
+        //make msg index in range [0,9]
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            MessageId id = producer.send(message.getBytes());
+            log.info("message {} send, id={}", i, id);
+        }
+        assertEquals(((ManagedLedgerImpl)topicRef.getManagedLedger()).getLedgersInfoAsList().size(), 5);
+
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 10);
+
+        // seek range from [0,9]
+        for (int i = 0; i < 10; i++) {
+            Awaitility.await().until(consumer::isConnected);
+            consumer.seekByIndex(i);
+            assertEquals(sub.getNumberOfEntriesInBacklog(true), 10 - i);
+        }
+
+
+        //seek index larger than max index, backlog is 0;
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(10);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
+
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(11);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
+
+        //seek index smaller than min index, backlog is same as min index;
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(-1);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 10);
+
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(-2);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 10);
+
+        //
+        //test the case current messages index not starting from 0
+        //
+
+        //make msg index in range [10,19]
+        producer.send("message 10".getBytes());
+        topicRef.truncate(); //delete old ledgers
+        for (int i = 11; i < 20; i++) {
+            String message = "my-message-" + i;
+            MessageId id = producer.send(message.getBytes());
+            log.info("message {} send, id={}", i, id);
+        }
+
+        // seek range from [10,19]
+        for (int i = 10; i < 20; i++) {
+            Awaitility.await().until(consumer::isConnected);
+            consumer.seekByIndex(i);
+            assertEquals(sub.getNumberOfEntriesInBacklog(true), 20 - i);
+        }
+        //seek index larger than max index, backlog is 0;
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(20);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(21);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 0);
+        //seek index smaller than min index, backlog should be the same as min index;
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(9);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 10);
+
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seekByIndex(8);
+        assertEquals(sub.getNumberOfEntriesInBacklog(true), 10);
+
     }
 }

@@ -674,6 +674,26 @@ public interface Consumer<T> extends Closeable {
      */
     void seek(long timestamp) throws PulsarClientException;
 
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message index.
+     * <p> For example, giving the index of message in this topic is in range [A, B), where A <= B;
+     * <ul>
+     * <li>if seekByIndex(X), where X in range [A,B), message with index a is the next message consumer will receive.
+     * <li>if seekByIndex(X), where X < A, it's the same as seek(MessageId.earliest). Reset the subscription on the
+     * earliest message available in the topic. See {@link #seek(MessageId)}
+     * <li>if seekByIndex(X), where X >= B, it's the same as seek(MessageId.latest). Reset the subscription on the
+     * latest message in the topic. See {@link #seek(MessageId)}
+     * </ul>
+     *
+     * <p> Note: "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor" must be added to
+     * "brokerEntryMetadataInterceptors" in broker configuration to enable index meta in broker.
+     *
+     * @param index
+     *            the message index where to reposition the subscription
+     */
+    void seekByIndex(long index) throws PulsarClientException;
+
     /**
      * Reset the subscription associated with this consumer to a specific message ID or message publish time.
      * <p>
@@ -731,6 +751,14 @@ public interface Consumer<T> extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(long timestamp);
+
+    /**
+     * Asynchronous mode of {@link #seekByIndex}.
+     *
+     * @param index the message index where to reposition the subscription
+     * @return a future to track the completion of the seek operation
+     */
+    CompletableFuture<Void> seekByIndexAsync(long index);
 
     /**
      * Get the last message id available for consume.
