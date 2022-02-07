@@ -59,12 +59,33 @@ public class BrokerProxyValidatorTest {
         brokerProxyValidator.resolveAndCheckTargetAddress("myhost:6650").get();
     }
 
+    @Test(expectedExceptions = ExecutionException.class,
+            expectedExceptionsMessageRegExp = ".* The IP address of the given host and port 'myhost:6650' isn't allowed.")
+    public void shouldPreventInvalidIPAddress() throws Exception {
+        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
+                createMockedAddressResolver("1.2.3.4"),
+                "myhost"
+                , "1.3.0.0/16"
+                , "6650");
+        brokerProxyValidator.resolveAndCheckTargetAddress("myhost:6650").get();
+    }
+
     @Test
     public void shouldSupportHostNamePattern() throws Exception {
         BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
                 createMockedAddressResolver("1.2.3.4"),
                 "*.mydomain"
                 , "1.2.0.0/16"
+                , "6650");
+        brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
+    }
+
+    @Test
+    public void shouldAllowAllWithWildcard() throws Exception {
+        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
+                createMockedAddressResolver("1.2.3.4"),
+                "*"
+                , "*"
                 , "6650");
         brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
     }

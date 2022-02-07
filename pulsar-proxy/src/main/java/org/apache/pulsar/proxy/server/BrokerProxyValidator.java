@@ -28,6 +28,7 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
@@ -39,27 +40,54 @@ import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 @Slf4j
 public class BrokerProxyValidator {
     private static final String SEPARATOR = "\\s*,\\s*";
+    private static final String ALLOW_ANY = "*";
     private final int[] allowedTargetPorts;
+    private final boolean allowAnyTargetPort;
     private final List<IPAddress> allowedIPAddresses;
+    private final boolean allowAnyIPAddress;
     private final AddressResolver<InetSocketAddress> inetSocketAddressResolver;
     private final List<Pattern> allowedHostNames;
+    private final boolean allowAnyHostName;
 
     public BrokerProxyValidator(AddressResolver<InetSocketAddress> inetSocketAddressResolver, String allowedHostNames,
                                 String allowedIPAddresses, String allowedTargetPorts) {
         this.inetSocketAddressResolver = inetSocketAddressResolver;
-        this.allowedHostNames = parseCommaSeparatedConfigValue(allowedHostNames).stream()
-                .map(BrokerProxyValidator::parseWildcardPattern).collect(Collectors.toList());
-        this.allowedIPAddresses = parseCommaSeparatedConfigValue(allowedIPAddresses).stream().map(IPAddressString::new)
-                .filter(ipAddressString -> {
-                    if (ipAddressString.isValid()) {
-                        return true;
-                    } else {
-                        throw new IllegalArgumentException("Invalid IP address filter '" + ipAddressString + "'",
-                                ipAddressString.getAddressStringException());
-                    }
-                }).map(IPAddressString::getAddress).collect(Collectors.toList());
-        this.allowedTargetPorts =
-                parseCommaSeparatedConfigValue(allowedTargetPorts).stream().mapToInt(Integer::parseInt).toArray();
+        List<String> allowedHostNamesStrings = parseCommaSeparatedConfigValue(allowedHostNames);
+        if (allowedHostNamesStrings.contains(ALLOW_ANY)) {
+            this.allowAnyHostName = true;
+            this.allowedHostNames = Collections.emptyList();
+        } else {
+            this.allowAnyHostName = false;
+            this.allowedHostNames = allowedHostNamesStrings.stream()
+                    .map(BrokerProxyValidator::parseWildcardPattern).collect(Collectors.toList());
+        }
+        List<String> allowedIPAddressesStrings = parseCommaSeparatedConfigValue(allowedIPAddresses);
+        if (allowedIPAddressesStrings.contains(ALLOW_ANY)) {
+            allowAnyIPAddress = true;
+            this.allowedIPAddresses = Collections.emptyList();
+        } else {
+            allowAnyIPAddress = false;
+            this.allowedIPAddresses = allowedIPAddressesStrings.stream().map(IPAddressString::new)
+                    .filter(ipAddressString -> {
+                        if (ipAddressString.isValid()) {
+                            return true;
+                        } else {
+                            throw new IllegalArgumentException("Invalid IP address filter '" + ipAddressString + "'",
+                                    ipAddressString.getAddressStringException());
+                        }
+                    }).map(IPAddressString::getAddress)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        }
+        List<String> allowedTargetPortsStrings = parseCommaSeparatedConfigValue(allowedTargetPorts);
+        if (allowedTargetPortsStrings.contains(ALLOW_ANY)) {
+            allowAnyTargetPort = true;
+            this.allowedTargetPorts = new int[0];
+        } else {
+            allowAnyTargetPort = false;
+            this.allowedTargetPorts =
+                    allowedTargetPortsStrings.stream().mapToInt(Integer::parseInt).toArray();
+        }
     }
 
     private static Pattern parseWildcardPattern(String wildcardPattern) {
@@ -111,6 +139,9 @@ public class BrokerProxyValidator {
     }
 
     private boolean isPortAllowed(int port) {
+        if (allowAnyTargetPort) {
+            return true;
+        }
         for (int allowedPort : allowedTargetPorts) {
             if (allowedPort == port) {
                 return true;
@@ -120,6 +151,9 @@ public class BrokerProxyValidator {
     }
 
     private boolean isIPAddressAllowed(InetSocketAddress resolvedAddress) {
+        if (allowAnyIPAddress) {
+            return true;
+        }
         byte[] addressBytes = resolvedAddress.getAddress().getAddress();
         IPAddress candidateAddress =
                 addressBytes.length == 4 ? new IPv4Address(addressBytes) : new IPv6Address(addressBytes);
@@ -132,6 +166,9 @@ public class BrokerProxyValidator {
     }
 
     private boolean isHostAllowed(String host) {
+        if (allowAnyHostName) {
+            return true;
+        }
         boolean matched = false;
         for (Pattern allowedHostName : allowedHostNames) {
             if (allowedHostName.matcher(host).matches()) {
