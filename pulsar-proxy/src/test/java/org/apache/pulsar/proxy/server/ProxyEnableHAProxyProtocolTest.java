@@ -56,8 +56,8 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         internalSetup();
 
         proxyConfig.setServicePort(Optional.ofNullable(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setHaProxyProtocolEnabled(true);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(

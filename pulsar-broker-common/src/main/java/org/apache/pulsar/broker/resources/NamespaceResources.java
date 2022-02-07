@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -72,8 +74,19 @@ public class NamespaceResources extends BaseResources<Policies> {
         return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant));
     }
 
+    public CompletableFuture<Boolean> getPoliciesReadOnlyAsync() {
+        return super.existsAsync(POLICIES_READONLY_FLAG_PATH);
+    }
+
     public boolean getPoliciesReadOnly() throws MetadataStoreException {
-        return super.exists(POLICIES_READONLY_FLAG_PATH);
+        try {
+            return getPoliciesReadOnlyAsync().get(getOperationTimeoutSec(), TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
+        } catch (Exception e) {
+            throw new MetadataStoreException("Failed to check exist " + POLICIES_READONLY_FLAG_PATH, e);
+        }
     }
 
     public void createPolicies(NamespaceName ns, Policies policies) throws MetadataStoreException{

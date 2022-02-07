@@ -37,7 +37,7 @@ public class PartitionedTopicStatsTest {
         partitionedTopicStats.msgThroughputOut = 1;
         partitionedTopicStats.averageMsgSize = 1;
         partitionedTopicStats.storageSize = 1;
-        partitionedTopicStats.publishers.add(new PublisherStatsImpl());
+        partitionedTopicStats.addPublisher((new PublisherStatsImpl()));
         partitionedTopicStats.subscriptions.put("test_ns", new SubscriptionStatsImpl());
         partitionedTopicStats.replication.put("test_ns", new ReplicatorStatsImpl());
         partitionedTopicStats.metadata.partitions = 1;
@@ -49,7 +49,7 @@ public class PartitionedTopicStatsTest {
         assertEquals(partitionedTopicStats.msgThroughputOut, 0.0);
         assertEquals(partitionedTopicStats.averageMsgSize, 0.0);
         assertEquals(partitionedTopicStats.storageSize, 0);
-        assertEquals(partitionedTopicStats.publishers.size(), 0);
+        assertEquals(partitionedTopicStats.getPublishers().size(), 0);
         assertEquals(partitionedTopicStats.subscriptions.size(), 0);
         assertEquals(partitionedTopicStats.replication.size(), 0);
         assertEquals(partitionedTopicStats.metadata.partitions, 0);

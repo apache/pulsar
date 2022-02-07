@@ -37,6 +37,7 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
@@ -85,16 +86,16 @@ public class AuthorizationService {
      *
      * Grant authorization-action permission on a namespace to the given client.
      *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission.
+     *
      * @param namespace
      * @param actions
      * @param role
      * @param authDataJson
      *            additional authdata in json for targeted authorization provider
-     * @return
-     * @throws IllegalArgumentException
-     *             when namespace not found
-     * @throws IllegalStateException
-     *             when failed to grant permission
+     * @completesWith null when the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
                                                         String authDataJson) {
@@ -407,21 +408,6 @@ public class AuthorizationService {
         }
     }
 
-    public boolean allowNamespaceOperation(NamespaceName namespaceName,
-                                           NamespaceOperation operation,
-                                           String originalRole,
-                                           String role,
-                                           AuthenticationDataSource authData) {
-        try {
-            return allowNamespaceOperationAsync(
-                    namespaceName, operation, originalRole, role, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
     /**
      * Grant authorization-action permission on a namespace to the given client.
      *
@@ -507,8 +493,11 @@ public class AuthorizationService {
                                                                      String originalRole,
                                                                      String role,
                                                                      AuthenticationDataSource authData) {
-
-        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        try {
+            validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
+        }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicPolicyOperationAsync(
                     topicName, policy, operation, role, authData);
