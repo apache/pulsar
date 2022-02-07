@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":9,"i11":9,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":9,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":42,"i42":10,"i43":10,"i44":10,"i45":10,"i46":42,"i47":10,"i48":10,"i49":10,"i50":10,"i51":42};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":9,"i11":9,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":9,"i29":10,"i30":10,"i31":9,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":42,"i42":10,"i43":10,"i44":10,"i45":10,"i46":42,"i47":10,"i48":10,"i49":10,"i50":10,"i51":42};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -137,7 +137,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <li class="blockList">
 <dl>
 <dt>Direct Known Subclasses:</dt>
-<dd><code><a href="v2/Bookies.html" title="class in org.apache.pulsar.broker.admin.v2">Bookies</a></code>, <code><a href="impl/BrokerStatsBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokerStatsBase</a></code>, <code><a href="v2/Functions.html" title="class in org.apache.pulsar.broker.admin.v2">Functions</a></code>, <code><a href="impl/FunctionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">FunctionsBase</a></code>, <code><a href="impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></code>, <code><a href="impl/PackagesBase.html" title="class in org.apache.pulsar.broker.admin.impl">PackagesBase</a></code>, <code><a href="impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></code>, <code><a href="impl/ResourceGroupsBase.html" title="class in org.apache.pulsar.broker.admin.impl">ResourceGroupsBase</a></code>, <code><a href="impl/SchemasResourceBase.html" title="class in org.apache.pulsar.broker.admin.impl">SchemasResourceBase</a></code>, <code><a href="impl/SinksBase.html" title="class in org.apache.pulsar.broker.admin.impl">SinksBase</a></code>, <code><a href="impl/SourcesBase.html" title="class in org.apache.pulsar.broker.admin.impl">SourcesBase</a></code>, <code><a href="impl/TransactionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">TransactionsBase</a></code>, <code><a href="v2/Worker.html" title="class in org.apache.pulsar.broker.admin.v2">Worker</a></code>, <code><a href="v2/WorkerStats.html" title="class in org.apache.pulsar.broker.admin.v2">WorkerStats</a></code></dd>
+<dd><code><a href="v2/Bookies.html" title="class in org.apache.pulsar.broker.admin.v2">Bookies</a></code>, <code><a href="impl/BrokersBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokersBase</a></code>, <code><a href="impl/BrokerStatsBase.html" title="class in org.apache.pulsar.broker.admin.impl">BrokerStatsBase</a></code>, <code><a href="v2/Functions.html" title="class in org.apache.pulsar.broker.admin.v2">Functions</a></code>, <code><a href="impl/FunctionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">FunctionsBase</a></code>, <code><a href="impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></code>, <code><a href="impl/PackagesBase.html" title="class in org.apache.pulsar.broker.admin.impl">PackagesBase</a></code>, <code><a href="impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></code>, <code><a href="impl/ResourceGroupsBase.html" title="class in org.apache.pulsar.broker.admin.impl">ResourceGroupsBase</a></code>, <code><a href="impl/SchemasResourceBase.html" title="class in org.apache.pulsar.broker.admin.impl">SchemasResourceBase</a></code>, <code><a href="impl/SinksBase.html" title="class in org.apache.pulsar.broker.admin.impl">SinksBase</a></code>, <code><a href="impl/SourcesBase.html" title="class in org.apache.pulsar.broker.admin.impl">SourcesBase</a></code>, <code><a href="impl/TransactionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">TransactionsBase</a></code>, <code><a href="v2/Worker.html" title="class in org.apache.pulsar.broker.admin.v2">Worker</a></code>, <code><a href="v2/WorkerStats.html" title="class in org.apache.pulsar.broker.admin.v2">WorkerStats</a></code></dd>
 </dl>
 <hr>
 <pre>public abstract class <span class="typeNameLabel">AdminResource</span>
@@ -396,9 +396,9 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i31" class="rowColor">
-<td class="colFirst"><code>protected void</code></td>
+<td class="colFirst"><code>protected static void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resumeAsyncResponseExceptionally(javax.ws.rs.container.AsyncResponse,java.lang.Throwable)">resumeAsyncResponseExceptionally</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
-                                java.lang.Throwable&nbsp;throwable)</code></th>
+                                java.lang.Throwable&nbsp;exception)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i32" class="altColor">
@@ -1112,8 +1112,8 @@ protected&nbsp;void&nbsp;validatePersistentTopicName&#8203;(java.lang.String&nbs
 <ul class="blockList">
 <li class="blockList">
 <h4>resumeAsyncResponseExceptionally</h4>
-<pre class="methodSignature">protected&nbsp;void&nbsp;resumeAsyncResponseExceptionally&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
-                                                java.lang.Throwable&nbsp;throwable)</pre>
+<pre class="methodSignature">protected static&nbsp;void&nbsp;resumeAsyncResponseExceptionally&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                                                       java.lang.Throwable&nbsp;exception)</pre>
 </li>
 </ul>
 <a id="getSchemaCompatibilityStrategyAsync()">
