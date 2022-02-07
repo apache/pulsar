@@ -1099,8 +1099,8 @@ public class NamespaceService implements AutoCloseable {
             return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
         } else {
             return pulsar.getBrokerService()
-                    .getTopics().get(topic.toString())
-                    .thenApply(Optional::isPresent);
+                    .getTopicIfExists(topic.toString())
+                    .thenApply(optTopic -> optTopic.isPresent());
         }
     }
 
