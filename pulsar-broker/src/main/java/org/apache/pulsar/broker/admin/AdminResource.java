@@ -755,7 +755,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return future;
     }
 
-    protected static Void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable exception) {
+    protected static void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable exception) {
         Throwable realCause = FutureUtil.unwrapCompletionException(exception);
         if (realCause instanceof WebApplicationException) {
             asyncResponse.resume(realCause);
@@ -764,7 +764,6 @@ public abstract class AdminResource extends PulsarWebResource {
         } else {
             asyncResponse.resume(new RestException(realCause));
         }
-        return null;
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {

@@ -176,7 +176,8 @@ public class BrokersBase extends AdminResource {
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     LOG.error("[{}] Failed to update configuration {}/{}", clientAppId(), configName, configValue, ex);
-                    return resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
                 });
     }
 
