@@ -172,13 +172,12 @@ public class BrokersBase extends PulsarWebResource {
                                            @PathParam("configName") String configName,
                                            @PathParam("configValue") String configValue) {
         validateSuperUserAccessAsync()
-                .thenCompose(__ -> persistDynamicConfiguration(configName, configValue))
+                .thenCompose(__ -> persistDynamicConfigurationAsync(configName, configValue))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     LOG.error("[{}] Failed to update configuration {}/{}", clientAppId(), configName, configValue, ex);
-                            ex.getMessage(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
