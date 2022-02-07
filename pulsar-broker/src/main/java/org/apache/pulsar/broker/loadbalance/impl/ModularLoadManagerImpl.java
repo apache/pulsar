@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -189,6 +190,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private AtomicReference<List<Metrics>> bundleUnloadMetrics = new AtomicReference<>();
     // record bundle split metrics
     private AtomicReference<List<Metrics>> bundleSplitMetrics = new AtomicReference<>();
+    // record bundle metrics
+    private AtomicReference<List<Metrics>> bundleMetrics = new AtomicReference<>();
 
     private long bundleSplitCount = 0;
     private long unloadBrokerCount = 0;
@@ -354,9 +357,26 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
     }
 
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        CompletableFuture<Set<String>> future = new CompletableFuture<>();
+        brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                .whenComplete((listLocks, ex) -> {
+                    if (ex != null){
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn("Error when trying to get active brokers", realCause);
+                        future.complete(loadData.getBrokerData().keySet());
+                    } else {
+                        future.complete(Sets.newHashSet(listLocks));
+                    }
+                });
+        return future;
+    }
+
     // Attempt to local the data for the given bundle in metadata store
     // If it cannot be found, return the default bundle data.
-    private BundleData getBundleDataOrDefault(final String bundle) {
+    @Override
+    public BundleData getBundleDataOrDefault(final String bundle) {
         BundleData bundleData = null;
         try {
             Optional<BundleData> optBundleData = bundlesCache.get(getBundleDataPath(bundle)).join();
@@ -397,7 +417,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     // Get the metadata store path for the given bundle full name.
-    private static String getBundleDataPath(final String bundle) {
+    public static String getBundleDataPath(final String bundle) {
         return BUNDLE_DATA_PATH + "/" + bundle;
     }
 
@@ -607,7 +627,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         return;
                     }
 
-                    log.info("[Overload shedder] Unloading bundle: {} from broker {}", bundle, broker);
+                    log.info("[{}] Unloading bundle: {} from broker {}",
+                            strategy.getClass().getSimpleName(), bundle, broker);
                     try {
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange);
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
@@ -915,6 +936,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
+            if (conf.isExposeBundlesMetricsInPrometheus()) {
+                updateLoadBalancingBundlesMetrics(getBundleStats());
+            }
         } catch (Exception e) {
             log.warn("Error when attempting to update local broker data", e);
             if (e instanceof ConcurrentModificationException) {
@@ -924,6 +948,33 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             lock.unlock();
         }
         return localData;
+    }
+
+    /**
+     * As any broker, update its bundle metrics.
+     *
+     * @param bundlesData
+     */
+    private void updateLoadBalancingBundlesMetrics(Map<String, NamespaceBundleStats> bundlesData) {
+        List<Metrics> metrics = Lists.newArrayList();
+        for (Map.Entry<String, NamespaceBundleStats> entry: bundlesData.entrySet()) {
+            final String bundle = entry.getKey();
+            final NamespaceBundleStats stats = entry.getValue();
+            Map<String, String> dimensions = new HashMap<>();
+            dimensions.put("broker", pulsar.getAdvertisedAddress());
+            dimensions.put("bundle", bundle);
+            dimensions.put("metric", "bundle");
+            Metrics m = Metrics.create(dimensions);
+            m.put("brk_bundle_msg_rate_in", stats.msgRateIn);
+            m.put("brk_bundle_msg_rate_out", stats.msgRateOut);
+            m.put("brk_bundle_topics_count", stats.topics);
+            m.put("brk_bundle_consumer_count", stats.consumerCount);
+            m.put("brk_bundle_producer_count", stats.producerCount);
+            m.put("brk_bundle_msg_throughput_in", stats.msgThroughputIn);
+            m.put("brk_bundle_msg_throughput_out", stats.msgThroughputOut);
+            metrics.add(m);
+        }
+        this.bundleMetrics.set(metrics);
     }
 
     /**
@@ -1083,6 +1134,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         if (this.bundleSplitMetrics.get() != null) {
             metricsCollection.addAll(this.bundleSplitMetrics.get());
+        }
+
+        if (this.bundleMetrics.get() != null) {
+            metricsCollection.addAll(this.bundleMetrics.get());
         }
 
         return metricsCollection;

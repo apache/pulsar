@@ -69,6 +69,7 @@ import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl;
 import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.impl.schema.ShortSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
@@ -358,7 +359,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param kvSchemaInfo the key/value schema info
      * @return the convert key/value schema data string
      */
-    public String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
+    public String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo)
+            throws IOException {
         return SchemaUtils.convertKeyValueSchemaInfoDataToString(kvSchemaInfo);
     }
 
@@ -368,7 +370,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
      * @return the key/value schema info data bytes
      */
-    public byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+    public byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes)
+            throws IOException {
         return SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(keyValueSchemaInfoDataJsonBytes);
     }
 
@@ -382,5 +385,10 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
 
     public MessagePayloadFactory newDefaultMessagePayloadFactory() {
         return new MessagePayloadFactoryImpl();
+    }
+
+    public SchemaInfo newSchemaInfoImpl(
+            String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue) {
+        return new SchemaInfoImpl(name, schema, type, propertiesValue);
     }
 }

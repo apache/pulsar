@@ -5,10 +5,6 @@ sidebar_label: "Python"
 original_id: client-libraries-python
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
@@ -34,16 +30,14 @@ $ pip install pulsar-client==@pulsar:version_number@
 To support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the  `pulsar-client` library
 
 ```shell
-
 # avro serialization
-$ pip install pulsar-client=='@pulsar:version_number@[avro]'
+$ pip install pulsar-client[avro]=='{{pulsar:version_number}}'
 
 # functions runtime
-$ pip install pulsar-client=='@pulsar:version_number@[functions]'
+$ pip install pulsar-client[functions]=='{{pulsar:version_number}}'
 
 # all optional components
-$ pip install pulsar-client=='@pulsar:version_number@[all]'
-
+$ pip install pulsar-client[all]=='{{pulsar:version_number}}'
 ```
 
 Installation via PyPi is available for the following Python versions:

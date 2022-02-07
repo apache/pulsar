@@ -88,7 +88,7 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts, restUrl) => {
     return rendered_content;
 };
 
-const url = 'https://pulsar.incubator.apache.org';
+const url = 'https://pulsar.apache.org';
 const javadocUrl = url + '/api';
 const restApiUrl = url + "/admin-rest-api";
 const functionsApiUrl = url + "/functions-rest-api";

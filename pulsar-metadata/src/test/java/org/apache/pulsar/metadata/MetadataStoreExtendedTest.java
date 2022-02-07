@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -35,7 +36,7 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void sequentialKeys(String provider, Supplier<String> urlSupplier) throws Exception {
-        final String basePath = "/my/path";
+        final String basePath = newKey();
 
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -61,6 +62,6 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         long n2 = Long.parseLong(seq2);
 
         assertNotEquals(seq1, seq2);
-        assertNotEquals(n1, n2);
+        assertTrue(n1 < n2);
     }
 }

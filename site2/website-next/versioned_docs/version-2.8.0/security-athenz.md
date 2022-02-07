@@ -5,10 +5,6 @@ sidebar_label: "Authentication using Athenz"
 original_id: security-athenz
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 [Athenz](https://github.com/AthenZ/athenz) is a role-based authentication/authorization system. In Pulsar, you can use Athenz role tokens (also known as *z-tokens*) to establish the identify of the client.
 
 ## Athenz authentication settings

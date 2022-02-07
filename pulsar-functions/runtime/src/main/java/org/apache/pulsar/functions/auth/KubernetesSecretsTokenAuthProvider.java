@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.auth;
 import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1DeleteOptions;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1Secret;
@@ -29,6 +28,7 @@ import io.kubernetes.client.openapi.models.V1SecretVolumeSource;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1Volume;
 import io.kubernetes.client.openapi.models.V1VolumeMount;
+import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -116,7 +116,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
             authConfig.setClientAuthenticationParameters(null);
         } else {
             authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-            authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
+            authConfig.setClientAuthenticationParameters(Paths.get(DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN)
+                    .toUri().toString());
             // if we have ca bytes, update the new path for the CA
             if (this.caBytes != null) {
                 authConfig.setTlsTrustCertsFilePath(String.format("%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_CA_CERT));

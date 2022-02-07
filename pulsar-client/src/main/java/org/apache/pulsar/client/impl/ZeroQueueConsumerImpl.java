@@ -18,18 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
-
 import io.netty.buffer.ByteBuf;
-
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -151,8 +147,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     private void triggerZeroQueueSizeListener(final Message<T> message) {
-        checkNotNull(listener, "listener can't be null");
-        checkNotNull(message, "unqueued message can't be null");
+        Objects.requireNonNull(listener, "listener can't be null");
+        Objects.requireNonNull(message, "unqueued message can't be null");
 
         externalPinnedExecutor.execute(() -> {
             stats.updateNumMsgsReceived(message);

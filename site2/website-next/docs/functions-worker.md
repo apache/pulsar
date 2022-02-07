@@ -3,10 +3,6 @@ id: functions-worker
 title: Deploy and manage functions worker
 sidebar_label: "Setup: Pulsar Functions Worker"
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime).  
 
 Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either based on your requirements. 
@@ -239,13 +235,13 @@ properties:
 
 ##### Enable Authorization Provider
 
-To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
+To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationMetadataStoreUrl`. The authentication provider connects to `configurationMetadataStoreUrl` to receive namespace policies.
 
 ```yaml
 
 authorizationEnabled: true
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
-configurationStoreServers: <configuration-store-servers>
+configurationMetadataStoreUrl: <meta-type>:<configuration-metadata-store-url>
 
 ```
 

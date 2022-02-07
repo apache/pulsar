@@ -56,7 +56,7 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFuncti
 @Slf4j
 public class FunctionConfigUtils {
 
-	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = Integer.valueOf(1000);
+	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = 1000;
 	static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
@@ -117,7 +117,7 @@ public class FunctionConfigUtils {
                                     .setIsRegexPattern(false)
                                     .build());
                 } catch (JsonProcessingException e) {
-                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs ,Topic %s ", topicName));
+                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs,Topic %s ", topicName));
                 }
             });
         }
@@ -212,7 +212,7 @@ public class FunctionConfigUtils {
                     sinkSpecBuilder.putAllConsumerProperties(consumerConfig.getConsumerProperties());
                 }
             } catch (JsonProcessingException e) {
-                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));
+                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs,Topic %s ", functionConfig.getOutput()));
             }
         }
         if (typeArgs != null) {

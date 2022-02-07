@@ -49,7 +49,7 @@ import net.jodah.failsafe.Failsafe;
 
 @Slf4j
 public class PulsarIOSourceRunner extends PulsarIOTestRunner {
-	
+
     public PulsarIOSourceRunner(PulsarCluster cluster, String functionRuntimeType) {
 		super(cluster, functionRuntimeType);
 	}
@@ -131,7 +131,8 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
             "--name", sourceName,
             "--source-type", tester.sourceType(),
             "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
-            "--destinationTopicName", outputTopicName
+            "--destinationTopicName", outputTopicName,
+            "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
         };
 
         log.info("Run command : {}", StringUtils.join(commands, ' '));
@@ -156,7 +157,8 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
                 "--source-type", tester.sourceType(),
                 "--sourceConfig", new Gson().toJson(tester.sourceConfig()),
                 "--destinationTopicName", outputTopicName,
-                "--parallelism", "2"
+                "--parallelism", "2",
+                "--ram", String.valueOf(RUNTIME_INSTANCE_RAM_BYTES)
         };
 
         log.info("Run command : {}", StringUtils.join(commands, ' '));

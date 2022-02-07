@@ -39,11 +39,17 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.0.0-M3</surefire.version>
-    <log4j2.version>2.14.0</log4j2.version>
-    <slf4j.version>1.7.25</slf4j.version>
+    <log4j2.version>2.17.1</log4j2.version>
+    <slf4j.version>1.7.32</slf4j.version>
     <testng.version>7.3.0</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+    <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
+    <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <guice.version>4.2.3</guice.version>
+    <guava.version>31.0.1-jre</guava.version>
+    <ant.version>1.10.12</ant.version>
+    <snakeyaml.version>1.30</snakeyaml.version>
   </properties>
 
   <dependencyManagement>
@@ -59,6 +65,28 @@
   </dependencyManagement>
 
   <dependencies>
+
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>${snakeyaml.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.ant</groupId>
+      <artifactId>ant</artifactId>
+      <version>${ant.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>${guice.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
@@ -105,7 +133,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.68.Final</version>
+      <version>4.1.73.Final</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -180,6 +208,25 @@
             <!-- This is generated during maven build -->
             <exclude>dependency-reduced-pom.xml</exclude>
           </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${maven-checkstyle-plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>${puppycrawl.checkstyle.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <configLocation>${project.basedir}/src/main/resources/pulsar/checkstyle.xml</configLocation>
+          <suppressionsLocation>${project.basedir}/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <encoding>UTF-8</encoding>
+          <excludes>**/proto/*</excludes>
         </configuration>
       </plugin>
     </plugins>

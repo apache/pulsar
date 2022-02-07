@@ -68,8 +68,8 @@ public interface Message<T> {
 
     /**
      * Get the uncompressed message payload size in bytes.
-     * 
-     * @return size in bytes. 
+     *
+     * @return size in bytes.
      */
     int size();
 
@@ -241,13 +241,13 @@ public interface Message<T> {
     /**
      * Release a message back to the pool. This is required only if the consumer was created with the option to pool
      * messages, otherwise it will have no effect.
-     * 
+     *
      * @since 2.8.0
      */
     void release();
 
     /**
-     * Check whether the message has a broker publish time
+     * Check whether the message has a broker publish time.
      *
      * @since 2.9.0
      * @return true if the message has a broker publish time, otherwise false.

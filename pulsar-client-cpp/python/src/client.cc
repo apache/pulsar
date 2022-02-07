@@ -22,11 +22,10 @@ Producer Client_createProducer(Client& client, const std::string& topic, const P
     Producer producer;
     Result res;
 
-    Py_BEGIN_ALLOW_THREADS
-    res = client.createProducer(topic, conf, producer);
+    Py_BEGIN_ALLOW_THREADS res = client.createProducer(topic, conf, producer);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return producer;
 }
 
@@ -35,11 +34,10 @@ Consumer Client_subscribe(Client& client, const std::string& topic, const std::s
     Consumer consumer;
     Result res;
 
-    Py_BEGIN_ALLOW_THREADS
-    res = client.subscribe(topic, subscriptionName, conf, consumer);
+    Py_BEGIN_ALLOW_THREADS res = client.subscribe(topic, subscriptionName, conf, consumer);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return consumer;
 }
 
@@ -50,43 +48,39 @@ Consumer Client_subscribe_topics(Client& client, boost::python::list& topics,
 
     std::vector<std::string> topics_vector;
 
-    for (int i = 0; i < len(topics); i ++) {
+    for (int i = 0; i < len(topics); i++) {
         std::string content = boost::python::extract<std::string>(topics[i]);
         topics_vector.push_back(content);
     }
 
-    Py_BEGIN_ALLOW_THREADS
-        res = client.subscribe(topics_vector, subscriptionName, conf, consumer);
+    Py_BEGIN_ALLOW_THREADS res = client.subscribe(topics_vector, subscriptionName, conf, consumer);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return consumer;
 }
 
-Consumer Client_subscribe_pattern(Client& client, const std::string& topic_pattern, const std::string& subscriptionName,
-                                 const ConsumerConfiguration& conf) {
+Consumer Client_subscribe_pattern(Client& client, const std::string& topic_pattern,
+                                  const std::string& subscriptionName, const ConsumerConfiguration& conf) {
     Consumer consumer;
     Result res;
 
-    Py_BEGIN_ALLOW_THREADS
-        res = client.subscribeWithRegex(topic_pattern, subscriptionName, conf, consumer);
+    Py_BEGIN_ALLOW_THREADS res = client.subscribeWithRegex(topic_pattern, subscriptionName, conf, consumer);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return consumer;
 }
 
-Reader Client_createReader(Client& client, const std::string& topic,
-                           const MessageId& startMessageId,
+Reader Client_createReader(Client& client, const std::string& topic, const MessageId& startMessageId,
                            const ReaderConfiguration& conf) {
     Reader reader;
     Result res;
 
-    Py_BEGIN_ALLOW_THREADS
-    res = client.createReader(topic, startMessageId, conf, reader);
+    Py_BEGIN_ALLOW_THREADS res = client.createReader(topic, startMessageId, conf, reader);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return reader;
 }
 
@@ -94,11 +88,10 @@ boost::python::list Client_getTopicPartitions(Client& client, const std::string&
     std::vector<std::string> partitions;
     Result res;
 
-    Py_BEGIN_ALLOW_THREADS
-    res = client.getPartitionsForTopic(topic, partitions);
+    Py_BEGIN_ALLOW_THREADS res = client.getPartitionsForTopic(topic, partitions);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
 
     boost::python::list pyList;
     for (int i = 0; i < partitions.size(); i++) {
@@ -111,24 +104,22 @@ boost::python::list Client_getTopicPartitions(Client& client, const std::string&
 void Client_close(Client& client) {
     Result res;
 
-    Py_BEGIN_ALLOW_THREADS
-    res = client.close();
+    Py_BEGIN_ALLOW_THREADS res = client.close();
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
 }
 
 void export_client() {
     using namespace boost::python;
 
-    class_<Client>("Client", init<const std::string&, const ClientConfiguration& >())
-            .def("create_producer", &Client_createProducer)
-            .def("subscribe", &Client_subscribe)
-            .def("subscribe_topics", &Client_subscribe_topics)
-            .def("subscribe_pattern", &Client_subscribe_pattern)
-            .def("create_reader", &Client_createReader)
-            .def("get_topic_partitions", &Client_getTopicPartitions)
-            .def("close", &Client_close)
-            .def("shutdown", &Client::shutdown)
-            ;
+    class_<Client>("Client", init<const std::string&, const ClientConfiguration&>())
+        .def("create_producer", &Client_createProducer)
+        .def("subscribe", &Client_subscribe)
+        .def("subscribe_topics", &Client_subscribe_topics)
+        .def("subscribe_pattern", &Client_subscribe_pattern)
+        .def("create_reader", &Client_createReader)
+        .def("get_topic_partitions", &Client_getTopicPartitions)
+        .def("close", &Client_close)
+        .def("shutdown", &Client::shutdown);
 }

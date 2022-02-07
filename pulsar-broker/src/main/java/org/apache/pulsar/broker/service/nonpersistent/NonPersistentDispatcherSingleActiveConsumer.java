@@ -44,7 +44,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
                                                        NonPersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName(), subscription,
-                topic.getBrokerService().pulsar().getConfiguration());
+                topic.getBrokerService().pulsar().getConfiguration(), null);
         this.topic = topic;
         this.subscription = subscription;
         this.msgDrop = new Rate();
@@ -73,7 +73,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
 
     @Override
     protected boolean isConsumersExceededOnSubscription() {
-        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumers.size());
+        return isConsumersExceededOnSubscription(topic, consumers.size());
     }
 
     @Override
@@ -108,6 +108,11 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
 
     @Override
     protected void cancelPendingRead() {
+        // No-op
+    }
+
+    @Override
+    protected void reScheduleRead() {
         // No-op
     }
 }

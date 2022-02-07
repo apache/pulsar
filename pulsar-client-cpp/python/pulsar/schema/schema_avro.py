@@ -32,10 +32,15 @@ except ModuleNotFoundError:
 
 if HAS_AVRO:
     class AvroSchema(Schema):
-        def __init__(self, record_cls):
-            super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                             record_cls.schema(), 'AVRO')
-            self._schema = record_cls.schema()
+        def __init__(self, record_cls, schema_definition=None):
+            if record_cls is None and schema_definition is None:
+                raise AssertionError("The param record_cls and schema_definition shouldn't be both None.")
+
+            if record_cls is not None:
+                self._schema = record_cls.schema()
+            else:
+                self._schema = schema_definition
+            super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO, self._schema, 'AVRO')
 
         def _get_serialized_value(self, x):
             if isinstance(x, enum.Enum):
@@ -53,9 +58,14 @@ if HAS_AVRO:
                 return x
 
         def encode(self, obj):
-            self._validate_object_type(obj)
             buffer = io.BytesIO()
-            m = self.encode_dict(obj.__dict__)
+            m = obj
+            if self._record_cls is not None:
+                self._validate_object_type(obj)
+                m = self.encode_dict(obj.__dict__)
+            elif not isinstance(obj, dict):
+                raise ValueError('If using the custom schema, the record data should be dict type.')
+
             fastavro.schemaless_writer(buffer, self._schema, m)
             return buffer.getvalue()
 
@@ -68,11 +78,14 @@ if HAS_AVRO:
         def decode(self, data):
             buffer = io.BytesIO(data)
             d = fastavro.schemaless_reader(buffer, self._schema)
-            return self._record_cls(**d)
+            if self._record_cls is not None:
+                return self._record_cls(**d)
+            else:
+                return d
 
 else:
     class AvroSchema(Schema):
-        def __init__(self, _record_cls):
+        def __init__(self, _record_cls, _schema_definition):
             raise Exception("Avro library support was not found. Make sure to install Pulsar client " +
                             "with Avro support: pip3 install 'pulsar-client[avro]'")
 

@@ -4,10 +4,6 @@ title: Monitor
 sidebar_label: "Monitor"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 You can use different ways to monitor a Pulsar cluster, exposing both metrics related to the usage of topics and the overall health of the individual components of the cluster.
 
 ## Collect metrics
@@ -40,7 +36,7 @@ The aggregated broker metrics are also exposed in the [Prometheus](https://prome
 
 ```shell
 
-http://$BROKER_ADDRESS:8080/metrics
+http://$BROKER_ADDRESS:8080/metrics/
 
 ```
 
@@ -130,22 +126,12 @@ The per-topic dashboard instructions are available at [Pulsar manager](administr
 
 You can use grafana to create dashboard driven by the data that is stored in Prometheus.
 
-When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled by default. You can use the docker image with the principal dashboards.
-
-Enter the command below to use the dashboard manually:
-
-```shell
-
-docker run -p3000:3000 \
-        -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
-        apachepulsar/pulsar-grafana:latest
-
-```
+When you deploy Pulsar on Kubernetes with the Pulsar Helm Chart, a `pulsar-grafana` Docker image is enabled by default. You can use the docker image with the principal dashboards.
 
 The following are some Grafana dashboards examples:
 
 - [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
 - [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
 
- ## Alerting rules
- You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).
+## Alerting rules
+You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).

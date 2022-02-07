@@ -21,8 +21,6 @@ package org.apache.pulsar.client.impl;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.annotations.VisibleForTesting;
-
 public class BackoffBuilder {
     private long initial;
     private TimeUnit unitInitial;
@@ -31,34 +29,34 @@ public class BackoffBuilder {
     private Clock clock;
     private long mandatoryStop;
     private TimeUnit unitMandatoryStop;
-    
+
     public BackoffBuilder() {
         this.initial = 0;
         this.max = 0;
         this.mandatoryStop = 0;
         this.clock = Clock.systemDefaultZone();
     }
-    
+
     public BackoffBuilder setInitialTime(long initial, TimeUnit unitInitial) {
-    	this.unitInitial = unitInitial;
-    	this.initial = initial;
-    	return this;
-    }
-    
-    public BackoffBuilder setMax(long max, TimeUnit unitMax) {
-    	this.unitMax = unitMax;
-    	this.max = max;
-    	return this;
-    }
-     
-    public BackoffBuilder setMandatoryStop(long mandatoryStop, TimeUnit unitMandatoryStop) {
-    	this.mandatoryStop = mandatoryStop;
-    	this.unitMandatoryStop = unitMandatoryStop;
-    	return this;
+        this.unitInitial = unitInitial;
+        this.initial = initial;
+        return this;
     }
 
-    
+    public BackoffBuilder setMax(long max, TimeUnit unitMax) {
+        this.unitMax = unitMax;
+        this.max = max;
+        return this;
+    }
+
+    public BackoffBuilder setMandatoryStop(long mandatoryStop, TimeUnit unitMandatoryStop) {
+        this.mandatoryStop = mandatoryStop;
+        this.unitMandatoryStop = unitMandatoryStop;
+        return this;
+    }
+
+
     public Backoff create() {
-    	return new Backoff(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock);
+        return new Backoff(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock);
     }
 }

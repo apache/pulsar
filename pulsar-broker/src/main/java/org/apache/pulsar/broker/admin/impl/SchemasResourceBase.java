@@ -38,8 +38,6 @@ import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataExcep
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -136,16 +134,7 @@ public class SchemasResourceBase extends AdminResource {
     public void postSchema(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
 
-        getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
-            SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                schemaCompatibilityStrategy =
-                        pulsar().getConfig().getSchemaCompatibilityStrategy();
-                if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                    schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                            .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
-                }
-            }
+        getSchemaCompatibilityStrategyAsync().thenAccept(schemaCompatibilityStrategy -> {
             byte[] data;
             if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
                 try {
@@ -199,26 +188,17 @@ public class SchemasResourceBase extends AdminResource {
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
-        Policies policies = getNamespacePolicies(namespaceName);
 
-        SchemaCompatibilityStrategy schemaCompatibilityStrategy;
-        if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
-        } else {
-            schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-        }
-
-        pulsar().getSchemaRegistryService()
-                .isCompatible(schemaId,
-                        SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8)).isDeleted(false)
-                                .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
-                                .user(defaultIfEmpty(clientAppId(), "")).props(payload.getProperties()).build(),
-                        schemaCompatibilityStrategy)
-                .thenAccept(isCompatible -> response.resume(Response.accepted()
-                        .entity(IsCompatibilityResponse.builder().isCompatibility(isCompatible)
-                                .schemaCompatibilityStrategy(schemaCompatibilityStrategy.name()).build())
-                        .build()))
+        getSchemaCompatibilityStrategyAsync().thenCompose(schemaCompatibilityStrategy -> pulsar()
+                        .getSchemaRegistryService().isCompatible(schemaId,
+                                SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8)).isDeleted(false)
+                                        .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
+                                        .user(defaultIfEmpty(clientAppId(), "")).props(payload.getProperties()).build(),
+                                schemaCompatibilityStrategy)
+                        .thenAccept(isCompatible -> response.resume(Response.accepted()
+                                .entity(IsCompatibilityResponse.builder().isCompatibility(isCompatible)
+                                        .schemaCompatibilityStrategy(schemaCompatibilityStrategy.name()).build())
+                                .build())))
                 .exceptionally(error -> {
                     response.resume(new RestException(error));
                     return null;
@@ -272,9 +252,11 @@ public class SchemasResourceBase extends AdminResource {
     private static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
         if (isNull(error)) {
             if (isNull(schema)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema not found").build());
             } else if (schema.schema.isDeleted()) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema is deleted").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(convertSchemaAndMetadataToGetSchemaResponse(schema)).build());
@@ -290,7 +272,8 @@ public class SchemasResourceBase extends AdminResource {
             Throwable error) {
         if (isNull(error)) {
             if (isNull(schemas)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schemas not found").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(GetAllVersionsSchemaResponse.builder()
@@ -312,7 +295,7 @@ public class SchemasResourceBase extends AdminResource {
             validateTopicOwnership(topicName, authoritative);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
+                throw new RestException(Response.Status.UNAUTHORIZED, e.getMessage());
             } else {
                 throw e;
             }

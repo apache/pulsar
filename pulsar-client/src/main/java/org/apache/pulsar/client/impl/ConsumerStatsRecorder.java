@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.util.Timeout;
 import java.util.Optional;
-
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
-
-import io.netty.util.Timeout;
 
 public interface ConsumerStatsRecorder extends ConsumerStats {
     void updateNumMsgsReceived(Message<?> message);

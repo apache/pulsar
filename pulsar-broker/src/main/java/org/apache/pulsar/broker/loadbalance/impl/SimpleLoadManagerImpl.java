@@ -30,7 +30,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -60,6 +60,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -70,6 +71,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
+import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.ResourceType;
 import org.slf4j.Logger;
@@ -301,6 +303,22 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
         return new HashSet<>(loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join());
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        CompletableFuture<Set<String>> getAvailableBrokersAsync = new CompletableFuture<>();
+        loadReports.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                .whenComplete((listLocks, ex) -> {
+                    if (ex != null){
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn("Error when trying to get active brokers", realCause);
+                        getAvailableBrokersAsync.completeExceptionally(realCause);
+                    } else {
+                        getAvailableBrokersAsync.complete(Sets.newHashSet(listLocks));
+                    }
+                });
+        return getAvailableBrokersAsync;
     }
 
     private void setDynamicConfigurationToStore(String path, Map<String, String> settings) {
@@ -1026,10 +1044,11 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         }
     }
 
-    public SystemResourceUsage getSystemResourceUsage() throws IOException {
+    public SystemResourceUsage getSystemResourceUsage() {
         SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
         long memoryUsageInMBytes = getAverageJvmHeapUsageMBytes();
-        systemResourceUsage.memory.usage = (double) memoryUsageInMBytes;
+        systemResourceUsage
+                .setMemory(new ResourceUsage((double) memoryUsageInMBytes, systemResourceUsage.memory.limit));
         return systemResourceUsage;
     }
 
@@ -1372,7 +1391,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             double totalBandwidth = stats.msgThroughputIn + stats.msgThroughputOut;
 
             boolean needSplit = false;
-            if (stats.topics > maxBundleTopics || totalSessions > maxBundleSessions || totalMsgRate > maxBundleMsgRate
+            if (stats.topics > maxBundleTopics || (maxBundleSessions > 0
+                    && totalSessions > maxBundleSessions) || totalMsgRate > maxBundleMsgRate
                     || totalBandwidth > maxBundleBandwidth) {
                 if (stats.topics <= 1) {
                     log.info("Unable to split hot namespace bundle {} since there is only one topic.", bundleName);

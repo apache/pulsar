@@ -48,6 +48,7 @@ struct ProducerConfigurationImpl {
     std::set<std::string> encryptionKeys;
     ProducerCryptoFailureAction cryptoFailureAction{ProducerCryptoFailureAction::FAIL};
     std::map<std::string, std::string> properties;
+    bool chunkingEnabled{false};
 };
 }  // namespace pulsar
 

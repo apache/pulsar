@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 
 public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
@@ -131,17 +132,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getMaxUnackedMessagesOnConsumer(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getMaxUnackedMessagesOnConsumerAsync(topic, applied).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxUnackedMessagesOnConsumerAsync(topic, applied));
     }
 
     @Override
@@ -174,17 +165,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setMaxUnackedMessagesOnConsumer(String topic, int maxNum) throws PulsarAdminException {
-        try {
-            setMaxUnackedMessagesOnConsumerAsync(topic, maxNum)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxUnackedMessagesOnConsumerAsync(topic, maxNum));
     }
 
     @Override
@@ -196,31 +177,12 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException {
-        try {
-            removeMaxUnackedMessagesOnConsumerAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxUnackedMessagesOnConsumerAsync(topic));
     }
 
     @Override
     public InactiveTopicPolicies getInactiveTopicPolicies(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getInactiveTopicPoliciesAsync(topic, applied).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getInactiveTopicPoliciesAsync(topic, applied));
     }
 
     @Override
@@ -264,17 +226,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     @Override
     public void setInactiveTopicPolicies(String topic
             , InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException {
-        try {
-            setInactiveTopicPoliciesAsync(topic, inactiveTopicPolicies)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setInactiveTopicPoliciesAsync(topic, inactiveTopicPolicies));
     }
 
     @Override
@@ -286,32 +238,13 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeInactiveTopicPolicies(String topic) throws PulsarAdminException {
-        try {
-            removeInactiveTopicPoliciesAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeInactiveTopicPoliciesAsync(topic));
     }
 
     @Override
     public DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic
             , boolean applied) throws PulsarAdminException {
-        try {
-            return getDelayedDeliveryPolicyAsync(topic, applied).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDelayedDeliveryPolicyAsync(topic, applied));
     }
 
     @Override
@@ -355,16 +288,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeDelayedDeliveryPolicy(String topic) throws PulsarAdminException {
-        try {
-            removeDelayedDeliveryPolicyAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeDelayedDeliveryPolicyAsync(topic));
     }
 
     @Override
@@ -378,17 +302,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     @Override
     public void setDelayedDeliveryPolicy(String topic
             , DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException {
-        try {
-            setDelayedDeliveryPolicyAsync(topic, delayedDeliveryPolicies)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDelayedDeliveryPolicyAsync(topic, delayedDeliveryPolicies));
     }
 
     @Override
@@ -403,17 +317,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Boolean getDeduplicationStatus(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getDeduplicationStatusAsync(topic, applied).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDeduplicationStatusAsync(topic, applied));
     }
 
     @Override
@@ -444,17 +348,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setDeduplicationStatus(String topic, boolean enabled) throws PulsarAdminException {
-        try {
-            enableDeduplicationAsync(topic, enabled).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> enableDeduplicationAsync(topic, enabled));
     }
 
     @Override
@@ -466,16 +360,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeDeduplicationStatus(String topic) throws PulsarAdminException {
-        try {
-            removeDeduplicationStatusAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeDeduplicationStatusAsync(topic));
     }
 
     @Override
@@ -497,17 +382,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public OffloadPolicies getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getOffloadPoliciesAsync(topic, applied).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getOffloadPoliciesAsync(topic, applied));
     }
 
     @Override
@@ -532,17 +407,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setOffloadPolicies(String topic, OffloadPolicies offloadPolicies) throws PulsarAdminException {
-        try {
-            setOffloadPoliciesAsync(topic, offloadPolicies).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setOffloadPoliciesAsync(topic, offloadPolicies));
     }
 
     @Override
@@ -554,17 +419,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeOffloadPolicies(String topic) throws PulsarAdminException {
-        try {
-            removeOffloadPoliciesAsync(topic).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeOffloadPoliciesAsync(topic));
     }
 
     @Override
@@ -586,17 +441,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getMaxUnackedMessagesOnSubscription(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getMaxUnackedMessagesOnSubscriptionAsync(topic, applied).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxUnackedMessagesOnSubscriptionAsync(topic, applied));
     }
 
     @Override
@@ -621,17 +466,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setMaxUnackedMessagesOnSubscription(String topic, int maxNum) throws PulsarAdminException {
-        try {
-            setMaxUnackedMessagesOnSubscriptionAsync(topic, maxNum).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxUnackedMessagesOnSubscriptionAsync(topic, maxNum));
     }
 
     @Override
@@ -643,17 +478,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException {
-        try {
-            removeMaxUnackedMessagesOnSubscriptionAsync(topic).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxUnackedMessagesOnSubscriptionAsync(topic));
     }
 
     @Override
@@ -705,16 +530,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setRetention(String topic, RetentionPolicies retention) throws PulsarAdminException {
-        try {
-            setRetentionAsync(topic, retention).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setRetentionAsync(topic, retention));
     }
 
     @Override
@@ -736,16 +552,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public RetentionPolicies getRetention(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getRetentionAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getRetentionAsync(topic, applied));
     }
 
     @Override
@@ -771,16 +578,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeRetention(String topic) throws PulsarAdminException {
-        try {
-            removeRetentionAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeRetentionAsync(topic));
     }
 
     @Override
@@ -792,16 +590,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setPersistence(String topic, PersistencePolicies persistencePolicies) throws PulsarAdminException {
-        try {
-            setPersistenceAsync(topic, persistencePolicies).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setPersistenceAsync(topic, persistencePolicies));
     }
 
     @Override
@@ -823,16 +612,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public PersistencePolicies getPersistence(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getPersistenceAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPersistenceAsync(topic, applied));
     }
 
     @Override
@@ -858,16 +638,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removePersistence(String topic) throws PulsarAdminException {
-        try {
-            removePersistenceAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removePersistenceAsync(topic));
     }
 
     @Override
@@ -879,16 +650,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public DispatchRate getDispatchRate(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getDispatchRateAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDispatchRateAsync(topic, applied));
     }
 
     @Override
@@ -924,16 +686,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException {
-        try {
-            setDispatchRateAsync(topic, dispatchRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDispatchRateAsync(topic, dispatchRate));
     }
 
     @Override
@@ -945,16 +698,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeDispatchRate(String topic) throws PulsarAdminException {
-        try {
-            removeDispatchRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeDispatchRateAsync(topic));
     }
 
     @Override
@@ -966,16 +710,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public DispatchRate getSubscriptionDispatchRate(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getSubscriptionDispatchRateAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSubscriptionDispatchRateAsync(topic, applied));
     }
 
     @Override
@@ -1011,16 +746,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setSubscriptionDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException {
-        try {
-            setSubscriptionDispatchRateAsync(topic, dispatchRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscriptionDispatchRateAsync(topic, dispatchRate));
     }
 
     @Override
@@ -1032,16 +758,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeSubscriptionDispatchRate(String topic) throws PulsarAdminException {
-        try {
-            removeSubscriptionDispatchRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscriptionDispatchRateAsync(topic));
     }
 
     @Override
@@ -1063,16 +780,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Long getCompactionThreshold(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getCompactionThresholdAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getCompactionThresholdAsync(topic, applied));
     }
 
     @Override
@@ -1098,16 +806,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setCompactionThreshold(String topic, long compactionThreshold) throws PulsarAdminException {
-        try {
-            setCompactionThresholdAsync(topic, compactionThreshold).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setCompactionThresholdAsync(topic, compactionThreshold));
     }
 
     @Override
@@ -1119,16 +818,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeCompactionThreshold(String topic) throws PulsarAdminException {
-        try {
-            removeCompactionThresholdAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeCompactionThresholdAsync(topic));
     }
 
     @Override
@@ -1140,16 +830,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public PublishRate getPublishRate(String topic) throws PulsarAdminException {
-        try {
-            return getPublishRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPublishRateAsync(topic));
     }
 
     @Override
@@ -1174,16 +855,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setPublishRate(String topic, PublishRate publishRate) throws PulsarAdminException {
-        try {
-            setPublishRateAsync(topic, publishRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setPublishRateAsync(topic, publishRate));
     }
 
     @Override
@@ -1195,16 +867,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removePublishRate(String topic) throws PulsarAdminException {
-        try {
-            removePublishRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removePublishRateAsync(topic));
     }
 
     @Override
@@ -1216,16 +879,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getMaxConsumersPerSubscription(String topic) throws PulsarAdminException {
-        try {
-            return getMaxConsumersPerSubscriptionAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxConsumersPerSubscriptionAsync(topic));
     }
 
     @Override
@@ -1251,17 +905,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     @Override
     public void setMaxConsumersPerSubscription(String topic, int maxConsumersPerSubscription)
             throws PulsarAdminException {
-        try {
-            setMaxConsumersPerSubscriptionAsync(topic, maxConsumersPerSubscription)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxConsumersPerSubscriptionAsync(topic, maxConsumersPerSubscription));
     }
 
     @Override
@@ -1273,16 +917,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeMaxConsumersPerSubscription(String topic) throws PulsarAdminException {
-        try {
-            removeMaxConsumersPerSubscriptionAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxConsumersPerSubscriptionAsync(topic));
     }
 
     @Override
@@ -1304,16 +939,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getMaxProducers(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getMaxProducersAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxProducersAsync(topic, applied));
     }
 
     @Override
@@ -1339,16 +965,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setMaxProducers(String topic, int maxProducers) throws PulsarAdminException {
-        try {
-            setMaxProducersAsync(topic, maxProducers).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxProducersAsync(topic, maxProducers));
     }
 
     @Override
@@ -1360,16 +977,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeMaxProducers(String topic) throws PulsarAdminException {
-        try {
-            removeMaxProducersAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxProducersAsync(topic));
     }
 
     @Override
@@ -1381,16 +989,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException {
-        try {
-            return getMaxSubscriptionsPerTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxSubscriptionsPerTopicAsync(topic));
     }
 
     @Override
@@ -1415,17 +1014,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setMaxSubscriptionsPerTopic(String topic, int maxSubscriptionsPerTopic) throws PulsarAdminException {
-        try {
-            setMaxSubscriptionsPerTopicAsync(topic, maxSubscriptionsPerTopic)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxSubscriptionsPerTopicAsync(topic, maxSubscriptionsPerTopic));
     }
 
     @Override
@@ -1437,16 +1026,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeMaxSubscriptionsPerTopic(String topic) throws PulsarAdminException {
-        try {
-            removeMaxSubscriptionsPerTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxSubscriptionsPerTopicAsync(topic));
     }
 
     @Override
@@ -1458,16 +1038,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getMaxMessageSize(String topic) throws PulsarAdminException {
-        try {
-            return getMaxMessageSizeAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxMessageSizeAsync(topic));
     }
 
     @Override
@@ -1492,16 +1063,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setMaxMessageSize(String topic, int maxMessageSize) throws PulsarAdminException {
-        try {
-            setMaxMessageSizeAsync(topic, maxMessageSize).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxMessageSizeAsync(topic, maxMessageSize));
     }
 
     @Override
@@ -1513,16 +1075,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeMaxMessageSize(String topic) throws PulsarAdminException {
-        try {
-            removeMaxMessageSizeAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxMessageSizeAsync(topic));
     }
 
     @Override
@@ -1544,16 +1097,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getMaxConsumers(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getMaxConsumersAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMaxConsumersAsync(topic, applied));
     }
 
     @Override
@@ -1579,16 +1123,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setMaxConsumers(String topic, int maxConsumers) throws PulsarAdminException {
-        try {
-            setMaxConsumersAsync(topic, maxConsumers).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setMaxConsumersAsync(topic, maxConsumers));
     }
 
     @Override
@@ -1600,16 +1135,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeMaxConsumers(String topic) throws PulsarAdminException {
-        try {
-            removeMaxConsumersAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeMaxConsumersAsync(topic));
     }
 
     @Override
@@ -1622,16 +1148,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Integer getDeduplicationSnapshotInterval(String topic) throws PulsarAdminException {
-        try {
-            return getDeduplicationSnapshotIntervalAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getDeduplicationSnapshotIntervalAsync(topic));
     }
 
     @Override
@@ -1656,16 +1173,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setDeduplicationSnapshotInterval(String topic, int interval) throws PulsarAdminException {
-        try {
-            setDeduplicationSnapshotIntervalAsync(topic, interval).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setDeduplicationSnapshotIntervalAsync(topic, interval));
     }
 
     @Override
@@ -1677,16 +1185,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeDeduplicationSnapshotInterval(String topic) throws PulsarAdminException {
-        try {
-            removeDeduplicationSnapshotIntervalAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeDeduplicationSnapshotIntervalAsync(topic));
     }
 
     @Override
@@ -1700,17 +1199,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public void setSubscriptionTypesEnabled(
             String topic, Set<SubscriptionType>
             subscriptionTypesEnabled) throws PulsarAdminException {
-        try {
-            setSubscriptionTypesEnabledAsync(topic, subscriptionTypesEnabled)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscriptionTypesEnabledAsync(topic, subscriptionTypesEnabled));
     }
 
     @Override
@@ -1723,16 +1212,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public Set<SubscriptionType> getSubscriptionTypesEnabled(String topic) throws PulsarAdminException {
-        try {
-            return getSubscriptionTypesEnabledAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSubscriptionTypesEnabledAsync(topic));
     }
 
     @Override
@@ -1756,6 +1236,28 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
+    public void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException {
+        try {
+            removeSubscriptionTypesEnabledAsync(topic)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionTypesEnabled");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public SubscribeRate getSubscribeRate(String topic) throws PulsarAdminException {
         return getSubscribeRate(topic, false);
     }
@@ -1767,16 +1269,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public SubscribeRate getSubscribeRate(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getSubscribeRateAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getSubscribeRateAsync(topic, applied));
     }
 
     @Override
@@ -1802,16 +1295,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setSubscribeRate(String topic, SubscribeRate subscribeRate) throws PulsarAdminException {
-        try {
-            setSubscribeRateAsync(topic, subscribeRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setSubscribeRateAsync(topic, subscribeRate));
     }
 
     @Override
@@ -1823,16 +1307,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeSubscribeRate(String topic) throws PulsarAdminException {
-        try {
-            removeSubscribeRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscribeRateAsync(topic));
     }
 
     @Override
@@ -1854,16 +1329,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public DispatchRate getReplicatorDispatchRate(String topic, boolean applied) throws PulsarAdminException {
-        try {
-            return getReplicatorDispatchRateAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getReplicatorDispatchRateAsync(topic, applied));
     }
 
     @Override
@@ -1889,16 +1355,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void setReplicatorDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException {
-        try {
-            setReplicatorDispatchRateAsync(topic, dispatchRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> setReplicatorDispatchRateAsync(topic, dispatchRate));
     }
 
     @Override
@@ -1910,22 +1367,69 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeReplicatorDispatchRate(String topic) throws PulsarAdminException {
-        try {
-            removeReplicatorDispatchRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeReplicatorDispatchRateAsync(topic));
     }
 
     @Override
     public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "replicatorDispatchRate");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String topic, boolean applied)
+            throws PulsarAdminException {
+        return sync(() -> getSchemaCompatibilityStrategyAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String topic,
+                                                                                              boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<SchemaCompatibilityStrategy> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<SchemaCompatibilityStrategy>() {
+                    @Override
+                    public void completed(SchemaCompatibilityStrategy schemaCompatibilityStrategy) {
+                        future.complete(schemaCompatibilityStrategy);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+
+        return future;
+    }
+
+    @Override
+    public void setSchemaCompatibilityStrategy(String topic, SchemaCompatibilityStrategy strategy)
+            throws PulsarAdminException {
+        sync(() -> setSchemaCompatibilityStrategyAsync(topic, strategy));
+    }
+
+    @Override
+    public CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String topic,
+                                                                       SchemaCompatibilityStrategy strategy) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        return asyncPutRequest(path, Entity.entity(strategy, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeSchemaCompatibilityStrategy(String topic)
+            throws PulsarAdminException {
+        sync(()->removeSchemaCompatibilityStrategyAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
         return asyncDeleteRequest(path);
     }
 

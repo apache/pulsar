@@ -24,7 +24,6 @@ import static org.testng.Assert.fail;
 
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -35,7 +34,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod

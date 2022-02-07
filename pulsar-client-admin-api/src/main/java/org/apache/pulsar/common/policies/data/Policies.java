@@ -66,7 +66,6 @@ public class Policies {
     public boolean deleted = false;
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
-    public static final String LARGEST_BUNDLE = "LARGEST";
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;
@@ -101,14 +100,13 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
-    public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
-        SchemaAutoUpdateCompatibilityStrategy.Full;
+    public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public SchemaCompatibilityStrategy schema_compatibility_strategy = SchemaCompatibilityStrategy.UNDEFINED;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public boolean is_allow_auto_update_schema = true;
+    public Boolean is_allow_auto_update_schema = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean schema_validation_enforced = false;
@@ -125,6 +123,10 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     public String resource_group_name = null;
+
+    public enum BundleType {
+        LARGEST, HOT;
+    }
 
     @Override
     public int hashCode() {

@@ -23,8 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Lookup;
@@ -50,16 +48,7 @@ public class LookupImpl extends BaseResource implements Lookup {
 
     @Override
     public String lookupTopic(String topic) throws PulsarAdminException {
-        try {
-            return lookupTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> lookupTopicAsync(topic));
     }
 
     @Override
@@ -90,16 +79,7 @@ public class LookupImpl extends BaseResource implements Lookup {
 
     @Override
     public Map<String, String> lookupPartitionedTopic(String topic) throws PulsarAdminException {
-        try {
-            return lookupPartitionedTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> lookupPartitionedTopicAsync(topic));
     }
 
     @Override
@@ -144,19 +124,9 @@ public class LookupImpl extends BaseResource implements Lookup {
         return future;
     }
 
-
     @Override
     public String getBundleRange(String topic) throws PulsarAdminException {
-        try {
-            return getBundleRangeAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBundleRangeAsync(topic));
     }
 
     @Override

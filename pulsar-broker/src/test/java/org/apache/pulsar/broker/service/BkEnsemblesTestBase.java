@@ -25,7 +25,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -74,7 +73,9 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             bkEnsemble.start();
 
             // start pulsar service
-            config = new ServiceConfiguration();
+            if (config == null) {
+                config = new ServiceConfiguration();
+            }
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
@@ -111,6 +112,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
     @Override
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
+        config = null;
         markCurrentSetupNumberCleaned();
         admin.close();
         pulsar.close();

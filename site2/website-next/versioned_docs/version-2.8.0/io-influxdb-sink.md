@@ -5,10 +5,6 @@ sidebar_label: "InfluxDB sink connector"
 original_id: io-influxdb-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The InfluxDB sink connector pulls messages from Pulsar topics 
 and persists the messages to InfluxDB.
 
@@ -72,7 +68,7 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
 
   ```yaml
   
-  {
+  configs:
       influxdbUrl: "http://localhost:9999"
       organization: "example-org"
       bucket: "example-bucket"
@@ -82,7 +78,6 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
       gzipEnable: false
       batchTimeMs: 1000
       batchSize: 100
-  }
   
   ```
 
@@ -110,7 +105,7 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
 
   ```yaml
   
-  {
+  configs:
       influxdbUrl: "http://localhost:8086"
       database: "test_db"
       consistencyLevel: "ONE"
@@ -119,7 +114,6 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
       gzipEnable: false
       batchTimeMs: 1000
       batchSize: 100
-  }
   
   ```
 

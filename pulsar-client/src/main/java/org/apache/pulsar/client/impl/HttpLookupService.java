@@ -18,28 +18,26 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.Lists;
-
 import io.netty.channel.EventLoopGroup;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.impl.schema.SchemaUtils;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -47,7 +45,6 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -90,7 +87,7 @@ public class HttpLookupService implements LookupService {
         return httpClient.get(path, LookupData.class)
                 .thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
-        	URI uri = null;
+            URI uri = null;
             try {
                 if (useTls) {
                     uri = new URI(lookupData.getBrokerUrlTls());
@@ -106,7 +103,7 @@ public class HttpLookupService implements LookupService {
                 return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
             } catch (Exception e) {
                 // Failed to parse url
-            	log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
+                log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
                 return FutureUtil.failedFuture(e);
             }
         });
@@ -121,7 +118,7 @@ public class HttpLookupService implements LookupService {
 
     @Override
     public String getServiceUrl() {
-    	return httpClient.getServiceUrl();
+        return httpClient.getServiceUrl();
     }
 
     @Override
@@ -133,7 +130,7 @@ public class HttpLookupService implements LookupService {
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
-                List<String> result = Lists.newArrayList();
+                List<String> result = new ArrayList<>();
                 // do not keep partition part of topic name
                 Arrays.asList(topics).forEach(topic -> {
                     String filtered = TopicName.get(topic).getPartitionedTopicName();
@@ -141,8 +138,8 @@ public class HttpLookupService implements LookupService {
                         result.add(filtered);
                     }
                 });
-                future.complete(result);})
-            .exceptionally(ex -> {
+                future.complete(result);
+            }).exceptionally(ex -> {
                 log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, ex.getMessage());
                 future.completeExceptionally(ex);
                 return null;
@@ -171,7 +168,8 @@ public class HttpLookupService implements LookupService {
                 try {
                     SchemaData data = SchemaData
                             .builder()
-                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(response.getData().getBytes(StandardCharsets.UTF_8)))
+                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
+                                    response.getData().getBytes(StandardCharsets.UTF_8)))
                             .type(response.getType())
                             .props(response.getProperties())
                             .build();

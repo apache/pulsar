@@ -29,13 +29,12 @@ import java.util.Optional;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
 public class ElasticSearchClientSslTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.10.2-amd64");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
 
     final static String INDEX = "myindex";
 
@@ -45,9 +44,8 @@ public class ElasticSearchClientSslTests {
     @Test
     public void testSslBasic() throws IOException {
         try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withCreateContainerCmdModifier(c -> c.withName("elasticsearch"))
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withEnv("ELASTIC_PASSWORD","elastic")  // boostrap password
+                .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
                 .withEnv("xpack.security.enabled", "true")
                 .withEnv("xpack.security.http.ssl.enabled", "true")
@@ -81,9 +79,8 @@ public class ElasticSearchClientSslTests {
     @Test
     public void testSslWithHostnameVerification() throws IOException {
         try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withCreateContainerCmdModifier(c -> c.withName("elasticsearch"))
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withEnv("ELASTIC_PASSWORD","elastic")  // boostrap password
+                .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
                 .withEnv("xpack.security.enabled", "true")
                 .withEnv("xpack.security.http.ssl.enabled", "true")
@@ -120,9 +117,8 @@ public class ElasticSearchClientSslTests {
     @Test
     public void testSslWithClientAuth() throws IOException {
         try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withCreateContainerCmdModifier(c -> c.withName("elasticsearch"))
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withEnv("ELASTIC_PASSWORD","elastic")  // boostrap password
+                .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
                 .withEnv("xpack.security.enabled", "true")
                 .withEnv("xpack.security.http.ssl.enabled", "true")
@@ -157,7 +153,7 @@ public class ElasticSearchClientSslTests {
     }
 
 
-    public void testIndexExists(ElasticSearchClient client) throws IOException {
+    private void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));
         assertTrue(client.createIndexIfNeeded("mynewindex"));
         assertTrue(client.indexExists("mynewindex"));

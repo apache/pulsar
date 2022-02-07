@@ -57,7 +57,6 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,8 +75,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return super.getConf();
     }
 
-    Map<Long, PulsarMockLedgerHandle> ledgers = new ConcurrentHashMap<>();
-    AtomicLong sequence = new AtomicLong(3);
+    final Map<Long, PulsarMockLedgerHandle> ledgers = new ConcurrentHashMap<>();
+    final AtomicLong sequence = new AtomicLong(3);
 
     CompletableFuture<Void> defaultResponse = CompletableFuture.completedFuture(null);
     private static final List<BookieId> ensemble = Collections.unmodifiableList(Lists.newArrayList(
@@ -89,8 +88,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return ensemble;
     }
 
-    Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
-    List<CompletableFuture<Void>> failures = new ArrayList<>();
+    final Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
+    final List<CompletableFuture<Void>> failures = new ArrayList<>();
 
     public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
         this.orderedExecutor = orderedExecutor;
@@ -121,7 +120,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
                 try {
                     long id = sequence.getAndIncrement();
                     log.info("Creating ledger {}", id);
-                    PulsarMockLedgerHandle lh = new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
+                    PulsarMockLedgerHandle lh =
+                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
                     ledgers.put(id, lh);
                     return FutureUtils.value(lh);
                 } catch (Throwable t) {
@@ -304,7 +304,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
             getProgrammedFailure().get();
         } catch (ExecutionException ee) {
             if (ee.getCause() instanceof BKException) {
-                throw (BKException)ee.getCause();
+                throw (BKException) ee.getCause();
             } else {
                 throw new BKException.BKUnexpectedConditionException();
             }
@@ -332,7 +332,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     private int emptyLedgerAfter = -1;
 
     /**
-     * After N times, make a ledger to appear to be empty
+     * After N times, make a ledger to appear to be empty.
      */
     public synchronized void returnEmptyLedgerAfter(int steps) {
         emptyLedgerAfter = steps;
@@ -374,12 +374,12 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
         @Override
         public CompletableFuture<Versioned<Set<BookieId>>> getAllBookies() {
-            return CompletableFuture.completedFuture(new Versioned<Set<BookieId>>(new HashSet<>(ensemble), new LongVersion(0)));
+            return CompletableFuture.completedFuture(new Versioned<>(new HashSet<>(ensemble), new LongVersion(0)));
         }
 
         @Override
         public CompletableFuture<Versioned<Set<BookieId>>> getReadOnlyBookies() {
-            return CompletableFuture.completedFuture(new Versioned<Set<BookieId>>(new HashSet<>(), new LongVersion(0)));
+            return CompletableFuture.completedFuture(new Versioned<>(new HashSet<>(), new LongVersion(0)));
         }
 
         @Override
@@ -405,7 +405,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     private final MetadataClientDriver metadataClientDriver = new MetadataClientDriver() {
         @Override
-        public MetadataClientDriver initialize(ClientConfiguration conf, ScheduledExecutorService scheduler, StatsLogger statsLogger, Optional<Object> ctx) throws MetadataException {
+        public MetadataClientDriver initialize(ClientConfiguration conf, ScheduledExecutorService scheduler,
+                                               StatsLogger statsLogger, Optional<Object> ctx) throws MetadataException {
             return this;
         }
 

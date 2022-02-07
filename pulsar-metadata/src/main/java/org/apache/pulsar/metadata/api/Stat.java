@@ -27,7 +27,7 @@ import lombok.Data;
 public class Stat {
 
     /**
-     * The path of the value
+     * The path of the value.
      */
     final String path;
 
@@ -47,12 +47,12 @@ public class Stat {
     final long modificationTimestamp;
 
     /**
-     * Whether the key-value pair is ephemeral or persistent
+     * Whether the key-value pair is ephemeral or persistent.
      */
     final boolean ephemeral;
 
     /**
-     * Whether the key-value pair had been created within the current "session"
+     * Whether the key-value pair had been created within the current "session".
      */
     final boolean createdBySelf;
 }

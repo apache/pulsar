@@ -29,7 +29,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.FileUtils;
@@ -40,12 +40,12 @@ import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.RequestProcessor;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.SessionTracker;
-import org.apache.zookeeper.server.SessionTrackerImpl;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.assertj.core.util.Files;
 
 @Slf4j
 public class TestZKServer implements AutoCloseable {
+    public static final int TICK_TIME = 1000;
     protected ZooKeeperServer zks;
     private final File zkDataDir;
     private ServerCnxnFactory serverFactory;
@@ -64,7 +64,8 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void start() throws Exception {
-        this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
+        this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, TICK_TIME);
+        this.zks.setMaxSessionTimeout(300_000);
         this.serverFactory = new NIOServerCnxnFactory();
         this.serverFactory.configure(new InetSocketAddress(zkPort), 1000);
         this.serverFactory.startup(zks, true);
@@ -94,19 +95,35 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void checkContainers() throws Exception {
+        // Make sure the container nodes are actually deleted
+        Thread.sleep(1000);
+
         containerManager.checkContainers();
     }
 
     public void stop() throws Exception {
-        if (zks != null) {
-            zks.shutdown();
-            zks = null;
+        if (containerManager != null) {
+            containerManager.stop();
+            containerManager = null;
         }
 
         if (serverFactory != null) {
             serverFactory.shutdown();
             serverFactory = null;
         }
+
+        if (zks != null) {
+            SessionTracker sessionTracker = zks.getSessionTracker();
+            zks.shutdown();
+            zks.getZKDatabase().close();
+            if (sessionTracker instanceof Thread) {
+                Thread sessionTrackerThread = (Thread) sessionTracker;
+                sessionTrackerThread.interrupt();
+                sessionTrackerThread.join();
+            }
+            zks = null;
+        }
+
         log.info("Stopped test ZK server");
     }
 

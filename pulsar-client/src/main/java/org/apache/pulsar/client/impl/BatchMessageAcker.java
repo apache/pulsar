@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.util.BitSet;
 
-class BatchMessageAcker {
+public class BatchMessageAcker {
 
     private BatchMessageAcker() {
         this.bitSet = new BitSet();
@@ -86,10 +86,10 @@ class BatchMessageAcker {
 
     @Override
     public String toString() {
-        return "BatchMessageAcker{" +
-                "batchSize=" + batchSize +
-                ", bitSet=" + bitSet +
-                ", prevBatchCumulativelyAcked=" + prevBatchCumulativelyAcked +
-                '}';
+        return "BatchMessageAcker{"
+                + "batchSize=" + batchSize
+                + ", bitSet=" + bitSet
+                + ", prevBatchCumulativelyAcked=" + prevBatchCumulativelyAcked
+                + '}';
     }
 }

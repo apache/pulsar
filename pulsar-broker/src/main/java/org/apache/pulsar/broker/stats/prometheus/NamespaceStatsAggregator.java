@@ -142,12 +142,13 @@ public class NamespaceStatsAggregator {
             stats.managedLedgerStats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
-        TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize);
+        TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize, false);
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
+        stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {

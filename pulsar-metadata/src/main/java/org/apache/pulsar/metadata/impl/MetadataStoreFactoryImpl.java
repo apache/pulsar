@@ -46,10 +46,39 @@ public class MetadataStoreFactoryImpl {
                                              boolean enableSessionWatcher)
             throws MetadataStoreException {
 
-        if (metadataURL.startsWith("memory://")) {
+        if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
             return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
+        } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
+            return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
+        } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
+            return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+        } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
+            return new ZKMetadataStore(metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length()),
+                    metadataStoreConfig, enableSessionWatcher);
         } else {
             return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
         }
+    }
+
+    /**
+     * Removes the identifier from the full metadata url.
+     *
+     * zk:my-zk:3000 -> my-zk:3000
+     * etcd:my-etcd:3000 -> my-etcd:3000
+     * my-default-zk:3000 -> my-default-zk:3000
+     * @param metadataURL
+     * @return
+     */
+    public static String removeIdentifierFromMetadataURL(String metadataURL) {
+        if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
+            return metadataURL.substring(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER.length());
+        } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
+            return metadataURL.substring(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER.length());
+        } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
+            return metadataURL.substring(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER.length());
+        } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
+            return metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
+        }
+        return metadataURL;
     }
 }

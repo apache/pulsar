@@ -90,10 +90,44 @@ PULSAR_PUBLIC void pulsar_client_subscribe_async(pulsar_client_t *client, const 
                                                  const pulsar_consumer_configuration_t *conf,
                                                  pulsar_subscribe_callback callback, void *ctx);
 
+/**
+ * Create a consumer to multiple topics under the same namespace with default configuration
+ *
+ * @see subscribe(const std::vector<std::string>&, const std::string&, Consumer& consumer)
+ *
+ * @param topics a list of topic names to subscribe to
+ * @param topicsCount the number of topics
+ * @param subscriptionName the subscription name
+ * @param consumer a non-const reference where the new consumer will be copied
+ * @return ResultOk if the consumer has been successfully created
+ * @return ResultError if there was an error
+ */
+PULSAR_PUBLIC pulsar_result pulsar_client_subscribe_multi_topics(pulsar_client_t *client, const char **topics,
+                                                                 int topicsCount,
+                                                                 const char *subscriptionName,
+                                                                 const pulsar_consumer_configuration_t *conf,
+                                                                 pulsar_consumer_t **consumer);
+
 PULSAR_PUBLIC void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const char **topics,
                                                               int topicsCount, const char *subscriptionName,
                                                               const pulsar_consumer_configuration_t *conf,
                                                               pulsar_subscribe_callback callback, void *ctx);
+
+/**
+ * Create a consumer to multiple (which match given topicPattern) with default configuration
+ *
+ * @see subscribeWithRegex(const std::string&, const std::string&, Consumer& consumer)
+ *
+ * @param topicPattern topic regex topics should match to subscribe to
+ * @param subscriptionName the subscription name
+ * @param consumer a non-const reference where the new consumer will be copied
+ * @return ResultOk if the consumer has been successfully created
+ * @return ResultError if there was an error
+ */
+PULSAR_PUBLIC pulsar_result pulsar_client_subscribe_pattern(pulsar_client_t *client, const char *topicPattern,
+                                                            const char *subscriptionName,
+                                                            const pulsar_consumer_configuration_t *conf,
+                                                            pulsar_consumer_t **consumer);
 
 PULSAR_PUBLIC void pulsar_client_subscribe_pattern_async(pulsar_client_t *client, const char *topicPattern,
                                                          const char *subscriptionName,

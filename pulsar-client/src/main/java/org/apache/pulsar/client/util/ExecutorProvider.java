@@ -18,22 +18,20 @@
  */
 package org.apache.pulsar.client.util;
 
-import com.google.common.collect.Lists;
+import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 @Slf4j
 public class ExecutorProvider {
@@ -62,8 +60,8 @@ public class ExecutorProvider {
     public ExecutorProvider(int numThreads, String poolName) {
         checkArgument(numThreads > 0);
         this.numThreads = numThreads;
-        checkNotNull(poolName);
-        executors = Lists.newArrayListWithCapacity(numThreads);
+        Objects.requireNonNull(poolName);
+        executors = new ArrayList<>(numThreads);
         for (int i = 0; i < numThreads; i++) {
             ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
                     poolName, Thread.currentThread().isDaemon());
@@ -97,8 +95,10 @@ public class ExecutorProvider {
             ExtendedThreadFactory threadFactory = entry.getValue();
             executor.shutdownNow();
             try {
-                if(!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    log.warn("Failed to terminate executor with pool name {} within timeout. The following are stack traces of still running threads.\n{}", poolName, getThreadDump(threadFactory.getThread()));
+                if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    log.warn("Failed to terminate executor with pool name {} within timeout. The following are stack"
+                            + " traces of still running threads.\n{}",
+                            poolName, getThreadDump(threadFactory.getThread()));
                 }
             } catch (InterruptedException e) {
                 log.warn("Shutdown of thread pool was interrupted");

@@ -20,7 +20,7 @@ package org.apache.pulsar.common.net;
 
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -62,11 +62,11 @@ public class ServiceURI {
      *
      * @param uriStr service uri string
      * @return a service uri instance
-     * @throws NullPointerException if {@code uriStr} is null
+     * @throws NullPointerExceptionFieldParser if {@code uriStr} is null
      * @throws IllegalArgumentException if the given string violates RFC&nbsp;2396
      */
     public static ServiceURI create(String uriStr) {
-        checkNotNull(uriStr, "service uri string is null");
+        requireNonNull(uriStr, "service uri string is null");
 
         if (uriStr.contains("[") && uriStr.contains("]")) {
             // deal with ipv6 address
@@ -116,7 +116,7 @@ public class ServiceURI {
      * @throws IllegalArgumentException if the given string violates RFC&nbsp;2396
      */
     public static ServiceURI create(URI uri) {
-        checkNotNull(uri, "service uri instance is null");
+        requireNonNull(uri, "service uri instance is null");
 
         String serviceName;
         final String[] serviceInfos;
@@ -219,7 +219,7 @@ public class ServiceURI {
             case BINARY_SERVICE:
                 if (serviceInfos.length == 0) {
                     port = BINARY_PORT;
-                } else if (serviceInfos.length == 1 && serviceInfos[0].toLowerCase().equals(SSL_SERVICE)) {
+                } else if (serviceInfos.length == 1 && serviceInfos[0].equalsIgnoreCase(SSL_SERVICE)) {
                     port = BINARY_TLS_PORT;
                 } else {
                     throw new IllegalArgumentException("Invalid pulsar service : " + serviceName + "+"

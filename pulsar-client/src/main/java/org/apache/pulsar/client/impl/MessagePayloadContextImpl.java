@@ -22,9 +22,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import java.util.List;
 import lombok.NonNull;
-import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -88,6 +88,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
             ackBitSet.recycle();
             ackBitSet = null;
         }
+        recyclerHandle.recycle(this);
     }
 
     @Override

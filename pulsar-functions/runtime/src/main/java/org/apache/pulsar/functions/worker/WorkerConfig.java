@@ -33,6 +33,8 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -50,6 +52,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
@@ -141,9 +144,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_WORKER,
             required = false,
+            deprecated = true,
             doc = "Configuration store connection string (as a comma-separated list)"
     )
+    @Deprecated
     private String configurationStoreServers;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            required = false,
+            doc = "Configuration store connection string (as a comma-separated list)"
+    )
+    private String configurationMetadataStoreUrl;
     @FieldContext(
             category = CATEGORY_WORKER,
             doc = "ZooKeeper session timeout in milliseconds"
@@ -177,6 +188,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
         doc = "The path to the location to locate builtin functions"
+    )
+    private Boolean uploadBuiltinSinksSources = true;
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
     )
     private String functionsDirectory = "./functions";
     @FieldContext(
@@ -234,6 +250,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The service URL of state storage"
     )
     private String stateStorageServiceUrl;
+
+    @FieldContext(
+            category = CATEGORY_STATE,
+            doc = "The implementation class for the state store"
+    )
+    private String stateStorageProviderImplementation = BKStateStoreProviderImpl.class.getName();
+
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The Pulsar topic used for storing function assignment informations"
@@ -531,6 +554,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean forwardSourceMessageProperty = true;
 
+    @FieldContext(
+            doc = "Additional arguments to pass to the Java command line for Java functions"
+    )
+    private List<String> additionalJavaRuntimeArguments = new ArrayList<>();
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }
@@ -584,9 +612,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     }
 
     public byte[] getTlsTrustChainBytes() {
-        if (StringUtils.isNotEmpty(getTlsTrustCertsFilePath()) && Files.exists(Paths.get(getTlsTrustCertsFilePath()))) {
+        if (StringUtils.isNotEmpty(getBrokerClientTrustCertsFilePath())
+                && Files.exists(Paths.get(getBrokerClientTrustCertsFilePath()))) {
             try {
-                return Files.readAllBytes(Paths.get(getTlsTrustCertsFilePath()));
+                return Files.readAllBytes(Paths.get(getBrokerClientTrustCertsFilePath()));
             } catch (IOException e) {
                 throw new IllegalStateException("Failed to read CA bytes", e);
             }
@@ -609,6 +638,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             return InetAddress.getLocalHost().getCanonicalHostName();
         } catch (UnknownHostException ex) {
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
+        }
+    }
+
+    public String getConfigurationMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(configurationMetadataStoreUrl)) {
+            return configurationMetadataStoreUrl;
+        } else  {
+            return configurationStoreServers;
         }
     }
 

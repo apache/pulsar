@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import com.beust.jcommander.DefaultUsageFormatter;
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameters;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.beust.jcommander.DefaultUsageFormatter;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameters;
-
 public class CmdUsageFormatter extends DefaultUsageFormatter {
 
     /**
-     * The commands in this set are hidden and not shown to users
+     * The commands in this set are hidden and not shown to users.
      */
     private Set<String> deprecatedCommands = new HashSet<>();
 
@@ -60,7 +59,7 @@ public class CmdUsageFormatter extends DefaultUsageFormatter {
                 JCommander.ProgramName progName = commands.getKey();
                 String dispName = progName.getDisplayName();
                 //skip the deprecated command
-                if(deprecatedCommands.contains(dispName)){
+                if (deprecatedCommands.contains(dispName)) {
                     continue;
                 }
                 String description = indent + s(4) + dispName + s(6) + getCommandDescription(progName.getName());

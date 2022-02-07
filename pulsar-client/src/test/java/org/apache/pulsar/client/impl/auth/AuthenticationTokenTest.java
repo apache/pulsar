@@ -23,9 +23,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
-
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.function.Supplier;
 
@@ -101,7 +100,7 @@ public class AuthenticationTokenTest {
     public void testAuthTokenConfigFromFile() throws Exception {
         File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "my-test-token-string", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "my-test-token-string", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure(getTokenFileUri(tokenFile));
@@ -112,7 +111,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -129,7 +128,7 @@ public class AuthenticationTokenTest {
     public void testAuthTokenConfigFromFileWithNewline() throws Exception {
         File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
-        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "  my-test-token-string  \r\n", StandardCharsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure(getTokenFileUri(tokenFile));
@@ -140,7 +139,7 @@ public class AuthenticationTokenTest {
         assertEquals(authData.getCommandData(), "my-test-token-string");
 
         // Ensure if the file content changes, the token will get refreshed as well
-        FileUtils.write(tokenFile, "other-token", Charsets.UTF_8);
+        FileUtils.write(tokenFile, "other-token", StandardCharsets.UTF_8);
 
         AuthenticationDataProvider authData2 = authToken.getAuthData();
         assertTrue(authData2.hasDataFromCommand());
@@ -197,7 +196,7 @@ public class AuthenticationTokenTest {
     }
 
     private String getTokenFileUri(File file) {
-        return "file:///" + file.toString().replace('\\', '/');
+        return file.toURI().toString();
     }
 
     public static class SerializableSupplier implements Supplier<String>, Serializable {

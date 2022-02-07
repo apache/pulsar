@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-import javax.naming.Name;
+
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
@@ -45,7 +45,6 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     new org.apache.pulsar.common.policies.data.ResourceGroup();
     final String namespaceName = "prop/ns-abc";
     final String persistentTopicString = "persistent://prop/ns-abc/test-topic";
-    final String nonPersistentTopicString = "non-persistent://prop/ns-abc/test-topic";
     final int MESSAGE_SIZE = 10;
 
     @BeforeClass
@@ -81,7 +80,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
             .untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
     }
 
-    public void testRateLimit(String topicString) throws PulsarAdminException, PulsarClientException,
+    private void testRateLimit() throws PulsarAdminException, PulsarClientException,
       InterruptedException, ExecutionException, TimeoutException {
         createResourceGroup(rgName, testAddRg);
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
@@ -144,14 +143,14 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
     @Test
     public void testResourceGroupPublishRateLimit() throws Exception {
-        testRateLimit(persistentTopicString);
-        testRateLimit(nonPersistentTopicString);
+        testRateLimit();
+        testRateLimit();
     }
 
     private void prepareData() {
-        testAddRg.setPublishRateInBytes(MESSAGE_SIZE);
+        testAddRg.setPublishRateInBytes(Long.valueOf(MESSAGE_SIZE));
         testAddRg.setPublishRateInMsgs(1);
         testAddRg.setDispatchRateInMsgs(-1);
-        testAddRg.setDispatchRateInBytes(-1);
+        testAddRg.setDispatchRateInBytes(Long.valueOf(-1));
     }
 }

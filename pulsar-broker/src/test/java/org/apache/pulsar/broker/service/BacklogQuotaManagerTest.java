@@ -47,7 +47,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -187,7 +186,7 @@ public class BacklogQuotaManagerTest {
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
             assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
-              "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]"); ;
+              "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
 
             try {
                 // try to send over backlog quota and make sure it fails
@@ -480,6 +479,55 @@ public class BacklogQuotaManagerTest {
         // message in current ledger which should be 4.
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 4);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 4);
+        client.close();
+    }
+
+    @Test
+    public void testConsumerBacklogEvictionTimeQuotaWithEmptyLedger() throws Exception {
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
+                Maps.newHashMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String topic = "persistent://prop/ns-quota/topic4";
+        final String subName = "c1";
+
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subName).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client, topic);
+        producer.send(new byte[1024]);
+        consumer.receive();
+
+        admin.topics().unload(topic);
+        Awaitility.await().until(consumer::isConnected);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+        assertEquals(internalStats.ledgers.size(), 2);
+        assertEquals(internalStats.ledgers.get(1).entries, 0);
+
+        TopicStats stats = admin.topics().getStats(topic);
+        assertEquals(stats.getSubscriptions().get(subName).getMsgBacklog(), 1);
+
+        TimeUnit.SECONDS.sleep(TIME_TO_CHECK_BACKLOG_QUOTA);
+
+        Awaitility.await()
+                .pollInterval(Duration.ofSeconds(1))
+                .atMost(Duration.ofSeconds(TIME_TO_CHECK_BACKLOG_QUOTA))
+                .untilAsserted(() -> {
+                    rolloverStats();
+
+                    // Cause the last ledger is empty, it is not possible to skip first ledger,
+                    // so the number of ledgers will keep unchanged, and backlog is clear
+                    PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
+                    assertEquals(latestInternalStats.ledgers.size(), 2);
+                    assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
+                    TopicStats latestStats = admin.topics().getStats(topic);
+                    assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
+                });
+
         client.close();
     }
 

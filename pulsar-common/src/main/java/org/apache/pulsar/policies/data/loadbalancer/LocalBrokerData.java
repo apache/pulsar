@@ -19,7 +19,6 @@
 package org.apache.pulsar.policies.data.loadbalancer;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Contains all the data that is maintained locally on each broker.
@@ -109,7 +109,7 @@ public class LocalBrokerData implements LoadManagerReport {
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
-        lastStats = Maps.newConcurrentMap();
+        lastStats = new ConcurrentHashMap<>();
         lastUpdate = System.currentTimeMillis();
         cpu = new ResourceUsage();
         memory = new ResourceUsage();
@@ -120,7 +120,7 @@ public class LocalBrokerData implements LoadManagerReport {
         lastBundleGains = new HashSet<>();
         lastBundleLosses = new HashSet<>();
         protocols = new HashMap<>();
-        this.advertisedListeners = Collections.unmodifiableMap(Maps.newHashMap(advertisedListeners));
+        this.advertisedListeners = Collections.unmodifiableMap(new HashMap<>(advertisedListeners));
     }
 
     /**
@@ -181,11 +181,11 @@ public class LocalBrokerData implements LoadManagerReport {
     // Update resource usage given each individual usage.
     private void updateSystemResourceUsage(final ResourceUsage cpu, final ResourceUsage memory,
             final ResourceUsage directMemory, final ResourceUsage bandwidthIn, final ResourceUsage bandwidthOut) {
-        this.cpu = new ResourceUsage(cpu);
-        this.memory = new ResourceUsage(memory);
-        this.directMemory = new ResourceUsage(directMemory);
-        this.bandwidthIn = new ResourceUsage(bandwidthIn);
-        this.bandwidthOut = new ResourceUsage(bandwidthOut);
+        this.cpu = cpu;
+        this.memory = memory;
+        this.directMemory = directMemory;
+        this.bandwidthIn = bandwidthIn;
+        this.bandwidthOut = bandwidthOut;
     }
 
     // Aggregate all message, throughput, topic count, bundle count, consumer

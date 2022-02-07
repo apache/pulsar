@@ -58,13 +58,15 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         @Cleanup
         LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.emptyList());
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.empty());
+        String key = newKey();
 
-        ResourceLock<String> lock1 = lockManager.acquireLock("/my/path/1", "lock-1").join();
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.singletonList("1"));
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.of("lock-1"));
-        assertEquals(lock1.getPath(), "/my/path/1");
+        assertEquals(lockManager.listLocks(key).join(), Collections.emptyList());
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.empty());
+
+        ResourceLock<String> lock1 = lockManager.acquireLock(key + "/1", "lock-1").join();
+        assertEquals(lockManager.listLocks(key).join(), Collections.singletonList("1"));
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.of("lock-1"));
+        assertEquals(lock1.getPath(), key + "/1");
         assertEquals(lock1.getValue(), "lock-1");
 
         CountDownLatch latchLock1 = new CountDownLatch(1);
@@ -73,14 +75,14 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         });
         assertEquals(latchLock1.getCount(), 1);
 
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.singletonList("1"));
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.of("lock-1"));
+        assertEquals(lockManager.listLocks(key).join(), Collections.singletonList("1"));
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.of("lock-1"));
 
         assertEquals(latchLock1.getCount(), 1);
 
         lock1.release().join();
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.emptyList());
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.empty());
+        assertEquals(lockManager.listLocks(key).join(), Collections.emptyList());
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.empty());
 
         // The future should have been triggered before the release is complete
         latchLock1.await(0, TimeUnit.SECONDS);
@@ -88,10 +90,10 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         // Double release shoud be a no-op
         lock1.release().join();
 
-        ResourceLock<String> lock2 = lockManager.acquireLock("/my/path/1", "lock-1").join();
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.singletonList("1"));
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.of("lock-1"));
-        assertEquals(lock2.getPath(), "/my/path/1");
+        ResourceLock<String> lock2 = lockManager.acquireLock(key + "/1", "lock-1").join();
+        assertEquals(lockManager.listLocks(key).join(), Collections.singletonList("1"));
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.of("lock-1"));
+        assertEquals(lock2.getPath(), key + "/1");
         assertEquals(lock2.getValue(), "lock-1");
     }
 
@@ -106,23 +108,24 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
         LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.emptyList());
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.empty());
+        String key = newKey();
+        assertEquals(lockManager.listLocks(key).join(), Collections.emptyList());
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.empty());
 
-        lockManager.acquireLock("/my/path/1", "lock-1").join();
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.singletonList("1"));
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.of("lock-1"));
+        lockManager.acquireLock(key + "/1", "lock-1").join();
+        assertEquals(lockManager.listLocks(key).join(), Collections.singletonList("1"));
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.of("lock-1"));
 
-        lockManager.acquireLock("/my/path/2", "lock-2").join();
-        assertEquals(lockManager.listLocks("/my/path").join(), new ArrayList<>(Arrays.asList("1", "2")));
-        assertEquals(lockManager.readLock("/my/path/2").join(), Optional.of("lock-2"));
+        lockManager.acquireLock(key + "/2", "lock-2").join();
+        assertEquals(lockManager.listLocks(key + "").join(), new ArrayList<>(Arrays.asList("1", "2")));
+        assertEquals(lockManager.readLock(key + "/2").join(), Optional.of("lock-2"));
 
         lockManager.close();
 
         lockManager = coordinationService.getLockManager(String.class);
-        assertEquals(lockManager.listLocks("/my/path").join(), Collections.emptyList());
-        assertEquals(lockManager.readLock("/my/path/1").join(), Optional.empty());
-        assertEquals(lockManager.readLock("/my/path/2").join(), Optional.empty());
+        assertEquals(lockManager.listLocks(key).join(), Collections.emptyList());
+        assertEquals(lockManager.readLock(key + "/1").join(), Optional.empty());
+        assertEquals(lockManager.readLock(key + "/2").join(), Optional.empty());
     }
 
     @Test(dataProvider = "impl")
@@ -139,13 +142,14 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         @Cleanup
         LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
-        ResourceLock<String> lock = lockManager.acquireLock("/my/path/1", "lock-1").join();
+        String key = newKey();
+        ResourceLock<String> lock = lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lock.getValue(), "lock-1");
-        assertEquals(cache.get("/my/path/1").join().get(), "lock-1");
+        assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
         lock.updateValue("value-2").join();
         assertEquals(lock.getValue(), "value-2");
-        assertEquals(cache.get("/my/path/1").join().get(), "value-2");
+        assertEquals(cache.get(key + "/1").join().get(), "value-2");
     }
 
     @Test(dataProvider = "impl")
@@ -162,17 +166,18 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         @Cleanup
         LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
-        ResourceLock<String> lock = lockManager.acquireLock("/my/path/1", "lock-1").join();
+        String key = newKey();
+        ResourceLock<String> lock = lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lock.getValue(), "lock-1");
-        assertEquals(cache.get("/my/path/1").join().get(), "lock-1");
+        assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
-        store.put("/my/path/1",
+        store.put(key + "/1",
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-2"),
                 Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
 
         lock.updateValue("value-2").join();
         assertEquals(lock.getValue(), "value-2");
-        assertEquals(cache.get("/my/path/1").join().get(), "value-2");
+        assertEquals(cache.get(key + "/1").join().get(), "value-2");
     }
 
     @Test(dataProvider = "impl")
@@ -189,15 +194,16 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         @Cleanup
         LockManager<String> lockManager = coordinationService.getLockManager(String.class);
 
-        ResourceLock<String> lock = lockManager.acquireLock("/my/path/1", "lock-1").join();
+        String key = newKey();
+        ResourceLock<String> lock = lockManager.acquireLock(key + "/1", "lock-1").join();
         assertEquals(lock.getValue(), "lock-1");
-        assertEquals(cache.get("/my/path/1").join().get(), "lock-1");
+        assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
-        store.delete("/my/path/1", Optional.empty()).join();
+        store.delete(key + "/1", Optional.empty()).join();
 
         lock.updateValue("value-2").join();
         assertEquals(lock.getValue(), "value-2");
-        assertEquals(cache.get("/my/path/1").join().get(), "value-2");
+        assertEquals(cache.get(key + "/1").join().get(), "value-2");
     }
 
     @Test(dataProvider = "impl")
@@ -234,7 +240,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void revalidateLockOnDifferentSession(String provider, Supplier<String> urlSupplier) throws Exception {
-        if (provider.equals("Memory")) {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // Local memory provider doesn't really have the concept of multiple sessions
             return;
         }
@@ -274,7 +280,8 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
         // Simulate existing lock with same content. The 2nd acquirer will steal the lock
         String path2 = newKey();
-        store1.put(path2, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-1"), Optional.of(-1L));
+        store1.put(path2, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-1"), Optional.of(-1L),
+                EnumSet.of(CreateOption.Ephemeral)).join();
 
         ResourceLock<String> rl2 = lm2.acquireLock(path2, "value-1").join();
 

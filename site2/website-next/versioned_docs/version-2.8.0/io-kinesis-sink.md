@@ -5,10 +5,6 @@ sidebar_label: "Kinesis sink connector"
 original_id: io-kinesis-sink
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 The Kinesis sink connector pulls data from Pulsar and persists data into Amazon Kinesis.
 
 ## Configuration

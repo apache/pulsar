@@ -300,7 +300,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 produceMessageResults.get(index).setMessageId(messageId.toString());
             } catch (Exception e) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Fail publish [{}] message with rest produce message request for topic  {}: {} ",
+                    log.debug("Fail publish [{}] message with rest produce message request for topic  {}",
                             index, topicName);
                 }
                 if (e instanceof BrokerServiceException.TopicNotFoundException) {
@@ -641,7 +641,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
             }
             if (null != message.getEventTime() && !message.getEventTime().isEmpty()) {
-                messageMetadata.setEventTime(Long.valueOf(message.getEventTime()));
+                messageMetadata.setEventTime(Long.parseLong(message.getEventTime()));
             }
             if (message.isDisableReplication()) {
                 messageMetadata.clearReplicateTo();
@@ -756,7 +756,8 @@ public class TopicsBase extends PersistentTopicsBase {
             }
 
             boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .canProduce(topicName, originalPrincipal(), clientAuthData());
+                    .canProduce(topicName, originalPrincipal() == null ? clientAppId() : originalPrincipal(),
+                            clientAuthData());
             if (!isAuthorized) {
                 throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to produce to topic %s"
                                         + " with clientAppId [%s] and authdata %s", topicName.toString(),

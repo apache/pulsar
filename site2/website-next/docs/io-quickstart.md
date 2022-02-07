@@ -4,10 +4,6 @@ title: How to connect Pulsar to database
 sidebar_label: "Get started"
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
 It is helpful to review the [concepts](io-overview) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
@@ -658,7 +654,7 @@ The sink has been created successfully if the following message appears.
 
 ```bash
 
-"Created successfully"
+Created successfully
 
 ```
 
@@ -806,7 +802,7 @@ The sink instance has been stopped successfully if the following message disappe
 
 ```bash
 
-"Stopped successfully"
+Stopped successfully
 
 ```
 
@@ -834,7 +830,7 @@ The sink instance has been started successfully if the following message disappe
 
 ```bash
 
-"Started successfully"
+Started successfully
 
 ```
 
@@ -871,7 +867,7 @@ The sink connector has been updated successfully if the following message disapp
 
 ```bash
 
-"Updated successfully"
+Updated successfully
 
 ```
 
@@ -940,7 +936,7 @@ The sink connector has been deleted successfully if the following message appear
 
 ```text
 
-"Deleted successfully"
+Deleted successfully
 
 ```
 

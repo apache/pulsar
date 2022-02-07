@@ -19,14 +19,11 @@
 package org.apache.pulsar.broker.resources;
 
 import java.util.Optional;
-
+import lombok.Getter;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-
-import lombok.AccessLevel;
-import lombok.Getter;
 
 public class PulsarResources {
 

@@ -19,12 +19,8 @@
 package org.apache.pulsar.metadata.api;
 
 import java.io.IOException;
-
 import lombok.experimental.UtilityClass;
-
-import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
  * Factory class for {@link MetadataStore}.
