@@ -194,7 +194,7 @@ public class TenantsBase extends PulsarWebResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
-                .thenCompose(tenantAdmin -> {
+                .thenCompose(tenantInfo -> {
                     if (!tenantAdmin.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found");
                     } else {
