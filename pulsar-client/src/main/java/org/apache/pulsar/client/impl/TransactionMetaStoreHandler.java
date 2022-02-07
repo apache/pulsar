@@ -123,7 +123,6 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             if (getState() == State.Closing || getState() == State.Closed) {
                 setState(State.Closed);
                 failPendingRequest();
-                this.pendingRequests.clear();
                 return;
             }
 
@@ -173,17 +172,16 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     private void failPendingRequest() {
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.keys().forEach(k -> {
-                OpBase<?> op = pendingRequests.remove(k);
-                if (op != null && !op.callback.isDone()) {
-                    op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
-                            "Could not get response from transaction meta store when " +
-                                    "the transaction meta store has already close."));
-                    onResponse(op);
-                }
-            });
+        // this method is executed in internalPinnedExecutor.
+        pendingRequests.forEach((k, op) -> {
+            if (op != null && !op.callback.isDone()) {
+                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                        "Could not get response from transaction meta store when "
+                                + "the transaction meta store has already close."));
+                onResponse(op);
+            }
         });
+        this.pendingRequests.clear();
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
