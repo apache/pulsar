@@ -154,7 +154,7 @@ extends java.lang.Object</pre>
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(org.apache.pulsar.broker.service.Topic,org.apache.pulsar.broker.service.TransportCnx,long,java.lang.String,java.lang.String,boolean,java.util.Map,org.apache.pulsar.common.protocol.schema.SchemaVersion,long,boolean,org.apache.pulsar.common.api.proto.ProducerAccessMode,java.util.Optional)">Producer</a></span>&#8203;(<a href="Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a>&nbsp;topic,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(org.apache.pulsar.broker.service.Topic,org.apache.pulsar.broker.service.TransportCnx,long,java.lang.String,java.lang.String,boolean,java.util.Map,org.apache.pulsar.common.protocol.schema.SchemaVersion,long,boolean,org.apache.pulsar.common.api.proto.ProducerAccessMode,java.util.Optional,boolean)">Producer</a></span>&#8203;(<a href="Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a>&nbsp;topic,
         <a href="TransportCnx.html" title="interface in org.apache.pulsar.broker.service">TransportCnx</a>&nbsp;cnx,
         long&nbsp;producerId,
         java.lang.String&nbsp;producerName,
@@ -165,7 +165,8 @@ extends java.lang.Object</pre>
         long&nbsp;epoch,
         boolean&nbsp;userProvidedProducerName,
         org.apache.pulsar.common.api.proto.ProducerAccessMode&nbsp;accessMode,
-        java.util.Optional&lt;java.lang.Long&gt;&nbsp;topicEpoch)</code></th>
+        java.util.Optional&lt;java.lang.Long&gt;&nbsp;topicEpoch,
+        boolean&nbsp;supportsPartialProducer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -396,7 +397,7 @@ extends java.lang.Object</pre>
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(org.apache.pulsar.broker.service.Topic,org.apache.pulsar.broker.service.TransportCnx,long,java.lang.String,java.lang.String,boolean,java.util.Map,org.apache.pulsar.common.protocol.schema.SchemaVersion,long,boolean,org.apache.pulsar.common.api.proto.ProducerAccessMode,java.util.Optional)">
+<a id="&lt;init&gt;(org.apache.pulsar.broker.service.Topic,org.apache.pulsar.broker.service.TransportCnx,long,java.lang.String,java.lang.String,boolean,java.util.Map,org.apache.pulsar.common.protocol.schema.SchemaVersion,long,boolean,org.apache.pulsar.common.api.proto.ProducerAccessMode,java.util.Optional,boolean)">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -413,7 +414,8 @@ extends java.lang.Object</pre>
                 long&nbsp;epoch,
                 boolean&nbsp;userProvidedProducerName,
                 org.apache.pulsar.common.api.proto.ProducerAccessMode&nbsp;accessMode,
-                java.util.Optional&lt;java.lang.Long&gt;&nbsp;topicEpoch)</pre>
+                java.util.Optional&lt;java.lang.Long&gt;&nbsp;topicEpoch,
+                boolean&nbsp;supportsPartialProducer)</pre>
 </li>
 </ul>
 </li>
