@@ -23,7 +23,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,12 +46,12 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -70,9 +69,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Broker admin base.
  */
-public class BrokersBase extends PulsarWebResource {
+public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
-    private static final Duration HEALTHCHECK_READ_TIMEOUT = Duration.ofSeconds(10);
     public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
 
     @GET
@@ -168,10 +166,19 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Configuration not found"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    public void updateDynamicConfiguration(@PathParam("configName") String configName,
-                                           @PathParam("configValue") String configValue) throws Exception {
-        validateSuperUserAccess();
-        persistDynamicConfiguration(configName, configValue);
+    public void updateDynamicConfiguration(@Suspended AsyncResponse asyncResponse,
+                                           @PathParam("configName") String configName,
+                                           @PathParam("configValue") String configValue) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> persistDynamicConfigurationAsync(configName, configValue))
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Failed to update configuration {}/{}", clientAppId(), configName, configValue, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -235,31 +242,21 @@ public class BrokersBase extends PulsarWebResource {
      * @param configValue
      *            : configuration value
      */
-    private synchronized void persistDynamicConfiguration(String configName, String configValue) {
-        try {
-            if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
-                throw new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value");
-            }
-            if (BrokerService.isDynamicConfiguration(configName)) {
-                dynamicConfigurationResources().setDynamicConfigurationWithCreate(old -> {
-                    Map<String, String> configurationMap = old.isPresent() ? old.get() : Maps.newHashMap();
-                    configurationMap.put(configName, configValue);
-                    return configurationMap;
-                });
-                LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
-            } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName,
-                            configValue);
-                }
-                throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
-            }
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception ie) {
-            LOG.error("[{}] Failed to update configuration {}/{}, {}", clientAppId(), configName, configValue,
-                    ie.getMessage(), ie);
-            throw new RestException(ie);
+    private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(
+            String configName, String configValue) {
+        if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
+            return FutureUtil
+                    .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
+        }
+        if (BrokerService.isDynamicConfiguration(configName)) {
+            return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {
+                Map<String, String> configurationMap = old.orElseGet(Maps::newHashMap);
+                configurationMap.put(configName, configValue);
+                return configurationMap;
+            });
+        } else {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Cannot update non-dynamic configuration"));
         }
     }
 
