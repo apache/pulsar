@@ -274,6 +274,10 @@ public class TransactionTest extends TransactionTestBase {
         int retentionSizeInMinutesSetTo = 5;
         int retentionSizeInMinutesSetTopic = 6;
         admin.topics().createNonPartitionedTopic(topic);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> persistentTopicList = admin.topics().getList("pulsar/system", TopicDomain.persistent);
+            Assert.assertTrue(persistentTopicList.contains(topic));
+        });
         PulsarService pulsarService = super.getPulsarServiceList().get(0);
         pulsarService.getBrokerService().getTopics().clear();
         ManagedLedgerFactory managedLedgerFactory = pulsarService.getBrokerService().getManagedLedgerFactory();
