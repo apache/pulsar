@@ -244,7 +244,7 @@ public class BrokersBase extends PulsarWebResource {
      * @param configValue
      *            : configuration value
      */
-    private synchronized CompletableFuture<Void> persistDynamicConfiguration(String configName, String configValue) {
+    private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(String configName, String configValue) {
         if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
             return FutureUtil
                     .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
