@@ -25,12 +25,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 
 import com.google.common.collect.Lists;
@@ -51,6 +49,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -92,27 +91,15 @@ import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDi
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionsApiV2Resource}.
  */
-@PrepareForTest({WorkerUtils.class, InstanceUtils.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.functions.api.*" })
 public class FunctionApiV2ResourceTest {
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     private static final class TestFunction implements Function<String, String> {
 
@@ -152,6 +139,7 @@ public class FunctionApiV2ResourceTest {
     private FunctionMetaData mockedFunctionMetadata;
     private LeaderService mockedLeaderService;
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
+    private static Map<String, MockedStatic> mockStaticContexts = new HashMap<>();
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -201,6 +189,9 @@ public class FunctionApiV2ResourceTest {
 
         FunctionsImpl functions = spy(new FunctionsImpl(() -> mockedWorkerService));
 
+        mockStatic(InstanceUtils.class, ctx -> {
+            ctx.when(() -> InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
+        });
         this.resource = spy(new FunctionsImplV2(functions));
 
     }
@@ -210,6 +201,13 @@ public class FunctionApiV2ResourceTest {
         if (tempDirectory != null) {
             tempDirectory.delete();
         }
+        mockStaticContexts.values().forEach(MockedStatic::close);
+        mockStaticContexts.clear();
+    }
+
+    private <T> void mockStatic(Class<T> classStatic, Consumer<MockedStatic<T>> consumer) {
+        final MockedStatic<T> mockedStatic = mockStaticContexts.computeIfAbsent(classStatic.getName(), name -> Mockito.mockStatic(classStatic));
+        consumer.accept(mockedStatic);
     }
 
     //
@@ -508,17 +506,14 @@ public class FunctionApiV2ResourceTest {
         }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
-        mockStatic(WorkerUtils.class);
-
-        try {
-            WorkerUtils.uploadFileToBookkeeper(
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
                     anyString(),
                     any(File.class),
-                    any(Namespace.class));
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+                    any(Namespace.class)))
+                    .thenCallRealMethod();
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+        });
 
         try {
             resource.registerFunction(
@@ -569,14 +564,14 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
-
-            WorkerUtils.uploadFileToBookkeeper(
-                    anyString(),
-                    any(File.class),
-                    any(Namespace.class));
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                                anyString(),
+                                any(File.class),
+                                any(Namespace.class)))
+                        .thenThrow(new IOException("upload failure"));
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -644,13 +639,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testRegisterFunctionFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookKeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
             doThrow(new IllegalArgumentException("function failed to register"))
@@ -666,13 +657,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testRegisterFunctionInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookKeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -755,10 +742,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingPackage() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
             testUpdateFunctionMissingArguments(
                     tenant,
                     namespace,
@@ -780,10 +766,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingInputTopic() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             testUpdateFunctionMissingArguments(
                     tenant,
@@ -806,10 +791,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingClassName() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             testUpdateFunctionMissingArguments(
                     tenant,
@@ -832,10 +816,9 @@ public class FunctionApiV2ResourceTest {
     @Test
     public void testUpdateFunctionChangedParallelism() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             testUpdateFunctionMissingArguments(
                     tenant,
@@ -857,10 +840,9 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testUpdateFunctionChangedInputs() throws Exception {
-        mockStatic(WorkerUtils.class);
-        doNothing().when(WorkerUtils.class);
-        WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+        });
 
         testUpdateFunctionMissingArguments(
                 tenant,
@@ -879,10 +861,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateFunctionChangedOutput() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.downloadFromBookkeeper(any(Namespace.class), any(File.class), anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             Map<String, String> someOtherInput = new HashMap<>();
             someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
@@ -1007,13 +988,14 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doThrow(new IOException("upload failure")).when(WorkerUtils.class);
-            WorkerUtils.uploadFileToBookkeeper(
-                    anyString(),
-                    any(File.class),
-                    any(Namespace.class));
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() ->  WorkerUtils.uploadFileToBookkeeper(
+                        anyString(),
+                        any(File.class),
+                        any(Namespace.class)))
+                        .thenThrow(new IOException("upload failure"));
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1026,13 +1008,9 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testUpdateFunctionSuccess() throws Exception {
-        mockStatic(WorkerUtils.class);
-        doNothing().when(WorkerUtils.class);
-        WorkerUtils.uploadToBookKeeper(
-                any(Namespace.class),
-                any(InputStream.class),
-                anyString());
-        PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+        });
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1080,13 +1058,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookKeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1103,16 +1077,9 @@ public class FunctionApiV2ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registeration interrupted")
     public void testUpdateFunctionInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class);
-            doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookKeeper(
-                    any(Namespace.class),
-                    any(InputStream.class),
-                    anyString());
-
-            PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
-
-
+            mockStatic(WorkerUtils.class, ctx -> {
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
             doThrow(new IllegalStateException("Function registeration interrupted"))
