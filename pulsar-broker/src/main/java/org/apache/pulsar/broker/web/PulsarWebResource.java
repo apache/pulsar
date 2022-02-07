@@ -233,7 +233,7 @@ public abstract class PulsarWebResource {
      */
     public void validateSuperUserAccess() {
         try {
-            validateSuperUserAccessAsync().get(config().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            validateSuperUserAccessAsync().get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             Throwable realCause = FutureUtil.unwrapCompletionException(e);
             if (realCause instanceof WebApplicationException){
@@ -403,7 +403,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
         try {
-            validateClusterOwnershipAsync(cluster).get(config().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            validateClusterOwnershipAsync(cluster).get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException ex) {
             Throwable realCause = FutureUtil.unwrapCompletionException(ex);
             if (realCause instanceof WebApplicationException){
@@ -696,7 +696,7 @@ public abstract class PulsarWebResource {
      * @throws Exception
      */
     protected void validateGlobalNamespaceOwnership(NamespaceName namespace) {
-        int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+        int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
         try {
             ClusterDataImpl peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
                     .get(timeout, SECONDS);
@@ -865,7 +865,7 @@ public abstract class PulsarWebResource {
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {
         try {
-            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
             validateTenantOperationAsync(tenant, operation).get(timeout, SECONDS);
         } catch (InterruptedException | TimeoutException e) {
             throw new RestException(e);
@@ -904,7 +904,7 @@ public abstract class PulsarWebResource {
 
     public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
         try {
-            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
             validateNamespaceOperationAsync(namespaceName, operation).get(timeout, SECONDS);
         } catch (InterruptedException | TimeoutException e) {
             throw new RestException(e);
@@ -1085,7 +1085,7 @@ public abstract class PulsarWebResource {
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
         try {
-            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
             validateTopicPolicyOperationAsync(topicName, policy, operation).get(timeout, SECONDS);
         } catch (InterruptedException | TimeoutException e) {
             throw new RestException(e);

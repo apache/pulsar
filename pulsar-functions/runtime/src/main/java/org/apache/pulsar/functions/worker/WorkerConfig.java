@@ -155,21 +155,47 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "Configuration store connection string (as a comma-separated list)"
     )
     private String configurationMetadataStoreUrl;
+    @Deprecated
     @FieldContext(
             category = CATEGORY_WORKER,
-            doc = "ZooKeeper session timeout in milliseconds"
+            doc = "ZooKeeper session timeout in milliseconds. "
+                    + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
     )
     private long zooKeeperSessionTimeoutMillis = 30000;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_WORKER,
-            doc = "ZooKeeper operation timeout in seconds"
+            doc = "ZooKeeper operation timeout in seconds. "
+                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
     )
     private int zooKeeperOperationTimeoutSeconds = 30;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_WORKER,
-            doc = "ZooKeeper cache expiry time in seconds"
-        )
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
+    )
     private int zooKeeperCacheExpirySeconds = 300;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Metadata store session timeout in milliseconds."
+    )
+    private long metadataStoreSessionTimeoutMillis = 30000;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Metadata store operation timeout in seconds."
+    )
+    private int metadataStoreOperationTimeoutSeconds = 30;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -731,5 +757,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         } else {
             return brokerClientAuthenticationParameters;
         }
+    }
+
+    public void setZooKeeperSessionTimeoutMillis(long zooKeeperSessionTimeoutMillis) {
+        this.metadataStoreSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
+    }
+
+    public void setZooKeeperOperationTimeoutSeconds(int zooKeeperOperationTimeoutSeconds) {
+        this.metadataStoreOperationTimeoutSeconds = zooKeeperOperationTimeoutSeconds;
+    }
+
+    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
+        this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
     }
 }

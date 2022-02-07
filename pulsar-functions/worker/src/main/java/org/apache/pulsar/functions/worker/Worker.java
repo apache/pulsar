@@ -75,7 +75,7 @@ public class Worker {
             try {
                 configMetadataStore = PulsarResources.createMetadataStore(
                         workerConfig.getConfigurationMetadataStoreUrl(),
-                        (int) workerConfig.getZooKeeperSessionTimeoutMillis());
+                        (int) workerConfig.getMetadataStoreSessionTimeoutMillis());
             } catch (IOException e) {
                 throw new PulsarServerException(e);
             }

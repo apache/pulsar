@@ -24,6 +24,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -41,6 +42,8 @@ public class Reflections {
         new ConcurrentHashMap<>();
 
     private static final Map PRIMITIVE_NAME_TYPE_MAP = new HashMap();
+
+    private static final String SET_PREFIX = "set";
 
     static {
         PRIMITIVE_NAME_TYPE_MAP.put("boolean", Boolean.TYPE);
@@ -334,5 +337,12 @@ public class Reflections {
         }
 
         return fields;
+    }
+
+    public static Method getSetMethod(Class<?> clazz, Field f) throws NoSuchMethodException {
+        String setMethod = SET_PREFIX
+                + f.getName().substring(0, 1).toUpperCase()
+                + f.getName().substring(1);
+        return clazz.getDeclaredMethod(setMethod, f.getType());
     }
 }

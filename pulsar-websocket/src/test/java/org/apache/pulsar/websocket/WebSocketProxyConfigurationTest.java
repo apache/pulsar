@@ -16,14 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.config;
+package org.apache.pulsar.websocket;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -34,33 +31,9 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
-public class TestWorkerConfig {
-    @Test
-    public void validateAuthenticationCompatibleWorkerConfig() {
-        WorkerConfig workerConfig = new WorkerConfig();
+import static org.testng.Assert.assertEquals;
 
-        workerConfig.setAuthenticationEnabled(false);
-        assertFalse(workerConfig.isAuthenticationEnabled());
-        workerConfig.setBrokerClientAuthenticationEnabled(null);
-        assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
-
-        workerConfig.setAuthenticationEnabled(true);
-        assertTrue(workerConfig.isAuthenticationEnabled());
-        workerConfig.setBrokerClientAuthenticationEnabled(null);
-        assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
-
-        workerConfig.setBrokerClientAuthenticationEnabled(true);
-        workerConfig.setAuthenticationEnabled(false);
-        assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
-        workerConfig.setAuthenticationEnabled(true);
-        assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
-
-        workerConfig.setBrokerClientAuthenticationEnabled(false);
-        workerConfig.setAuthenticationEnabled(false);
-        assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
-        workerConfig.setAuthenticationEnabled(true);
-        assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
-    }
+public class WebSocketProxyConfigurationTest {
 
     @Test
     public void testBackwardCompatibility() throws IOException {
@@ -70,14 +43,13 @@ public class TestWorkerConfig {
         }
         try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
             printWriter.println("zooKeeperSessionTimeoutMillis=60");
-            printWriter.println("zooKeeperOperationTimeoutSeconds=600");
             printWriter.println("zooKeeperCacheExpirySeconds=500");
         }
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
-        final WorkerConfig serviceConfig = PulsarConfigurationLoader.create(stream, WorkerConfig.class);
+        final WebSocketProxyConfiguration serviceConfig = PulsarConfigurationLoader.create(stream,
+                WebSocketProxyConfiguration.class);
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
-        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
     }
 }

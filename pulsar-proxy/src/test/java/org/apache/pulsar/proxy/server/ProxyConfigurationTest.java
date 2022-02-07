@@ -24,7 +24,13 @@ import org.testng.annotations.Test;
 
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -53,5 +59,20 @@ public class ProxyConfigurationTest {
         }
     }
 
-
+    @Test
+    public void testBackwardCompatibility() throws IOException {
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("zookeeperSessionTimeoutMs=60");
+            printWriter.println("zooKeeperCacheExpirySeconds=500");
+        }
+        testConfigFile.deleteOnExit();
+        InputStream stream = new FileInputStream(testConfigFile);
+        final ProxyConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ProxyConfiguration.class);
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+    }
 }

@@ -1264,7 +1264,7 @@ public class BrokerService implements Closeable {
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
                 // zk-operation timeout
-                builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 PulsarAdmin adminClient = builder.build();
                 log.info("created admin with url {} ", adminApiUrl);

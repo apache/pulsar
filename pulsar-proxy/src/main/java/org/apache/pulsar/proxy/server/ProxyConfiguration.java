@@ -116,16 +116,33 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String configurationMetadataStoreUrl;
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "ZooKeeper session timeout (in milliseconds)"
+            doc = "ZooKeeper session timeout in milliseconds. "
+                    + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
     )
     private int zookeeperSessionTimeoutMs = 30_000;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_BROKER_DISCOVERY,
-            doc = "ZooKeeper cache expiry time in seconds"
-        )
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
+    )
     private int zooKeeperCacheExpirySeconds = 300;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store session timeout in milliseconds."
+    )
+    private int metadataStoreSessionTimeoutMillis = 30_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -755,5 +772,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
         public String toString() {
             return String.format("HttpReverseProxyConfig(%s, path=%s, proxyTo=%s)", name, path, proxyTo);
         }
+    }
+
+    public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
+        this.metadataStoreSessionTimeoutMillis = zookeeperSessionTimeoutMs;
+    }
+
+    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
+        this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
     }
 }

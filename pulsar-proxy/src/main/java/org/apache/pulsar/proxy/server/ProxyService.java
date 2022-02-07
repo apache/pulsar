@@ -385,12 +385,12 @@ public class ProxyService implements Closeable {
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
         return PulsarResources.createMetadataStore(proxyConfig.getMetadataStoreUrl(),
-                proxyConfig.getZookeeperSessionTimeoutMs());
+                proxyConfig.getMetadataStoreSessionTimeoutMillis());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
         return PulsarResources.createMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
-                proxyConfig.getZookeeperSessionTimeoutMs());
+                proxyConfig.getMetadataStoreSessionTimeoutMillis());
     }
 
     public Authentication getProxyClientAuthenticationPlugin() {

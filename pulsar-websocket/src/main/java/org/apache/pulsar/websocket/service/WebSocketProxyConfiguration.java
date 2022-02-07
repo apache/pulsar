@@ -72,11 +72,19 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Connection string of configuration metadata store servers")
     private String configurationMetadataStoreUrl;
 
-    @FieldContext(doc = "ZooKeeper session timeout in milliseconds")
+    @FieldContext(doc = "ZooKeeper session timeout in milliseconds. "
+            + "@deprecated - Use metadataStoreSessionTimeoutMillis instead.")
     private long zooKeeperSessionTimeoutMillis = 30000;
 
-    @FieldContext(doc = "ZooKeeper cache expiry time in seconds")
+    @FieldContext(doc = "ZooKeeper cache expiry time in seconds. "
+            + "@deprecated - Use metadataStoreCacheExpirySeconds instead.")
     private int zooKeeperCacheExpirySeconds = 300;
+
+    @FieldContext(doc = "Metadata store session timeout in milliseconds.")
+    private long metadataStoreSessionTimeoutMillis = 30000;
+
+    @FieldContext(doc = "Metadata store cache expiry time in seconds.")
+    private int metadataStoreCacheExpirySeconds = 300;
 
     @FieldContext(doc = "Port to use to server HTTP request")
     private Optional<Integer> webServicePort = Optional.of(8080);
@@ -163,4 +171,12 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
+
+    public void setZooKeeperSessionTimeoutMillis(long zooKeeperSessionTimeoutMillis) {
+        this.metadataStoreSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
+    }
+
+    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
+        this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+    }
 }
