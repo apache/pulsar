@@ -236,6 +236,9 @@ tokenSecretKey=file:///path/to/secret.key
 
 # If using public/private (Note: key files must be DER-encoded)
 # tokenPublicKey=file:///path/to/public.key
+# Role names that are treated as "super-user", meaning they will be able to do all admin
+# operations and publish/consume from all topics
+superUserRoles=test-user
 ```
 
 ### Enable token authentication on Proxies
