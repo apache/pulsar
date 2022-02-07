@@ -256,15 +256,33 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0"
                     + " and less than or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist")})
-    public void updatePartitionedTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void updatePartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
             int numPartitions) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative, force);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
+                    .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(ex -> {
+                        Throwable cause = ex.getCause();
+                        if (cause instanceof RestException) {
+                            asyncResponse.resume(cause);
+                        } else {
+                            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, cause);
+                            asyncResponse.resume(new RestException(cause));
+                        }
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @GET

@@ -810,6 +810,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 500, message = "Internal server error")
     })
     public void updatePartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -823,9 +824,25 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative, force);
+        try {
+            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
+            internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
+                    .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(ex -> {
+                        Throwable cause = ex.getCause();
+                        if (cause instanceof RestException) {
+                            asyncResponse.resume(cause);
+                        } else {
+                            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, cause);
+                            asyncResponse.resume(new RestException(cause));
+                        }
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
 
