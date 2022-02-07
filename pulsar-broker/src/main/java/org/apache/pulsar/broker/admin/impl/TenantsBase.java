@@ -206,7 +206,7 @@ public class TenantsBase extends PulsarWebResource {
                     log.info("[{}] Successfully updated tenant info {}", clientAppId(), tenant);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to update tenant {}.",clientAppId(), tenant, ex);
+                    log.error("[{}] Failed to update tenant {}.", clientAppId(), tenant, ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
     }
