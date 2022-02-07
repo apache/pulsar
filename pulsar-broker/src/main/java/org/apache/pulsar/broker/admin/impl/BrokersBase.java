@@ -255,10 +255,6 @@ public class BrokersBase extends AdminResource {
                 return configurationMap;
             });
         } else {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Cannot update non-dynamic configuration {}/{}", clientAppId(), configName,
-                        configValue);
-            }
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Cannot update non-dynamic configuration"));
         }
