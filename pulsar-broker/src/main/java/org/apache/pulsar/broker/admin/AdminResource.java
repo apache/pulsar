@@ -545,6 +545,17 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
+        return namespaceResources().getPoliciesAsync(namespaceName)
+                .thenApply(policies -> {
+                    if (policies.isPresent()) {
+                        return policies.get().replication_clusters;
+                    } else {
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    }
+                });
+    }
+
     protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {
         try {
             return namespaceResources().getPartitionedTopicResources()

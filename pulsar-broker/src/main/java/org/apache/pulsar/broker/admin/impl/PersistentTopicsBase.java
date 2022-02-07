@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -188,18 +187,15 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<List<String>> internalGetListAsync() {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenCompose(__ -> {
-                    try {
-                        if (!namespaceResources().namespaceExists(namespaceName)) {
-                            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                        }
-                    } catch (MetadataStoreException e) {
-                        return FutureUtil.failedFuture(e);
+                .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
+                .thenAccept(exists -> {
+                    if (!exists) {
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                     }
-                    return topicResources().listPersistentTopicsAsync(namespaceName).thenApply(topics ->
-                            topics.stream().filter(topic ->
-                                    !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList()));
-                });
+                })
+                .thenCompose(__ -> topicResources().listPersistentTopicsAsync(namespaceName))
+                .thenApply(topics -> topics.stream().filter(topic ->
+                        !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList()));
     }
 
     protected List<String> internalGetPartitionedTopicList() {
@@ -446,13 +442,11 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(__ -> validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION,
                     PolicyOperation.WRITE))
             .thenCompose(__ -> {
-                CompletableFuture<Void> ret;
                 if (!updateLocalTopicOnly && !force) {
-                    ret = validatePartitionTopicUpdateAsync(topicName.getLocalName(), numPartitions);
+                    return validatePartitionTopicUpdateAsync(topicName.getLocalName(), numPartitions);
                 }  else {
-                    ret = CompletableFuture.completedFuture(null);
+                    return CompletableFuture.completedFuture(null);
                 }
-                return ret;
             })
             .thenCompose(__ -> {
                 final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
@@ -460,29 +454,33 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_ACCEPTABLE,
                             "Number of partitions should be less than or equal to " + maxPartitions);
                 }
+                CompletableFuture<Void> ret;
                 // Only do the validation if it's the first hop.
                 if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
-                    Set<String> clusters = getNamespaceReplicatedClusters(topicName.getNamespaceObject());
-                    if (!clusters.contains(pulsar().getConfig().getClusterName())) {
-                        log.error("[{}] local cluster is not part of replicated cluster for namespace {}",
-                                clientAppId(), topicName);
-                        throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate cluster"
-                                + " list");
-                    }
-                    return tryCreatePartitionsAsync(numPartitions)
-                            .thenCompose(ignore -> createSubscriptions(topicName, numPartitions))
-                            .thenCompose(ignore -> {
-                                CompletableFuture<Void> ret;
+                    return getNamespaceReplicatedClustersAsync(topicName.getNamespaceObject())
+                            .thenApply(clusters -> {
+                                if (!clusters.contains(pulsar().getConfig().getClusterName())) {
+                                    log.error("[{}] local cluster is not part of replicated cluster for namespace {}",
+                                    clientAppId(), topicName);
+                                    throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate"
+                                            + " cluster list");
+                                }
+                                return clusters;
+                            })
+                            .thenCompose(clusters -> tryCreatePartitionsAsync(numPartitions).thenApply(ignore ->
+                                    clusters))
+                            .thenCompose(clusters -> createSubscriptions(topicName, numPartitions).thenApply(ignore ->
+                                    clusters))
+                            .thenCompose(clusters -> {
                                 if (!updateLocalTopicOnly) {
-                                    ret = updatePartitionInOtherCluster(numPartitions, clusters)
+                                    return updatePartitionInOtherCluster(numPartitions, clusters)
                                         .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
                                                         .updatePartitionedTopicAsync(topicName, p ->
                                                                 new PartitionedTopicMetadata(numPartitions)
                                                         ));
                                 } else {
-                                    ret = CompletableFuture.completedFuture(null);
+                                    return CompletableFuture.completedFuture(null);
                                 }
-                                return ret;
                             });
                 } else {
                     return tryCreatePartitionsAsync(numPartitions)
