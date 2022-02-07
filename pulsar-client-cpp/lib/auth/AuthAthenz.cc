@@ -37,7 +37,8 @@ AuthDataAthenz::AuthDataAthenz(ParamMap& params) {
 bool AuthDataAthenz::hasDataForHttp() { return true; }
 
 std::string AuthDataAthenz::getHttpHeaders() {
-    return ztsClient_->getHeader() + ": " + ztsClient_->getRoleToken();
+    return ztsClient_->getHeader() + ": " + ztsClient_->getRoleToken()
+            + ";X-Pulsar-Auth-Method-Name:" + getAuthMethodName();
 }
 
 bool AuthDataAthenz::hasDataFromCommand() { return true; }

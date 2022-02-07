@@ -28,6 +28,10 @@ AuthDataTls::~AuthDataTls() {}
 
 bool AuthDataTls::hasDataForTls() { return true; }
 
+std::string AuthDataTls::getHttpHeaders() {
+    return "X-Pulsar-Auth-Method-Name:" + getAuthMethodName();
+}
+
 std::string AuthDataTls::getTlsCertificates() { return tlsCertificate_; }
 
 std::string AuthDataTls::getTlsPrivateKey() { return tlsPrivateKey_; }

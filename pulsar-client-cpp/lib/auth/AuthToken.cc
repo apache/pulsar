@@ -35,7 +35,9 @@ AuthDataToken::~AuthDataToken() {}
 
 bool AuthDataToken::hasDataForHttp() { return true; }
 
-std::string AuthDataToken::getHttpHeaders() { return "Authorization: Bearer " + tokenSupplier_(); }
+std::string AuthDataToken::getHttpHeaders() {
+    return "Authorization: Bearer " + tokenSupplier_() + ";X-Pulsar-Auth-Method-Name:" + getAuthMethodName();
+}
 
 bool AuthDataToken::hasDataFromCommand() { return true; }
 
