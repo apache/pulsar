@@ -2345,7 +2345,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         try {
             admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, false);
-        } catch (PulsarAdminException.PreconditionFailedException e) {
+        } catch (Exception e) {
             // Ok
         }
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, true);
