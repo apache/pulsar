@@ -174,8 +174,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxnEnabled) {
         if (!isTxnEnabled) {
-            if (!changeToNoSnapshotState()) {
-                log.error("[{}]Transaction buffer recover fail with transaction disabled", topic.getName());
+            if (!checkIfNoSnapshot() && !changeToNoSnapshotState()) {
+                log.error("[{}] Transaction buffer recover fail with transaction disabled", topic.getName());
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                completableFuture.completeExceptionally(new Exception("Topic " + topic.getName()
+                        + ": Transaction buffer recover fail with transaction disabled"));
+                return completableFuture;
             }
             return CompletableFuture.completedFuture(null);
         } else {
