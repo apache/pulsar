@@ -63,7 +63,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
@@ -274,7 +273,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     || cursor.getName().startsWith(replicatorPrefix)) {
                 // This is not a regular subscription, we are going to
                 // ignore it for now and let the message dedup logic to take care of it
-            } else if(cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)){
+            } else if (cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)){
                 Map<String, Long> properties = cursor.getProperties();
                 if (properties != null && properties.containsKey(OffloadCompactedTopicImpl.UUID_LSB_NAME)
                         && properties.containsKey(OffloadCompactedTopicImpl.UUID_MSB_NAME)) {
@@ -282,7 +281,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // Properties contain uuid, compactedTopic is offloaded.
                     UUID uuid = new UUID(properties.get(OffloadCompactedTopicImpl.UUID_MSB_NAME),
                             properties.get(OffloadCompactedTopicImpl.UUID_LSB_NAME));
-                    Map<String, String> offloadDriverMetadata = ledger.getConfig().getLedgerOffloader().getOffloadDriverMetadata();
+                    Map<String, String> offloadDriverMetadata = ledger.getConfig().getLedgerOffloader()
+                            .getOffloadDriverMetadata();
 
                     this.compactedTopic = new OffloadCompactedTopicImpl(ledger.getConfig().getLedgerOffloader(),
                             uuid, offloadDriverMetadata);

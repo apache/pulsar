@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.ImmutableMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -38,15 +45,6 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.OffloadCompactedTopicImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 public class CompactorSubscription extends PersistentSubscription {
     private volatile CompactedTopic compactedTopic;
@@ -103,8 +101,8 @@ public class CompactorSubscription extends PersistentSubscription {
             final CompactedTopic nextCt = new CompactedTopicImpl(bk);
             future = nextCt.newCompactedLedger(position, compactedLedgerId).thenAccept(__ -> {
                 final CompactedTopic oldTopic = COMPACTED_TOPIC_UPDATER.getAndSet(this, nextCt);
-                CompactedTopicContext oldContext = oldTopic.getCompactedTopicContext().isPresent() ?
-                        oldTopic.getCompactedTopicContext().get() : null;
+                CompactedTopicContext oldContext = oldTopic.getCompactedTopicContext().isPresent()
+                        ? oldTopic.getCompactedTopicContext().get() : null;
 
                 cursor.asyncMarkDelete(position, properties, deleteCallback(oldContext, position,
                         oldTopic), null);
@@ -126,8 +124,9 @@ public class CompactorSubscription extends PersistentSubscription {
 
                 boolean isOffload = false;
                 // Topic is open offload,compactedTopic ledger auto offload
-                for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ((ManagedLedgerImpl) topic.ledger).getLedgersInfoAsList()) {
-                    if(info.hasOffloadContext()){
+                for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info :
+                        ((ManagedLedgerImpl) topic.ledger).getLedgersInfoAsList()) {
+                    if (info.hasOffloadContext()){
                         isOffload = true;
                         break;
                     }
@@ -144,17 +143,25 @@ public class CompactorSubscription extends PersistentSubscription {
                     if (compactedTopic.getCompactedTopicContext().isPresent()
                             && compactedTopic.getCompactionHorizon().isPresent()) {
                         final CompactedTopicContext oldContext = compactedTopic.getCompactedTopicContext().get();
-                        config.getLedgerOffloader().offload(oldContext.getLedger(), uuid, extraMetadata).thenAccept(res -> {
-                            OffloadCompactedTopicImpl newCompactionTopic = new OffloadCompactedTopicImpl(
-                                    config.getLedgerOffloader(), uuid, offloadDriverMetadata);
-                            newCompactionTopic.newCompactedLedger(position, compactedLedgerId).thenAccept(ctc -> {
-                                CompactedTopic oldCompactionTopic = COMPACTED_TOPIC_UPDATER.getAndSet(this, newCompactionTopic);
-                                Map<String, Long> newProp = new HashMap<>(properties);
-                                newProp.put(OffloadCompactedTopicImpl.UUID_LSB_NAME, uuid.getLeastSignificantBits());
-                                newProp.put(OffloadCompactedTopicImpl.UUID_MSB_NAME, uuid.getMostSignificantBits());
-                                cursor.asyncMarkDelete(position, newProp, deleteCallback(oldContext, position, oldCompactionTopic), null);
-                            });
-                        }).exceptionally(e -> {
+                        config.getLedgerOffloader().offload(oldContext.getLedger(), uuid, extraMetadata)
+                                .thenAccept(res -> {
+                                    OffloadCompactedTopicImpl newCompactionTopic = new OffloadCompactedTopicImpl(
+                                            config.getLedgerOffloader(), uuid, offloadDriverMetadata);
+                                    newCompactionTopic.newCompactedLedger(position, compactedLedgerId)
+                                            .thenAccept(ctc -> {
+                                                CompactedTopic oldCompactionTopic = COMPACTED_TOPIC_UPDATER
+                                                        .getAndSet(this, newCompactionTopic);
+
+                                                Map<String, Long> newProp = new HashMap<>(properties);
+                                                newProp.put(OffloadCompactedTopicImpl.UUID_LSB_NAME,
+                                                        uuid.getLeastSignificantBits());
+                                                newProp.put(OffloadCompactedTopicImpl.UUID_MSB_NAME,
+                                                        uuid.getMostSignificantBits());
+                                                cursor.asyncMarkDelete(position, newProp,
+                                                        deleteCallback(oldContext, position, oldCompactionTopic),
+                                                        null);
+                                            });
+                                }).exceptionally(e -> {
                             log.warn("Failed offload compactedTopic:{}", topicName, e);
                             return null;
                         });
@@ -167,7 +174,8 @@ public class CompactorSubscription extends PersistentSubscription {
         });
     }
 
-    private MarkDeleteCallback deleteCallback(CompactedTopicContext ctc, Position position, CompactedTopic compactedTopic){
+    private MarkDeleteCallback deleteCallback(CompactedTopicContext ctc, Position position,
+                                              CompactedTopic compactedTopic){
         return new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {

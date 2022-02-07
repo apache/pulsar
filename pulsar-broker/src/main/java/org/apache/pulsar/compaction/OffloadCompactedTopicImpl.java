@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.compaction;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class OffloadCompactedTopicImpl extends CompactedTopicImpl {
     public static final String UUID_MSB_NAME = "CompactedTopicOffloaderMsb";
@@ -94,7 +93,7 @@ public class OffloadCompactedTopicImpl extends CompactedTopicImpl {
                     if (ex != null) {
                         log.warn("Error deleting offload compacted topic ledger {}",
                                 id, ex);
-                    }else {
+                    } else {
                         log.debug("Offload compacted topic ledger deleted successfully");
                     }
                 });

@@ -219,7 +219,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                 }
             });
         } else {
-            ((LedgerHandle)rh).asyncReadEntries(entryId, entryId,
+            ((LedgerHandle) rh).asyncReadEntries(entryId, entryId,
                     (rc, _lh, seq, ctx) -> {
                         if (rc != BKException.Code.OK) {
                             promise.completeExceptionally(BKException.create(rc));
@@ -301,7 +301,7 @@ public class CompactedTopicImpl implements CompactedTopic {
             return promise;
         } else {
             CompletableFuture<Enumeration<LedgerEntry>> promise = new CompletableFuture<>();
-            ((LedgerHandle)rh).asyncReadEntries(from, to,
+            ((LedgerHandle) rh).asyncReadEntries(from, to,
                     (rc, _lh, seq, ctx) -> {
                         if (rc != BKException.Code.OK) {
                             promise.completeExceptionally(BKException.create(rc));
@@ -352,8 +352,8 @@ public class CompactedTopicImpl implements CompactedTopic {
                 return CompletableFuture.completedFuture(null);
             }
             return readEntries(
-                    context.getLedger(), context.getLedger().getLastAddConfirmed(), context.getLedger().getLastAddConfirmed())
-                    .thenCompose(entries -> entries.size() > 0
+                    context.getLedger(), context.getLedger().getLastAddConfirmed(), context.getLedger()
+                            .getLastAddConfirmed()).thenCompose(entries -> entries.size() > 0
                             ? CompletableFuture.completedFuture(entries.get(0))
                             : CompletableFuture.completedFuture(null));
         });
