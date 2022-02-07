@@ -261,7 +261,7 @@ public class BrokersBase extends PulsarWebResource {
                         configValue);
             }
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    " Can't update non-dynamic configuration"));
+                    "Cannot update non-dynamic configuration"));
         }
     }
 
