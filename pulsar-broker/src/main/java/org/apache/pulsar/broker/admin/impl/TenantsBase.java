@@ -128,7 +128,12 @@ public class TenantsBase extends PulsarWebResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(tenantInfo))
                 .thenCompose(__ -> {
-                    NamedEntity.checkName(tenant);
+                    try {
+                        NamedEntity.checkName(tenant);
+                    } catch (IllegalArgumentException ex) {
+                        log.warn("[{}] Failed to create tenant with invalid name {}", clientAppId(), tenant, ex);
+                        throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
+                    }
                     return tenantResources().listTenantsAsync();
                 }).thenCompose(tenants -> {
                     int maxTenants = pulsar().getConfiguration().getMaxTenants();
