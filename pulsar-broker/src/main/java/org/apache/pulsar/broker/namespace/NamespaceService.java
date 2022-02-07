@@ -1099,13 +1099,24 @@ public class NamespaceService implements AutoCloseable {
         if (topic.isPersistent()) {
             return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
         } else {
-            // only checks and don't do any topic creating and loading.
-            CompletableFuture<Optional<Topic>> topicFuture =
-                    pulsar.getBrokerService().getTopics().get(topic.toString());
-            if (topicFuture == null) {
-                return CompletableFuture.completedFuture(false);
+            if (topic.isPartitioned()) {
+                final TopicName partitionedTopicName = TopicName.get(topic.getPartitionedTopicName());
+                return pulsar.getBrokerService()
+                        .fetchPartitionedTopicMetadataAsync(partitionedTopicName)
+                        .thenApply((metadata) -> topic.getPartitionIndex() < metadata.partitions);
             } else {
-                return topicFuture.thenApply(Optional::isPresent).exceptionally(throwable -> false);
+                // only checks and don't do any topic creating and loading.
+                CompletableFuture<Optional<Topic>> topicFuture =
+                        pulsar.getBrokerService().getTopics().get(topic.toString());
+                if (topicFuture == null) {
+                    return CompletableFuture.completedFuture(false);
+                } else {
+                    return topicFuture.thenApply(Optional::isPresent).exceptionally(throwable -> {
+                        LOG.warn("[{}] topicFuture completed with exception when checkTopicExists, {}",
+                                topic, throwable.getMessage());
+                        return false;
+                    });
+                }
             }
         }
     }
