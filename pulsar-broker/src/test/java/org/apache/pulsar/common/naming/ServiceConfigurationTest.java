@@ -134,7 +134,7 @@ public class ServiceConfigurationTest {
 
         assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
         assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk1:2181");
-        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181");
+        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk:zk1:2181/ledgers");
         assertFalse(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
@@ -148,7 +148,7 @@ public class ServiceConfigurationTest {
 
         assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
         assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk1:2181");
-        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181");
+        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181/ledgers");
         assertFalse(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
@@ -165,7 +165,7 @@ public class ServiceConfigurationTest {
 
         assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
         assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk2:2182");
-        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181");
+        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181/ledgers");
         assertTrue(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
@@ -181,7 +181,7 @@ public class ServiceConfigurationTest {
 
         assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
         assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk2:2182");
-        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181");
+        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181/ledgers");
         assertTrue(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
@@ -197,7 +197,7 @@ public class ServiceConfigurationTest {
 
         assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
         assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk2:2182");
-        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181");
+        assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk1:2181/ledgers");
         assertTrue(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }

@@ -95,7 +95,6 @@ import org.slf4j.LoggerFactory;
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
-    private final WebTarget adminV3Topics;
     // CHECKSTYLE.OFF: MemberName
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
     private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
@@ -133,7 +132,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
-        adminV3Topics = web.path("/admin/v3");
     }
 
     @Override
@@ -347,12 +345,12 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, properties, "partitions")
+        WebTarget path = topicPath(tn, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         Entity entity;
-        if (properties != null) {
+        if (properties != null && !properties.isEmpty()) {
             PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, properties);
-            entity = Entity.entity(metadata, MediaType.APPLICATION_JSON);
+            entity = Entity.entity(metadata, MediaType.valueOf(PartitionedTopicMetadata.MEDIA_TYPE));
         } else {
             entity = Entity.entity(numPartitions, MediaType.APPLICATION_JSON);
         }
@@ -1249,22 +1247,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget namespacePath = base.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
-    }
-
-    /**
-     *  As we support topic metadata, user can add some properties when create topic.
-     *  For compatibility, we have to define a new method, so when metadata is not null, v3 will be called.
-     *  Details could be found here : https://github.com/apache/pulsar/pull/12818#discussion_r789340203
-     * @param topic
-     * @param metadata
-     * @param parts
-     * @return
-     */
-    private WebTarget topicPath(TopicName topic, Map<String, String> metadata, String... parts) {
-        final WebTarget base = metadata != null ? adminV3Topics : (topic.isV2() ? adminV2Topics : adminTopics);
-        WebTarget topicPath = base.path(topic.getRestPath());
-        topicPath = WebTargets.addParts(topicPath, parts);
-        return topicPath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {

@@ -238,13 +238,13 @@ ConsumerConfiguration& ConsumerConfiguration::setMaxPendingChunkedMessage(size_t
 
 size_t ConsumerConfiguration::getMaxPendingChunkedMessage() const { return impl_->maxPendingChunkedMessage; }
 
-ConsumerConfiguration& ConsumerConfiguration::setAutoOldestChunkedMessageOnQueueFull(
+ConsumerConfiguration& ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQueueFull(
     bool autoAckOldestChunkedMessageOnQueueFull) {
     impl_->autoAckOldestChunkedMessageOnQueueFull = autoAckOldestChunkedMessageOnQueueFull;
     return *this;
 }
 
-bool ConsumerConfiguration::isAutoOldestChunkedMessageOnQueueFull() const {
+bool ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull() const {
     return impl_->autoAckOldestChunkedMessageOnQueueFull;
 }
 
