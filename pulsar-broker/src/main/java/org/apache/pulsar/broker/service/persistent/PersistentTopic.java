@@ -369,7 +369,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             subscriptions.forEach((name, subscription) -> {
                 Dispatcher dispatcher = subscription.getDispatcher();
                 if (dispatcher != null) {
-                    dispatcher.initializeDispatchRateLimiterIfNeeded(policies);
+                    dispatcher.initializeDispatchRateLimiterIfNeeded();
                 }
             });
 
@@ -3025,7 +3025,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             consumerCheckFutures.add(consumer.checkPermissionsAsync().thenRun(() -> {
                 Dispatcher dispatcher = sub.getDispatcher();
                 if (dispatcher != null) {
-                    dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
+                    dispatcher.updateRateLimiter();
                 }
             }));
         }));
