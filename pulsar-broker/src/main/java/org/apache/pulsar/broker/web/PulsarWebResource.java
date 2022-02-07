@@ -1166,7 +1166,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected Void handleCommonRestAsyncException(AsyncResponse asyncResponse, Throwable ex) {
+    protected static Void handleCommonRestAsyncException(AsyncResponse asyncResponse, Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         if (realCause instanceof WebApplicationException) {
             asyncResponse.resume(realCause);
