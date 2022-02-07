@@ -184,7 +184,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private boolean authenticateOriginalAuthData;
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
-    private final int maxMessageSize;
     private boolean preciseDispatcherFlowControl;
 
     private boolean preciseTopicPublishRateLimitingEnable;
@@ -204,6 +203,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private boolean autoReadDisabledPublishBufferLimiting = false;
     private final long maxPendingBytesPerThread;
     private final long resumeThresholdPendingBytesPerThread;
+
+    private final ServiceConfiguration conf;
 
     // Number of bytes pending to be published from a single specific IO thread.
     private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
@@ -239,7 +240,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
         this.state = State.Start;
-        ServiceConfiguration conf = pulsar.getConfiguration();
+        this.conf = pulsar.getConfiguration();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
         this.producers = new ConcurrentLongHashMap<>(8, 1);
@@ -249,7 +250,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.proxyRoles = conf.getProxyRoles();
         this.authenticateOriginalAuthData = conf.isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = conf.isSchemaValidationEnforced();
-        this.maxMessageSize = conf.getMaxMessageSize();
         this.maxPendingSendRequests = conf.getMaxPendingPublishRequestsPerConnection();
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = conf.isPreciseDispatcherFlowControl();
@@ -609,7 +609,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
-        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
+        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, conf.getMaxMessageSize()));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         if (log.isDebugEnabled()) {

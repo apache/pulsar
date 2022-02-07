@@ -1050,6 +1050,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        dynamic = true,
         doc = "Max size of messages.",
         maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
