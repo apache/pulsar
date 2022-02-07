@@ -826,8 +826,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                     int numPartitions) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
-            internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
+            validatePartitionedTopicMetadataAsync()
+                    .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly,
+                            authoritative, force))
                     .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                     .exceptionally(ex -> {
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
