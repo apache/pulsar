@@ -23,7 +23,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,12 +46,12 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -70,9 +69,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Broker admin base.
  */
-public class BrokersBase extends PulsarWebResource {
+public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
-    private static final Duration HEALTHCHECK_READ_TIMEOUT = Duration.ofSeconds(10);
     public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
 
     @GET
@@ -178,7 +176,7 @@ public class BrokersBase extends PulsarWebResource {
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     LOG.error("[{}] Failed to update configuration {}/{}", clientAppId(), configName, configValue, ex);
-                    return handleCommonRestAsyncException(asyncResponse, ex);
+                    return resumeAsyncResponseExceptionally(asyncResponse, ex);
                 });
     }
 
