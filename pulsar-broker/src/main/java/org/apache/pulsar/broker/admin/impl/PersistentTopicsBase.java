@@ -2869,11 +2869,10 @@ public class PersistentTopicsBase extends AdminResource {
                                                               BacklogQuotaImpl backlogQuota, boolean isGlobal) {
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
-        CompletableFuture<Void> future =
-                validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
-        future.thenAccept(__ -> validatePoliciesReadOnlyAccess());
 
-        return future.thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE)
+                .thenAccept(__ -> validatePoliciesReadOnlyAccess())
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                     return getRetentionPoliciesAsync(topicName, topicPolicies)
@@ -2900,7 +2899,7 @@ public class PersistentTopicsBase extends AdminResource {
                                             try {
                                                 log.info(
                                                         "[{}] Successfully updated backlog quota map: namespace={}, "
-                                                        + "topic={}, map={}",
+                                                                + "topic={}, map={}",
                                                         clientAppId(),
                                                         namespaceName,
                                                         topicName.getLocalName(),
