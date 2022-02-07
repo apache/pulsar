@@ -29,6 +29,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -38,6 +41,7 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
@@ -186,42 +190,25 @@ public class TenantsBase extends PulsarWebResource {
     public void updateTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
-        try {
-            validateSuperUserAccess();
-            validatePoliciesReadOnlyAccess();
-            validateClusters(newTenantAdmin);
-        } catch (Exception e) {
-            asyncResponse.resume(e);
-            return;
-        }
-
-        final String clientAddId = clientAppId();
-        tenantResources().getTenantAsync(tenant).thenAccept(tenantAdmin -> {
-            if (!tenantAdmin.isPresent()) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found"));
-                return;
-            }
-            TenantInfo oldTenantAdmin = tenantAdmin.get();
-            Set<String> newClusters = new HashSet<>(newTenantAdmin.getAllowedClusters());
-            canUpdateCluster(tenant, oldTenantAdmin.getAllowedClusters(), newClusters).thenApply(r -> {
-                tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin).thenAccept(done -> {
-                    log.info("Successfully updated tenant info {}", tenant);
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
+                .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
+                .thenCompose(tenantAdmin -> {
+                    if (!tenantAdmin.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found");
+                    } else {
+                        return canUpdateCluster(tenant, tenantAdmin.get().getAllowedClusters(),
+                                new HashSet<>(newTenantAdmin.getAllowedClusters()));
+                    }
+                }).thenCompose(__ -> tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin))
+                 .thenAccept(done -> {
+                    log.info("[{}] Successfully updated tenant info {}", tenant, clientAppId());
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.warn("Failed to update tenant {}", tenant, ex.getCause());
-                    asyncResponse.resume(new RestException(ex));
-                    return null;
+                    log.error("[{}] Failed to update tenant.", tenant, ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
                 });
-                return null;
-            }).exceptionally(nsEx -> {
-                asyncResponse.resume(nsEx.getCause());
-                return null;
-            });
-        }).exceptionally(ex -> {
-            log.error("[{}] Failed to get tenant {}", clientAddId, tenant, ex.getCause());
-            asyncResponse.resume(new RestException(ex));
-            return null;
-        });
     }
 
     @DELETE
@@ -332,29 +319,39 @@ public class TenantsBase extends PulsarWebResource {
         });
     }
 
-    private void validateClusters(TenantInfo info) {
+    private CompletableFuture<Void> validateClustersAsync(TenantInfo info) {
         // empty cluster shouldn't be allowed
         if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c))
                 .collect(Collectors.toSet()).isEmpty()
-                || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
+                || info.getAllowedClusters().stream().anyMatch(StringUtils::isBlank)) {
             log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
-            throw new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty"));
         }
+        return clusterResources().listAsync()
+                .thenAccept(availableClusters -> {
+                    Set<String> allowedClusters = info.getAllowedClusters();
+                    List<String>  nonexistentClusters = allowedClusters.stream().filter(
+                                    cluster -> !(availableClusters.contains(cluster)
+                                            || Constants.GLOBAL_CLUSTER.equals(cluster)))
+                            .collect(Collectors.toList());
+                    if (nonexistentClusters.size() > 0) {
+                        log.warn("[{}] Failed to validate due to clusters {} do not exist",
+                                clientAppId(), nonexistentClusters);
+                        throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
+                    }
+                });
+    }
 
-        List<String> nonexistentClusters;
+    private void validateClusters(TenantInfo info) {
         try {
-            Set<String> availableClusters = clusterResources().list();
-            Set<String> allowedClusters = info.getAllowedClusters();
-            nonexistentClusters = allowedClusters.stream().filter(
-                    cluster -> !(availableClusters.contains(cluster) || Constants.GLOBAL_CLUSTER.equals(cluster)))
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.error("[{}] Failed to get available clusters", clientAppId(), e);
-            throw new RestException(e);
-        }
-        if (nonexistentClusters.size() > 0) {
-            log.warn("[{}] Failed to validate due to clusters {} do not exist", clientAppId(), nonexistentClusters);
-            throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
+            validateClustersAsync(info).get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(ex);
+            }
         }
     }
 }

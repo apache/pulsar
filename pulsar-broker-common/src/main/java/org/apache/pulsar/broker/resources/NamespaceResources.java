@@ -71,6 +71,9 @@ public class NamespaceResources extends BaseResources<Policies> {
     public CompletableFuture<List<String>> listNamespacesAsync(String tenant) {
         return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant));
     }
+    public CompletableFuture<Boolean> getPoliciesReadOnlyAsync() {
+        return super.existsAsync(POLICIES_READONLY_FLAG_PATH);
+    }
 
     public boolean getPoliciesReadOnly() throws MetadataStoreException {
         return super.exists(POLICIES_READONLY_FLAG_PATH);
