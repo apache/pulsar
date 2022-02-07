@@ -177,7 +177,7 @@ public class BrokersBase extends PulsarWebResource {
                     LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
-                    LOG.error("[{}] Failed to update configuration {}/{}, {}", clientAppId(), configName, configValue,
+                    LOG.error("[{}] Failed to update configuration {}/{}", clientAppId(), configName, configValue, ex);
                             ex.getMessage(), ex);
                     return handleCommonRestAsyncException(asyncResponse, ex);
                 });
