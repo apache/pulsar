@@ -359,6 +359,11 @@
 </thead>
 <tbody>
 <tr>
+<td><code>-md, --metadata-store</code></td>
+<td>Metadata Store service url. eg: zk:my-zk:2181</td>
+<td></td>
+</tr>
+<tr>
 <td><code>-h, --help</code></td>
 <td>Show this help message</td>
 <td>false</td>
@@ -375,17 +380,22 @@
 </tr>
 <tr>
 <td><code>-zk, --zookeeper-servers</code></td>
-<td>Local zookeeper connection string</td>
+<td>Local zookeeper connection string, please use --metadata-store instead</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-cms, --configuration-metadata-store</code></td>
+<td>The metadata store URL for the configuration data</td>
 <td></td>
 </tr>
 <tr>
 <td><code>-cs, --configuration-store-servers</code></td>
-<td>Configuration store connection string</td>
+<td>Configuration store connection string, please use --configuration-metadata-store instead</td>
 <td></td>
 </tr>
 <tr>
 <td><code>-gzk, --global-zookeeper-servers</code></td>
-<td>Global zookeeper connection string</td>
+<td>Global zookeeper connection string, please use --configuration-metadata-store instead</td>
 </tr>
 </tbody>
 </table>
