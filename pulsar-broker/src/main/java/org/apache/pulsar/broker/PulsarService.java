@@ -395,7 +395,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
-                this.resourceUsageTransportManager.close();
+                try {
+                    this.resourceUsageTransportManager.close();
+                } catch (Exception e) {
+                    LOG.warn("ResourceUsageTransportManager closing failed {}", e.getMessage());
+                }
                 this.resourceUsageTransportManager = null;
             }
 
@@ -443,7 +447,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             if (this.managedLedgerClientFactory != null) {
-                this.managedLedgerClientFactory.close();
+                try {
+                    this.managedLedgerClientFactory.close();
+                } catch (Exception e) {
+                    LOG.warn("ManagedLedgerClientFactory closing failed {}", e.getMessage());
+                }
                 this.managedLedgerClientFactory = null;
             }
 

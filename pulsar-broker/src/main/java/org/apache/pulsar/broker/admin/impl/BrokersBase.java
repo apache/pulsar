@@ -467,7 +467,7 @@ public class BrokersBase extends PulsarWebResource {
     private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
                                             boolean forcedTerminateTopic) {
         pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
-        pulsar().getBrokerService().closeAsync();
+        pulsar().closeAsync();
     }
 }
 

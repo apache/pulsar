@@ -67,6 +67,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -91,7 +92,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -133,12 +133,12 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testShutDownWithMaxConcurrentUnload() throws Exception {
-        int bundleNum = 5;
+        int bundleNum = 3;
         cleanup();
         conf.setDefaultNumberOfNamespaceBundles(bundleNum);
         setup();
         final String topic = "persistent://prop/ns-abc/successTopic";
-        admin.topics().createPartitionedTopic(topic, 64);
+        admin.topics().createPartitionedTopic(topic, 12);
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
 
         BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
@@ -146,10 +146,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         List<String> list = admin.brokers().getActiveBrokers("test");
         assertEquals(list.size(), 1);
         admin.brokers().shutDownBrokerGracefully(1, false);
-        //We can only unload one bundle per second, so it takes at least 5 seconds.
-        Awaitility.await().atLeast(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            Map<String, NamespaceOwnershipStatus> temp = admin.brokers().getOwnedNamespaces("test", list.get(0));
-            assertEquals(temp.size(), 0);
+        //We can only unload one bundle per second, so it takes at least 2 seconds.
+        Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(pulsar.getBrokerService().getTopics().size(), 0);
+        });
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertNull(pulsar.getBrokerService());
+            assertEquals(pulsar.getState(), PulsarService.State.Closed);
         });
         try {
             producer.send("1".getBytes(StandardCharsets.UTF_8));
@@ -157,6 +160,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.TimeoutException);
         }
+
+        pulsar = null;
 
         producer.close();
         resetState();
