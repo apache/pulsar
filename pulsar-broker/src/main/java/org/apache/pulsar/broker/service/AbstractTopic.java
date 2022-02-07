@@ -54,7 +54,6 @@ import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -104,14 +103,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     // Whether messages published must be encrypted or not in this topic
     protected volatile boolean isEncryptionRequired = false;
 
-    @Getter
-    protected volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
-            SchemaCompatibilityStrategy.FULL;
     protected volatile Boolean isAllowAutoUpdateSchema;
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
-
-    protected volatile int maxUnackedMessagesOnConsumerAppilied = 0;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
@@ -124,6 +118,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
+
+    private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "publishRateLimitedTimes");
+    protected volatile long publishRateLimitedTimes = 0;
 
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
@@ -153,13 +151,26 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         updatePublishDispatcher(Optional.empty());
     }
 
+    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy() {
+        return this.topicPolicies.getSchemaCompatibilityStrategy().get();
+    }
+
+    private SchemaCompatibilityStrategy formatSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
+        return strategy == SchemaCompatibilityStrategy.UNDEFINED ? null : strategy;
+    }
+
     protected void updateTopicPolicy(TopicPolicies data) {
         if (!isSystemTopic()) {
             // Only use namespace level setting for system topic.
             topicPolicies.getReplicationClusters().updateTopicValue(data.getReplicationClusters());
+            topicPolicies.getSchemaCompatibilityStrategy()
+                    .updateTopicValue(formatSchemaCompatibilityStrategy(data.getSchemaCompatibilityStrategy()));
         }
         topicPolicies.getRetentionPolicies().updateTopicValue(data.getRetentionPolicies());
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(data.getMaxSubscriptionsPerTopic());
+        topicPolicies.getMaxUnackedMessagesOnConsumer().updateTopicValue(data.getMaxUnackedMessagesOnConsumer());
+        topicPolicies.getMaxUnackedMessagesOnSubscription()
+                .updateTopicValue(data.getMaxUnackedMessagesOnSubscription());
         topicPolicies.getMaxProducersPerTopic().updateTopicValue(data.getMaxProducerPerTopic());
         topicPolicies.getMaxConsumerPerTopic().updateTopicValue(data.getMaxConsumerPerTopic());
         topicPolicies.getMaxConsumersPerSubscription().updateTopicValue(data.getMaxConsumersPerSubscription());
@@ -191,6 +202,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getCompactionThreshold().updateNamespaceValue(namespacePolicies.compaction_threshold);
         topicPolicies.getReplicationClusters().updateNamespaceValue(
                 Lists.newArrayList(CollectionUtils.emptyIfNull(namespacePolicies.replication_clusters)));
+        topicPolicies.getMaxUnackedMessagesOnConsumer()
+                .updateNamespaceValue(namespacePolicies.max_unacked_messages_per_consumer);
+        topicPolicies.getMaxUnackedMessagesOnSubscription()
+                .updateNamespaceValue(namespacePolicies.max_unacked_messages_per_subscription);
         topicPolicies.getMessageTTLInSeconds().updateNamespaceValue(namespacePolicies.message_ttl_in_seconds);
         topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
         topicPolicies.getMaxProducersPerTopic().updateNamespaceValue(namespacePolicies.max_producers_per_topic);
@@ -212,6 +227,21 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(
                 type -> this.topicPolicies.getBackLogQuotaMap().get(type)
                         .updateNamespaceValue(MapUtils.getObject(namespacePolicies.backlog_quota_map, type)));
+        updateSchemaCompatibilityStrategyNamespaceValue(namespacePolicies);
+    }
+
+    private void updateSchemaCompatibilityStrategyNamespaceValue(Policies namespacePolicies){
+        if (isSystemTopic()) {
+            return;
+        }
+
+        SchemaCompatibilityStrategy strategy = namespacePolicies.schema_compatibility_strategy;
+        if (SchemaCompatibilityStrategy.isUndefined(namespacePolicies.schema_compatibility_strategy)) {
+            strategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                    namespacePolicies.schema_auto_update_compatibility_strategy);
+        }
+        topicPolicies.getSchemaCompatibilityStrategy()
+                .updateNamespaceValue(formatSchemaCompatibilityStrategy(strategy));
     }
 
     private void updateTopicPolicyByBrokerConfig() {
@@ -231,6 +261,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 config.getDefaultRetentionTimeInMinutes(), config.getDefaultRetentionSizeInMB()));
         topicPolicies.getDeduplicationSnapshotIntervalSeconds().updateBrokerValue(
                 config.getBrokerDeduplicationSnapshotIntervalSeconds());
+        topicPolicies.getMaxUnackedMessagesOnConsumer()
+                .updateBrokerValue(config.getMaxUnackedMessagesPerConsumer());
+        topicPolicies.getMaxUnackedMessagesOnSubscription()
+                .updateBrokerValue(config.getMaxUnackedMessagesPerSubscription());
         //init backlogQuota
         topicPolicies.getBackLogQuotaMap()
                 .get(BacklogQuota.BacklogQuotaType.destination_storage)
@@ -245,6 +279,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateBrokerValue(config.getDelayedDeliveryTickTimeMillis());
         topicPolicies.getCompactionThreshold().updateBrokerValue(config.getBrokerServiceCompactionThresholdInBytes());
         topicPolicies.getReplicationClusters().updateBrokerValue(Collections.emptyList());
+        SchemaCompatibilityStrategy schemaCompatibilityStrategy = config.getSchemaCompatibilityStrategy();
+        if (isSystemTopic()) {
+            schemaCompatibilityStrategy = config.getSystemTopicSchemaCompatibilityStrategy();
+        }
+        topicPolicies.getSchemaCompatibilityStrategy()
+                .updateBrokerValue(formatSchemaCompatibilityStrategy(schemaCompatibilityStrategy));
     }
 
     private EnumSet<SubType> subTypeStringsToEnumSet(Set<String> getSubscriptionTypesEnabled) {
@@ -449,7 +489,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
 
         if (allowAutoUpdateSchema()) {
-            return schemaRegistryService.putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
+            return schemaRegistryService.putSchemaIfAbsent(id, schema, getSchemaCompatibilityStrategy());
         } else {
             return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
                     schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
@@ -497,7 +537,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
                 .getSchemaRegistryService()
-                .checkConsumerCompatibility(id, schema, schemaCompatibilityStrategy);
+                .checkConsumerCompatibility(id, schema, getSchemaCompatibilityStrategy());
     }
 
     @Override
@@ -647,21 +687,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         PUBLISH_LATENCY.observe(latency, unit);
     }
 
-    protected void setSchemaCompatibilityStrategy(Policies policies) {
-        if (SystemTopicClient.isSystemTopic(TopicName.get(this.topic))) {
-            schemaCompatibilityStrategy =
-                    brokerService.pulsar().getConfig().getSystemTopicSchemaCompatibilityStrategy();
-            return;
-        }
-
-        schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-        if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
-            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                schemaCompatibilityStrategy = brokerService.pulsar().getConfig().getSchemaCompatibilityStrategy();
-            }
-        }
+    @Override
+    public long increasePublishLimitedTimes() {
+        return RATE_LIMITED_UPDATER.incrementAndGet(this);
     }
 
     private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
@@ -1060,6 +1088,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
+    @Override
     public HierarchyTopicPolicies getHierarchyTopicPolicies() {
         return topicPolicies;
     }

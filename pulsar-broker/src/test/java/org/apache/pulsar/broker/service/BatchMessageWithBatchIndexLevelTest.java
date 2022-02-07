@@ -19,21 +19,27 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Lists;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
 
@@ -103,6 +109,68 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         consumer.receive();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
+        });
+    }
+
+    @DataProvider(name = "testSubTypeAndEnableBatch")
+    public Object[][] testSubTypeAndEnableBatch() {
+        return new Object[][] { { SubscriptionType.Shared, Boolean.TRUE },
+                { SubscriptionType.Failover, Boolean.TRUE },
+                { SubscriptionType.Shared, Boolean.FALSE },
+                { SubscriptionType.Failover, Boolean.FALSE }};
+    }
+
+
+    @Test(dataProvider="testSubTypeAndEnableBatch")
+    private void testDecreaseUnAckMessageCountWithAckReceipt(SubscriptionType subType,
+                                                             boolean enableBatch) throws Exception {
+
+        final int messageCount = 50;
+        final String topicName = "persistent://prop/ns-abc/testDecreaseWithAckReceipt" + UUID.randomUUID();
+        final String subscriptionName = "sub-batch-1";
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer(Schema.BYTES)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(subType)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .enableBatching(enableBatch)
+                .topic(topicName)
+                .batchingMaxMessages(10)
+                .create();
+
+        CountDownLatch countDownLatch = new CountDownLatch(messageCount);
+        for (int i = 0; i < messageCount; i++) {
+            producer.sendAsync((i + "").getBytes()).thenRun(countDownLatch::countDown);
+        }
+
+        countDownLatch.await();
+
+        for (int i = 0; i < messageCount; i++) {
+            Message<byte[]> message = consumer.receive();
+            // wait for receipt
+            if (i < messageCount / 2) {
+                consumer.acknowledgeAsync(message.getMessageId()).get();
+            }
+        }
+
+        String topic = TopicName.get(topicName).toString();
+        PersistentSubscription persistentSubscription =  (PersistentSubscription) pulsar.getBrokerService()
+                .getTopic(topic, false).get().get().getSubscription(subscriptionName);
+
+        Awaitility.await().untilAsserted(() -> {
+            if (subType == SubscriptionType.Shared) {
+                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+            } else {
+                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
+            }
         });
     }
 }

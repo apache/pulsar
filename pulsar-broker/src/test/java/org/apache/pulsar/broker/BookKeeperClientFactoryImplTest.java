@@ -174,18 +174,86 @@ public class BookKeeperClientFactoryImplTest {
     }
 
     @Test
-    public void testSetMetadataServiceUri() {
+    public void testSetMetadataServiceUriZookkeeperServers() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setZookeeperServers("localhost:2181");
         try {
-            String defaultUri = "metadata-store:localhost:2181";
-            assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
-                    .getMetadataServiceUri(), defaultUri);
-            String expectedUri = "zk+hierarchical://localhost:2181/chroot/ledgers";
-            conf.setBookkeeperMetadataServiceUri(expectedUri);
-            assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
-                    .getMetadataServiceUri(), expectedUri);
+            {
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
+        } catch (ConfigurationException e) {
+            e.printStackTrace();
+            fail("Get metadata service uri should be successful", e);
+        }
+    }
+
+
+    @Test
+    public void testSetMetadataServiceUriMetadataStoreUrl() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+
+        try {
+            {
+                conf.setMetadataStoreUrl("zk:localhost:2181/chroot");
+                final String expectedUri = "metadata-store:zk:localhost:2181/chroot/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+            {
+                conf.setMetadataStoreUrl("localhost:2181/chroot");
+                final String expectedUri = "metadata-store:localhost:2181/chroot/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+
+            {
+                conf.setMetadataStoreUrl("zk:localhost:2181");
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+
+            {
+                conf.setMetadataStoreUrl("localhost:2181");
+                final String expectedUri = "metadata-store:localhost:2181/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+        } catch (ConfigurationException e) {
+            e.printStackTrace();
+            fail("Get metadata service uri should be successful", e);
+        }
+    }
+
+
+
+    @Test
+    public void testSetMetadataServiceUriBookkeeperMetadataServiceUri() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        try {
+
+            {
+                String uri = "metadata-store:localhost:2181";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                final String expectedUri = "metadata-store:localhost:2181";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
+            {
+                String uri = "metadata-store:localhost:2181/chroot/ledger";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                final String expectedUri = "metadata-store:localhost:2181/chroot/ledger";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
         } catch (ConfigurationException e) {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);

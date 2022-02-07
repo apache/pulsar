@@ -228,7 +228,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void testConsumerBuilderImplWhenPropertiesIsEmpty() {
         Map<String, String> properties = new HashMap<>();
 
@@ -306,9 +306,9 @@ public class ConsumerBuilderImplTest {
 
     @Test
     public void testNegativeAckRedeliveryBackoff() {
-        consumerBuilderImpl.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
-                .minNackTimeMs(1000)
-                .maxNackTimeMs(10 * 1000)
+        consumerBuilderImpl.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(10 * 1000)
                 .build());
     }
 

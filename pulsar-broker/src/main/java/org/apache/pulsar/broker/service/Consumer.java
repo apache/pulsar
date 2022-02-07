@@ -104,7 +104,7 @@ public class Consumer {
 
     private final ConsumerStatsImpl stats;
 
-    private volatile int maxUnackedMessages;
+    private final boolean isDurable;
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
@@ -122,6 +122,7 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> AVG_MESSAGES_PER_ENTRY =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "avgMessagesPerEntry");
     private volatile int avgMessagesPerEntry = 1000;
+    private static final long [] EMPTY_ACK_SET = new long[0];
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
@@ -132,7 +133,7 @@ public class Consumer {
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
-                    int maxUnackedMessages, TransportCnx cnx, String appId,
+                    boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
                     KeySharedMeta keySharedMeta, MessageId startMessageId) {
 
@@ -144,7 +145,7 @@ public class Consumer {
         this.priorityLevel = priorityLevel;
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
-        this.maxUnackedMessages = maxUnackedMessages;
+        this.isDurable = isDurable;
         this.subscriptionInitialPosition = subscriptionInitialPosition;
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
@@ -290,8 +291,8 @@ public class Consumer {
 
     private void incrementUnackedMessages(int ackedMessages) {
         if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, ackedMessages) >= maxUnackedMessages
-                && maxUnackedMessages > 0) {
+                && addAndGetUnAckedMsgs(this, ackedMessages) >= getMaxUnackedMessages()
+                && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
@@ -413,16 +414,7 @@ public class Consumer {
                 }
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                if (isAcknowledgmentAtBatchIndexLevelEnabled) {
-                    long[] cursorAckSet = getCursorAckSet(position);
-                    if (cursorAckSet != null) {
-                        ackedCount = batchSize - BitSet.valueOf(cursorAckSet).cardinality();
-                    } else {
-                        ackedCount = batchSize;
-                    }
-                } else {
-                    ackedCount = batchSize;
-                }
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
             }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
@@ -464,14 +456,19 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
+            long ackedCount = 0;
+            long batchSize = getBatchSize(msgId);
+            Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
             if (msgId.getAckSetsCount() > 0) {
-                long[] acksSets = new long[msgId.getAckSetsCount()];
+                long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                    acksSets[j] = msgId.getAckSetAt(j);
+                    ackSets[j] = msgId.getAckSetAt(j);
                 }
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), acksSets);
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
             }
 
             if (msgId.hasBatchIndex()) {
@@ -479,6 +476,8 @@ public class Consumer {
             } else {
                 positionsAcked.add(new MutablePair<>(position, 0));
             }
+
+            addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
@@ -519,9 +518,19 @@ public class Consumer {
         return batchSize;
     }
 
+    private long getAckedCountForMsgIdNoAckSets(long batchSize, PositionImpl position) {
+        if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
+            long[] cursorAckSet = getCursorAckSet(position);
+            if (cursorAckSet != null) {
+                return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET);
+            }
+        }
+        return batchSize;
+    }
+
     private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
@@ -624,7 +633,7 @@ public class Consumer {
         checkArgument(additionalNumberOfMessages > 0);
 
         // block shared consumer when unacked-messages reaches limit
-        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= maxUnackedMessages) {
+        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= getMaxUnackedMessages()) {
             blockedConsumerOnUnackedMsgs = true;
         }
         int oldPermits;
@@ -684,12 +693,12 @@ public class Consumer {
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
-     * b. {@link this#maxUnackedMessages} value > 0
+     * b. {@link this#getMaxUnackedMessages()} value > 0
      *
      * @return
      */
     private boolean shouldBlockConsumerOnUnackMsgs() {
-        return Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
+        return Subscription.isIndividualAckMode(subType) && getMaxUnackedMessages() > 0;
     }
 
     public void updateRates() {
@@ -821,7 +830,7 @@ public class Consumer {
             // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
             // consumer can start again consuming messages
             int unAckedMsgs = UNACKED_MESSAGES_UPDATER.get(ackOwnedConsumer);
-            if ((((unAckedMsgs <= maxUnackedMessages / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
+            if ((((unAckedMsgs <= getMaxUnackedMessages() / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
                     && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs())
                     || !shouldBlockConsumerOnUnackMsgs()) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
@@ -937,12 +946,14 @@ public class Consumer {
     }
 
     public int getMaxUnackedMessages() {
-        return maxUnackedMessages;
+        //Unacked messages check is disabled for non-durable subscriptions.
+        if (isDurable && subscription != null) {
+            return subscription.getTopic().getHierarchyTopicPolicies().getMaxUnackedMessagesOnConsumer().get();
+        } else {
+            return 0;
+        }
     }
 
-    public void setMaxUnackedMessages(int maxUnackedMessages) {
-        this.maxUnackedMessages = maxUnackedMessages;
-    }
 
     public TransportCnx cnx() {
         return cnx;

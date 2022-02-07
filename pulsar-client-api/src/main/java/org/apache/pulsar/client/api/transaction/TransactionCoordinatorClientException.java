@@ -98,21 +98,6 @@ public class TransactionCoordinatorClientException extends IOException {
         }
     }
 
-
-    /**
-     * Thrown when transaction meta was timeout.
-     */
-    public static class TransactionTimeotException extends TransactionCoordinatorClientException {
-
-        public TransactionTimeotException(Throwable t) {
-            super(t);
-        }
-
-        public TransactionTimeotException(String transactionId) {
-            super("The transaction " +  transactionId + " is timeout.");
-        }
-    }
-
     /**
      * Thrown when send request to transaction meta store but the transaction meta store handler not ready.
      */

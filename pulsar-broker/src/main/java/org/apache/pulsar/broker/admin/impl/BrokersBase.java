@@ -24,18 +24,21 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
@@ -47,11 +50,11 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
@@ -85,16 +88,21 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 401, message = "Authentication required"),
             @ApiResponse(code = 403, message = "This operation requires super-user access"),
             @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
-    public Set<String> getActiveBrokers(@PathParam("cluster") String cluster) throws Exception {
-        validateSuperUserAccess();
-        validateClusterOwnership(cluster);
-
-        try {
-            return pulsar().getLoadManager().get().getAvailableBrokers();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+    public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse,
+                                 @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
+                .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof WebApplicationException) {
+                        asyncResponse.resume(realCause);
+                    } else {
+                        asyncResponse.resume(new RestException(realCause));
+                    }
+                    return null;
+                });
     }
 
     @GET
@@ -107,17 +115,23 @@ public class BrokersBase extends PulsarWebResource {
                     @ApiResponse(code = 401, message = "Authentication required"),
                     @ApiResponse(code = 403, message = "This operation requires super-user access"),
                     @ApiResponse(code = 404, message = "Leader broker not found") })
-    public BrokerInfo getLeaderBroker() throws Exception {
-        validateSuperUserAccess();
-
-        try {
-            LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
-            return BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), e);
-            throw new RestException(e);
-        }
+    public void getLeaderBroker(@Suspended final AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync().thenAccept(__ -> {
+                    LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
+                            .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
+                    BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    asyncResponse.resume(brokerInfo);
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), realCause);
+                    if (realCause instanceof WebApplicationException) {
+                        asyncResponse.resume(realCause);
+                    } else {
+                        asyncResponse.resume(new RestException(realCause));
+                    }
+                    return null;
+                });
     }
 
     @GET
@@ -294,123 +308,78 @@ public class BrokersBase extends PulsarWebResource {
 
     @GET
     @Path("/health")
-    @ApiOperation(value = "Run a healthcheck against the broker")
+    @ApiOperation(value = "Run a healthCheck against the broker")
     @ApiResponses(value = {
         @ApiResponse(code = 200, message = "Everything is OK"),
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")})
     @ApiParam(value = "Topic Version")
-    public void healthcheck(@Suspended AsyncResponse asyncResponse,
-                            @QueryParam("topicVersion") TopicVersion topicVersion) throws Exception {
-        String topic;
-        PulsarClient client;
-        try {
-            validateSuperUserAccess();
-            NamespaceName heartbeatNamespace = (topicVersion == TopicVersion.V2)
-                    ?
-                    NamespaceService.getHeartbeatNamespaceV2(
-                            pulsar().getAdvertisedAddress(),
-                            pulsar().getConfiguration())
-                    :
-                    NamespaceService.getHeartbeatNamespace(
-                            pulsar().getAdvertisedAddress(),
-                            pulsar().getConfiguration());
-
-
-            topic = String.format("persistent://%s/%s", heartbeatNamespace, HEALTH_CHECK_TOPIC_SUFFIX);
-
-            LOG.info("Running healthCheck with topic={}", topic);
-
-            client = pulsar().getClient();
-        } catch (Exception e) {
-            LOG.error("Error getting heathcheck topic info", e);
-            throw new PulsarServerException(e);
-        }
-
-        String messageStr = UUID.randomUUID().toString();
-        // create non-partitioned topic manually and close the previous reader if present.
-        try {
-            pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
-                t.getSubscriptions().forEach((__, value) -> {
-                    try {
-                        value.deleteForcefully();
-                    } catch (Exception e) {
-                        LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
-                    }
+    public void healthCheck(@Suspended AsyncResponse asyncResponse,
+                            @QueryParam("topicVersion") TopicVersion topicVersion) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> internalRunHealthCheck(topicVersion))
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully run health check.", clientAppId());
+                    asyncResponse.resume("ok");
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
+                    return handleCommonRestAsyncException(asyncResponse, ex);
                 });
-            });
-        } catch (Exception e) {
-            LOG.warn("Failed to try to delete subscriptions for health check", e);
-        }
-
-        CompletableFuture<Producer<String>> producerFuture =
-                client.newProducer(Schema.STRING).topic(topic).createAsync();
-        CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
-                .topic(topic).startMessageId(MessageId.latest).createAsync();
-
-        CompletableFuture<Void> completePromise = new CompletableFuture<>();
-
-        CompletableFuture.allOf(producerFuture, readerFuture).whenComplete(
-                (ignore, exception) -> {
-                    if (exception != null) {
-                        completePromise.completeExceptionally(exception);
-                    } else {
-                        producerFuture.thenCompose((producer) -> producer.sendAsync(messageStr))
-                                .whenComplete((ignore2, exception2) -> {
-                                    if (exception2 != null) {
-                                        completePromise.completeExceptionally(exception2);
-                                    }
-                                });
-
-                        healthcheckReadLoop(readerFuture, completePromise, messageStr);
-
-                        // timeout read loop after 10 seconds
-                        FutureUtil.addTimeoutHandling(completePromise,
-                                HEALTHCHECK_READ_TIMEOUT, pulsar().getExecutor(),
-                                () -> FutureUtil.createTimeoutException("Timed out reading", getClass(),
-                                        "healthcheck(...)"));
-                    }
-                });
-
-        completePromise.whenComplete((ignore, exception) -> {
-            producerFuture.thenAccept((producer) -> {
-                producer.closeAsync().whenComplete((ignore2, exception2) -> {
-                    if (exception2 != null) {
-                        LOG.warn("Error closing producer for healthcheck", exception2);
-                    }
-                });
-            });
-            readerFuture.thenAccept((reader) -> {
-                reader.closeAsync().whenComplete((ignore2, exception2) -> {
-                    if (exception2 != null) {
-                        LOG.warn("Error closing reader for healthcheck", exception2);
-                    }
-                });
-            });
-            if (exception != null) {
-                asyncResponse.resume(new RestException(exception));
-            } else {
-                asyncResponse.resume("ok");
-            }
-        });
     }
 
-    private void healthcheckReadLoop(CompletableFuture<Reader<String>> readerFuture,
-                                     CompletableFuture<?> completablePromise,
-                                     String messageStr) {
-        readerFuture.thenAccept((reader) -> {
-                CompletableFuture<Message<String>> readFuture = reader.readNextAsync()
-                    .whenComplete((m, exception) -> {
-                            if (exception != null) {
-                                completablePromise.completeExceptionally(exception);
-                            } else if (m.getValue().equals(messageStr)) {
-                                completablePromise.complete(null);
-                            } else {
-                                healthcheckReadLoop(readerFuture, completablePromise, messageStr);
-                            }
-                        });
-            });
+    private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
+        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
+                ? NamespaceService.getHeartbeatNamespaceV2(pulsar().getAdvertisedAddress(), pulsar().getConfiguration())
+                : NamespaceService.getHeartbeatNamespace(pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
+        String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+        LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
+        String messageStr = UUID.randomUUID().toString();
+        // create non-partitioned topic manually and close the previous reader if present.
+        return pulsar().getBrokerService().getTopic(topicName, true)
+                // check and clean all subscriptions
+                .thenCompose(topicOptional -> {
+                    if (!topicOptional.isPresent()) {
+                        LOG.error("[{}] Fail to run health check while get topic {}. because get null value.",
+                                clientAppId(), topicName);
+                        throw new RestException(Status.NOT_FOUND, "Topic [{}] not found after create.");
+                    }
+                    Topic topic = topicOptional.get();
+                    // clean all subscriptions
+                    return FutureUtil.waitForAll(topic.getSubscriptions().values()
+                            .stream().map(Subscription::deleteForcefully).collect(Collectors.toList()))
+                            .thenApply(__ -> topic);
+                }).thenCompose(topic -> {
+                    try {
+                        PulsarClient client = pulsar().getClient();
+                        return client.newProducer(Schema.STRING).topic(topicName).createAsync()
+                                        .thenCombine(client.newReader(Schema.STRING).topic(topicName)
+                                        .startMessageId(MessageId.latest).createAsync(), (producer, reader) ->
+                                                        producer.sendAsync(messageStr).thenCompose(__ ->
+                                                                healthCheckRecursiveReadNext(reader, messageStr))
+                                                        .thenCompose(__ -> {
+                                                            List<CompletableFuture<Void>> closeFutures =
+                                                                    new ArrayList<>();
+                                                            closeFutures.add(producer.closeAsync());
+                                                            closeFutures.add(reader.closeAsync());
+                                                            return FutureUtil.waitForAll(closeFutures);
+                                                        })
+                                        ).thenAccept(ignore -> {});
+                    } catch (PulsarServerException e) {
+                        LOG.error("[{}] Fail to run health check while get client.", clientAppId());
+                        throw new RestException(e);
+                    }
+                });
+    }
+
+    private CompletableFuture<Void> healthCheckRecursiveReadNext(Reader<String> reader, String content) {
+        return reader.readNextAsync()
+                .thenCompose(msg -> {
+                    if (!Objects.equals(content, msg.getValue())) {
+                        return healthCheckRecursiveReadNext(reader, content);
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
     }
 
     private synchronized void deleteDynamicConfigurationOnZk(String configName) {
