@@ -353,7 +353,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             internalCreateNonPartitionedTopicAsync(authoritative, properties)
                     .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                     .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
                         return null;
                     });
         } catch (Exception e) {
