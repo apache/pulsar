@@ -390,7 +390,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/ns2";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
-        assertNull(admin.namespaces().getPersistence(namespace));
+        assertNotNull(admin.namespaces().getPersistence(namespace));
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
