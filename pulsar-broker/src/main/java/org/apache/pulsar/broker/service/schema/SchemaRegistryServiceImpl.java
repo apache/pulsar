@@ -44,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
@@ -222,6 +223,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public SchemaVersion versionFromBytes(byte[] version) {
         return schemaStorage.versionFromBytes(version);
     }
+
+    @Override
+    public void initialize(ServiceConfiguration configuration) {}
 
     @Override
     public void close() throws Exception {
