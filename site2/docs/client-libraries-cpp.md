@@ -538,7 +538,7 @@ The following is an example of how to configure message chunking.
 
 ```c++
 ConsumerConfiguration conf;
-conf.setAutoOldestChunkedMessageOnQueueFull(true);
+conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
 conf.setMaxPendingChunkedMessage(100);
 Consumer consumer;
 client.subscribe("my-topic", "my-sub", conf, consumer);
