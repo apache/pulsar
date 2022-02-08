@@ -270,7 +270,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
                     .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                     .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
                         return null;
                     });
         } catch (Exception e) {
