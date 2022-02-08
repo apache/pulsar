@@ -294,7 +294,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
                     .thenAccept(metadata -> asyncResponse.resume(metadata))
                     .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
                         return null;
                     });
         } catch (Exception e) {
