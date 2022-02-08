@@ -60,6 +60,7 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
@@ -130,7 +131,7 @@ public class SourceApiV3ResourceTest {
 
     @BeforeClass
     public void setupNarClassLoader() throws IOException {
-        narClassLoader = NarClassLoader.Factory.createFromArchive(getPulsarIOTwitterNar(), Collections.emptySet());
+        narClassLoader = NarClassLoaderBuilder.builder().narFile(getPulsarIOTwitterNar()).build();
     }
 
     @AfterClass(alwaysRun = true)

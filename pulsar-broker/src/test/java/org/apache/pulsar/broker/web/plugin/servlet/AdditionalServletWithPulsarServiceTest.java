@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.broker.web.plugin.servlet;
 
-
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
-import java.io.File;
 import java.nio.file.Paths;
-import java.util.Set;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -55,13 +53,10 @@ public class AdditionalServletWithPulsarServiceTest {
         when(mockLoader.loadClass(eq(MockAdditionalServletWithClassLoader.class.getName())))
                 .thenReturn(additionalServletClass);
 
-        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
-            factory.when(() -> NarClassLoader.Factory.createFromArchive(
-                    any(File.class),
-                    any(Set.class),
-                    any(ClassLoader.class),
-                    any(String.class)
-            )).thenReturn(mockLoader);
+        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+        when(mockedBuilder.build()).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
             AdditionalServletWithClassLoader returnedASWithCL = AdditionalServletUtils.load(metadata, "");
             AdditionalServlet returnedPh = returnedASWithCL.getServlet();

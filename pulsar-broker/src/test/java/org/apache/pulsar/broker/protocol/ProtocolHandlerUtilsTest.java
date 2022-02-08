@@ -19,19 +19,18 @@
 package org.apache.pulsar.broker.protocol;
 
 import static org.apache.pulsar.broker.protocol.ProtocolHandlerUtils.PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.Set;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -59,13 +58,10 @@ public class ProtocolHandlerUtilsTest {
         when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
             .thenReturn(handlerClass);
 
-        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
-            factory.when(() -> NarClassLoader.Factory.createFromArchive(
-                    any(File.class),
-                    any(Set.class),
-                    any(ClassLoader.class),
-                    any(String.class)
-            )).thenReturn(mockLoader);
+        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+        when(mockedBuilder.build()).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
             ProtocolHandlerWithClassLoader returnedPhWithCL = ProtocolHandlerUtils.load(metadata, "");
             ProtocolHandler returnedPh = returnedPhWithCL.getHandler();
@@ -93,13 +89,10 @@ public class ProtocolHandlerUtilsTest {
         when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
                 .thenReturn(handlerClass);
 
-        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
-            factory.when(() -> NarClassLoader.Factory.createFromArchive(
-                    any(File.class),
-                    any(Set.class),
-                    any(ClassLoader.class),
-                    any(String.class)
-            )).thenReturn(mockLoader);
+        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+        when(mockedBuilder.build()).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
             try {
                 ProtocolHandlerUtils.load(metadata, "");
@@ -129,13 +122,10 @@ public class ProtocolHandlerUtilsTest {
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
                 .thenReturn(handlerClass);
 
-        try (MockedStatic<NarClassLoader.Factory> factory = Mockito.mockStatic(NarClassLoader.Factory.class)) {
-            factory.when(() -> NarClassLoader.Factory.createFromArchive(
-                    any(File.class),
-                    any(Set.class),
-                    any(ClassLoader.class),
-                    any(String.class)
-            )).thenReturn(mockLoader);
+        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+        when(mockedBuilder.build()).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
             try {
                 ProtocolHandlerUtils.load(metadata, "");

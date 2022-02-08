@@ -30,6 +30,7 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
@@ -50,9 +51,10 @@ public class AdditionalServletUtils {
      */
     public AdditionalServletDefinition getAdditionalServletDefinition(
             String narPath, String narExtractionDirectory) throws IOException {
-
-        try (NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
-                new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .extractionDirectory(narExtractionDirectory)
+                .build();) {
             return getAdditionalServletDefinition(ncl);
         }
     }
@@ -118,10 +120,12 @@ public class AdditionalServletUtils {
     public AdditionalServletWithClassLoader load(
             AdditionalServletMetadata metadata, String narExtractionDirectory) throws IOException {
 
-        NarClassLoader ncl = NarClassLoader.Factory.createFromArchive(
-                metadata.getArchivePath().toAbsolutePath().toFile(),
-                Collections.emptySet(),
-                AdditionalServlet.class.getClassLoader(), narExtractionDirectory);
+        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(narFile)
+                .parentClassLoader(AdditionalServlet.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build();
 
         AdditionalServletDefinition def = getAdditionalServletDefinition(ncl);
         if (StringUtils.isBlank(def.getAdditionalServletClass())) {
