@@ -99,7 +99,8 @@ public class ManagedLedgerWriter {
         public int numThreads = 1;
 
         @Parameter(names = {"-zk", "--zookeeperServers"},
-                description = "ZooKeeper connection string")
+                description = "ZooKeeper connection string",
+                hidden = true)
         public String zookeeperServers;
 
         @Parameter(names = {"-md",
