@@ -471,11 +471,7 @@ public class Consumer {
                 ackedCount = batchSize;
             }
 
-            if (msgId.hasBatchIndex()) {
-                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
-            } else {
-                positionsAcked.add(new MutablePair<>(position, 0));
-            }
+            positionsAcked.add(new MutablePair<>(position, (int) batchSize));
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
