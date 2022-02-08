@@ -390,7 +390,7 @@ public class BrokersBase extends AdminResource {
                 });
     }
 
-    private synchronized CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
+    private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
         if (!BrokerService.isDynamicConfiguration(configName)) {
             throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
         } else {
