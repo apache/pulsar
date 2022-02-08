@@ -180,8 +180,10 @@ public class NarClassLoader extends URLClassLoader {
         // process the classpath
         updateClasspath(narWorkingDirectory);
 
-        for (String jar : additionalJars) {
-            addURL(Paths.get(jar).toUri().toURL());
+        if (additionalJars != null) {
+            for (String jar : additionalJars) {
+                addURL(Paths.get(jar).toUri().toURL());
+            }
         }
 
         if (log.isDebugEnabled()) {
