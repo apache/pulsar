@@ -134,8 +134,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
         String metricsStr = convertByteBufToString(buf);
         Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
         String []metricName = new String[]{"pulsar_ledgeroffloader_writeError",
-                "pulsar_ledgeroffloader_offloadError", "pulsar_ledgeroffloader_readOffloadError",
-                "pulsar_ledgeroffloader_streamingWriteError"};
+                "pulsar_ledgeroffloader_offloadError", "pulsar_ledgeroffloader_readOffloadError"};
         for (String value : metricName) {
             Collection<PrometheusMetricsTest.Metric> metric = metrics.get(value);
             for (int i = 0; i < 3; i++) {
@@ -191,7 +190,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
                 ManagedLedgerConfig config = Mockito.mock(ManagedLedgerConfig.class);
                 doReturn(config).when(ledgerM).getConfig();
                 doReturn(offloader).when(config).getLedgerOffloader();
-
+                doReturn(topicName).when(ledgerM).getName();
                 Mockito.when(offloader.getStats()).thenReturn(mbean);
 
                 mbean.recordOffloadError(topicName);
@@ -216,8 +215,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
         System.out.println(convertByteBufToString(buf));
         Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
         String []metricName = new String[]{"pulsar_ledgeroffloader_writeError",
-                "pulsar_ledgeroffloader_offloadError", "pulsar_ledgeroffloader_readOffloadError",
-                "pulsar_ledgeroffloader_streamingWriteError"};
+                "pulsar_ledgeroffloader_offloadError", "pulsar_ledgeroffloader_readOffloadError"};
         for (String value : metricName) {
             Collection<PrometheusMetricsTest.Metric> metric = metrics.get(value);
             for (int i = 0; i < 2; i++) {
