@@ -69,6 +69,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BatchMessageTest extends BrokerTestBase {
 
+    private static final Logger log = LoggerFactory.getLogger(BatchMessageTest.class);
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -955,23 +957,36 @@ public class BatchMessageTest extends BrokerTestBase {
                 .newProducer()
                 .enableBatching(enableBatch)
                 .topic(topicName)
-                .batchingMaxMessages(10)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .create();
 
         CountDownLatch countDownLatch = new CountDownLatch(messageCount);
         for (int i = 0; i < messageCount; i++) {
-            producer.sendAsync((i + "").getBytes()).thenRun(countDownLatch::countDown);
+            producer.sendAsync((i + "").getBytes()).thenAccept(msgId -> {
+                log.info("Published message with msgId: {}", msgId);
+                countDownLatch.countDown();
+            });
+            // To generate batch message with different batch size
+            // 31 total batches, 5 batches with 3 messages, 8 batches with 2 messages and 37 batches with 1 message
+            if (((i / 3) % (i % 3 + 1)) == 0) {
+                producer.flush();
+            }
         }
 
         countDownLatch.await();
 
-        MessageId lastAckedMessageId = null;
         for (int i = 0; i < messageCount; i++) {
             Message<byte[]> message = consumer.receive();
-            // wait for receipt
-            if (i < messageCount / 2) {
-                lastAckedMessageId = message.getMessageId();
-                consumer.acknowledgeAsync(lastAckedMessageId).get();
+            if (enableBatch) {
+                // only ack messages which batch index < 2, which means we will not to ack the
+                // whole batch for the batch that with more than 2 messages
+                if (((BatchMessageIdImpl) message.getMessageId()).getBatchIndex() < 2) {
+                    consumer.acknowledgeAsync(message).get();
+                }
+            } else {
+                if (i % 2 == 0) {
+                    consumer.acknowledgeAsync(message).get();
+                }
             }
         }
 
@@ -979,25 +994,16 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentSubscription persistentSubscription =  (PersistentSubscription) pulsar.getBrokerService()
                 .getTopic(topic, false).get().get().getSubscription(subscriptionName);
 
-        MessageId finalLastAckedMessageId = lastAckedMessageId;
         Awaitility.await().untilAsserted(() -> {
             if (subType == SubscriptionType.Shared) {
-                if (conf.isAcknowledgmentAtBatchIndexLevelEnabled()) {
-                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
-                } else {
-                    if (finalLastAckedMessageId instanceof BatchMessageIdImpl) {
-                        BatchMessageIdImpl batchMessageId = ((BatchMessageIdImpl) finalLastAckedMessageId);
-                        if (batchMessageId.getBatchSize() + 1 == batchMessageId.getBatchIndex()) {
-                            assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(),
-                                    messageCount / 2);
-                        } else {
-                            assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(),
-                                    messageCount / 2 + batchMessageId.getBatchIndex() + 1);
-                        }
+                if (enableBatch) {
+                    if (conf.isAcknowledgmentAtBatchIndexLevelEnabled()) {
+                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 1);
                     } else {
-                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(),
-                                messageCount / 2);
+                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 3);
                     }
+                } else {
+                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
                 }
             } else {
                 assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
