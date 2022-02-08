@@ -61,6 +61,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final ScheduledExecutorService executor;
+    protected final ScheduledExecutorService listenerExecutor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
@@ -77,6 +78,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected AbstractMetadataStore() {
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store"));
+        this.listenerExecutor = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-listener"));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -192,7 +195,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
 
                 return null;
-            }, executor);
+            }, listenerExecutor);
         } catch (RejectedExecutionException e) {
             return FutureUtil.failedFuture(e);
         }
