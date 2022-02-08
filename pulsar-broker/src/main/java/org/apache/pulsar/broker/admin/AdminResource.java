@@ -305,6 +305,14 @@ public abstract class AdminResource extends PulsarWebResource {
 
     }
 
+    protected PersistencePolicies getOrDefaultPersistencePolicy(PersistencePolicies policies) {
+        return policies != null ? policies
+                : new PersistencePolicies(pulsar().getConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                        pulsar().getConfiguration().getManagedLedgerDefaultWriteQuorum(),
+                        pulsar().getConfiguration().getManagedLedgerDefaultAckQuorum(),
+                        pulsar().getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+    }
+
     protected CompletableFuture<Policies> getNamespacePoliciesAsync(NamespaceName namespaceName) {
         return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(policies -> {
             if (policies.isPresent()) {

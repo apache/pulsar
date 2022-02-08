@@ -24,6 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -3119,4 +3120,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(peekedMessages.get(i).getData(), receivedMessages.get(i).getData());
         }
     }
+
+    @Test
+    public void testGetPersistenceAPI() throws Exception {
+        String namespace = "prop-xyz/test/persistence";
+        admin.namespaces().createNamespace(namespace);
+        PersistencePolicies persistencePolicies = admin.namespaces().getPersistence(namespace);
+        assertNotNull(persistencePolicies);
+        assertEquals(persistencePolicies.getBookkeeperEnsemble(), conf.getManagedLedgerDefaultEnsembleSize());
+        assertEquals(persistencePolicies.getBookkeeperWriteQuorum(), conf.getManagedLedgerDefaultWriteQuorum());
+        assertEquals(persistencePolicies.getBookkeeperAckQuorum(), conf.getManagedLedgerDefaultAckQuorum());
+    }
+
 }
