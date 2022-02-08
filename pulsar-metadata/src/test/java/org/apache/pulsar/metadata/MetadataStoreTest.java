@@ -49,6 +49,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.assertj.core.util.Lists;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -447,4 +448,25 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(successWrites.get(), maxValue);
         assertEquals(store.get(path).get().get().getValue()[0], maxValue);
     }
+
+    @Test(dataProvider = "impl")
+    public void listenerDeadlock(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String key1 = newKey();
+        String key2 = newKey();
+        Stat stat = store.put(key2, "value-1".getBytes(), Optional.empty()).join();
+
+        store.registerListener(n -> {
+            try {
+                store.delete(key2, Optional.of(stat.getVersion())).get(3, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                Assert.assertFalse(e instanceof java.util.concurrent.TimeoutException);
+            }
+        });
+
+        store.put(key1, "value-1".getBytes(), Optional.empty()).join();
+    }
+
 }
