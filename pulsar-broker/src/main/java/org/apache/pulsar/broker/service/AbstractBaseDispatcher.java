@@ -161,7 +161,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
-                    // so this marker is no value for this subscription
+                    // so this marker is unless for this subscription
                     subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
                             Collections.emptyMap());
                     entries.set(i, null);
