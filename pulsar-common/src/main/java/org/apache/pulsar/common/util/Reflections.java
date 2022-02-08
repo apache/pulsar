@@ -43,8 +43,6 @@ public class Reflections {
 
     private static final Map PRIMITIVE_NAME_TYPE_MAP = new HashMap();
 
-    private static final String SET_PREFIX = "set";
-
     static {
         PRIMITIVE_NAME_TYPE_MAP.put("boolean", Boolean.TYPE);
         PRIMITIVE_NAME_TYPE_MAP.put("byte", Byte.TYPE);
@@ -337,12 +335,5 @@ public class Reflections {
         }
 
         return fields;
-    }
-
-    public static Method getSetMethod(Class<?> clazz, Field f) throws NoSuchMethodException {
-        String setMethod = SET_PREFIX
-                + f.getName().substring(0, 1).toUpperCase()
-                + f.getName().substring(1);
-        return clazz.getDeclaredMethod(setMethod, f.getType());
     }
 }

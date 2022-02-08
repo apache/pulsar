@@ -141,12 +141,7 @@ public final class FieldParser {
                     f.setAccessible(true);
                     String v = properties.get(f.getName());
                     if (!StringUtils.isBlank(v)) {
-                        try {
-                            Method method = Reflections.getSetMethod(obj.getClass(), f);
-                            method.invoke(obj, value(trim(v), f));
-                        } catch (NoSuchMethodException e) {
-                            f.set(obj, value(trim(v), f));
-                        }
+                        f.set(obj, value(trim(v), f));
                     } else {
                         setEmptyValue(v, f, obj);
                     }

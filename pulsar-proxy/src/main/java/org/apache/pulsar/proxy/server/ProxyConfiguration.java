@@ -776,31 +776,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
         }
     }
 
-    @Deprecated
-    public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
-        if (zookeeperSessionTimeoutMs > 0) {
-            this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
-            this.metadataStoreSessionTimeoutMillis = zookeeperSessionTimeoutMs;
-        }
+    public int getMetadataStoreSessionTimeoutMillis() {
+        return zookeeperSessionTimeoutMs > 0 ? zookeeperSessionTimeoutMs : metadataStoreSessionTimeoutMillis;
     }
 
-    @Deprecated
-    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
-        if (zooKeeperCacheExpirySeconds > 0) {
-            this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
-            this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
-        }
-    }
-
-    public void setMetadataStoreSessionTimeoutMillis(int metadataStoreSessionTimeoutMillis) {
-        if (zookeeperSessionTimeoutMs == -1) {
-            this.metadataStoreSessionTimeoutMillis = metadataStoreSessionTimeoutMillis;
-        }
-    }
-
-    public void setMetadataStoreCacheExpirySeconds(int metadataStoreCacheExpirySeconds) {
-        if (zooKeeperCacheExpirySeconds == -1) {
-            this.metadataStoreCacheExpirySeconds = metadataStoreCacheExpirySeconds;
-        }
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
     }
 }

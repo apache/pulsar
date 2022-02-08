@@ -178,31 +178,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
 
-    @Deprecated
-    public void setZooKeeperSessionTimeoutMillis(long zooKeeperSessionTimeoutMillis) {
-        if (zooKeeperSessionTimeoutMillis > 0) {
-            this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
-            this.metadataStoreSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
-        }
+    public long getMetadataStoreSessionTimeoutMillis() {
+        return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
     }
 
-    @Deprecated
-    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
-        if (zooKeeperCacheExpirySeconds > 0) {
-            this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
-            this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
-        }
-    }
-
-    public void setMetadataStoreSessionTimeoutMillis(long metadataStoreSessionTimeoutMillis) {
-        if (zooKeeperSessionTimeoutMillis == -1) {
-            this.metadataStoreSessionTimeoutMillis = metadataStoreSessionTimeoutMillis;
-        }
-    }
-
-    public void setMetadataStoreCacheExpirySeconds(int metadataStoreCacheExpirySeconds) {
-        if (zooKeeperCacheExpirySeconds == -1) {
-            this.metadataStoreCacheExpirySeconds = metadataStoreCacheExpirySeconds;
-        }
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
     }
 }
