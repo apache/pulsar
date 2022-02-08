@@ -112,6 +112,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "metadataStoreUrl"
     )
     @Getter(AccessLevel.NONE)
+    @Deprecated
     private String zookeeperServers;
 
     @FieldContext(
@@ -126,7 +127,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreUrl;
 
-    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
         required = false,
@@ -135,6 +135,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Deprecated in favor of using `configurationStoreServers`"
     )
     @Getter(AccessLevel.NONE)
+    @Deprecated
     private String globalZookeeperServers;
 
     @FieldContext(
@@ -2325,6 +2326,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Stats update initial delay in seconds"
     )
     private int statsUpdateInitialDelayInSecs = 60;
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "If true, aggregate publisher stats of PartitionedTopicStats by producerName"
+    )
+    private boolean aggregatePublisherStatsByProducerName = false;
 
     /**** --- Ledger Offloading. --- ****/
     /****

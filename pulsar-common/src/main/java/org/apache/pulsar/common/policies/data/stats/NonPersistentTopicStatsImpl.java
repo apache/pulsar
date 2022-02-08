@@ -22,16 +22,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
+import org.apache.pulsar.common.policies.data.PublisherStats;
 
 /**
  * Statistics for a non-persistent topic.
@@ -57,7 +62,11 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @JsonProperty("publishers")
     public List<NonPersistentPublisherStats> getNonPersistentPublishers() {
-        return (List<NonPersistentPublisherStats>) nonPersistentPublishers;
+        return Stream.concat(nonPersistentPublishers.stream()
+                                .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)),
+                nonPersistentPublishersMap.values().stream()
+                        .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)))
+                .collect(Collectors.toList());
     }
 
     @JsonProperty("subscriptions")
@@ -71,7 +80,9 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     /** List of connected publishers on this non-persistent topic w/ their stats. */
-    public List<? extends NonPersistentPublisherStats> nonPersistentPublishers;
+    private List<NonPersistentPublisherStats> nonPersistentPublishers;
+
+    private Map<String, NonPersistentPublisherStats> nonPersistentPublishersMap;
 
     /** Map of non-persistent subscriptions with their individual statistics. */
     public Map<String, ? extends NonPersistentSubscriptionStats> nonPersistentSubscriptions;
@@ -81,7 +92,25 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public List<NonPersistentPublisherStats> getPublishers() {
-        return (List<NonPersistentPublisherStats>) nonPersistentPublishers;
+        return Stream.concat(nonPersistentPublishers.stream()
+                                .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)),
+                nonPersistentPublishersMap.values()
+                        .stream().sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)))
+                .collect(Collectors.toList());
+    }
+
+    public void setPublishers(List<? extends PublisherStats> statsList) {
+        this.nonPersistentPublishers.clear();
+        this.nonPersistentPublishersMap.clear();
+        statsList.forEach(s -> addPublisher((NonPersistentPublisherStatsImpl) s));
+    }
+
+    public void addPublisher(NonPersistentPublisherStatsImpl stats) {
+        if (stats.isSupportsPartialProducer()) {
+            nonPersistentPublishersMap.put(stats.getProducerName(), stats);
+        } else {
+            nonPersistentPublishers.add(stats);
+        }
     }
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
@@ -101,6 +130,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     public NonPersistentTopicStatsImpl() {
         this.nonPersistentPublishers = new ArrayList<>();
+        this.nonPersistentPublishersMap = new ConcurrentHashMap<>();
         this.nonPersistentSubscriptions = new HashMap<>();
         this.nonPersistentReplicators = new TreeMap<>();
     }
@@ -108,6 +138,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     public void reset() {
         super.reset();
         this.nonPersistentPublishers.clear();
+        this.nonPersistentPublishersMap.clear();
         this.nonPersistentSubscriptions.clear();
         this.nonPersistentReplicators.clear();
         this.msgDropRate = 0;
@@ -121,18 +152,30 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
 
-        if (this.getNonPersistentPublishers().size() != stats.getNonPersistentPublishers().size()) {
-            for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                NonPersistentPublisherStatsImpl publisherStats = new NonPersistentPublisherStatsImpl();
-                this.getNonPersistentPublishers().add(publisherStats
-                        .add((NonPersistentPublisherStatsImpl) stats.getNonPersistentPublishers().get(i)));
+        stats.getNonPersistentPublishers().forEach(s -> {
+            if (s.isSupportsPartialProducer()) {
+                ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
+                        .computeIfAbsent(s.getProducerName(), key -> {
+                            final NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
+                            newStats.setSupportsPartialProducer(true);
+                            newStats.setProducerName(s.getProducerName());
+                            return newStats;
+                        })).add((NonPersistentPublisherStatsImpl) s);
+            } else {
+                if (this.nonPersistentPublishers.size() != stats.getNonPersistentPublishers().size()) {
+                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
+                        NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
+                        newStats.setSupportsPartialProducer(false);
+                        this.nonPersistentPublishers.add(newStats.add((NonPersistentPublisherStatsImpl) s));
+                    }
+                } else {
+                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
+                        ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(i))
+                                .add((NonPersistentPublisherStatsImpl) s);
+                    }
+                }
             }
-        } else {
-            for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                ((NonPersistentPublisherStatsImpl) this.getNonPersistentPublishers().get(i))
-                        .add((NonPersistentPublisherStatsImpl) stats.getNonPersistentPublishers().get(i));
-            }
-        }
+        });
 
         if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {

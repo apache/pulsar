@@ -87,8 +87,8 @@ public class ProxyKeyStoreTlsTestWithoutAuth extends MockedPulsarServiceBaseTest
         proxyConfig.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
 
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));

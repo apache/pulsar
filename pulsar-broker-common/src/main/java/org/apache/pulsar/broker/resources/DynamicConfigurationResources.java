@@ -49,6 +49,11 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
         super.setWithCreate(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
     }
 
+    public CompletableFuture<Void> setDynamicConfigurationWithCreateAsync(
+            Function<Optional<Map<String, String>>, Map<String, String>> createFunction) {
+        return super.setWithCreateAsync(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
+    }
+
     public void setDynamicConfiguration(
             Function<Map<String, String>, Map<String, String>> updateFunction)
             throws MetadataStoreException {
