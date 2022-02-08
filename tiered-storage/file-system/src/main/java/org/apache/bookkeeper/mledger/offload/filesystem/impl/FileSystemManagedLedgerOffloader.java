@@ -226,7 +226,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     log.debug("read ledger entries. start: {}, end: {}", needToOffloadFirstEntryNumber, end);
                     long startReadTime = System.nanoTime();
                     LedgerEntries ledgerEntriesOnce = readHandle.readAsync(needToOffloadFirstEntryNumber, end).get();
-                    this.mxBean.recordReadLedgerLatency(topicName, System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    long cost = System.nanoTime() - startReadTime;
+                    this.mxBean.recordReadLedgerLatency(topicName, cost, TimeUnit.NANOSECONDS);
                     semaphore.acquire();
                     countDownLatch = new CountDownLatch(1);
                     assignmentScheduler.chooseThread(ledgerId)
