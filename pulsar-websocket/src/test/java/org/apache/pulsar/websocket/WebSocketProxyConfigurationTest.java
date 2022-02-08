@@ -47,9 +47,44 @@ public class WebSocketProxyConfigurationTest {
         }
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
-        final WebSocketProxyConfiguration serviceConfig = PulsarConfigurationLoader.create(stream,
+        WebSocketProxyConfiguration serviceConfig = PulsarConfigurationLoader.create(stream,
                 WebSocketProxyConfiguration.class);
+        stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+
+        testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("metadataStoreSessionTimeoutMillis=60");
+            printWriter.println("metadataStoreCacheExpirySeconds=500");
+            printWriter.println("zooKeeperSessionTimeoutMillis=-1");
+            printWriter.println("zooKeeperCacheExpirySeconds=-1");
+        }
+        testConfigFile.deleteOnExit();
+        stream = new FileInputStream(testConfigFile);
+        serviceConfig = PulsarConfigurationLoader.create(stream, WebSocketProxyConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+
+        testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("metadataStoreSessionTimeoutMillis=10");
+            printWriter.println("metadataStoreCacheExpirySeconds=30");
+            printWriter.println("zooKeeperSessionTimeoutMillis=100");
+            printWriter.println("zooKeeperCacheExpirySeconds=300");
+        }
+        testConfigFile.deleteOnExit();
+        stream = new FileInputStream(testConfigFile);
+        serviceConfig = PulsarConfigurationLoader.create(stream, WebSocketProxyConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
     }
 }

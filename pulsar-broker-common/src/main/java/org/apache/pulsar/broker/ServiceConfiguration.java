@@ -345,35 +345,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean failureDomainsEnabled = false;
 
-    @Deprecated
-    @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "ZooKeeper session timeout in milliseconds. "
-                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
-    )
-    private long zooKeeperSessionTimeoutMillis = 30000;
-
-    @Deprecated
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "ZooKeeper operation timeout in seconds. "
-                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
-        )
-    private int zooKeeperOperationTimeoutSeconds = 30;
-
-    @Deprecated
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "ZooKeeper cache expiry time in seconds. "
-                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
-        )
-    private int zooKeeperCacheExpirySeconds = 300;
-
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Metadata store session timeout in milliseconds."
     )
-    private long metadataStoreSessionTimeoutMillis = 30000;
+    private long metadataStoreSessionTimeoutMillis = 30_000;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -386,6 +362,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Metadata store cache expiry time in seconds."
     )
     private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        deprecated = true,
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
+    )
+    private long zooKeeperSessionTimeoutMillis = -1;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            deprecated = true,
+            doc = "ZooKeeper operation timeout in seconds. "
+                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
+        )
+    private int zooKeeperOperationTimeoutSeconds = -1;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            deprecated = true,
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
+        )
+    private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -2665,15 +2668,45 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return schemaCompatibilityStrategy;
     }
 
+    @Deprecated
     public void setZooKeeperSessionTimeoutMillis(long zooKeeperSessionTimeoutMillis) {
-        this.metadataStoreSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
+        if (zooKeeperSessionTimeoutMillis > 0) {
+            this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
+            this.metadataStoreSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
+        }
     }
 
+    @Deprecated
     public void setZooKeeperOperationTimeoutSeconds(int zooKeeperOperationTimeoutSeconds) {
-        this.metadataStoreOperationTimeoutSeconds = zooKeeperOperationTimeoutSeconds;
+        if (zooKeeperOperationTimeoutSeconds > 0) {
+            this.zooKeeperOperationTimeoutSeconds = zooKeeperOperationTimeoutSeconds;
+            this.metadataStoreOperationTimeoutSeconds = zooKeeperOperationTimeoutSeconds;
+        }
     }
 
+    @Deprecated
     public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
-        this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+        if (zooKeeperCacheExpirySeconds > 0) {
+            this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+            this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+        }
+    }
+
+    public void setMetadataStoreSessionTimeoutMillis(long metadataStoreSessionTimeoutMillis) {
+        if (zooKeeperSessionTimeoutMillis == -1) {
+            this.metadataStoreSessionTimeoutMillis = metadataStoreSessionTimeoutMillis;
+        }
+    }
+
+    public void setMetadataStoreOperationTimeoutSeconds(int metadataStoreOperationTimeoutSeconds) {
+        if (zooKeeperOperationTimeoutSeconds == -1) {
+            this.metadataStoreOperationTimeoutSeconds = metadataStoreOperationTimeoutSeconds;
+        }
+    }
+
+    public void setMetadataStoreCacheExpirySeconds(int metadataStoreCacheExpirySeconds) {
+        if (zooKeeperCacheExpirySeconds == -1) {
+            this.metadataStoreCacheExpirySeconds = metadataStoreCacheExpirySeconds;
+        }
     }
 }

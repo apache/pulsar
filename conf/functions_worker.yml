@@ -343,8 +343,8 @@ configurationStoreServers: localhost:2181
 
 # ZooKeeper session timeout in milliseconds
 # Deprecated: use metadataStoreSessionTimeoutMillis
-zooKeeperSessionTimeoutMillis: 30000
+zooKeeperSessionTimeoutMillis: -1
 
 # ZooKeeper operation timeout in seconds
 # Deprecated: use metadataStoreOperationTimeoutSeconds
-zooKeeperOperationTimeoutSeconds: 30
+zooKeeperOperationTimeoutSeconds: -1

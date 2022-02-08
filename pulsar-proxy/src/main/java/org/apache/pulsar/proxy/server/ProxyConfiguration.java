@@ -116,22 +116,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String configurationMetadataStoreUrl;
 
-    @Deprecated
-    @FieldContext(
-        category = CATEGORY_BROKER_DISCOVERY,
-            doc = "ZooKeeper session timeout in milliseconds. "
-                    + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
-    )
-    private int zookeeperSessionTimeoutMs = 30_000;
-
-    @Deprecated
-    @FieldContext(
-            category = CATEGORY_BROKER_DISCOVERY,
-            doc = "ZooKeeper cache expiry time in seconds. "
-                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
-    )
-    private int zooKeeperCacheExpirySeconds = 300;
-
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Metadata store session timeout in milliseconds."
@@ -143,6 +127,24 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Metadata store cache expiry time in seconds."
     )
     private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
+    )
+    private int zookeeperSessionTimeoutMs = -1;
+
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
+        doc = "ZooKeeper cache expiry time in seconds. "
+                + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
+    )
+    private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -774,11 +776,31 @@ public class ProxyConfiguration implements PulsarConfiguration {
         }
     }
 
+    @Deprecated
     public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
-        this.metadataStoreSessionTimeoutMillis = zookeeperSessionTimeoutMs;
+        if (zookeeperSessionTimeoutMs > 0) {
+            this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
+            this.metadataStoreSessionTimeoutMillis = zookeeperSessionTimeoutMs;
+        }
     }
 
+    @Deprecated
     public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
-        this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+        if (zooKeeperCacheExpirySeconds > 0) {
+            this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+            this.metadataStoreCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+        }
+    }
+
+    public void setMetadataStoreSessionTimeoutMillis(int metadataStoreSessionTimeoutMillis) {
+        if (zookeeperSessionTimeoutMs == -1) {
+            this.metadataStoreSessionTimeoutMillis = metadataStoreSessionTimeoutMillis;
+        }
+    }
+
+    public void setMetadataStoreCacheExpirySeconds(int metadataStoreCacheExpirySeconds) {
+        if (zooKeeperCacheExpirySeconds == -1) {
+            this.metadataStoreCacheExpirySeconds = metadataStoreCacheExpirySeconds;
+        }
     }
 }
