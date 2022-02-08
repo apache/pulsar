@@ -166,6 +166,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
         if (type == NotificationType.Created || type == NotificationType.Deleted) {
             existsCache.synchronous().invalidate(path);
+            childrenCache.synchronous().invalidate(path);
             String parent = parent(path);
             if (parent != null) {
                 childrenCache.synchronous().invalidate(parent);
