@@ -377,7 +377,7 @@ The following parameters have been deprecated.
 |brokerServicePurgeInactiveFrequencyInSeconds|  Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
 |tlsEnabled|  Use `webServicePortTls` and `brokerServicePortTls` instead. |false|
 |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages. Use `brokerClientTlsEnabled` instead. |false|
-|subscriptionKeySharedEnable|  Whether to enable the Key_Shared subscription.|true|
+|subscriptionKeySharedEnable|  Whether to enable the Key_Shared subscription. Use `subscriptionTypesEnabled` instead. |true|
 |zookeeperServers|  Zookeeper quorum connection string. Use `metadataStoreUrl` instead.  |N/A|
 |configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
 
