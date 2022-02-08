@@ -922,6 +922,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         admin.topics().createNonPartitionedTopic(persistenceTopic);
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertTrue(admin.topics().getList(myNamespace).contains(persistenceTopic)));
         admin.topicPolicies().setPersistence(persistenceTopic, persistencePolicies);
 
         Awaitility.await()
