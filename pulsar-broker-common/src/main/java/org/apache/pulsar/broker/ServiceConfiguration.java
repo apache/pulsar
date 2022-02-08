@@ -2668,14 +2668,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return schemaCompatibilityStrategy;
     }
 
-    @Deprecated
-    public void setZooKeeperSessionTimeoutMillis(long zooKeeperSessionTimeoutMillis) {
-        if (zooKeeperSessionTimeoutMillis > 0) {
-            this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
-            this.metadataStoreSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
-        }
-    }
-
     public long getMetadataStoreSessionTimeoutMillis() {
         return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
     }
