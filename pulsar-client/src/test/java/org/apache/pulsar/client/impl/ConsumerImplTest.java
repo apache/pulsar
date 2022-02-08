@@ -25,13 +25,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
+import io.netty.channel.EventLoopGroup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
@@ -39,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -217,4 +217,22 @@ public class ConsumerImplTest {
 
         Assert.assertTrue(consumer.paused);
     }
+
+    @Test
+    public void testCommandCloseConsumerNotReconnect() {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        EventLoopGroup mockEventLoop = mock(EventLoopGroup.class);
+        ClientCnx cnx = new ClientCnx(conf, mockEventLoop);
+        cnx.registerConsumer(consumer.consumerId, consumer);
+        CommandCloseConsumer commandCloseConsumer = new CommandCloseConsumer();
+        commandCloseConsumer.setConsumerId(consumer.consumerId);
+        commandCloseConsumer.setRequestId(1);
+        commandCloseConsumer.setAllowReconnect(false);
+        cnx.handleCloseConsumer(commandCloseConsumer);
+        Awaitility.await().untilAsserted(() -> {
+            HandlerState.State state = consumer.getState();
+            Assert.assertEquals(state, HandlerState.State.Closed);
+        });
+    }
+
 }

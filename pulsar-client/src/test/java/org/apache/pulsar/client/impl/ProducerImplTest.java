@@ -19,12 +19,49 @@
 package org.apache.pulsar.client.impl;
 
 import java.nio.ByteBuffer;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import io.netty.channel.EventLoopGroup;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.schema.BytesSchema;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.junit.Assert;
-import org.junit.Test;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.mock;
 
 public class ProducerImplTest {
+
+    private ExecutorProvider executorProvider;
+    private ExecutorService internalExecutor;
+    private ProducerImpl<byte[]> producer;
+    private ProducerConfigurationData producerConfigurationData;
+
+
+    @BeforeMethod(alwaysRun = true)
+    public void setUp() {
+        this.executorProvider = new ExecutorProvider(1, "ProducerImplTest");
+        this.internalExecutor = Executors.newSingleThreadScheduledExecutor();
+        this.producerConfigurationData = new ProducerConfigurationData();
+        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
+        ClientConfigurationData clientConf = client.getConfiguration();
+        clientConf.setOperationTimeoutMs(100);
+        clientConf.setStatsIntervalSeconds(0);
+        CompletableFuture<Producer<byte[]>> producerFuture = new CompletableFuture<>();
+        String topic = "non-persistent://tenant/ns1/my-topic";
+        this.producer = new ProducerImpl<>(client, topic, producerConfigurationData, producerFuture,
+                0, BytesSchema.of(), null, Optional.of("test"));
+    }
+
     @Test
     public void testChunkedMessageCtxDeallocate() {
         int totalChunks = 3;
@@ -45,5 +82,22 @@ public class ProducerImplTest {
 
         // check if the ctx is deallocated successfully.
         Assert.assertNull(ctx.firstChunkMessageId);
+    }
+
+    @Test
+    public void testCommandCloseConsumerNotReconnect() {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        EventLoopGroup mockEventLoop = mock(EventLoopGroup.class);
+        ClientCnx cnx = new ClientCnx(conf, mockEventLoop);
+        cnx.registerProducer(producer.producerId, producer);
+        CommandCloseProducer commandCloseProducer = new CommandCloseProducer();
+        commandCloseProducer.setProducerId(producer.producerId);
+        commandCloseProducer.setRequestId(1);
+        commandCloseProducer.setAllowReconnect(false);
+        cnx.handleCloseProducer(commandCloseProducer);
+        Awaitility.await().untilAsserted(() -> {
+            HandlerState.State state = producer.getState();
+            org.testng.Assert.assertEquals(state, HandlerState.State.Closed);
+        });
     }
 }

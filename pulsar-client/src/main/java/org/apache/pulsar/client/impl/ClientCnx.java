@@ -731,7 +731,11 @@ public class ClientCnx extends PulsarHandler {
         final long producerId = closeProducer.getProducerId();
         ProducerImpl<?> producer = producers.get(producerId);
         if (producer != null) {
-            producer.connectionClosed(this);
+            if (closeProducer.isAllowReconnect()) {
+                producer.connectionClosed(this);
+            } else {
+                producer.closeAsync();
+            }
         } else {
             log.warn("Producer with id {} not found while closing producer ", producerId);
         }
@@ -743,7 +747,11 @@ public class ClientCnx extends PulsarHandler {
         final long consumerId = closeConsumer.getConsumerId();
         ConsumerImpl<?> consumer = consumers.get(consumerId);
         if (consumer != null) {
-            consumer.connectionClosed(this);
+            if (closeConsumer.isAllowReconnect()) {
+                consumer.connectionClosed(this);
+            } else {
+                consumer.closeAsync();
+            }
         } else {
             log.warn("Consumer with id {} not found while closing consumer ", consumerId);
         }
