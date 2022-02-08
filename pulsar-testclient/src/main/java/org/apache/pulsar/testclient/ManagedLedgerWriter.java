@@ -156,6 +156,12 @@ public class ManagedLedgerWriter {
             PerfClientUtils.exit(-1);
         }
 
+        if (arguments.metadataStoreUrl == null && arguments.zookeeperServers == null) {
+            System.err.println("Metadata store address argument is required (--metadata-store)");
+            jc.usage();
+            PerfClientUtils.exit(1);
+        }
+
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
