@@ -184,8 +184,8 @@ public class BrokersBase extends AdminResource {
     @DELETE
     @Path("/configuration/{configName}")
     @ApiOperation(value =
-            "Delete dynamic ServiceConfiguration into metadata only." +
-                    " This operation requires Pulsar super-user privileges.")
+            "Delete dynamic ServiceConfiguration into metadata only."
+                    + " This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
