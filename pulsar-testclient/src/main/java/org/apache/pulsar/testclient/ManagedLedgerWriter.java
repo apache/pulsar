@@ -98,6 +98,7 @@ public class ManagedLedgerWriter {
                 description = "Number of threads writing", validateWith = PositiveNumberParameterValidator.class)
         public int numThreads = 1;
 
+        @Deprecated
         @Parameter(names = {"-zk", "--zookeeperServers"},
                 description = "ZooKeeper connection string",
                 hidden = true)
