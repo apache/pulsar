@@ -114,18 +114,13 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
             mbean.recordOffloadError(topicName);
             mbean.recordOffloadError(topicName);
             mbean.recordOffloadBytes(topicName, 100);
-            mbean.recordOffloadTime(topicName, 10000000000L, TimeUnit.NANOSECONDS);
             mbean.recordReadLedgerLatency(topicName, 1000, TimeUnit.NANOSECONDS);
             mbean.recordReadOffloadError(topicName);
             mbean.recordReadOffloadError(topicName);
             mbean.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
             mbean.recordReadOffloadBytes(topicName, 100000);
-            mbean.recordStreamingWriteToStorageError(topicName);
-            mbean.recordStreamingWriteToStorageError(topicName);
-            mbean.recordStreamingWriteToStorageBytes(topicName, 1000001);
             mbean.recordWriteToStorageError(topicName);
             mbean.recordWriteToStorageError(topicName);
-            mbean.recordWriteToStorageLatency(topicName, 20000, TimeUnit.NANOSECONDS);
         }
 
         Method parseMetricMethod = PrometheusMetricsGenerator.class.
@@ -201,15 +196,11 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
 
                 mbean.recordOffloadError(topicName);
                 mbean.recordOffloadBytes(topicName, 100);
-                mbean.recordOffloadTime(topicName, 10000000000L, TimeUnit.NANOSECONDS);
                 mbean.recordReadLedgerLatency(topicName, 1000, TimeUnit.NANOSECONDS);
                 mbean.recordReadOffloadError(topicName);
                 mbean.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
                 mbean.recordReadOffloadBytes(topicName, 100000);
-                mbean.recordStreamingWriteToStorageError(topicName);
-                mbean.recordStreamingWriteToStorageBytes(topicName, 1000001);
                 mbean.recordWriteToStorageError(topicName);
-                mbean.recordWriteToStorageLatency(topicName, 20000, TimeUnit.NANOSECONDS);
             }
         }
 

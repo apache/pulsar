@@ -171,7 +171,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         private OrderedScheduler assignmentScheduler;
         private int managedLedgerOffloadPrefetchRounds = 1;
         private final LedgerOffloaderMXBeanImpl mxBean;
-        private long start;
 
         private LedgerReader(ReadHandle readHandle,
                              UUID uuid,
@@ -191,7 +190,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             this.assignmentScheduler = assignmentScheduler;
             this.managedLedgerOffloadPrefetchRounds = managedLedgerOffloadPrefetchRounds;
             this.mxBean = mxBean;
-            this.start = System.nanoTime();
         }
 
         @Override
@@ -202,7 +200,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             long ledgerId = readHandle.getId();
-            String storagePath = getStoragePath(storageBasePath, extraMetadata.get(MANAGED_LEDGER_NAME));
+            final String topicName = extraMetadata.get(MANAGED_LEDGER_NAME);
+            String storagePath = getStoragePath(storageBasePath, topicName);
             String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
             LongWritable key = new LongWritable();
             BytesWritable value = new BytesWritable();
@@ -227,8 +226,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     log.debug("read ledger entries. start: {}, end: {}", needToOffloadFirstEntryNumber, end);
                     long startReadTime = System.nanoTime();
                     LedgerEntries ledgerEntriesOnce = readHandle.readAsync(needToOffloadFirstEntryNumber, end).get();
-                    this.mxBean.recordReadLedgerLatency(extraMetadata.get(MANAGED_LEDGER_NAME),
-                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    this.mxBean.recordReadLedgerLatency(topicName, System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
                     semaphore.acquire();
                     countDownLatch = new CountDownLatch(1);
                     assignmentScheduler.chooseThread(ledgerId)
@@ -242,16 +240,14 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     throw fileSystemWriteException;
                 }
                 IOUtils.closeStream(dataWriter);
-                this.mxBean.recordOffloadTime(extraMetadata.get(MANAGED_LEDGER_NAME), (System.nanoTime() - start),
-                        TimeUnit.NANOSECONDS);
                 promise.complete(null);
             } catch (Exception e) {
                 log.error("Exception when get CompletableFuture<LedgerEntries> : ManagerLedgerName: {}, "
-                        + "LedgerId: {}, UUID: {} ", extraMetadata.get(MANAGED_LEDGER_NAME), ledgerId, uuid, e);
+                        + "LedgerId: {}, UUID: {} ", topicName, ledgerId, uuid, e);
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
-                this.mxBean.recordOffloadError(extraMetadata.get(MANAGED_LEDGER_NAME));
+                this.mxBean.recordOffloadError(topicName);
                 promise.completeExceptionally(e);
             }
         }
@@ -313,7 +309,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         public void run() {
             String managedLedgerName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
             if (ledgerReader.fileSystemWriteException == null) {
-                long start = System.nanoTime();
                 Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
                 while (iterator.hasNext()) {
                     LedgerEntry entry = iterator.next();
@@ -328,11 +323,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                         break;
                     }
                     haveOffloadEntryNumber.incrementAndGet();
-                    ledgerReader.mxBean.recordOffloadBytes(managedLedgerName, entry.getEntryBytes().length);
+                    ledgerReader.mxBean.recordOffloadBytes(managedLedgerName, entry.getLength());
                 }
-                long writeEntryTimeInNs = System.nanoTime() - start;
-                ledgerReader.mxBean.recordWriteToStorageLatency(managedLedgerName, writeEntryTimeInNs,
-                        TimeUnit.NANOSECONDS);
             }
             countDownLatch.countDown();
             ledgerEntriesOnce.close();
@@ -345,19 +337,19 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,
                                                        Map<String, String> offloadDriverMetadata) {
 
+        final String ledgerName = offloadDriverMetadata.get(MANAGED_LEDGER_NAME);
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-        String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get(MANAGED_LEDGER_NAME));
+        String storagePath = getStoragePath(storageBasePath, ledgerName);
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
         scheduler.chooseThread(ledgerId).submit(() -> {
             try {
                 MapFile.Reader reader = new MapFile.Reader(new Path(dataFilePath),
                         configuration);
                 promise.complete(FileStoreBackedReadHandleImpl.open(
-                        scheduler.chooseThread(ledgerId), reader, ledgerId, this.mxBean,
-                        offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
+                        scheduler.chooseThread(ledgerId), reader, ledgerId, this.mxBean, ledgerName));
             } catch (Throwable t) {
                 log.error("Failed to open FileStoreBackedReadHandleImpl: ManagerLedgerName: {}, "
-                        + "LegerId: {}, UUID: {}", offloadDriverMetadata.get(MANAGED_LEDGER_NAME), ledgerId, uuid, t);
+                        + "LegerId: {}, UUID: {}", ledgerName, ledgerId, uuid, t);
                 promise.completeExceptionally(t);
             }
         });

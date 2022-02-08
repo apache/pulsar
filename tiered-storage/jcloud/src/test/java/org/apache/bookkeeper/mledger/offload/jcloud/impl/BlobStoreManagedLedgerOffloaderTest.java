@@ -173,11 +173,9 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         offloader.offload(toWrite, uuid, extraMap).get();
         LedgerOffloaderMXBeanImpl mbean = (LedgerOffloaderMXBeanImpl)offloader.getStats();
         assertTrue(mbean.getOffloadErrors(topic) ==  0);
-        assertTrue(mbean.getOffloadTime(topic) > 0);
         assertTrue(mbean.getOffloadBytes(topic) > 0 );
         assertTrue(mbean.getReadLedgerLatencyBuckets(topic).getCount() > 0);
         assertTrue(mbean.getWriteToStorageErrors(topic) == 0);
-        assertTrue(mbean.getWriteToStorageLatencyBuckets(topic).getCount() > 0);
 
         Map<String, String> map = new HashMap<>();
         map.putAll(offloader.getOffloadDriverMetadata());

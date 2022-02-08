@@ -49,7 +49,7 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     protected static final double[] WRITE_TO_STORAGE_BUCKETS_MS =
             new double[LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC.length];
 
-    private static final List<String> RATE_METRICS_KEYS = new ArrayList<>(3);
+    private static final List<String> RATE_METRICS_KEYS = new ArrayList<>(2);
 
     static {
         for (int i = 0; i < LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC.length; i++) {
@@ -57,7 +57,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         }
         RATE_METRICS_KEYS.add("brk_ledgeroffloader_writeRate");
         RATE_METRICS_KEYS.add("brk_ledgeroffloader_readOffloadRate");
-        RATE_METRICS_KEYS.add("brk_ledgeroffloader_streamingWriteRate");
     }
 
     private static final Buckets WRITE_TO_STORAGE_BUCKETS =
@@ -111,18 +110,11 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
 
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_offloadError",
                     mbean.getOffloadErrors(managedLedgerName));
-            populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_offloadTime",
-                    mbean.getOffloadTime(managedLedgerName));
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_writeRate",
                     mbean.getOffloadBytes(managedLedgerName));
             StatsBuckets statsBuckets = mbean.getReadLedgerLatencyBuckets(managedLedgerName);
             if (statsBuckets != null) {
                 READ_LEDGER_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
-                        statsBuckets.getBuckets(), 1);
-            }
-            statsBuckets = mbean.getWriteToStorageLatencyBuckets(managedLedgerName);
-            if (statsBuckets != null) {
-                WRITE_TO_STORAGE_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
                         statsBuckets.getBuckets(), 1);
             }
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_writeError",
@@ -142,11 +134,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                     mbean.getReadOffloadErrors(managedLedgerName));
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_readOffloadRate",
                     mbean.getReadOffloadBytes(managedLedgerName));
-            // streaming offload
-            populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_streamingWriteRate",
-                    mbean.getStreamingWriteToStorageBytes(managedLedgerName));
-            populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_streamingWriteError",
-                    mbean.getStreamingWriteToStorageErrors(managedLedgerName));
         } catch (Exception e) {
             log.error("aggregate ledger offload metrics for topic: {} managedLedgerName {} failed ",
                     topicName, managedLedgerName, e);

@@ -212,10 +212,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long) blockSize);
                         partPayload.getContentMetadata().setContentType("application/octet-stream");
-                        long startUploadTime = System.nanoTime();
                         parts.add(writeBlobStore.uploadMultipartPart(mpu, partId, partPayload));
-                        this.mxBean.recordWriteToStorageLatency(topicName,
-                                System.nanoTime() - startUploadTime, TimeUnit.NANOSECONDS);
                         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                                 config.getBucket(), dataBlockKey, partId, mpu.id());
 
@@ -234,12 +231,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
                     dataObjectLength += blockSize;
                 }
-
-                long startUploadTime = System.nanoTime();
                 writeBlobStore.completeMultipartUpload(mpu, parts);
-                this.mxBean.recordWriteToStorageLatency(topicName,
-                        System.nanoTime() - startUploadTime, TimeUnit.NANOSECONDS);
-                this.mxBean.recordOffloadTime(topicName, System.nanoTime() - start, TimeUnit.NANOSECONDS);
                 mpu = null;
             } catch (Throwable t) {
                 try {
@@ -270,12 +262,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         .payload(indexPayload)
                         .contentLength((long) indexStream.getStreamSize())
                     .build();
-
-                long startUploadTime = System.nanoTime();
                 writeBlobStore.putBlob(config.getBucket(), blob);
-                long cost = System.nanoTime() - startUploadTime;
-                this.mxBean.recordOffloadTime(topicName, cost, TimeUnit.MILLISECONDS);
-                this.mxBean.recordWriteToStorageLatency(topicName, cost, TimeUnit.NANOSECONDS);
                 promise.complete(null);
             } catch (Throwable t) {
                 try {
@@ -392,7 +379,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             final int blockSize = BufferedOffloadStream
                     .calculateBlockSize(streamingBlockSize, entries.size(), blockEntrySize);
             buildBlockAndUpload(blockSize, entries, blockLedgerId, blockEntryId, partId);
-            this.mxBean.recordStreamingWriteToStorageBytes(ml.getName(), blockSize);
             streamingOffloadLoop(partId + 1, dataObjectLength + blockSize);
         } else {
             log.debug("not enough data, delay schedule for part: {} length: {}", partId, dataObjectLength);
@@ -427,7 +413,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                     config.getBucket(), streamingDataBlockKey, partId, streamingMpu.id());
         } catch (Throwable e) {
-            this.mxBean.recordStreamingWriteToStorageError(ml.getName());
             blobStore.abortMultipartUpload(streamingMpu);
             offloadResult.completeExceptionally(e);
             return;

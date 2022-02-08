@@ -38,13 +38,6 @@ public interface LedgerOffloaderMXBean {
     String getDriverName();
 
     /**
-     * Record the offload total time.
-     *
-     * @return offload time per topic.
-     */
-    long getOffloadTime(String topic);
-
-    /**
      * Record the offload error count.
      *
      * @return offload errors per topic.
@@ -64,13 +57,6 @@ public interface LedgerOffloaderMXBean {
      * @return read ledger latency per topic.
      */
     StatsBuckets getReadLedgerLatencyBuckets(String topic);
-
-    /**
-     * Record the write latency to tiered storage.
-     *
-     * @return write to storage latency per topic.
-     */
-    StatsBuckets getWriteToStorageLatencyBuckets(String topic);
 
     /**
      * Record the write to storage error count.
@@ -106,18 +92,4 @@ public interface LedgerOffloaderMXBean {
      * @return read offload data errors.
      */
     long getReadOffloadErrors(String topic);
-
-    /**
-     * Record streaming read offload method rate.
-     *
-     * @return streaming write to storage rate per topic.
-     */
-    long getStreamingWriteToStorageBytes(String topic);
-
-    /**
-     * Record streaming read offload error count.
-     *
-     * @return streaming write to storage errors per topic.
-     */
-    long getStreamingWriteToStorageErrors(String topic);
 }

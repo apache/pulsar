@@ -120,12 +120,9 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
         LedgerOffloaderMXBeanImpl mbean = (LedgerOffloaderMXBeanImpl)offloader.getStats();
         assertTrue(mbean.getOffloadErrors(topic) == 0);
-        assertTrue(mbean.getOffloadTime(topic) > 0);
         assertTrue(mbean.getOffloadBytes(topic) > 0 );
         assertTrue(mbean.getReadLedgerLatencyBuckets(topic).getCount() > 0);
         assertTrue(mbean.getWriteToStorageErrors(topic) == 0);
-        assertTrue(mbean.getWriteToStorageLatencyBuckets(topic).getCount() > 0);
-
 
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
