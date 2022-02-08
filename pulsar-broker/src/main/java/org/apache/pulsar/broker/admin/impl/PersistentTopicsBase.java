@@ -574,8 +574,7 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getNamespaceService().checkTopicExists(topicName)
                 .thenAccept(exist -> {
                     if (!exist) {
-                        throw new RestException(Status.NOT_FOUND,
-                                new PulsarClientException.NotFoundException("Topic not exist"));
+                        throw new RestException(Status.NOT_FOUND, "Topic not exist");
                     }
                 });
     }
@@ -2548,8 +2547,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
         // If the topic name is a partition name, no need to get partition topic metadata again
-        if (!topicName.isPartitioned() && getPartitionedTopicMetadataAsync(topicName,
-                authoritative, false).join().partitions > 0) {
+        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
+                authoritative, false).partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
         }
 
