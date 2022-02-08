@@ -215,9 +215,9 @@
 <tr><td>exposePublisherStats</td><td>Whether to enable topic level metrics.</td><td>true</td></tr>
 <tr><td>statsUpdateFrequencyInSecs</td><td></td><td>60</td></tr>
 <tr><td>statsUpdateInitialDelayInSecs</td><td></td><td>60</td></tr>
-<tr><td>zookeeperServers</td><td>Zookeeper quorum connection string</td><td></td></tr>
+<tr><td>metadataStoreUrl</td><td>Zookeeper quorum connection string</td><td></td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
-<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>configurationMetadataStoreUrl</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>brokerServicePort</td><td>Broker data port</td><td>6650</td></tr>
 <tr><td>brokerServicePortTls</td><td>Broker data port for TLS</td><td>6651</td></tr>
 <tr><td>webServicePort</td><td>Port to use to server HTTP request</td><td>8080</td></tr>
@@ -277,7 +277,6 @@
 <tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the broker when responding to service discovery health checks</td><td></td></tr>
 <tr><td>preferLaterVersions</td><td>If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)</td><td>false</td></tr>
 <tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Max number of partitions per partitioned topic. Use 0 or negative number to disable the check</td><td>0</td></tr>
-<tr><td>tlsEnabled</td><td>Deprecated - Use <code>webServicePortTls</code> and <code>brokerServicePortTls</code> instead.</td><td>false</td></tr>
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
 <tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
 <tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped.</td><td></td></tr>
@@ -392,8 +391,6 @@
 <tr><td>replicationConnectionsPerBroker</td><td>Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.</td><td>16</td></tr>
 <tr><td>replicationProducerQueueSize</td><td>Replicator producer queue size</td><td>1000</td></tr>
 <tr><td>replicatorPrefix</td><td>Replicator prefix used for replicator producer name and cursor name pulsar.repl</td><td></td></tr>
-<tr><td>replicationTlsEnabled</td><td>Enable TLS when talking with other clusters to replicate messages</td><td>false</td></tr>
-<tr><td>brokerServicePurgeInactiveFrequencyInSeconds</td><td>Deprecated. Use <code>brokerDeleteInactiveTopicsFrequencySeconds</code>.</td><td>60</td></tr>
 <tr><td>transactionCoordinatorEnabled</td><td>Whether to enable transaction coordinator in broker.</td><td>true</td></tr>
 <tr><td>transactionMetadataStoreProviderClassName</td><td></td><td>org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider</td></tr>
 <tr><td>defaultRetentionTimeInMinutes</td><td>Default message retention time</td><td>0</td></tr>
@@ -442,6 +439,22 @@
 <tr><td>additionalServletDirectory</td><td>Location of broker additional servlet NAR directory</td><td>./brokerAdditionalServlet</td></tr>
 <tr><td>brokerEntryMetadataInterceptors</td><td>Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</td><td>N/A</td></tr>
 <tr><td>enableExposingBrokerEntryMetadataToClient</td><td>Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true</td><td>false</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="deprecated-parameters"></a><a href="#deprecated-parameters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deprecated Parameters</h3>
+<p>The following parameters have been deprecated.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td>backlogQuotaDefaultLimitGB</td><td>Use <code>backlogQuotaDefaultLimitBytes</code> instead.</td><td>-1</td></tr>
+<tr><td>brokerServicePurgeInactiveFrequencyInSeconds</td><td>Use <code>brokerDeleteInactiveTopicsFrequencySeconds</code>.</td><td>60</td></tr>
+<tr><td>tlsEnabled</td><td>Use <code>webServicePortTls</code> and <code>brokerServicePortTls</code> instead.</td><td>false</td></tr>
+<tr><td>replicationTlsEnabled</td><td>Enable TLS when talking with other clusters to replicate messages. Use <code>brokerClientTlsEnabled</code> instead.</td><td>false</td></tr>
+<tr><td>subscriptionKeySharedEnable</td><td>Whether to enable the Key_Shared subscription. Use <code>subscriptionTypesEnabled</code> instead.</td><td>true</td></tr>
+<tr><td>zookeeperServers</td><td>Zookeeper quorum connection string. Use <code>metadataStoreUrl</code> instead.</td><td>N/A</td></tr>
+<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list). Use <code>configurationMetadataStoreUrl</code> instead.</td><td>N/A</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
@@ -523,9 +536,9 @@
 </thead>
 <tbody>
 <tr><td>authenticateOriginalAuthData</td><td>If this flag is set to <code>true</code>, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required).</td><td>false</td></tr>
-<tr><td>zookeeperServers</td><td>The quorum connection string for local ZooKeeper</td><td></td></tr>
+<tr><td>metadataStoreUrl</td><td>The quorum connection string for local ZooKeeper</td><td></td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
-<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>configurationMetadataStoreUrl</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>brokerServicePort</td><td>The port on which the standalone broker listens for connections</td><td>6650</td></tr>
 <tr><td>webServicePort</td><td>The port used by the standalone broker for HTTP requests</td><td>8080</td></tr>
 <tr><td>bindAddress</td><td>The hostname or IP address on which the standalone service binds</td><td>0.0.0.0</td></tr>
@@ -552,7 +565,6 @@
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
 <tr><td>subscriptionExpirationTimeMinutes</td><td>How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically</td><td>0</td></tr>
 <tr><td>subscriptionRedeliveryTrackerEnabled</td><td>Enable subscription message redelivery tracker to send redelivery count to consumer.</td><td>true</td></tr>
-<tr><td>subscriptionKeySharedEnable</td><td>Whether to enable the Key_Shared subscription.</td><td>true</td></tr>
 <tr><td>subscriptionKeySharedUseConsistentHashing</td><td>In Key_Shared subscription type, with default AUTO_SPLIT mode, use splitting ranges or consistent hashing to reassign keys to new consumers.</td><td>false</td></tr>
 <tr><td>subscriptionKeySharedConsistentHashingReplicaPoints</td><td>In Key_Shared subscription type, the number of points in the consistent-hashing ring. The greater the number, the more equal the assignment of keys to consumers.</td><td>100</td></tr>
 <tr><td>subscriptionExpiryCheckIntervalInMinutes</td><td>How frequently to proactively check and purge expired subscription</td><td>5</td></tr>
@@ -773,7 +785,7 @@
 <tr><th>Name</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
-<tr><td>configurationStoreServers</td><td></td><td></td></tr>
+<tr><td>configurationMetadataStoreUrl</td><td></td><td></td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td></td><td>30000</td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>serviceUrl</td><td></td><td></td></tr>
@@ -805,8 +817,8 @@
 </thead>
 <tbody>
 <tr><td>forwardAuthorizationCredentials</td><td>Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect.</td><td>false</td></tr>
-<tr><td>zookeeperServers</td><td>The ZooKeeper quorum connection string (as a comma-separated list)</td><td></td></tr>
-<tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>metadataStoreUrl</td><td>The ZooKeeper quorum connection string (as a comma-separated list)</td><td></td></tr>
+<tr><td>configurationMetadataStoreUrl</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>brokerServiceURL</td><td>The service URL pointing to the broker cluster.</td><td></td></tr>
 <tr><td>brokerServiceURLTLS</td><td>The TLS service URL pointing to the broker cluster</td><td></td></tr>
 <tr><td>brokerWebServiceURL</td><td>The Web service URL pointing to the broker cluster</td><td></td></tr>
@@ -883,7 +895,7 @@ a <code>server.N</code> line to the <code>conf/zookeeper.conf</code> file for ea
 <blockquote>
 <p>We strongly recommend consulting the <a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">ZooKeeper Administrator's Guide</a> for a more thorough and comprehensive introduction to ZooKeeper configuration</p>
 </blockquote>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/reference-cli-tools"><span class="arrow-prev">← </span><span>Pulsar CLI tools</span></a><a class="docs-next button" href="/docs/en/next/reference-metrics"><span>Pulsar Metrics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bookkeeper">BookKeeper</a></li><li><a href="#broker">Broker</a></li><li><a href="#client">Client</a></li><li><a href="#log4j">Log4j</a></li><li><a href="#log4j-shell">Log4j shell</a></li><li><a href="#standalone">Standalone</a></li><li><a href="#websocket">WebSocket</a></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#zookeeper">ZooKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/reference-cli-tools"><span class="arrow-prev">← </span><span>Pulsar CLI tools</span></a><a class="docs-next button" href="/docs/en/next/reference-metrics"><span>Pulsar Metrics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bookkeeper">BookKeeper</a></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#deprecated-parameters">Deprecated Parameters</a></li></ul></li><li><a href="#client">Client</a></li><li><a href="#log4j">Log4j</a></li><li><a href="#log4j-shell">Log4j shell</a></li><li><a href="#standalone">Standalone</a></li><li><a href="#websocket">WebSocket</a></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#zookeeper">ZooKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -1542,7 +1542,9 @@ extends java.lang.Cloneable</pre>
  Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
  guarded by providing this @maxPendingChuckedMessage threshold. Once, consumer reaches this threshold, it drops
  the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
- This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull</div>
+ This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
+
+ The default value is 10.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>maxPendingChuckedMessage</code> - </dd>
@@ -1570,7 +1572,9 @@ extends java.lang.Cloneable</pre>
  Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
  guarded by providing this @maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops
  the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
- This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull</div>
+ This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
+
+ The default value is 10.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>maxPendingChunkedMessage</code> - </dd>

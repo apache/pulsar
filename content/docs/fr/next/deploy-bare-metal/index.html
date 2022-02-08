@@ -273,8 +273,8 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 <p>You can initialize this metadata using the <a href="/docs/fr/next/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a> command of the <a href="/docs/fr/next/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI tool. This command can be run on any machine in your ZooKeeper cluster. The following is an example:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
   --cluster pulsar-cluster-1 \
-  --zookeeper zk1.us-west.example.com:2181 \
-  --configuration-store zk1.us-west.example.com:2181 \
+  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
   --web-service-url http://pulsar.us-west.example.com:8080 \
   --web-service-url-tls https://pulsar.us-west.example.com:8443 \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
