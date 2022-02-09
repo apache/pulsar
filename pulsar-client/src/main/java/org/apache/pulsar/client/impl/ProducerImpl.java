@@ -2017,7 +2017,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (op.msg != null && isBatchMessagingEnabled()) {
                 batchMessageAndSend();
             }
-            if (checkMaxMessageSize(op)) {
+            if (isMessageSizeExceeded(op)) {
                 return;
             }
             pendingMessages.add(op);
@@ -2087,7 +2087,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (op.cmd == null) {
                 checkState(op.rePopulate != null);
                 op.rePopulate.run();
-                if (checkMaxMessageSize(op)) {
+                if (isMessageSizeExceeded(op)) {
                     continue;
                 }
             }
@@ -2116,9 +2116,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     /**
-     *  Check final message size for non-batch and non-chunked messages only.
+     *  Check if final message size for non-batch and non-chunked messages is larger than max message size.
      */
-    public boolean checkMaxMessageSize(OpSendMsg op) {
+    public boolean isMessageSizeExceeded(OpSendMsg op) {
         if (op.msg != null && op.totalChunks <= 1) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
             if (messageSize > ClientCnx.getMaxMessageSize()) {
