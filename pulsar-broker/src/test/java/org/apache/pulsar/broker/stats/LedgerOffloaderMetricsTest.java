@@ -18,11 +18,17 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import com.google.common.collect.Multimap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.Queue;
+import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
@@ -39,13 +45,10 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.junit.Assert;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.*;
 
 public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
@@ -191,7 +194,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
                 ManagedLedgerConfig config = Mockito.mock(ManagedLedgerConfig.class);
                 doReturn(config).when(ledgerM).getConfig();
                 doReturn(offloader).when(config).getLedgerOffloader();
-                when(ledgerM.getName()).thenAnswer((Answer<String>) invocationOnMock -> queue.poll());
+                Mockito.when(ledgerM.getName()).thenAnswer((Answer<String>) invocationOnMock -> queue.poll());
                 Mockito.when(offloader.getStats()).thenReturn(mbean);
 
                 mbean.recordOffloadError(topicName);
