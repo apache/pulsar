@@ -779,11 +779,20 @@ public class TransactionTest extends TransactionTestBase {
                 .build()
                 .get();
 
-        transaction.commit();
+        transaction.commit().get();
 
         Field field = TransactionImpl.class.getDeclaredField("timeout");
         field.setAccessible(true);
         Timeout timeout = (Timeout) field.get(transaction);
+        Assert.assertTrue(timeout.isCancelled());
+
+        transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.abort().get();
+        timeout = (Timeout) field.get(transaction);
         Assert.assertTrue(timeout.isCancelled());
     }
 }
