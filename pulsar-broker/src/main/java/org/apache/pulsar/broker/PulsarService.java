@@ -340,7 +340,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
         return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
+                        .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
                         .configFilePath(config.getMetadataStoreConfigPath())
                         .batchingEnabled(config.isMetadataStoreBatchingEnabled())
@@ -636,7 +636,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 shouldShutdownConfigurationMetadataStore = false;
             }
             pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
-                    config.getZooKeeperOperationTimeoutSeconds());
+                    config.getMetadataStoreOperationTimeoutSeconds());
 
             pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
 
@@ -930,7 +930,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
         return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
+                        .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
                         .configFilePath(config.getMetadataStoreConfigPath())
                         .batchingEnabled(config.isMetadataStoreBatchingEnabled())
@@ -1080,7 +1080,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             long topicLoadStart = System.nanoTime();
 
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)
-                    .get(config.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
+                    .get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
@@ -1402,7 +1402,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
                 // zk-operation timeout
-                builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 this.adminClient = builder.build();
                 LOG.info("created admin with url {} ", adminApiUrl);
@@ -1609,9 +1609,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
         workerConfig.setConfigurationMetadataStoreUrl(brokerConfig.getConfigurationMetadataStoreUrl());
-        workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
-        workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
-
+        workerConfig.setMetadataStoreSessionTimeoutMillis(brokerConfig.getMetadataStoreSessionTimeoutMillis());
+        workerConfig.setMetadataStoreOperationTimeoutSeconds(brokerConfig.getMetadataStoreOperationTimeoutSeconds());
+        workerConfig.setMetadataStoreCacheExpirySeconds(brokerConfig.getMetadataStoreCacheExpirySeconds());
         workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
         workerConfig.setTlsEnabled(brokerConfig.isTlsEnabled());
         workerConfig.setTlsEnableHostnameVerification(false);
