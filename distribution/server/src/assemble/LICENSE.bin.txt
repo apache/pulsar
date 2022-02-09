@@ -512,6 +512,8 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-3.5.3.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-jute-3.5.9.jar
+  * IPAddress
+    - com.github.seancfoley-ipaddress-5.3.3.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library

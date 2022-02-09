@@ -38,6 +38,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -80,6 +81,15 @@ public class BrokerDiscoveryProvider implements Closeable {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Access the list of available brokers.
+     * @return the list of available brokers
+     * @throws PulsarServerException
+     */
+    public List<? extends ServiceLookupData> getAvailableBrokers() throws PulsarServerException {
+        return localZkCache.getAvailableBrokers();
     }
 
     /**
