@@ -211,6 +211,22 @@ public class SourceApiV3ResourceTest {
         mockStaticContexts.clear();
     }
 
+    private void mockWorkerUtils() {
+        mockStatic(WorkerUtils.class,
+                ctx -> {
+                    ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+                });
+    }
+
+    private void mockWorkerUtils(Consumer<MockedStatic<WorkerUtils>> consumer) {
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            if (consumer != null) {
+                consumer.accept(ctx);
+            }
+        });
+    }
+
     //
     // Register Functions
     //
@@ -539,17 +555,16 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSourceUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class,
-                    ctx -> {
-                        ctx.when(() ->
-                                        WorkerUtils.uploadFileToBookkeeper(
-                                                anyString(),
-                                                any(File.class),
-                                                any(Namespace.class)))
-                                .thenThrow(new IOException("upload failure"));
+            mockWorkerUtils(ctx -> {
+                ctx.when(() ->
+                                WorkerUtils.uploadFileToBookkeeper(
+                                        anyString(),
+                                        any(File.class),
+                                        any(Namespace.class)))
+                        .thenThrow(new IOException("upload failure"));
 
-                        ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-                    });
+                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
             when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
@@ -564,15 +579,14 @@ public class SourceApiV3ResourceTest {
 
     @Test
     public void testRegisterSourceSuccess() throws Exception {
-        mockStatic(WorkerUtils.class,
-                ctx -> {
-                    ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
         registerDefaultSource();
     }
+
+
 
     @Test(timeOut = 20000)
     public void testRegisterSourceSuccessWithPackageName() throws IOException {
@@ -594,10 +608,7 @@ public class SourceApiV3ResourceTest {
     @Test
     public void testRegisterSourceConflictingFields() throws Exception {
 
-        mockStatic(WorkerUtils.class,
-                ctx -> {
-                    ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-                });
+        mockWorkerUtils();
 
         String actualTenant = "DIFFERENT_TENANT";
         String actualNamespace = "DIFFERENT_NAMESPACE";
@@ -631,10 +642,7 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testRegisterSourceFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class,
-                    ctx -> {
-                        ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-                    });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -652,10 +660,7 @@ public class SourceApiV3ResourceTest {
             + "interrupted")
     public void testRegisterSourceInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class,
-                    ctx -> {
-                        ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-                    });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
@@ -781,9 +786,7 @@ public class SourceApiV3ResourceTest {
             + "positive number")
     public void testUpdateSourceNegativeParallelism() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -805,9 +808,7 @@ public class SourceApiV3ResourceTest {
     @Test
     public void testUpdateSourceChangedParallelism() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -828,9 +829,7 @@ public class SourceApiV3ResourceTest {
 
     @Test
     public void testUpdateSourceChangedTopic() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         testUpdateSourceMissingArguments(
                 tenant,
@@ -849,9 +848,7 @@ public class SourceApiV3ResourceTest {
             + "positive number")
     public void testUpdateSourceZeroParallelism() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -1000,7 +997,7 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSourceUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
+            mockWorkerUtils(ctx -> {
                 ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
                         anyString(),
                         any(File.class),
@@ -1018,9 +1015,7 @@ public class SourceApiV3ResourceTest {
 
     @Test
     public void testUpdateSourceSuccess() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -1074,9 +1069,7 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testUpdateSourceFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -1094,9 +1087,7 @@ public class SourceApiV3ResourceTest {
             "interrupted")
     public void testUpdateSourceInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 

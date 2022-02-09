@@ -223,6 +223,19 @@ public class SinkApiV3ResourceTest {
         final MockedStatic<T> mockedStatic = mockStaticContexts.computeIfAbsent(classStatic.getName(), name -> Mockito.mockStatic(classStatic));
         consumer.accept(mockedStatic);
     }
+    private void mockWorkerUtils() {
+        mockWorkerUtils(null);
+    }
+
+    private void mockWorkerUtils(Consumer<MockedStatic<WorkerUtils>> consumer) {
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            if (consumer != null) {
+                consumer.accept(ctx);
+            }
+        });
+    }
+
 
     //
     // Register Functions
@@ -569,13 +582,12 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSinkUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
-                        anyString(),
-                        any(File.class),
-                        any(Namespace.class)))
-                        .thenThrow(new IOException("upload failure"));
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            mockWorkerUtils(ctx -> {
+                    ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                            anyString(),
+                            any(File.class),
+                            any(Namespace.class)))
+                            .thenThrow(new IOException("upload failure"));
             });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
@@ -589,9 +601,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testRegisterSinkSuccess() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -600,9 +610,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testRegisterSinkConflictingFields() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         String actualTenant = "DIFFERENT_TENANT";
         String actualNamespace = "DIFFERENT_NAMESPACE";
@@ -635,9 +643,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
     public void testRegisterSinkFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -655,9 +661,7 @@ public class SinkApiV3ResourceTest {
             + "interrupted")
     public void testRegisterSinkInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
@@ -752,9 +756,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSinkMissingPackage() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateSinkMissingArguments(
                     tenant,
@@ -775,9 +777,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSinkMissingInputs() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateSinkMissingArguments(
                     tenant,
@@ -798,9 +798,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateSinkDifferentInputs() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             Map<String, String> inputTopics = new HashMap<>();
             inputTopics.put("DifferentTopic", DEFAULT_SERDE);
@@ -822,9 +820,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testUpdateSinkDifferentParallelism() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         testUpdateSinkMissingArguments(
                 tenant,
@@ -970,12 +966,12 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSinkUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
+            mockWorkerUtils(ctx -> {
                 ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
                 ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
-                        anyString(),
-                        any(File.class),
-                        any(Namespace.class)))
+                                anyString(),
+                                any(File.class),
+                                any(Namespace.class)))
                         .thenThrow(new IOException("upload failure"));
             });
 
@@ -990,9 +986,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testUpdateSinkSuccess() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -1050,9 +1044,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
     public void testUpdateSinkFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
             doThrow(new IllegalArgumentException("sink failed to register"))
@@ -1088,9 +1080,7 @@ public class SinkApiV3ResourceTest {
             + "interrupted")
     public void testUpdateSinkInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 

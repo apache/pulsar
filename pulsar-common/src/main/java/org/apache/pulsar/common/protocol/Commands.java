@@ -180,7 +180,7 @@ public class Commands {
     private static void setFeatureFlags(FeatureFlags flags) {
         flags.setSupportsAuthRefresh(true);
         flags.setSupportsBrokerEntryMetadata(true);
-        // flags.setSupportsPartialProducer(true);
+        flags.setSupportsPartialProducer(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -578,7 +578,7 @@ public class Commands {
                 keyValue.setValue(value);
                 keyValues.add(keyValue);
             });
-            // subscribe.addAllSubscriptionProperties(keyValues);
+            subscribe.addAllSubscriptionProperties(keyValues);
         }
 
         if (keySharedPolicy != null) {

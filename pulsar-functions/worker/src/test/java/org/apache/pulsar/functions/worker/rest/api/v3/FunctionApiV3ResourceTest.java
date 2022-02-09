@@ -217,6 +217,19 @@ public class FunctionApiV3ResourceTest {
         consumer.accept(mockedStatic);
     }
 
+    private void mockWorkerUtils() {
+        mockWorkerUtils(null);
+    }
+
+    private void mockWorkerUtils(Consumer<MockedStatic<WorkerUtils>> consumer) {
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
+            if (consumer != null) {
+                consumer.accept(ctx);
+            }
+        });
+    }
+
     //
     // Register Functions
     //
@@ -607,7 +620,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
+            mockWorkerUtils(ctx -> {
                 ctx.when(() -> {
                             WorkerUtils.uploadFileToBookkeeper(
                                     anyString(),
@@ -615,7 +628,6 @@ public class FunctionApiV3ResourceTest {
                                     any(Namespace.class));
                         }
                 ).thenThrow(new IOException("upload failure"));;
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
             });
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
@@ -630,9 +642,7 @@ public class FunctionApiV3ResourceTest {
     @Test
     public void testRegisterFunctionSuccess() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -685,9 +695,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testRegisterFunctionFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -704,9 +712,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testRegisterFunctionInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -790,9 +796,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingPackage() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
             testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -814,9 +818,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingInputTopic() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
                     tenant,
@@ -839,9 +841,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateFunctionMissingClassName() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
                 tenant,
@@ -864,9 +864,7 @@ public class FunctionApiV3ResourceTest {
     @Test
     public void testUpdateFunctionChangedParallelism() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
                 tenant,
@@ -888,9 +886,7 @@ public class FunctionApiV3ResourceTest {
 
     @Test
     public void testUpdateFunctionChangedInputs() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         testUpdateFunctionMissingArguments(
             tenant,
@@ -909,9 +905,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testUpdateFunctionChangedOutput() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             Map<String, String> someOtherInput = new HashMap<>();
             someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
@@ -1032,7 +1026,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateFunctionUploadFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
+            mockWorkerUtils(ctx -> {
                 ctx.when(() -> {
                     WorkerUtils.uploadFileToBookkeeper(
                             anyString(),
@@ -1054,9 +1048,7 @@ public class FunctionApiV3ResourceTest {
 
     @Test
     public void testUpdateFunctionSuccess() throws Exception {
-        mockStatic(WorkerUtils.class, ctx -> {
-            ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-        });
+        mockWorkerUtils();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1098,9 +1090,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -1117,9 +1107,7 @@ public class FunctionApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registeration interrupted")
     public void testUpdateFunctionInterrupted() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {
-                ctx.when(() -> WorkerUtils.dumpToTmpFile(any())).thenCallRealMethod();
-            });
+            mockWorkerUtils();
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
