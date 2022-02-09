@@ -141,8 +141,8 @@ public class CmdBrokers extends CmdBase {
     private class ShutDownBrokerGracefully extends CliCommand {
 
         @Parameter(names = {"--max-concurrent-unload-per-sec", "-m"},
-                description = "Max concurrent unload per second, " +
-                        "if the value absent(value=0) means no concurrent limitation")
+                description = "Max concurrent unload per second, "
+                        + "if the value absent(value=0) means no concurrent limitation")
         private int maxConcurrentUnloadPerSec;
 
         @Parameter(names = {"--forced-terminate-topic", "-f"}, description = "Force terminate all topics on Broker")
