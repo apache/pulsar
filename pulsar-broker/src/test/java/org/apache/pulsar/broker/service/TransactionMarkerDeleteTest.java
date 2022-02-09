@@ -149,7 +149,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
 
         txn4.abort().get();
 
-        // maxReadPosition move to txn4 abort marker, so entryId is msgId4.getEntryId() + 1
+        // maxReadPosition move to txn4 abort marker, so entryId is msgId4.getEntryId() + 2
         Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getInternalStats(topicName)
                 .cursors.get(subName).markDeletePosition, PositionImpl.get(msgId4.getLedgerId(),
                 msgId4.getEntryId() + 2).toString()));
