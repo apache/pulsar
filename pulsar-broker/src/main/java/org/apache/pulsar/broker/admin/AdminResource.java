@@ -222,29 +222,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected CompletableFuture<Void> validateNamespaceNameAsync(String tenant, String namespace) {
-        try {
-            this.namespaceName = NamespaceName.get(tenant, namespace);
-            return CompletableFuture.completedFuture(null);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
-            return FutureUtil
-                    .failedFuture(new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid"));
-        }
-    }
-
-    @Deprecated
-    protected CompletableFuture<Void> validateNamespaceNameAsync(String property, String cluster, String namespace) {
-        try {
-            this.namespaceName = NamespaceName.get(property, cluster, namespace);
-            return CompletableFuture.completedFuture(null);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
-            return FutureUtil
-                    .failedFuture(new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid"));
-        }
-    }
-
     protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
