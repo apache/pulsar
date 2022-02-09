@@ -149,6 +149,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final ConnectionHandler connectionHandler;
 
+    // A batch timer task is only ever scheduled when a message is added to a message batch without also triggering a
+    // flush for that batch. When a batch is sent, we attempt to cancel the batch timer so that we can restart it when
+    // the next message is added to an incomplete batch. The goal is to optimize batch density while also ensuring that
+    // a producer never waits longer than the configured batchingMaxPublishDelayMicros.
+    // Only update from within synchronized block on this producer
     private ScheduledFuture<?> batchTimerTask;
 
     private Optional<Long> topicEpoch = Optional.empty();
@@ -629,6 +634,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         payload.release();
                         if (isBatchFull) {
                             batchMessageAndSend();
+                        } else {
+                            maybeTriggerBatchTimerTask();
                         }
                     }
                     isLastSequenceIdPotentialDuplicated = false;
@@ -1620,29 +1627,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             this.msgIdGenerator = lastSequenceId + 1;
                         }
 
-                        if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
-                            // schedule the first batch message task
-                            batchTimerTask = cnx.ctx().executor()
-                                    .scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
-                                        if (log.isTraceEnabled()) {
-                                            log.trace(
-                                                    "[{}] [{}] Batching the messages from the batch container from "
-                                                            + "timer thread",
-                                                    topic,
-                                                    producerName);
-                                        }
-                                        // semaphore acquired when message was enqueued to container
-                                        synchronized (ProducerImpl.this) {
-                                            // If it's closing/closed we need to ignore the send batch timer and not
-                                            // schedule next timeout.
-                                            if (getState() == State.Closing || getState() == State.Closed) {
-                                                return;
-                                            }
-
-                                            batchMessageAndSend();
-                                        }
-                                    }), 0, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
-                        }
                         resendMessages(cnx, epoch);
                     }
                 }).exceptionally((e) -> {
@@ -1769,10 +1753,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sendTimeout = null;
         }
 
-        ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
-        if (batchTimerTask != null) {
-            batchTimerTask.cancel(false);
-            this.batchTimerTask = null;
+        synchronized (this) {
+            ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
+            if (batchTimerTask != null) {
+                batchTimerTask.cancel(false);
+                this.batchTimerTask = null;
+            }
         }
 
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
@@ -1995,8 +1981,34 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
+    // must acquire semaphore before calling
+    private void maybeTriggerBatchTimerTask() {
+        if (this.batchTimerTask == null) {
+            this.batchTimerTask = cnx().ctx().executor()
+                    .schedule(catchingAndLoggingThrowables(() -> {
+                        if (log.isTraceEnabled()) {
+                            log.trace("[{}] [{}] Batching the messages from the batch container from timer thread",
+                                    topic, producerName);
+                        }
+                        // No need to prematurely cut batches if we're not ready to send them.
+                        if (getState() != State.Ready) {
+                            return;
+                        }
+                        // semaphore acquired when message was enqueued to container
+                        synchronized (ProducerImpl.this) {
+                            batchMessageAndSend();
+                        }
+                    }), conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
+        }
+    }
+
     // must acquire semaphore before enqueuing
     private void batchMessageAndSend() {
+        if (this.batchTimerTask != null) {
+            // Cancel batch timer task since we're sending the batch now. (Don't interrupt; it could be this future.)
+            this.batchTimerTask.cancel(false);
+            this.batchTimerTask = null;
+        }
         if (log.isTraceEnabled()) {
             log.trace("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
                     batchMessageContainer.getNumMessagesInBatch());
