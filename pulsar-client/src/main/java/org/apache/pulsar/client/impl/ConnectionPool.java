@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.netty.ChannelFutures.toCompletableFuture;
-
 import com.google.common.annotations.VisibleForTesting;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
@@ -30,9 +28,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
-
-import java.io.Closeable;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -44,9 +39,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
@@ -57,7 +50,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConnectionPool implements Closeable {
+public class ConnectionPool implements AutoCloseable {
     protected final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
 
     private final Bootstrap bootstrap;
@@ -223,7 +216,7 @@ public class ConnectionPool implements Closeable {
     }
 
     /**
-     * Resolve DNS asynchronously and attempt to connect to any IP address returned by DNS server
+     * Resolve DNS asynchronously and attempt to connect to any IP address returned by DNS server.
      */
     private CompletableFuture<Channel> createConnection(InetSocketAddress unresolvedAddress) {
         int port;
@@ -248,31 +241,32 @@ public class ConnectionPool implements Closeable {
     }
 
     /**
-     * Try to connect to a sequence of IP addresses until a successfull connection can be made, or fail if no address is
-     * working
+     * Try to connect to a sequence of IP addresses until a successful connection can be made, or fail if no
+     * address is working.
      */
-    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetAddress> unresolvedAddresses, int port, InetSocketAddress sniHost) {
+    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetAddress> unresolvedAddresses,
+                                                                  int port,
+                                                                  InetSocketAddress sniHost) {
         CompletableFuture<Channel> future = new CompletableFuture<>();
 
-        connectToAddress(unresolvedAddresses.next(), port, sniHost).thenAccept(channel -> {
-            // Successfully connected to server
-            future.complete(channel);
-        }).exceptionally(exception -> {
-            if (unresolvedAddresses.hasNext()) {
-                // Try next IP address
-                connectToResolvedAddresses(unresolvedAddresses, port, sniHost).thenAccept(channel -> {
-                    future.complete(channel);
-                }).exceptionally(ex -> {
-                    // This is already unwinding the recursive call
-                    future.completeExceptionally(ex);
+        // Successfully connected to server
+        connectToAddress(unresolvedAddresses.next(), port, sniHost)
+                .thenAccept(future::complete)
+                .exceptionally(exception -> {
+                    if (unresolvedAddresses.hasNext()) {
+                        // Try next IP address
+                        connectToResolvedAddresses(unresolvedAddresses, port, sniHost).thenAccept(future::complete)
+                                .exceptionally(ex -> {
+                                    // This is already unwinding the recursive call
+                                    future.completeExceptionally(ex);
+                                    return null;
+                                });
+                    } else {
+                        // Failed to connect to any IP address
+                        future.completeExceptionally(exception);
+                    }
                     return null;
                 });
-            } else {
-                // Failed to connect to any IP address
-                future.completeExceptionally(exception);
-            }
-            return null;
-        });
 
         return future;
     }
@@ -291,7 +285,7 @@ public class ConnectionPool implements Closeable {
     }
 
     /**
-     * Attempt to establish a TCP connection to an already resolved single IP address
+     * Attempt to establish a TCP connection to an already resolved single IP address.
      */
     private CompletableFuture<Channel> connectToAddress(InetAddress ipAddress, int port, InetSocketAddress sniHost) {
         InetSocketAddress remoteAddress = new InetSocketAddress(ipAddress, port);
@@ -309,7 +303,7 @@ public class ConnectionPool implements Closeable {
         if (maxConnectionsPerHosts == 0) {
             //Disable pooling
             if (cnx.channel().isActive()) {
-                if(log.isDebugEnabled()) {
+                if (log.isDebugEnabled()) {
                     log.debug("close connection due to pooling disabled.");
                 }
                 cnx.close();
@@ -318,12 +312,8 @@ public class ConnectionPool implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
-        try {
-            eventLoopGroup.shutdownGracefully(0, 10, TimeUnit.SECONDS).await();
-        } catch (InterruptedException e) {
-            log.warn("EventLoopGroup shutdown was interrupted", e);
-        }
+    public void close() throws Exception {
+        closeAllConnections();
         dnsResolver.close();
     }
 
