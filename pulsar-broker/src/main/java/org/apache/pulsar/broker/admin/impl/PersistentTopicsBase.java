@@ -41,6 +41,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -546,7 +547,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative,
                                                                       boolean checkAllowAutoCreation) {
-        return internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation).join();
+        try {
+            return internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
+                    .get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get topic metadata");
+        }
     }
 
     protected CompletableFuture<PartitionedTopicMetadata> internalGetPartitionedMetadataAsync(

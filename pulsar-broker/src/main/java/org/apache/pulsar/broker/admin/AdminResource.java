@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -426,7 +428,12 @@ public abstract class AdminResource extends PulsarWebResource {
     protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
                                                                    boolean authoritative,
                                                                    boolean checkAllowAutoCreation) {
-        return getPartitionedTopicMetadataAsync(topicName, authoritative, checkAllowAutoCreation).join();
+        try {
+            return getPartitionedTopicMetadataAsync(topicName, authoritative, checkAllowAutoCreation)
+                    .get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get topic metadata");
+        }
     }
 
     protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
@@ -436,9 +443,7 @@ public abstract class AdminResource extends PulsarWebResource {
         // producer/consumer
         return validateClusterOwnershipAsync(topicName.getCluster())
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
-                .thenRun(() -> {
-                    validateTopicOperation(topicName, TopicOperation.LOOKUP);
-                })
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
