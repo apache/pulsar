@@ -143,17 +143,18 @@ public class BrokersBase extends AdminResource {
     public void getOwnedNamespaces(
             @Suspended AsyncResponse asyncResponse,
             @PathParam("clusterName") String cluster,
-            @PathParam("broker-webserviceurl") String broker) throws Exception {
+            @PathParam("broker-webserviceurl") String broker){
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenAccept(__ -> validateBrokerName(broker))
                 .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
                 .thenAccept(ownedNamespaces -> {
-                    log.info("[{}] Successfully to get the owned namespaces.", clientAppId());
+                    LOG.info("[{}] Successfully to get the owned namespaces.", clientAppId());
                     asyncResponse.resume(ownedNamespaces);
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get the owned namespaces.", clientAppId(), ex);
-                    return handleCommonRestAsyncException(asyncResponse, ex);
+                    LOG.error("[{}] Failed to get the owned namespaces.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
                 });
     }
 
