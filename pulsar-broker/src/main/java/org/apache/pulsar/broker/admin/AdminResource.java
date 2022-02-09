@@ -755,7 +755,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return future;
     }
 
-    protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
+    protected static void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
         if (throwable instanceof WebApplicationException) {
             asyncResponse.resume(throwable);
         } else if (throwable instanceof BrokerServiceException.NotAllowedException) {

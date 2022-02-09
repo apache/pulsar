@@ -309,7 +309,14 @@ public class PersistentTopics extends PersistentTopicsBase {
                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                             @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalDeleteTopic(asyncResponse, authoritative, force, deleteSchema);
+        internalDeleteTopicAsync(authoritative, force, deleteSchema)
+                .thenRun(() -> {
+                    log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(e -> {
+                    handleDeleteTopicException(asyncResponse, e, force);
+                    return null;
+                });
     }
 
     @GET
