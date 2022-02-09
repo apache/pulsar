@@ -470,7 +470,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // (2) try to update non-dynamic field
         try {
-            admin.brokers().updateDynamicConfiguration("zookeeperServers", "test-zk:1234");
+            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }

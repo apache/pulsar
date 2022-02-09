@@ -151,8 +151,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setManagedLedgerCacheSizeMB(8);
             conf.setActiveConsumerFailoverDelayTimeMillis(0);
             conf.setDefaultNumberOfNamespaceBundles(1);
-            conf.setZookeeperServers("localhost:2181");
-            conf.setConfigurationStoreServers("localhost:3181");
+            conf.setMetadataStoreUrl("zk:localhost:2181");
+            conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
             conf.setAllowAutoTopicCreationType("non-partitioned");
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
 
