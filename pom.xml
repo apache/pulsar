@@ -207,6 +207,7 @@ flexible messaging model and an intuitive client API.</description>
     <jetcd.version>0.5.11</jetcd.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
+    <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
