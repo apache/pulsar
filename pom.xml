@@ -92,7 +92,6 @@ flexible messaging model and an intuitive client API.</description>
     <test.additional.args></test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
-    <pulsar.basedir>/Users/liuweiming/code/idea/apache/lwm/pulsar</pulsar.basedir>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
