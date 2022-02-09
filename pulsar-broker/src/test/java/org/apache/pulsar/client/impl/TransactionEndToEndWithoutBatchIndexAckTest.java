@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -36,4 +37,10 @@ public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndT
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }
 
+    // TODO need to fix which using transaction with individual ack for failover subscription
+    @Test
+    public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
+        txnAckTest(true, 200, SubscriptionType.Failover);
+    }
 }
