@@ -25,14 +25,10 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.Set;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;

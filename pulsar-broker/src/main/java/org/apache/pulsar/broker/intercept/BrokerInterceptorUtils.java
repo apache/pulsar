@@ -28,7 +28,6 @@ import java.nio.file.Paths;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
