@@ -324,7 +324,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txnAckTest(true, 200, SubscriptionType.Failover);
     }
 
-    private void txnAckTest(boolean batchEnable, int maxBatchSize,
+    protected void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 
