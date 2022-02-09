@@ -550,7 +550,11 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             return internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
                     .get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            }
             throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get topic metadata");
         }
     }
