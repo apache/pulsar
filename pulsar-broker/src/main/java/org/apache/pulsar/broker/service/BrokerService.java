@@ -59,6 +59,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -207,6 +208,7 @@ public class BrokerService implements Closeable {
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
     private final OrderedExecutor topicOrderedExecutor;
+    private final ExecutorService metadataListenerExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
     private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap =
@@ -295,6 +297,8 @@ public class BrokerService implements Closeable {
         this.topicOrderedExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
                 .name("broker-topic-workers").build();
+        this.metadataListenerExecutor = Executors
+                .newSingleThreadExecutor(new DefaultThreadFactory("pulsar-broker-listener"));
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
@@ -1929,7 +1933,7 @@ public class BrokerService implements Closeable {
 
     private void handlePoliciesUpdates(NamespaceName namespace) {
         pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
-                .thenAccept(optPolicies -> {
+                .thenAcceptAsync(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         return;
                     }
@@ -1954,12 +1958,12 @@ public class BrokerService implements Closeable {
                     // sometimes, some brokers don't receive policies-update watch and miss to remove
                     // replication-cluster and still own the bundle. That can cause data-loss for TODO: git-issue
                     unloadDeletedReplNamespace(policies, namespace);
-                });
+                }, metadataListenerExecutor);
     }
 
     private void handleDynamicConfigurationUpdates() {
         pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfigurationAsync()
-                .thenAccept(optMap -> {
+                .thenAcceptAsync(optMap -> {
                     if (!optMap.isPresent()) {
                         return;
                     }
@@ -1984,7 +1988,7 @@ public class BrokerService implements Closeable {
                             log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
                         }
                     });
-                });
+                }, metadataListenerExecutor);
     }
 
     /**
