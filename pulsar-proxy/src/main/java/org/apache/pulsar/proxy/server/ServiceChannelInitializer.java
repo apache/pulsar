@@ -24,6 +24,8 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -44,6 +46,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private final ProxyService proxyService;
     private final boolean enableTls;
     private final boolean tlsEnabledWithKeyStore;
+    private final int brokerProxyReadTimeoutMs;
 
     private SslContextAutoRefreshBuilder<SslContext> serverSslCtxRefresher;
     private SslContextAutoRefreshBuilder<SslContext> clientSslCtxRefresher;
@@ -56,6 +59,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.proxyService = proxyService;
         this.enableTls = enableTls;
         this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
+        this.brokerProxyReadTimeoutMs = serviceConfig.getBrokerProxyReadTimeoutMs();
 
         if (enableTls) {
             if (tlsEnabledWithKeyStore) {
@@ -125,6 +129,10 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         } else if (this.tlsEnabledWithKeyStore && serverSSLContextAutoRefreshBuilder != null) {
             ch.pipeline().addLast(TLS_HANDLER,
                     new SslHandler(serverSSLContextAutoRefreshBuilder.get().createSSLEngine()));
+        }
+        if (brokerProxyReadTimeoutMs > 0) {
+            ch.pipeline().addLast("readTimeoutHandler",
+                    new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
         }
         if (proxyService.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());

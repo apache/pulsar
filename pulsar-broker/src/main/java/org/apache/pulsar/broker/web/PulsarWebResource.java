@@ -39,6 +39,7 @@ import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -944,23 +945,44 @@ public abstract class PulsarWebResource {
     public void validateNamespacePolicyOperation(NamespaceName namespaceName,
                                                  PolicyName policy,
                                                  PolicyOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled()
-            && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
-            }
-
-            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowNamespacePolicyOperation(namespaceName, policy, operation,
-                        originalPrincipal(), clientAppId(), clientAuthData());
-
-            if (!isAuthorized) {
-                throw new RestException(Status.FORBIDDEN,
-                        String.format("Unauthorized to validateNamespacePolicyOperation for"
-                                        + " operation [%s] on namespace [%s] on policy [%s]",
-                                operation.toString(), namespaceName, policy.toString()));
+        try {
+            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
+            validateNamespacePolicyOperationAsync(namespaceName, policy, operation).get(timeout, SECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RestException(e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof WebApplicationException){
+                throw (WebApplicationException) cause;
+            } else {
+                throw new RestException(cause);
             }
         }
+    }
+
+    public CompletableFuture<Void> validateNamespacePolicyOperationAsync(NamespaceName namespaceName,
+                                                 PolicyName policy,
+                                                 PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                return FutureUtil.failedFuture(
+                        new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
+            }
+
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespacePolicyOperationAsync(namespaceName, policy, operation,
+                            originalPrincipal(), clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.FORBIDDEN,
+                                    String.format("Unauthorized to validateNamespacePolicyOperation for"
+                                                    + " operation [%s] on namespace [%s] on policy [%s]",
+                                            operation.toString(), namespaceName, policy.toString()));
+                        }
+                    });
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     protected PulsarResources getPulsarResources() {
@@ -1165,4 +1187,13 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected Void handleCommonRestAsyncException(AsyncResponse asyncResponse, Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        if (realCause instanceof WebApplicationException) {
+            asyncResponse.resume(realCause);
+        } else {
+            asyncResponse.resume(new RestException(realCause));
+        }
+        return null;
+    }
 }

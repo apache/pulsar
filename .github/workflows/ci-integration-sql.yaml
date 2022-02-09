@@ -28,6 +28,7 @@ on:
 
 env:
   MAVEN_OPTS: -Xmx768m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+  UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
   MALLOC_ARENA_MAX: "1"
 
 jobs:
