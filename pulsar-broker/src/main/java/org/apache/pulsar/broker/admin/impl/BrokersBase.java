@@ -184,14 +184,25 @@ public class BrokersBase extends AdminResource {
     @DELETE
     @Path("/configuration/{configName}")
     @ApiOperation(value =
-            "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+            "Delete dynamic ServiceConfiguration into metadata only."
+                    + " This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    public void deleteDynamicConfiguration(@PathParam("configName") String configName) throws Exception {
-        validateSuperUserAccess();
-        deleteDynamicConfigurationOnZk(configName);
+    public void deleteDynamicConfiguration(
+            @Suspended AsyncResponse asyncResponse,
+            @PathParam("configName") String configName) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> internalDeleteDynamicConfigurationOnMetadataAsync(configName))
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully to delete dynamic configuration {}", clientAppId(), configName);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Failed to delete dynamic configuration {}", clientAppId(), configName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -379,27 +390,16 @@ public class BrokersBase extends AdminResource {
                 });
     }
 
-    private synchronized void deleteDynamicConfigurationOnZk(String configName) {
-        try {
-            if (BrokerService.isDynamicConfiguration(configName)) {
-                dynamicConfigurationResources().setDynamicConfiguration(old -> {
-                    if (old != null) {
-                        old.remove(configName);
-                    }
-                    return old;
-                });
-                LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
-            } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Can't update non-dynamic configuration {}", clientAppId(), configName);
+    private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
+        if (!BrokerService.isDynamicConfiguration(configName)) {
+            throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
+        } else {
+            return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
+                if (old != null) {
+                    old.remove(configName);
                 }
-                throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
-            }
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception ie) {
-            LOG.error("[{}] Failed to update configuration {}, {}", clientAppId(), configName, ie.getMessage(), ie);
-            throw new RestException(ie);
+                return old;
+            });
         }
     }
 
