@@ -95,9 +95,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                                         @PathParam("namespace") String namespace) {
         try {
             validateNamespaceName(property, cluster, namespace);
-        } catch (RestException ex) {
-            // the namespace name validate fail.
-            asyncResponse.resume(ex);
+        } catch (Exception ex) {
+            // validate namespace fail.
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return;
         }
         internalGetPartitionedTopicList()
