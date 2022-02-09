@@ -40,6 +40,10 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
@@ -446,5 +450,67 @@ public class BrokersBase extends PulsarWebResource {
     public String version() throws Exception {
         return PulsarVersion.getVersion();
     }
+
+    /**
+     * dynamically update log4j2 logger level in runtime.
+     *
+     * @param targetClassName
+     * @param targetLevel
+     */
+    private synchronized void updateLoggerLevel(String targetClassName, String targetLevel) {
+        try {
+            String className;
+            if (targetClassName.trim().equalsIgnoreCase("ROOT")) {
+                className = LogManager.ROOT_LOGGER_NAME;
+            } else {
+                try {
+                    className = targetClassName.trim();
+                    // Check if class name valid
+                    Class.forName(className);
+                } catch (ClassNotFoundException e) {
+                    // Logger not found
+                    throw new RestException(Status.NOT_FOUND, "Logger not found.");
+                }
+            }
+
+            Level level;
+            try {
+                level = Level.valueOf(targetLevel);
+            } catch (IllegalArgumentException e) {
+                // Level not found
+                throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
+            }
+
+            if (level != null) {
+                Level originLevel = LogManager.getLogger(className).getLevel();
+                Configurator.setAllLevels(className, level);
+                LOG.info("[{}] Successfully update log level for className: {} ({} -> {}.)", clientAppId(), className, originLevel, level);
+            } else {
+                LOG.error("[{}] Failed to update log level for {}", clientAppId(), className);
+            }
+        } catch (RestException re) {
+            LOG.error("[{}] Failed to update log level for className: {}, targetLevel: {} due to rest exception.", clientAppId(), targetClassName, targetLevel);
+            throw re;
+        } catch (Exception ie) {
+            LOG.error("[{}] Failed to update log level for {} to {} due to internal error.",
+              clientAppId(), targetClassName, targetLevel);
+            throw new RestException(ie);
+        }
+    }
+
+    @POST
+    @Path("/log4j/{classname}/{level}")
+    @ApiOperation(value =
+      "update dynamic log4j2 logger level in runtime by classname. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = {
+      @ApiResponse(code = 204, message = "class logger level updated successfully"),
+      @ApiResponse(code = 403, message = "You don't have admin permission to update log4j2 logger level."),
+      @ApiResponse(code = 500, message = "Internal server error")})
+    public void updateLoggerLevelDynamically(@PathParam("classname") String classname,
+                                             @PathParam("level") String level) throws Exception {
+        validateSuperUserAccess();
+        updateLoggerLevel(classname, level);
+    }
+
 }
 

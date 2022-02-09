@@ -146,6 +146,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("version"));
         verify(mockBrokers).getVersion();
+
+        brokers.run(split("update-logger-level --classname org.apache.pulsar.zookeeper.ZooKeeperCache --level DEBUG"));
+        verify(mockBrokers).updateLoggerLevel("org.apache.pulsar.zookeeper.ZooKeeperCache","DEBUG");
     }
 
     @Test

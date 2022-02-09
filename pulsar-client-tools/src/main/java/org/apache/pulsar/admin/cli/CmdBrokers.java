@@ -157,6 +157,19 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Update dynamic log4j2 logger level in runtime by classname.")
+    private class UpdateLoggerLevelCmd extends CliCommand {
+        @Parameter(names = "--classname", description = "The except class name", required = true)
+        private String classname;
+        @Parameter(names = "--level", description = "The target logger level", required = true)
+        private String level;
+
+        @Override
+        void run() throws Exception {
+            getAdmin().brokers().updateLoggerLevel(classname, level);
+        }
+    }
+
     public CmdBrokers(Supplier<PulsarAdmin> admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
@@ -171,5 +184,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
         jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
         jcommander.addCommand("version", new PulsarVersion());
+        jcommander.addCommand("update-logger-level", new UpdateLoggerLevelCmd());
     }
 }

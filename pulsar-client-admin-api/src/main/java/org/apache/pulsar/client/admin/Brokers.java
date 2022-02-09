@@ -295,4 +295,16 @@ public interface Brokers {
      * @return version of broker.
      */
     String getVersion() throws PulsarAdminException;
+
+    /**
+     * dynamically update log4j2 logger level in runtime.
+     */
+    void updateLoggerLevel(String classname, String level) throws PulsarAdminException;
+
+    /**
+     * Reset logger level dynamically in runtime asynchronously.
+     * @return CompletableFuture
+     */
+    CompletableFuture<Void> updateLoggerLevelAsync(String classname, String level);
+
 }
