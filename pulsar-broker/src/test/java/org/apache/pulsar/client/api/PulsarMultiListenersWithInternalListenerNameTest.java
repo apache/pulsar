@@ -198,9 +198,4 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         }
         super.internalCleanup();
     }
-
-    private static String unresolvedSocketAddressToString(InetSocketAddress address) {
-        return address.getHostString() + ":" + address.getPort();
-    }
-
 }
