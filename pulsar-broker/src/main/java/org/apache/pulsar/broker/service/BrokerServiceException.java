@@ -203,12 +203,6 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class ProducerInitSubAuthorizationException extends BrokerServiceException {
-        public ProducerInitSubAuthorizationException(String msg) {
-            super(msg);
-        }
-    }
-
     public static org.apache.pulsar.common.api.proto.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }
@@ -256,8 +250,6 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
-        } else if (t instanceof ProducerInitSubAuthorizationException) {
-            return ServerError.AuthorizationError;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

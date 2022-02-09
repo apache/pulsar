@@ -1162,8 +1162,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
-            topicName, TopicOperation.PRODUCE
+                topicName, TopicOperation.PRODUCE
         );
+
+        if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
+            isAuthorizedFuture = isAuthorizedFuture.thenCompose(__ ->
+                    isTopicOperationAllowed(topicName, TopicOperation.SUBSCRIBE));
+        }
+
         isAuthorizedFuture.thenApply(isAuthorized -> {
             if (!isAuthorized) {
                 String msg = "Client is not authorized to Produce";
@@ -1247,26 +1253,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                     schemaVersionFuture.thenAccept(schemaVersion -> {
                         topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
-                            CompletableFuture<Subscription> initSubFuture = new CompletableFuture<>();
+                            CompletableFuture<Subscription> createInitSubFuture = new CompletableFuture<>();
                             if (!Strings.isNullOrEmpty(initialSubscriptionName)
                                     && !topic.getSubscriptions().containsKey(initialSubscriptionName)
                                     && topic.isPersistent()) {
-                                initSubFuture = isTopicOperationAllowed(
-                                        topicName, TopicOperation.SUBSCRIBE
-                                ).thenCompose(canSubscribe -> {
-                                    if (!canSubscribe) {
-                                        return FutureUtil.failedFuture(
-                                                new BrokerServiceException.ProducerInitSubAuthorizationException(
-                                                        "Client is not authorized to subscribe."));
-                                    }
-                                    return topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
-                                            false);
-                                });
+                                createInitSubFuture =
+                                        topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
+                                                false);
                             } else {
-                                initSubFuture.complete(null);
+                                createInitSubFuture.complete(null);
                             }
 
-                            initSubFuture.whenComplete((sub, ex) -> {
+                            createInitSubFuture.whenComplete((sub, ex) -> {
                                 if (ex != null) {
                                     String msg =
                                             "Failed to create the initial subscription: " + ex.getCause().getMessage();

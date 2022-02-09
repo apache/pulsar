@@ -552,6 +552,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         final String producerRole = "producer-role";
         final String topic = "persistent://my-property/my-ns/my-topic";
         final String initialSubscriptionName = "init-sub";
+        TopicName tn = TopicName.get(topic);
         Authentication adminAuthentication = new ClientAuthentication("superUser");
         Authentication authenticationInvalidRole = new ClientAuthentication(invalidRole);
         Authentication authenticationProducerRole = new ClientAuthentication(producerRole);
@@ -570,18 +571,19 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
                 .authentication(authenticationInvalidRole).build();
 
-        try{
+        try {
             Producer<byte[]> invalidRoleProducer = ((ProducerBuilderImpl<byte[]>) pulsarClientInvalidRole.newProducer())
                     .initialSubscriptionName(initialSubscriptionName)
                     .topic(topic)
                     .create();
             invalidRoleProducer.close();
             fail("Should not pass");
-        } catch (PulsarClientException.AuthorizationException ex){
+        } catch (PulsarClientException.AuthorizationException ex) {
             // ok
         }
 
-        Assert.assertFalse(admin.topics().getSubscriptions(topic).contains(initialSubscriptionName));
+        // If the producer doesn't have permission to create the init sub, we should also avoid creating the topic.
+        Assert.assertFalse(admin.topics().getList(tn.getNamespace()).contains(tn.getLocalName()));
 
         @Cleanup
         PulsarClient pulsarClientProducerRole = PulsarClient.builder().serviceUrl(lookupUrl)
