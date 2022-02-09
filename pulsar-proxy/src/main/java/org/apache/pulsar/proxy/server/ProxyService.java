@@ -29,6 +29,8 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.resolver.dns.DnsNameResolver;
+import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
@@ -71,6 +73,10 @@ public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
+    @Getter
+    private final DnsNameResolver dnsNameResolver;
+    @Getter
+    private final BrokerProxyValidator brokerProxyValidator;
     private String serviceUrl;
     private String serviceUrlTls;
     private final AuthenticationService authenticationService;
@@ -144,6 +150,15 @@ public class ProxyService implements Closeable {
         this.workerGroup = EventLoopUtil.newEventLoopGroup(proxyConfig.getNumIOThreads(),
                 false, workersThreadFactory);
         this.authenticationService = authenticationService;
+
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(workerGroup.next())
+                .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup));
+        dnsNameResolver = dnsNameResolverBuilder.build();
+
+        brokerProxyValidator = new BrokerProxyValidator(dnsNameResolver.asAddressResolver(),
+                proxyConfig.getBrokerProxyAllowedHostNames(),
+                proxyConfig.getBrokerProxyAllowedIPAddresses(),
+                proxyConfig.getBrokerProxyAllowedTargetPorts());
 
         // Initialize the message protocol handlers
         proxyExtensions = ProxyExtensions.load(proxyConfig);
@@ -273,6 +288,8 @@ public class ProxyService implements Closeable {
     }
 
     public void close() throws IOException {
+        dnsNameResolver.close();
+
         if (discoveryProvider != null) {
             discoveryProvider.close();
         }

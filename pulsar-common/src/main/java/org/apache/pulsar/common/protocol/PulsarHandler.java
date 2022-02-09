@@ -118,7 +118,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
         }
     }
 
-    protected void cancelKeepAliveTask() {
+    public void cancelKeepAliveTask() {
         if (keepAliveTask != null) {
             keepAliveTask.cancel(false);
             keepAliveTask = null;
