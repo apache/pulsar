@@ -146,6 +146,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("version"));
         verify(mockBrokers).getVersion();
+
+        brokers.run(split("shutdown -m 10 -f"));
+        verify(mockBrokers).shutDownBrokerGracefully(10,true);
     }
 
     @Test

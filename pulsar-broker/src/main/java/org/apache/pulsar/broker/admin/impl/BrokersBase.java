@@ -457,6 +457,8 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void shutDownBrokerGracefully(
+            @ApiParam(name = "maxConcurrentUnloadPerSec",
+                    value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
             @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
     ) throws Exception {
