@@ -373,9 +373,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private static final class TokenAuthenticationHttpState implements AuthenticationState {
 
         private final AuthenticationProviderToken provider;
-        private AuthenticationDataSource authenticationDataSource;
-        private Jwt<?, Claims> jwt;
-        private long expiration;
+        private final AuthenticationDataSource authenticationDataSource;
+        private final Jwt<?, Claims> jwt;
+        private final long expiration;
 
         TokenAuthenticationHttpState(AuthenticationProviderToken provider, HttpServletRequest request)
                 throws AuthenticationException {
@@ -407,6 +407,10 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             return authenticationDataSource;
         }
 
+        /**
+         * Here is an explanation of why the null value is returned.
+         * pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationState.java#L49
+         */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             return null;
