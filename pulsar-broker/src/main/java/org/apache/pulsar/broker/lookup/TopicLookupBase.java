@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.lookup;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 import io.netty.buffer.ByteBuf;
@@ -329,14 +328,9 @@ public class TopicLookupBase extends PulsarWebResource {
         return lookupfuture;
     }
 
-    private void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
+    protected void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
         pulsar().getBrokerService().getLookupRequestSemaphore().release();
         asyncResponse.resume(t);
-    }
-
-    private void completeLookupResponseSuccessfully(AsyncResponse asyncResponse, LookupData lookupData) {
-        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        asyncResponse.resume(lookupData);
     }
 
     protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,
