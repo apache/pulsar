@@ -464,12 +464,16 @@ public class Commands {
             int redeliveryCount, long[] ackSet, long consumerEpoch) {
         BaseCommand cmd = localCmd(Type.MESSAGE);
         CommandMessage msg = cmd.setMessage()
-                .setConsumerId(consumerId)
-                .setConsumerEpoch(consumerEpoch);
+                .setConsumerId(consumerId);
         msg.setMessageId()
                 .setLedgerId(ledgerId)
                 .setEntryId(entryId)
                 .setPartition(partition);
+
+        // consumerEpoch > -1 is useful
+        if (consumerEpoch > DEFAULT_CONSUMER_EPOCH) {
+            msg.setConsumerEpoch(consumerEpoch);
+        }
         if (redeliveryCount > 0) {
             msg.setRedeliveryCount(redeliveryCount);
         }
