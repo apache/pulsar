@@ -551,7 +551,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (txn != null) {
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
                     .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
-            txn.registerAckOp(ackFuture);
         } else {
             ackFuture = doAcknowledge(messageIdList, ackType, properties, null);
         }
@@ -572,8 +571,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
                     .thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn));
-            // register the ackFuture as part of the transaction
-            txn.registerAckOp(ackFuture);
             return ackFuture;
         } else {
             ackFuture = doAcknowledge(messageId, ackType, properties, txn);

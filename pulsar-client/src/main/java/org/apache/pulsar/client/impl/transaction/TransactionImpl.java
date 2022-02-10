@@ -21,9 +21,7 @@ package org.apache.pulsar.client.impl.transaction;
 import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,7 +30,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
@@ -64,8 +61,6 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
 
-    private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
-    private final ArrayList<CompletableFuture<Void>> ackFutureList;
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
@@ -100,8 +95,6 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
 
-        this.sendFutureList = new ArrayList<>();
-        this.ackFutureList = new ArrayList<>();
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
 
     }
@@ -127,10 +120,6 @@ public class TransactionImpl implements Transaction , TimerTask {
         }
     }
 
-    public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
-        sendFutureList.add(sendFuture);
-    }
-
     // register the topics that will be modified by this transaction
     public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -152,9 +141,6 @@ public class TransactionImpl implements Transaction , TimerTask {
         }
     }
 
-    public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
-        ackFutureList.add(ackFuture);
-    }
 
     public synchronized void registerCumulativeAckConsumer(ConsumerImpl<?> consumer) {
         if (this.cumulativeAckConsumers == null) {
@@ -258,11 +244,4 @@ public class TransactionImpl implements Transaction , TimerTask {
                 + state.name() + ", expect " + State.OPEN + " state!"));
     }
 
-
-    private CompletableFuture<Void> allOpComplete() {
-        List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.addAll(sendFutureList);
-        futureList.addAll(ackFutureList);
-        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
-    }
 }
