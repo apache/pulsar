@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.fail;
@@ -52,7 +51,6 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         doReturn(1L).when(transaction).getTxnIdMostBits();
         doReturn(TransactionImpl.State.OPEN).when(transaction).getState();
         CompletableFuture<Void> completableFuture = CompletableFuture.completedFuture(null);
-        doNothing().when(transaction).registerAckOp(any());
         doReturn(true).when(transaction).checkIfOpen(any());
         doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
 
