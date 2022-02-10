@@ -500,6 +500,7 @@ public abstract class NamespacesBase extends AdminResource {
                     return null;
                 }
             }
+            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }
