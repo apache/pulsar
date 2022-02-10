@@ -164,25 +164,19 @@ public class TransactionImpl implements Transaction , TimerTask {
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
-            allOpComplete().whenComplete((v, e) -> {
-                if (e != null) {
-                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
-                } else {
-                    tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
-                            .whenComplete((vx, ex) -> {
-                                if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException
-                                            || ex instanceof InvalidTxnStatusException) {
-                                        this.state = State.ERROR;
-                                    }
-                                    commitFuture.completeExceptionally(ex);
-                                } else {
-                                    this.state = State.COMMITTED;
-                                    commitFuture.complete(vx);
-                                }
-                            });
-                }
-            });
+            tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
+                    .whenComplete((vx, ex) -> {
+                        if (ex != null) {
+                            if (ex instanceof TransactionNotFoundException
+                                    || ex instanceof InvalidTxnStatusException) {
+                                this.state = State.ERROR;
+                            }
+                            commitFuture.completeExceptionally(ex);
+                        } else {
+                            this.state = State.COMMITTED;
+                            commitFuture.complete(vx);
+                        }
+                    });
             return commitFuture;
         });
     }
@@ -192,33 +186,28 @@ public class TransactionImpl implements Transaction , TimerTask {
         return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
-            allOpComplete().whenComplete((v, e) -> {
-                if (e != null) {
-                    log.error(e.getMessage());
-                }
+            if (cumulativeAckConsumers != null) {
+                cumulativeAckConsumers.forEach((consumer, integer) ->
+                        cumulativeAckConsumers
+                                .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
+            }
+            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
                 if (cumulativeAckConsumers != null) {
-                    cumulativeAckConsumers.forEach((consumer, integer) ->
-                            cumulativeAckConsumers
-                                    .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
+                    cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
+                    cumulativeAckConsumers.clear();
                 }
-                tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
-                    if (cumulativeAckConsumers != null) {
-                        cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
-                        cumulativeAckConsumers.clear();
-                    }
 
-                    if (ex != null) {
-                        if (ex instanceof TransactionNotFoundException
-                                || ex instanceof InvalidTxnStatusException) {
-                            this.state = State.ERROR;
-                        }
-                        abortFuture.completeExceptionally(ex);
-                    } else {
-                        this.state = State.ABORTED;
-                        abortFuture.complete(null);
+                if (ex != null) {
+                    if (ex instanceof TransactionNotFoundException
+                            || ex instanceof InvalidTxnStatusException) {
+                        this.state = State.ERROR;
                     }
+                    abortFuture.completeExceptionally(ex);
+                } else {
+                    this.state = State.ABORTED;
+                    abortFuture.complete(null);
+                }
 
-                });
             });
 
             return abortFuture;
