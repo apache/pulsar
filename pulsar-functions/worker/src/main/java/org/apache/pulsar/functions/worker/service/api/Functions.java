@@ -34,6 +34,18 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Functions<W extends WorkerService> extends Component<W> {
 
+    /**
+     * Register a new function
+     * @param tenant The tenant of a Pulsar Function
+     * @param namespace The namespace of a Pulsar Function
+     * @param functionName The name of a Pulsar Function
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param functionPkgUrl URL path of the Pulsar Function package
+     * @param functionConfig Configuration of Pulsar Function
+     * @param clientRole Client role for running the pulsar function
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     */
     void registerFunction(final String tenant,
                           final String namespace,
                           final String functionName,
@@ -44,6 +56,11 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                           final String clientRole,
                           AuthenticationDataSource clientAuthenticationDataHttps);
 
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
     @Deprecated
     default void registerFunction(final String tenant,
                           final String namespace,
@@ -66,6 +83,19 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                 (AuthenticationDataSource) clientAuthenticationDataHttps);
     }
 
+    /**
+     * Update a function
+     * @param tenant The tenant of a Pulsar Function
+     * @param namespace The namespace of a Pulsar Function
+     * @param functionName The name of a Pulsar Function
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param functionPkgUrl URL path of the Pulsar Function package
+     * @param functionConfig Configuration of Pulsar Function
+     * @param clientRole Client role for running the Pulsar Function
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param updateOptions Options while updating the function
+     */
     void updateFunction(final String tenant,
                         final String namespace,
                         final String functionName,
@@ -77,6 +107,11 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                         AuthenticationDataSource clientAuthenticationDataHttps,
                         UpdateOptionsImpl updateOptions);
 
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
     @Deprecated
     default void updateFunction(final String tenant,
                         final String namespace,

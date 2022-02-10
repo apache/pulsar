@@ -52,7 +52,7 @@ public class WebSocketWebResource {
     private WebSocketService socketService;
 
     private String clientId;
-    private AuthenticationDataSource authData;
+    private AuthenticationDataSource authenticationDataSource;
 
     protected WebSocketService service() {
         if (socketService == null) {
@@ -69,7 +69,18 @@ public class WebSocketWebResource {
     public String clientAppId() {
         if (isBlank(clientId)) {
             try {
-                clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
+                String authMethodName = httpRequest.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
+                if (authMethodName != null
+                    && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
+                    authenticationDataSource = service().getAuthenticationService()
+                            .getAuthenticationProvider(authMethodName)
+                            .newHttpAuthState(httpRequest).getAuthDataSource();
+                    clientId = service().getAuthenticationService().authenticateHttpRequest(
+                            httpRequest, authenticationDataSource);
+                } else {
+                    clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
+                    authenticationDataSource = new AuthenticationDataHttps(httpRequest);
+                }
             } catch (AuthenticationException e) {
                 if (service().getConfig().isAuthenticationEnabled()) {
                     throw new RestException(Status.UNAUTHORIZED, "Failed to get clientId from request");
@@ -84,17 +95,7 @@ public class WebSocketWebResource {
     }
 
     public AuthenticationDataSource authData() throws AuthenticationException {
-        if (authData == null) {
-            String authMethodName = httpRequest.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
-            if (authMethodName != null
-                    && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
-                authData = service().getAuthenticationService().getAuthenticationProvider(authMethodName)
-                        .newHttpAuthState(httpRequest).getAuthDataSource();
-            } else {
-                authData = new AuthenticationDataHttps(httpRequest);
-            }
-        }
-        return authData;
+        return authenticationDataSource;
     }
 
     /**

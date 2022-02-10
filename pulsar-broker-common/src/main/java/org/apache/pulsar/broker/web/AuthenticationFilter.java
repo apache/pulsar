@@ -75,20 +75,16 @@ public class AuthenticationFilter implements Filter {
             if (!isSaslRequest(httpRequest)) {
                 // not sasl type, return role directly.
                 String authMethodName = httpRequest.getHeader(PULSAR_AUTH_METHOD_NAME);
-                AuthenticationState authenticationState = null;
+                String role;
                 if (authMethodName != null && authenticationService.getAuthenticationProvider(authMethodName) != null) {
-                    authenticationState = authenticationService
+                    AuthenticationState authenticationState = authenticationService
                             .getAuthenticationProvider(authMethodName).newHttpAuthState(httpRequest);
                     request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
-                } else {
-                    request.setAttribute(AuthenticatedDataAttributeName,
-                            new AuthenticationDataHttps((HttpServletRequest) request));
-                }
-                String role;
-                if (authenticationState != null) {
                     role = authenticationService.authenticateHttpRequest(
                             (HttpServletRequest) request, authenticationState.getAuthDataSource());
                 } else {
+                    request.setAttribute(AuthenticatedDataAttributeName,
+                            new AuthenticationDataHttps((HttpServletRequest) request));
                     role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
                 }
                 request.setAttribute(AuthenticatedRoleAttributeName, role);

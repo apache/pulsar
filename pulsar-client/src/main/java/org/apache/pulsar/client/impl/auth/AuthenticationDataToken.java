@@ -28,9 +28,12 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 public class AuthenticationDataToken implements AuthenticationDataProvider {
     public static final String HTTP_HEADER_NAME = "Authorization";
     private final Supplier<String> tokenSupplier;
+    private final Map<String, String> headers = new HashMap<>();
 
     public AuthenticationDataToken(Supplier<String> tokenSupplier) {
         this.tokenSupplier = tokenSupplier;
+        headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationToken.AUTH_METHOD_NAME);
+        headers.put(HTTP_HEADER_NAME, "Bearer " + getToken());
     }
 
     @Override
@@ -40,10 +43,7 @@ public class AuthenticationDataToken implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        Map<String, String> headers = new HashMap<>();
-        headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationToken.AUTH_METHOD_NAME);
-        headers.put(HTTP_HEADER_NAME, "Bearer " + getToken());
-        return headers.entrySet();
+        return this.headers.entrySet();
     }
 
     @Override

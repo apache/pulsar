@@ -37,6 +37,18 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Sources<W extends WorkerService> extends Component<W> {
 
+    /**
+     * Update a function
+     * @param tenant The tenant of a Pulsar Source
+     * @param namespace The namespace of a Pulsar Source
+     * @param sourceName The name of a Pulsar Source
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sourcePkgUrl URL path of the Pulsar Source package
+     * @param sourceConfig Configuration of Pulsar Source
+     * @param clientRole Client role for running the Pulsar Source
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     */
     void registerSource(final String tenant,
                         final String namespace,
                         final String sourceName,
@@ -47,6 +59,11 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                         final String clientRole,
                         AuthenticationDataSource clientAuthenticationDataHttps);
 
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
     @Deprecated
     default void registerSource(final String tenant,
                         final String namespace,
@@ -69,6 +86,19 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                 (AuthenticationDataSource) clientAuthenticationDataHttps);
     }
 
+    /**
+     * Update a function
+     * @param tenant The tenant of a Pulsar Source
+     * @param namespace The namespace of a Pulsar Source
+     * @param sourceName The name of a Pulsar Source
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sourcePkgUrl URL path of the Pulsar Source package
+     * @param sourceConfig Configuration of Pulsar Source
+     * @param clientRole Client role for running the Pulsar Source
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param updateOptions Options while updating the source
+     */
     void updateSource(final String tenant,
                       final String namespace,
                       final String sourceName,
@@ -80,6 +110,11 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                       AuthenticationDataSource clientAuthenticationDataHttps,
                       UpdateOptionsImpl updateOptions);
 
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
     @Deprecated
     default void updateSource(final String tenant,
                       final String namespace,

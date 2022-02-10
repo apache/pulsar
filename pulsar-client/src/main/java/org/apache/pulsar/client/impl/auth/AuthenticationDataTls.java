@@ -45,6 +45,8 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
             justification = "Using custom serializer which Findbugs can't detect")
     private transient Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
+    private final Map<String, String> headers = Collections.singletonMap(
+            PULSAR_AUTH_METHOD_NAME, AuthenticationTls.AUTH_METHOD_NAME);
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
@@ -92,7 +94,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return Collections.singletonMap(PULSAR_AUTH_METHOD_NAME, AuthenticationTls.AUTH_METHOD_NAME).entrySet();
+        return headers.entrySet();
     }
 
     @Override

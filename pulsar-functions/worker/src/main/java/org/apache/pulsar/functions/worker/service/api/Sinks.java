@@ -37,6 +37,18 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Sinks<W extends WorkerService> extends Component<W> {
 
+    /**
+     * Update a function
+     * @param tenant The tenant of a Pulsar Sink
+     * @param namespace The namespace of a Pulsar Sink
+     * @param sinkName The name of a Pulsar Sink
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sinkPkgUrl URL path of the Pulsar Sink package
+     * @param sinkConfig Configuration of Pulsar Sink
+     * @param clientRole Client role for running the Pulsar Sink
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     */
     void registerSink(final String tenant,
                       final String namespace,
                       final String sinkName,
@@ -47,6 +59,11 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                       final String clientRole,
                       AuthenticationDataSource clientAuthenticationDataHttps);
 
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
     @Deprecated
     default void registerSink(final String tenant,
                       final String namespace,
@@ -69,6 +86,19 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                 (AuthenticationDataSource) clientAuthenticationDataHttps);
     }
 
+    /**
+     * Update a function
+     * @param tenant The tenant of a Pulsar Sink
+     * @param namespace The namespace of a Pulsar Sink
+     * @param sinkName The name of a Pulsar Sink
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sinkPkgUrl URL path of the Pulsar Sink package
+     * @param sinkConfig Configuration of Pulsar Sink
+     * @param clientRole Client role for running the Pulsar Sink
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param updateOptions Options while updating the sink
+     */
     void updateSink(final String tenant,
                     final String namespace,
                     final String sinkName,
@@ -80,6 +110,11 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                     AuthenticationDataSource clientAuthenticationDataHttps,
                     UpdateOptionsImpl updateOptions);
 
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
     @Deprecated
     default void updateSink(final String tenant,
                     final String namespace,

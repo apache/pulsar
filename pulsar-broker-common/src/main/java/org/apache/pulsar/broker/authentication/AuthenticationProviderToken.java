@@ -168,7 +168,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
-        return new TokenAuthenticationHttpState(this, request);
+        return new TokenAuthenticationState(this, request);
     }
 
     public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
@@ -316,9 +316,10 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         private final AuthenticationProviderToken provider;
         private AuthenticationDataSource authenticationDataSource;
         private Jwt<?, Claims> jwt;
-        private final SocketAddress remoteAddress;
-        private final SSLSession sslSession;
+        private SocketAddress remoteAddress;
+        private SSLSession sslSession;
         private long expiration;
+        private HttpServletRequest request;
 
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
@@ -331,17 +332,41 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             this.authenticate(authData);
         }
 
+        TokenAuthenticationState(
+                AuthenticationProviderToken provider,
+                HttpServletRequest request) throws AuthenticationException {
+            this.provider = provider;
+            this.request = request;
+            String httpHeaderValue = this.request.getHeader(HTTP_HEADER_NAME);
+            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+                throw new AuthenticationException("Invalid HTTP Authorization header");
+            }
+
+            // Remove prefix
+            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            AuthData authData = AuthData.of(token.getBytes());
+            this.authenticate(authData);
+        }
+
         @Override
         public String getAuthRole() throws AuthenticationException {
             return provider.getPrincipal(jwt);
         }
 
+        /**
+         * Here is an explanation of why the null value is returned.
+         * pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationState.java#L49
+         */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             String token = new String(authData.getBytes(), UTF_8);
 
             this.jwt = provider.authenticateToken(token);
-            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
+            if (remoteAddress == null || sslSession == null) {
+                this.authenticationDataSource = new AuthenticationDataHttps(this.request);
+            } else {
+                this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
+            }
             if (jwt.getBody().getExpiration() != null) {
                 this.expiration = jwt.getBody().getExpiration().getTime();
             } else {
@@ -368,64 +393,5 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         public boolean isExpired() {
             return expiration < System.currentTimeMillis();
         }
-    }
-
-    private static final class TokenAuthenticationHttpState implements AuthenticationState {
-
-        private final AuthenticationProviderToken provider;
-        private final AuthenticationDataSource authenticationDataSource;
-        private final Jwt<?, Claims> jwt;
-        private final long expiration;
-
-        TokenAuthenticationHttpState(AuthenticationProviderToken provider, HttpServletRequest request)
-                throws AuthenticationException {
-            this.provider = provider;
-            String httpHeaderValue = request.getHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new AuthenticationException("Invalid HTTP Authorization header");
-            }
-
-            // Remove prefix
-            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-            this.jwt = provider.authenticateToken(token);
-            this.authenticationDataSource = new AuthenticationDataHttps(request);
-            if (jwt.getBody().getExpiration() != null) {
-                this.expiration = jwt.getBody().getExpiration().getTime();
-            } else {
-                // Disable expiration
-                this.expiration = Long.MAX_VALUE;
-            }
-        }
-
-        @Override
-        public String getAuthRole() throws AuthenticationException {
-            return provider.getPrincipal(jwt);
-        }
-
-        @Override
-        public AuthenticationDataSource getAuthDataSource() {
-            return authenticationDataSource;
-        }
-
-        /**
-         * Here is an explanation of why the null value is returned.
-         * pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationState.java#L49
-         */
-        @Override
-        public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            return null;
-        }
-
-        @Override
-        public boolean isComplete() {
-            // The authentication of tokens is always done in one single stage
-            return true;
-        }
-
-        @Override
-        public boolean isExpired() {
-            return expiration < System.currentTimeMillis();
-        }
-
     }
 }

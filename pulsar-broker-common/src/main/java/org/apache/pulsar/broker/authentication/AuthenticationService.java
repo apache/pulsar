@@ -96,11 +96,15 @@ public class AuthenticationService implements Closeable {
                 throw new AuthenticationException(
                         String.format("Unsupported authentication method: [%s].", authMethodName));
             }
-            if (authData == null) {
-                AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
-                authData = authenticationState.getAuthDataSource();
-            }
             try {
+                if (authData == null) {
+                    // In the default implementation clas OneStageAuthenticationStates, the authentication has been
+                    // done, in order to avoid secondary authentication here directly return the role, if the user
+                    // custom implementation, should consider adding authentication in their own implementation class.
+                    AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
+                    return authenticationState.getAuthRole();
+                }
+                // Backward compatible, the authData value was null in the previous implementation
                 return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
@@ -143,6 +147,11 @@ public class AuthenticationService implements Closeable {
         }
     }
 
+    /**
+     * Mark this function as deprecated, it is recommended to use a method with the AuthenticationDataSource
+     * signature to implement it.
+     */
+    @Deprecated
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
         return authenticateHttpRequest(request, null);
     }
