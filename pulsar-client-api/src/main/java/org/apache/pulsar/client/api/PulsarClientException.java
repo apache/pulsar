@@ -910,6 +910,39 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Thrown when transaction coordinator not found in broker side.
+     */
+    public static class CoordinatorNotFoundException extends PulsarClientException {
+        public CoordinatorNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Thrown when transaction switch to a invalid status.
+     */
+    public static class InvalidTxnStatusException extends PulsarClientException {
+        public InvalidTxnStatusException(String message) {
+            super(message);
+        }
+
+        public InvalidTxnStatusException(String txnId, String actualState, String expectState) {
+            super("[" + txnId + "] with unexpected state : "
+                    + actualState + ", expect " + expectState + " state!");
+        }
+    }
+
+    /**
+     * Thrown when transaction not found in transaction coordinator.
+     */
+    public static class TransactionNotFoundException extends PulsarClientException {
+        public TransactionNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -972,6 +1005,12 @@ public class PulsarClientException extends IOException {
             return new MessageAcknowledgeException(msg);
         } else if (t instanceof TransactionConflictException) {
             return new TransactionConflictException(msg);
+        } else if (t instanceof CoordinatorNotFoundException) {
+            return new CoordinatorNotFoundException(msg);
+        } else if (t instanceof InvalidTxnStatusException) {
+            return new InvalidTxnStatusException(msg);
+        } else if (t instanceof TransactionNotFoundException) {
+            return new TransactionNotFoundException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -1062,6 +1101,12 @@ public class PulsarClientException extends IOException {
             newException = new MessageAcknowledgeException(msg);
         } else if (cause instanceof TransactionConflictException) {
             newException = new TransactionConflictException(msg);
+        } else if (cause instanceof CoordinatorNotFoundException) {
+            newException = new CoordinatorNotFoundException(msg);
+        } else if (cause instanceof InvalidTxnStatusException) {
+            newException = new InvalidTxnStatusException(msg);
+        } else if (cause instanceof TransactionNotFoundException) {
+            newException = new TransactionNotFoundException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             newException = new TopicDoesNotExistException(msg);
         } else if (cause instanceof ProducerFencedException) {

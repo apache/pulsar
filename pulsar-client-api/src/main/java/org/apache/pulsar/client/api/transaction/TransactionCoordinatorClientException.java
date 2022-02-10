@@ -53,38 +53,6 @@ public class TransactionCoordinatorClientException extends IOException {
     }
 
     /**
-     * Thrown when transaction coordinator not found in broker side.
-     */
-    public static class CoordinatorNotFoundException extends TransactionCoordinatorClientException {
-        public CoordinatorNotFoundException(String message) {
-            super(message);
-        }
-    }
-
-    /**
-     * Thrown when transaction switch to a invalid status.
-     */
-    public static class InvalidTxnStatusException extends TransactionCoordinatorClientException {
-        public InvalidTxnStatusException(String message) {
-            super(message);
-        }
-
-        public InvalidTxnStatusException(String txnId, String actualState, String expectState) {
-            super("[" + txnId + "] with unexpected state : "
-                    + actualState + ", expect " + expectState + " state!");
-        }
-    }
-
-    /**
-     * Thrown when transaction not found in transaction coordinator.
-     */
-    public static class TransactionNotFoundException extends TransactionCoordinatorClientException {
-        public TransactionNotFoundException(String message) {
-            super(message);
-        }
-    }
-
-    /**
      * Thrown when transaction meta store handler not exists.
      */
     public static class MetaStoreHandlerNotExistsException extends TransactionCoordinatorClientException {
@@ -122,15 +90,6 @@ public class TransactionCoordinatorClientException extends IOException {
         }  else if (!(t instanceof ExecutionException)) {
             // Generic exception
             return new TransactionCoordinatorClientException(t);
-        }
-
-        Throwable cause = t.getCause();
-        String msg = cause.getMessage();
-
-        if (cause instanceof CoordinatorNotFoundException) {
-            return new CoordinatorNotFoundException(msg);
-        } else if (cause instanceof InvalidTxnStatusException) {
-            return new InvalidTxnStatusException(msg);
         } else {
             return new TransactionCoordinatorClientException(t);
         }

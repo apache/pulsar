@@ -522,8 +522,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     private boolean checkIfNeedRetryByError(ServerError error, String message, OpBase<?> op) {
         if (error == ServerError.TransactionCoordinatorNotFound) {
             if (getState() != State.Connecting) {
-                connectionHandler.reconnectLater(new TransactionCoordinatorClientException
-                        .CoordinatorNotFoundException(message));
+                connectionHandler.reconnectLater(new PulsarClientException.CoordinatorNotFoundException(message));
             }
             return true;
         }
@@ -615,16 +614,16 @@ public class TransactionMetaStoreHandler extends HandlerState
         };
     }
 
-    public static TransactionCoordinatorClientException getExceptionByServerError(ServerError serverError, String msg) {
+    public static PulsarClientException getExceptionByServerError(ServerError serverError, String msg) {
         switch (serverError) {
             case TransactionCoordinatorNotFound:
-                return new TransactionCoordinatorClientException.CoordinatorNotFoundException(msg);
+                return new PulsarClientException.CoordinatorNotFoundException(msg);
             case InvalidTxnStatus:
-                return new TransactionCoordinatorClientException.InvalidTxnStatusException(msg);
+                return new PulsarClientException.InvalidTxnStatusException(msg);
             case TransactionNotFound:
-                return new TransactionCoordinatorClientException.TransactionNotFoundException(msg);
+                return new PulsarClientException.TransactionNotFoundException(msg);
             default:
-                return new TransactionCoordinatorClientException(msg);
+                return new PulsarClientException(msg);
         }
     }
 

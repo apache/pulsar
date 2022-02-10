@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
@@ -87,7 +88,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         try {
             callable1.call().get();
         } catch (ExecutionException e) {
-            assertFalse(e.getCause() instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
+            assertFalse(e.getCause() instanceof PulsarClientException.CoordinatorNotFoundException);
             waitToReady();
             callable1.call().get();
         }
@@ -98,7 +99,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         } catch (TimeoutException ignore) {
         } catch (ExecutionException e) {
             Assert.assertFalse(e.getCause()
-                    instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
+                    instanceof PulsarClientException.CoordinatorNotFoundException);
         }
 
         unFence(getPulsarServiceList().get(0).getTransactionMetadataStoreService());

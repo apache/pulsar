@@ -32,9 +32,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -171,8 +170,8 @@ public class TransactionImpl implements Transaction , TimerTask {
                     tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                             .whenComplete((vx, ex) -> {
                                 if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException
-                                            || ex instanceof InvalidTxnStatusException) {
+                                    if (ex instanceof PulsarClientException.TransactionNotFoundException
+                                            || ex instanceof PulsarClientException.InvalidTxnStatusException) {
                                         this.state = State.ERROR;
                                     }
                                     commitFuture.completeExceptionally(ex);
@@ -208,8 +207,8 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
 
                     if (ex != null) {
-                        if (ex instanceof TransactionNotFoundException
-                                || ex instanceof InvalidTxnStatusException) {
+                        if (ex instanceof PulsarClientException.TransactionNotFoundException
+                                || ex instanceof PulsarClientException.InvalidTxnStatusException) {
                             this.state = State.ERROR;
                         }
                         abortFuture.completeExceptionally(ex);
@@ -235,7 +234,7 @@ public class TransactionImpl implements Transaction , TimerTask {
             return true;
         } else {
             completableFuture
-                    .completeExceptionally(new InvalidTxnStatusException(
+                    .completeExceptionally(new PulsarClientException.InvalidTxnStatusException(
                             new TxnID(txnIdMostBits, txnIdLeastBits).toString(), state.name(), State.OPEN.name()));
             return false;
         }
@@ -258,7 +257,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     }
 
     private CompletableFuture<Void> invalidTxnStatusFuture() {
-        return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
+        return FutureUtil.failedFuture(new PulsarClientException.InvalidTxnStatusException("[" + txnIdMostBits + ":"
                 + txnIdLeastBits + "] with unexpected state : "
                 + state.name() + ", expect " + State.OPEN + " state!"));
     }

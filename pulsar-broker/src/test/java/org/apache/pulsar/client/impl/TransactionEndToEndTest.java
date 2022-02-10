@@ -57,8 +57,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -393,7 +391,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
+                Assert.assertTrue(reCommitError.getCause()
+                        instanceof PulsarClientException.TransactionNotFoundException);
             }
         }
     }
@@ -621,7 +620,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
+                Assert.assertTrue(reCommitError.getCause()
+                        instanceof PulsarClientException.TransactionNotFoundException);
             }
 
             message = consumer.receive(1, TimeUnit.SECONDS);
@@ -775,14 +775,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync().get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            assertTrue(e.getCause() instanceof PulsarClientException.InvalidTxnStatusException);
         }
 
         try {
             produceTxn.commit().get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            assertTrue(e.getCause() instanceof PulsarClientException.InvalidTxnStatusException);
         }
 
 
@@ -793,14 +793,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             consumer.acknowledgeAsync(message.getMessageId(), consumeTxn).get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            assertTrue(e.getCause() instanceof PulsarClientException.InvalidTxnStatusException);
         }
 
         try {
             consumeTxn.commit().get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            assertTrue(e.getCause() instanceof PulsarClientException.InvalidTxnStatusException);
         }
 
         Transaction timeoutTxn = pulsarClient
@@ -838,7 +838,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             timeoutTxnSkipClientTimeout.commit().get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionNotFoundException);
+            assertTrue(e.getCause() instanceof PulsarClientException.TransactionNotFoundException);
         }
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
@@ -1048,16 +1048,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             producer.newMessage(transaction).send();
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
-                    .InvalidTxnStatusException);
+            Assert.assertTrue(e.getCause().getCause() instanceof PulsarClientException.InvalidTxnStatusException);
         }
         try {
             Message<String> message = consumer.receive();
             consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
-                    .InvalidTxnStatusException);
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.InvalidTxnStatusException);
         }
     }
 }
