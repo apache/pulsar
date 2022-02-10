@@ -309,7 +309,8 @@ public class PersistentTopicsBase extends AdminResource {
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema)
+                    .get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
         } catch (Exception e) {
             if (isManagedLedgerNotFoundException(e)) {
                 log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
