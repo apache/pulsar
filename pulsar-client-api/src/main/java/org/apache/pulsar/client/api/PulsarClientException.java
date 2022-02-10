@@ -910,6 +910,20 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Thrown when transaction meta store handler not exists.
+     */
+    public static class MetaStoreHandlerNotExistsException extends PulsarClientException {
+
+        public MetaStoreHandlerNotExistsException(long tcId) {
+            super("Transaction meta store handler for transaction meta store {} not exists.", tcId);
+        }
+
+        public MetaStoreHandlerNotExistsException(String message) {
+            super(message);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -972,6 +986,8 @@ public class PulsarClientException extends IOException {
             return new MessageAcknowledgeException(msg);
         } else if (t instanceof TransactionConflictException) {
             return new TransactionConflictException(msg);
+        } else if (t instanceof MetaStoreHandlerNotExistsException) {
+            return new MetaStoreHandlerNotExistsException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -1062,6 +1078,8 @@ public class PulsarClientException extends IOException {
             newException = new MessageAcknowledgeException(msg);
         } else if (cause instanceof TransactionConflictException) {
             newException = new TransactionConflictException(msg);
+        } else if (cause instanceof  MetaStoreHandlerNotExistsException) {
+            newException = new MetaStoreHandlerNotExistsException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             newException = new TopicDoesNotExistException(msg);
         } else if (cause instanceof ProducerFencedException) {

@@ -85,20 +85,6 @@ public class TransactionCoordinatorClientException extends IOException {
     }
 
     /**
-     * Thrown when transaction meta store handler not exists.
-     */
-    public static class MetaStoreHandlerNotExistsException extends TransactionCoordinatorClientException {
-
-        public MetaStoreHandlerNotExistsException(long tcId) {
-            super("Transaction meta store handler for transaction meta store {} not exists.");
-        }
-
-        public MetaStoreHandlerNotExistsException(String message) {
-            super(message);
-        }
-    }
-
-    /**
      * Thrown when send request to transaction meta store but the transaction meta store handler not ready.
      */
     public static class MetaStoreHandlerNotReadyException extends TransactionCoordinatorClientException {
