@@ -320,6 +320,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         private SSLSession sslSession;
         private long expiration;
         private HttpServletRequest request;
+        private boolean authHttpState;
 
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
@@ -329,6 +330,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             this.provider = provider;
             this.remoteAddress = remoteAddress;
             this.sslSession = sslSession;
+            this.authHttpState = false;
             this.authenticate(authData);
         }
 
@@ -337,6 +339,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 HttpServletRequest request) throws AuthenticationException {
             this.provider = provider;
             this.request = request;
+            this.authHttpState = true;
             String httpHeaderValue = this.request.getHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
                 throw new AuthenticationException("Invalid HTTP Authorization header");
@@ -362,7 +365,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             String token = new String(authData.getBytes(), UTF_8);
 
             this.jwt = provider.authenticateToken(token);
-            if (remoteAddress == null || sslSession == null) {
+            if (authHttpState) {
                 this.authenticationDataSource = new AuthenticationDataHttps(this.request);
             } else {
                 this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
