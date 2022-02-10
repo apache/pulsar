@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
@@ -123,6 +124,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         final String TEST3 = "test3";
 
         producer.newMessage(txn).value(TEST1.getBytes()).send();
+        TransactionUtil.prepareCommit(txn).get();
         txn.commit().get();
 
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -136,6 +138,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         field.set(txn, TransactionImpl.State.OPEN);
         producer.newMessage(txn).value(TEST2.getBytes()).send();
         try {
+            TransactionUtil.prepareCommit(txn).get();
             txn.commit().get();
             Assert.fail("The commit operation should be failed.");
         } catch (Exception e){
@@ -162,6 +165,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             message = consumer.receive(2, TimeUnit.SECONDS);
             assertNull(message);
 
+            TransactionUtil.prepareCommit(lowWaterMarkTxn).get();
             lowWaterMarkTxn.commit().get();
 
             message = consumer.receive();
@@ -234,6 +238,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         assertTrue(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
                 ((TransactionImpl) txn).getTxnIdLeastBits())));
+        TransactionUtil.prepareCommit(txn).get();
         txn.commit().get();
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
@@ -274,6 +279,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             assertTrue(individualAckOfTransaction
                     .containsKey(new TxnID(((TransactionImpl) lowWaterMarkTxn).getTxnIdMostBits(),
                             ((TransactionImpl) lowWaterMarkTxn).getTxnIdLeastBits())));
+            TransactionUtil.prepareCommit(lowWaterMarkTxn).get();
             lowWaterMarkTxn.commit().get();
 
             assertFalse(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),

@@ -85,6 +85,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventsTopicNames;
@@ -485,6 +486,7 @@ public class TransactionTest extends TransactionTestBase {
         PositionImpl position2 = topicTransactionBuffer.getMaxReadPosition();
         Assert.assertEquals(position2.getLedgerId(), messageId.getLedgerId());
         Assert.assertEquals(position2.getEntryId(), messageId.getEntryId());
+        TransactionUtil.prepareCommit(transaction).get();
         transaction.commit().get();
         PositionImpl position3 = topicTransactionBuffer.getMaxReadPosition();
 
@@ -698,7 +700,8 @@ public class TransactionTest extends TransactionTestBase {
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
         abortTxn.abort();
-        commitTxn.commit();
+        TransactionUtil.prepareCommit(commitTxn).get();
+        commitTxn.commit().get();
     }
 
     @Test
@@ -751,6 +754,7 @@ public class TransactionTest extends TransactionTestBase {
                         e.printStackTrace();
                     }
                 }));
+        TransactionUtil.prepareCommit(transaction).get();
         CompletableFuture<Void> completableFuture =  transaction.commit();
         try {
             completableFuture.get(5, TimeUnit.SECONDS);
@@ -779,6 +783,7 @@ public class TransactionTest extends TransactionTestBase {
                 .build()
                 .get();
 
+        TransactionUtil.prepareCommit(transaction).get();
         transaction.commit().get();
 
         Field field = TransactionImpl.class.getDeclaredField("timeout");

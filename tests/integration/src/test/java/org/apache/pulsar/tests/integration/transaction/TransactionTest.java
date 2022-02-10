@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.transaction;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -30,6 +31,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -138,7 +140,13 @@ public class TransactionTest extends TransactionTestBase {
 
             transferConsumer.acknowledgeAsync(message.getMessageId(), transaction);
 
-            transaction.commit().get();
+            TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+                try {
+                    transaction.commit().get();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                }
+            });
         }
 
         int receiveBalanceUpdateCnt = 0;

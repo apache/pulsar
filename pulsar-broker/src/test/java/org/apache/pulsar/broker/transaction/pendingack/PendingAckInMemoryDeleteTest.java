@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -116,6 +117,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 }
             }
 
+            TransactionUtil.prepareCommit(commitTxn).get();
             commitTxn.commit().get();
 
             int count = 0;
@@ -268,6 +270,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
 
                             // the messages has been produced were all acked, the memory in broker for the messages has been cleared.
+                            TransactionUtil.prepareCommit(commitTwice).get();
                             commitTwice.commit().get();
                             assertEquals(batchDeletedIndexes.size(), 0);
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);

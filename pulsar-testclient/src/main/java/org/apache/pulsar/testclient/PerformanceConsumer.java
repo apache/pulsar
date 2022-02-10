@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -442,16 +443,18 @@ public class PerformanceConsumer {
                         && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
                     Transaction transaction = atomicReference.get();
                     if (!arguments.isAbortTransaction) {
-                        transaction.commit()
-                                .thenRun(() -> {
-                                    totalEndTxnOpSuccessNum.increment();
-                                    numTxnOpSuccess.increment();
-                                })
-                                .exceptionally(exception -> {
-                                    log.error("Commit transaction failed with exception : ", exception);
-                                    totalEndTxnOpFailNum.increment();
-                                    return null;
-                                });
+                        TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+                            transaction.commit()
+                                    .thenRun(() -> {
+                                        totalEndTxnOpSuccessNum.increment();
+                                        numTxnOpSuccess.increment();
+                                    })
+                                    .exceptionally(exception -> {
+                                        log.error("Commit transaction failed with exception : ", exception);
+                                        totalEndTxnOpFailNum.increment();
+                                        return null;
+                                    });
+                        });
                     } else {
                         transaction.abort().thenRun(() -> {
                             log.info("Abort transaction {}", transaction.getTxnID().toString());

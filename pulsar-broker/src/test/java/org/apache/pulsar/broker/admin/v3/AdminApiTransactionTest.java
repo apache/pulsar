@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -260,6 +261,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName(subName2).subscribe();
         long currentTime = System.currentTimeMillis();
         MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
+
+        TransactionUtil.prepareCommit(transaction).get();
         transaction.commit().get();
 
         transaction = (TransactionImpl) getTransaction();
@@ -305,6 +308,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } else {
             consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), transaction);
         }
+        TransactionUtil.prepareCommit(transaction).get();
         transaction.commit().get();
 
         transactionPendingAckStats = admin.transactions().
@@ -357,6 +361,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
                 stats.transactionLogStats.managedLedgerName);
 
+        TransactionUtil.prepareCommit(transaction).get();
         transaction.commit().get();
 
         stats = admin.transactions()

@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -135,6 +136,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         txn.abort().get();
         // commit this txn, normalAckMessageIds are in pending ack state
+        TransactionUtil.prepareCommit(commitTxn).get();
         commitTxn.commit().get();
         // abort this txn, pendingAckMessageIds are delete from pending ack state
         abortTxn.abort().get();
@@ -164,6 +166,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
 
         abortTxn.abort().get();
+        TransactionUtil.prepareCommit(commitTxn).get();
         commitTxn.commit().get();
 
         PersistentTopic topic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
@@ -244,6 +247,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
             consumer.acknowledgeCumulativeAsync(pendingAckMessageIds.get(i), commitTxn).get();
         }
+        TransactionUtil.prepareCommit(commitTxn).get();
         commitTxn.commit().get();
 
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);

@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
@@ -153,6 +154,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
 
         if (endAction) {
+            TransactionUtil.prepareCommit(tnx).get();
             tnx.commit().get();
         } else {
             tnx.abort().get();
@@ -264,6 +266,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         // The pending messages count should be the incomingMessageCnt
         Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), incomingMessageCnt);
 
+        TransactionUtil.prepareCommit(txn).get();
         txn.commit().get();
 
         // After commit, the pending messages count should be 0

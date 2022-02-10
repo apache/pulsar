@@ -63,6 +63,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -448,20 +449,22 @@ public class PerformanceTransaction {
                         }
                         if (!arguments.isDisableTransaction) {
                             if (!arguments.isAbortTransaction) {
-                                transaction.commit()
-                                        .thenRun(() -> {
-                                            numTxnOpSuccess.increment();
-                                            totalNumEndTxnOpSuccess.increment();
-                                        }).exceptionally(exception -> {
-                                            if (exception instanceof InterruptedException && !executing.get()) {
-                                                return null;
-                                            }
-                                            log.error("Commit transaction {} failed with exception",
-                                                    transaction.getTxnID().toString(),
-                                                    exception);
-                                            totalNumEndTxnOpFailed.increment();
+                                TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+                                    transaction.commit()
+                                            .thenRun(() -> {
+                                                numTxnOpSuccess.increment();
+                                                totalNumEndTxnOpSuccess.increment();
+                                            }).exceptionally(exception -> {
+                                        if (exception instanceof InterruptedException && !executing.get()) {
                                             return null;
-                                        });
+                                        }
+                                        log.error("Commit transaction {} failed with exception",
+                                                transaction.getTxnID().toString(),
+                                                exception);
+                                        totalNumEndTxnOpFailed.increment();
+                                        return null;
+                                    });
+                                });
                             } else {
                                 transaction.abort().thenRun(() -> {
                                     numTxnOpSuccess.increment();

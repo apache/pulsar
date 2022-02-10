@@ -78,6 +78,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1308,7 +1309,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false).create();
         producer.newMessage(transaction).value("1".getBytes(StandardCharsets.UTF_8)).send();
-        transaction.commit();
+        TransactionUtil.prepareCommit(transaction).get();
+        transaction.commit().get();
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);

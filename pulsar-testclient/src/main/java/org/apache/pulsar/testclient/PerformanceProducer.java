@@ -70,6 +70,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -770,19 +771,21 @@ public class PerformanceProducer {
                     if (arguments.isEnableTransaction
                             && numMessageSend.incrementAndGet() == arguments.numMessagesPerTransaction) {
                         if (!arguments.isAbortTransaction) {
-                            transaction.commit()
-                                    .thenRun(() -> {
-                                        log.info("Committed transaction {}",
-                                                transaction.getTxnID().toString());
-                                        totalEndTxnOpSuccessNum.increment();
-                                        numTxnOpSuccess.increment();
-                                    })
-                                    .exceptionally(exception -> {
-                                        log.error("Commit transaction failed with exception : ",
-                                                exception);
-                                        totalEndTxnOpFailNum.increment();
-                                        return null;
-                                    });
+                            TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+                                transaction.commit()
+                                        .thenRun(() -> {
+                                            log.info("Committed transaction {}",
+                                                    transaction.getTxnID().toString());
+                                            totalEndTxnOpSuccessNum.increment();
+                                            numTxnOpSuccess.increment();
+                                        })
+                                        .exceptionally(exception -> {
+                                            log.error("Commit transaction failed with exception : ",
+                                                    exception);
+                                            totalEndTxnOpFailNum.increment();
+                                            return null;
+                                        });
+                            });
                         } else {
                             transaction.abort().thenRun(() -> {
                                 log.info("Abort transaction {}", transaction.getTxnID().toString());

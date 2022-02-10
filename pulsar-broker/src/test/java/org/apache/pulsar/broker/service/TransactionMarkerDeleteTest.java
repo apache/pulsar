@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -117,6 +118,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         MessageIdImpl msgId1 = (MessageIdImpl) producer.newMessage(txn1).send();
         MessageIdImpl msgId2 = (MessageIdImpl) producer.newMessage(txn2).send();
         assertNull(consumer.receive(1, TimeUnit.SECONDS));
+        TransactionUtil.prepareCommit(txn1).get();
         txn1.commit().get();
 
         consumer.acknowledgeAsync(consumer.receive()).get();
@@ -127,6 +129,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
                 PositionImpl.get(msgId1.getLedgerId(), msgId1.getEntryId()).toString());
 
         MessageIdImpl msgId3 = (MessageIdImpl) producer.newMessage(txn3).send();
+        TransactionUtil.prepareCommit(txn2).get();
         txn2.commit().get();
 
         consumer.acknowledgeAsync(consumer.receive()).get();
@@ -138,6 +141,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
                 PositionImpl.get(msgId2.getLedgerId(), msgId2.getEntryId() + 1).toString());
 
         MessageIdImpl msgId4 = (MessageIdImpl) producer.newMessage(txn4).send();
+        TransactionUtil.prepareCommit(txn3).get();
         txn3.commit().get();
 
         consumer.acknowledgeAsync(consumer.receive()).get();

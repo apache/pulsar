@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -141,7 +142,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
 
-        tnx1.commit();
+        TransactionUtil.prepareCommit(tnx1).get();
+        tnx1.commit().get();
 
         // only can receive message 1
         message = consumer.receive(2, TimeUnit.SECONDS);
@@ -182,6 +184,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         });
 
         if (testTopic.equals(RECOVER_COMMIT)) {
+            TransactionUtil.prepareCommit(tnx2).get();
             tnx2.commit().get();
 
             for (int i = messageCnt; i > 1; i --) {
@@ -245,6 +248,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
         MessageId messageId1 = producer.newMessage(tnx1).value("test").send();
+        TransactionUtil.prepareCommit(tnx1).get();
         tnx1.commit().get();
         // wait timeout take snapshot
 
@@ -260,6 +264,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         // take snapshot by change times
         MessageId messageId2 = producer.newMessage(tnx2).value("test").send();
+        TransactionUtil.prepareCommit(tnx2).get();
         tnx2.commit().get();
 
 
@@ -319,6 +324,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         value = "Hello";
         producer.newMessage(tnx).value(value).send();
+        TransactionUtil.prepareCommit(tnx).get();
         tnx.commit().get();
 
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -357,6 +363,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                             .build().get();
 
                     producer.newMessage(tnx).value(value).send();
+                    TransactionUtil.prepareCommit(tnx).get();
                     tnx.commit().get();
                     field = PersistentTopic.class.getDeclaredField("transactionBuffer");
                     field.setAccessible(true);
@@ -392,6 +399,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .build().get();
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        TransactionUtil.prepareCommit(txn).get();
         txn.commit().get();
 
         // take snapshot

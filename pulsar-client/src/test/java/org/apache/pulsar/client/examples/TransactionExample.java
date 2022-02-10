@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.transaction.TransactionUtil;
 
 /**
  * Example to use Pulsar transactions.
@@ -88,6 +89,7 @@ public class TransactionExample {
 
             CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(), txn);
 
+            TransactionUtil.prepareCommit(txn).get();
             txn.commit().get();
 
             // the message ids can be returned from the sendFuture1 and sendFuture2

@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl.transaction;
 import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
@@ -60,6 +63,8 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
+    private volatile CompletableFuture<Void> ackFuture;
+    private volatile CompletableFuture<MessageId> sendFuture;
 
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
@@ -244,4 +249,18 @@ public class TransactionImpl implements Transaction , TimerTask {
                 + state.name() + ", expect " + State.OPEN + " state!"));
     }
 
+    public synchronized void registerSendOp(CompletableFuture<MessageId> newSendFuture) {
+        sendFuture = sendFuture.thenCompose(ignore -> newSendFuture);
+    }
+
+    public synchronized void registerAckOp(CompletableFuture<Void> newAckFuture) {
+        ackFuture = ackFuture.thenCompose(ignore -> newAckFuture);
+    }
+
+    public CompletableFuture<Void> prepareCommit() {
+        List<CompletableFuture<?>> futureList = new ArrayList<>();
+        futureList.add(ackFuture);
+        futureList.add(sendFuture);
+        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
+    }
 }
