@@ -481,8 +481,8 @@ public class BacklogQuotaManagerTest {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
         // message in current ledger.
-        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), ml.getNumberOfEntries());
-        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), ml.getNumberOfEntries());
+        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
         client.close();
     }
 
