@@ -2238,7 +2238,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
           category = CATEGORY_SCHEMA,
           doc = "The schema registry implementation used by this broker"
     )
-    private String schemaRegistryClass = null;
+    private String schemaRegistryClassName = "org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl";
 
     @FieldContext(
         category = CATEGORY_SCHEMA,

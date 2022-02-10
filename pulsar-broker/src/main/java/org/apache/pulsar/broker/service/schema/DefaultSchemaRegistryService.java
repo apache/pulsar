@@ -22,6 +22,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -101,6 +103,9 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     public SchemaVersion versionFromBytes(byte[] version) {
         return null;
     }
+
+    @Override
+    public void initialize(ServiceConfiguration configuration) {}
 
     @Override
     public void close() throws Exception {

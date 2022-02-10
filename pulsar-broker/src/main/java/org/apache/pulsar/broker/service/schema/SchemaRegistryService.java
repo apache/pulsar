@@ -51,14 +51,11 @@ public interface SchemaRegistryService extends SchemaRegistry {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
 
-                if (schemaRegistryName == null) {
-                return SchemaRegistryServiceWithSchemaDataValidator
-                      .of(new SchemaRegistryServiceImpl(schemaStorage, checkers));
-                } else {
-                    return (SchemaRegistryService) Class.forName(schemaRegistryName)
-                          .getDeclaredConstructor(SchemaStorage.class, Map.class)
-                          .newInstance(schemaStorage, checkers);
-                }
+                SchemaRegistryService schemaRegistryService = (SchemaRegistryService) Class.forName(schemaRegistryName)
+                      .getDeclaredConstructor(SchemaStorage.class, Map.class)
+                      .newInstance(schemaStorage, checkers);
+
+                return SchemaRegistryServiceWithSchemaDataValidator.of(schemaRegistryService);
             } catch (Exception e) {
                 LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
             }

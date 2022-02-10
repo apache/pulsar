@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -41,6 +43,9 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     private SchemaRegistryServiceWithSchemaDataValidator(SchemaRegistryService service) {
         this.service = service;
     }
+
+    @Override
+    public void initialize(ServiceConfiguration configuration) {}
 
     @Override
     public void close() throws Exception {
