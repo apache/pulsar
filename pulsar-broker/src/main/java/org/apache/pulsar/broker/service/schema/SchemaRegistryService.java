@@ -44,14 +44,14 @@ public interface SchemaRegistryService extends SchemaRegistry {
         return checkers;
     }
 
-    static SchemaRegistryService create(String schemaRegistryName, SchemaStorage schemaStorage,
+    static SchemaRegistryService create(String schemaRegistryClassName, SchemaStorage schemaStorage,
           Set<String> schemaRegistryCompatibilityCheckers) {
         if (schemaStorage != null) {
             try {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
 
-                SchemaRegistryService schemaRegistryService = (SchemaRegistryService) Class.forName(schemaRegistryName)
+                SchemaRegistryService schemaRegistryService = (SchemaRegistryService) Class.forName(schemaRegistryClassName)
                       .getDeclaredConstructor(SchemaStorage.class, Map.class)
                       .newInstance(schemaStorage, checkers);
 
