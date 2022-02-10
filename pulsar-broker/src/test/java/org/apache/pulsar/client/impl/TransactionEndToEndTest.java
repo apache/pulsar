@@ -1048,7 +1048,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             producer.newMessage(transaction).send();
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e.getCause().getCause() instanceof PulsarClientException.InvalidTxnStatusException);
+            Assert.assertTrue(e instanceof PulsarClientException.InvalidTxnStatusException);
         }
         try {
             Message<String> message = consumer.receive();
