@@ -366,7 +366,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                 namespace, throwable);
                     } else {
                         log.info("[{}] Successfully granted access for role {} for sub = {}", namespace,
-                                subscriptionName, roles);
+                                roles, subscriptionName);
                     }
                 });
     }
