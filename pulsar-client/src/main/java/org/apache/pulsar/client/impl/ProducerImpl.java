@@ -2001,7 +2001,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // must acquire semaphore before enqueuing
     private void batchMessageAndSend() {
         if (this.batchFlushTask != null) {
-            // Cancel batch timer task since we're sending the batch now. (Don't interrupt; it could be this future.)
+            // Cancel batch timer task since we're sending the batch now.
             this.batchFlushTask.cancel(false);
             this.batchFlushTask = null;
         }
