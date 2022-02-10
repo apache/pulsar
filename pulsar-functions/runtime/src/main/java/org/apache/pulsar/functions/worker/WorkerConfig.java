@@ -155,21 +155,52 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "Configuration store connection string (as a comma-separated list)"
     )
     private String configurationMetadataStoreUrl;
+
     @FieldContext(
             category = CATEGORY_WORKER,
-            doc = "ZooKeeper session timeout in milliseconds"
+            doc = "Metadata store session timeout in milliseconds."
     )
-    private long zooKeeperSessionTimeoutMillis = 30000;
+    private long metadataStoreSessionTimeoutMillis = 30_000;
+
     @FieldContext(
             category = CATEGORY_WORKER,
-            doc = "ZooKeeper operation timeout in seconds"
+            doc = "Metadata store operation timeout in seconds."
     )
-    private int zooKeeperOperationTimeoutSeconds = 30;
+    private int metadataStoreOperationTimeoutSeconds = 30;
+
     @FieldContext(
             category = CATEGORY_WORKER,
-            doc = "ZooKeeper cache expiry time in seconds"
-        )
-    private int zooKeeperCacheExpirySeconds = 300;
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            deprecated = true,
+            doc = "ZooKeeper session timeout in milliseconds. "
+                    + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
+    )
+    private long zooKeeperSessionTimeoutMillis = -1;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            deprecated = true,
+            doc = "ZooKeeper operation timeout in seconds. "
+                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
+    )
+    private int zooKeeperOperationTimeoutSeconds = -1;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            deprecated = true,
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
+    )
+    private int zooKeeperCacheExpirySeconds = -1;
+
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -187,12 +218,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Boolean validateConnectorConfig = false;
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
-        doc = "The path to the location to locate builtin functions"
+        doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
     )
     private Boolean uploadBuiltinSinksSources = true;
     @FieldContext(
             category = CATEGORY_FUNCTIONS,
-            doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
+            doc = "The path to the location to locate builtin functions"
     )
     private String functionsDirectory = "./functions";
     @FieldContext(
@@ -731,5 +762,18 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         } else {
             return brokerClientAuthenticationParameters;
         }
+    }
+
+    public long getMetadataStoreSessionTimeoutMillis() {
+        return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreOperationTimeoutSeconds() {
+        return zooKeeperOperationTimeoutSeconds > 0 ? zooKeeperOperationTimeoutSeconds
+                : metadataStoreOperationTimeoutSeconds;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
     }
 }

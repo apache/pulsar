@@ -26,15 +26,15 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
 @Slf4j
@@ -84,11 +84,12 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 e.printStackTrace();
             }
         });
-        thread.start();
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1")
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1")
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+
+        thread.start();
 
         int count1 = 0;
         int count2 = 0;
@@ -129,32 +130,32 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 e.printStackTrace();
             }
         });
+
+        Consumer<byte[]> newConsumer1 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
+                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+        Consumer<byte[]> newConsumer2 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
+                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+
         thread2.start();
 
-        Consumer newConsumer1 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        Consumer newConsumer2 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        count1 = 0;
-        count2 = 0;
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            count1++;
-            newConsumer1.acknowledge(message);
-        }
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            count2++;
-            newConsumer2.acknowledge(message);
-        }
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
+                    if (message != null) {
+                        newConsumer1.acknowledge(message);
+                    }
+                    assertNotNull(message);
+                });
 
-        Assert.assertTrue(count1 > 0 && count2 > 0);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
+                    if (message != null) {
+                        newConsumer2.acknowledge(message);
+                    }
+                    assertNotNull(message);
+                });
+
         thread2.interrupt();
         newConsumer1.close();
         newConsumer2.close();

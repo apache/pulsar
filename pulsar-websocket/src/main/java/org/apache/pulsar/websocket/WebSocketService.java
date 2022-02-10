@@ -93,7 +93,7 @@ public class WebSocketService implements Closeable {
         if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
                 configMetadataStore = createMetadataStore(config.getConfigurationMetadataStoreUrl(),
-                        (int) config.getZooKeeperSessionTimeoutMillis());
+                        (int) config.getMetadataStoreSessionTimeoutMillis());
             } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
             }

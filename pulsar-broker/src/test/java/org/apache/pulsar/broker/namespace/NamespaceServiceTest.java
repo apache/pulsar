@@ -612,14 +612,24 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceName nsname = NamespaceName.get(namespace);
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
-        String bundle = bundles.findBundle(TopicName.get(topic + "0")).getBundleRange();
-        String path = ModularLoadManagerImpl.getBundleDataPath(bundle);
+
+        NamespaceBundle targetNamespaceBundle =  bundles.findBundle(TopicName.get(topic + "0"));
+        String bundle = targetNamespaceBundle.getBundleRange();
+        String path = ModularLoadManagerImpl.getBundleDataPath(namespace + "/" + bundle);
         NamespaceBundleStats defaultStats = new NamespaceBundleStats();
         defaultStats.msgThroughputIn = 100000;
         defaultStats.msgThroughputOut = 100000;
-        BundleData bd = new BundleData(10, 19, defaultStats );
+        BundleData bd = new BundleData(10, 19, defaultStats);
+        bd.setTopics(10);
         byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bd);
         pulsar.getLocalMetadataStore().put(path, data, Optional.empty());
+
+        LoadManager loadManager = pulsar.getLoadManager().get();
+        Awaitility.await().untilAsserted(() -> {
+            BundleData targetBundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                    .getBundleDataOrDefault(namespace + "/" + bundle);
+            assertEquals(targetBundleData.getTopics(), 10);
+        });
         
         String hotBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestThroughput(nsname)
                 .getBundleRange();

@@ -1862,7 +1862,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else {
-                stats.publishers.add(publisherStats);
+                stats.addPublisher(publisherStats);
             }
         });
 
@@ -2335,6 +2335,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscription.getCursor().setInactive();
             }
         });
+    }
+
+    public void checkInactiveLedgers() {
+        ledger.checkInactiveLedgerAndRollOver();
     }
 
     @Override
