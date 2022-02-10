@@ -168,7 +168,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         try {
             return newTransactionAsync(timeout, unit).get();
         } catch (Exception e) {
-            throw TransactionCoordinatorClientException.unwrap(e.getCause());
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
@@ -183,7 +183,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         try {
             addPublishPartitionToTxnAsync(txnID, partitions).get();
         } catch (Exception e) {
-            throw TransactionCoordinatorClientException.unwrap(e.getCause());
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
@@ -204,7 +204,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         try {
             addSubscriptionToTxnAsync(txnID, topic, subscription).get();
         } catch (Exception e) {
-            throw TransactionCoordinatorClientException.unwrap(e.getCause());
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 
@@ -227,7 +227,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         try {
             commitAsync(txnID).get();
         } catch (Exception e) {
-            throw TransactionCoordinatorClientException.unwrap(e.getCause());
+            throw TransactionCoordinatorClientException.unwrap(e);
         }
     }
 

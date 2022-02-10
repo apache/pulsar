@@ -119,18 +119,13 @@ public class TransactionCoordinatorClientException extends IOException {
         } else if (t instanceof InterruptedException) {
             Thread.currentThread().interrupt();
             return new TransactionCoordinatorClientException(t);
-        }  else if (!(t instanceof ExecutionException)) {
+        }  else if (t instanceof CoordinatorNotFoundException) {
+            return (CoordinatorNotFoundException) t;
+        } else if (t instanceof InvalidTxnStatusException) {
+            return (InvalidTxnStatusException) t;
+        } else if (t instanceof ExecutionException) {
             // Generic exception
-            return new TransactionCoordinatorClientException(t);
-        }
-
-        Throwable cause = t.getCause();
-        String msg = cause.getMessage();
-
-        if (cause instanceof CoordinatorNotFoundException) {
-            return new CoordinatorNotFoundException(msg);
-        } else if (cause instanceof InvalidTxnStatusException) {
-            return new InvalidTxnStatusException(msg);
+            return unwrap(t.getCause());
         } else {
             return new TransactionCoordinatorClientException(t);
         }
