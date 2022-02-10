@@ -841,13 +841,10 @@ The following figure illustrates the dynamic construction of a TableView updated
  
 The following is an example of how to configure a TableView.
 
-```
-try (TableView<String> tv = client.newTableViewBuilder(Schema.STRING)
-  .topic("tableview-test")
-  .create()) {
-    String value = tv.get("my-key");
-    System.out.println("Key's value: " + value);
-}
+```java
+TableView<String> tv = client.newTableViewBuilder(Schema.STRING)
+  .topic("my-tableview")
+  .create()
 ```
 
 You can use the available parameters in the `loadConf` configuration or related [API](https://pulsar.apache.org/api/client/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
@@ -857,6 +854,19 @@ You can use the available parameters in the `loadConf` configuration or related 
 | `topic` | string | yes | The topic name of the TableView. | N/A
 | `autoUpdatePartitionInterval` | int | no | The interval to check for newly added partitions. | 60 (seconds)
 
+### Register listeners
+ 
+You can register listeners for both existing messages on a topic and new messages coming into the topic by using `forEachAndListen`, and specify to perform the registration for all existing messages by using `forEach`.
+
+The following is an example of how to register listeners with TableView.
+
+```java
+// Register listeners for all existing and incoming messages
+tv.forEachAndListen((key, value) -> /*operations on all existing and incoming messages*/)
+
+// Register action for all existing messages
+tv.forEach((key, value) -> /*operations on all existing messages*/)
+```
 
 ## Schema
 
