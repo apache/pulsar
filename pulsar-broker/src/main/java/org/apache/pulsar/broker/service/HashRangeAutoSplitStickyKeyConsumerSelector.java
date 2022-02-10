@@ -78,7 +78,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws ConsumerAssignException {
-        if (rangeMap.size() == 0) {
+        if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
         } else {
@@ -103,7 +103,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Consumer select(int hash) {
-        if (rangeMap.size() > 0) {
+        if (!rangeMap.isEmpty()) {
             int slot = hash % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
         } else {

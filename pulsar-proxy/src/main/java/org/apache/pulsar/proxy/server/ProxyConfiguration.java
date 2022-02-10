@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -47,6 +48,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_SERVER = "Server";
     @Category
     private static final String CATEGORY_BROKER_DISCOVERY = "Broker Discovery";
+    @Category
+    private static final String CATEGORY_BROKER_PROXY = "Broker Proxy";
     @Category
     private static final String CATEGORY_AUTHENTICATION = "Proxy Authentication";
     @Category
@@ -74,20 +77,46 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
         doc = "The ZooKeeper quorum connection string (as a comma-separated list)"
     )
+    @Deprecated
     private String zookeeperServers;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_DISCOVERY,
+            required = false,
+            doc = "The metadata store URL. \n"
+                    + " Examples: \n"
+                    + "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181\n"
+                    + "  * my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 (will default to ZooKeeper when the schema is not "
+                    + "specified)\n"
+                    + "  * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)\n"
+    )
+    private String metadataStoreUrl;
+
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
         doc = "Configuration store connection string (as a comma-separated list)"
     )
+    @Deprecated
     private String configurationStoreServers;
+
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
         doc = "Global ZooKeeper quorum connection string (as a comma-separated list)"
     )
     @Deprecated
     private String globalZookeeperServers;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_DISCOVERY,
+            required = false,
+            doc = "The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl"
+    )
+    private String configurationMetadataStoreUrl;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -134,6 +163,43 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURLTLS;
+
+    @FieldContext(category = CATEGORY_BROKER_PROXY,
+            doc = "When enabled, checks that the target broker is active before connecting. "
+                    + "zookeeperServers and configurationStoreServers must be configured in proxy configuration "
+                    + "for retrieving the active brokers.")
+    private boolean checkActiveBrokers = false;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Broker proxy connect timeout.\n"
+                    + "The timeout value for Broker proxy connect timeout is in millisecond. Set to 0 to disable."
+    )
+    private int brokerProxyConnectTimeoutMs = 10000;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Broker proxy read timeout.\n"
+                    + "The timeout value for Broker proxy read timeout is in millisecond. Set to 0 to disable."
+    )
+    private int brokerProxyReadTimeoutMs = 75000;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target host names. "
+                    + "Supports multiple comma separated entries and a wildcard.")
+    private String brokerProxyAllowedHostNames = "*";
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target ip addresses or ip networks / netmasks. "
+                    + "Supports multiple comma separated entries.")
+    private String brokerProxyAllowedIPAddresses = "*";
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target ports")
+    private String brokerProxyAllowedTargetPorts = "6650,6651";
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -520,6 +586,20 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for Netty IO."
+                    + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
+    )
+    private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for Netty Acceptor."
+                    + " Default is set to `1`"
+    )
+    private int numAcceptorThreads = 1;
+
     @Deprecated
     @FieldContext(
             category = CATEGORY_PLUGIN,
@@ -615,6 +695,28 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
+
+    public String getMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(metadataStoreUrl)) {
+            return metadataStoreUrl;
+        } else {
+            // Fallback to old setting
+            return zookeeperServers;
+        }
+    }
+
+    public String getConfigurationMetadataStoreUrl() {
+        if (StringUtils.isNotBlank(configurationMetadataStoreUrl)) {
+            return configurationMetadataStoreUrl;
+        } else if (StringUtils.isNotBlank(configurationStoreServers)) {
+            return configurationStoreServers;
+        } else if (StringUtils.isNotBlank(globalZookeeperServers)) {
+            return globalZookeeperServers;
+        } else {
+            // Fallback to local zookeeper
+            return getMetadataStoreUrl();
+        }
+    }
 
     private Properties properties = new Properties();
 
