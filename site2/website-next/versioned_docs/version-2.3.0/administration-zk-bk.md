@@ -248,6 +248,9 @@ ledgerDirectories=data/bookkeeper/ledgers
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 
+#This parameter best be set, otherwise，the Bookkeeper can't start normally in special environment
+advertisedAddress=localhost or hostname or 127.0.0.1
+
 ```
 
 To change the zookeeper root path used by Bookkeeper, use zkLedgersRootPath=/MY-PREFIX/ledgers instead of zkServers=localhost:2181/MY-PREFIX
