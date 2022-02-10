@@ -190,7 +190,8 @@ public class PrometheusMetricsGenerator {
                                             new LedgerOffloaderMetrics(pulsar, true, namespace, topicName).generate();
                                     metricList.addAll(metrics);
                                 } catch (Exception ex) {
-                                    log.error("generate ledger offloader topic level metrics error", ex);
+                                    log.error("generate ledger offloader topic level metrics error. topic name:[{}]",
+                                            topicName, ex);
                                 }
                             }
                         }
@@ -206,7 +207,7 @@ public class PrometheusMetricsGenerator {
                             + " generate ledger offloader namespace level metrics succeed, size:" + metrics.size());
                     metricList.addAll(metrics);
                 } catch (Exception ex) {
-                    log.error("generate ledger offloader namespace level metrics error", ex);
+                    log.error("generate ledger offloader namespace level metrics error. namespace:[{}]", namespace, ex);
                 }
             });
         }
