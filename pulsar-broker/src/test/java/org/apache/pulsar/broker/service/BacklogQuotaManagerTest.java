@@ -1114,6 +1114,7 @@ public class BacklogQuotaManagerTest {
         // now remove backlog and ensure that producer is unblocked;
 
         TopicStats stats = admin.topics().getStats(topic1);
+        rolloverStats();
         int backlog = (int) stats.getSubscriptions().get(subName1).getMsgBacklog();
 
         for (int i = 0; i < backlog; i++) {
