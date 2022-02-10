@@ -28,6 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -111,9 +113,12 @@ public class TestCmdTopics {
 
         Topics topics = mock(Topics.class);
         doReturn(topicList).when(topics).getList(anyString(), any());
+        doReturn(topicList).when(topics).getList(anyString(), any(), any());
 
         PulsarAdmin admin = mock(PulsarAdmin.class);
         when(admin.topics()).thenReturn(topics);
+
+        assertEquals(admin.topics().getList("test", TopicDomain.persistent), topicList);
 
         CmdTopics cmd = new CmdTopics(() -> admin);
 

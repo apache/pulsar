@@ -225,6 +225,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private ManagedLedgerInterceptor managedLedgerInterceptor;
 
+    private volatile long lastAddEntryTimeMs = 0;
+    private long inactiveLedgerRollOverTimeMs = 0;
+
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
 
@@ -323,6 +326,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
+        if (config.getManagedLedgerInterceptor() != null) {
+            this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
+        }
+        this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -356,7 +363,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 // Last ledger stat may be zeroed, we must update it
-                if (ledgers.size() > 0) {
+                if (!ledgers.isEmpty()) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
                         executor.executeOrdered(name, safeRun(() -> {
@@ -797,6 +804,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             addOperation.initiate();
         }
+        // mark add entry activity
+        lastAddEntryTimeMs = System.currentTimeMillis();
     }
 
     private boolean beforeAddEntry(OpAddEntry addOperation) {
@@ -4073,6 +4082,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (this.checkLedgerRollTask != null) {
             this.checkLedgerRollTask.cancel(false);
+        }
+    }
+
+    @Override
+    public void checkInactiveLedgerAndRollOver() {
+        long currentTimeMs = System.currentTimeMillis();
+        if (inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
+            log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
+            ledgerClosed(currentLedger);
         }
     }
 

@@ -32,10 +32,15 @@ workerPortTls: 6751
 # * my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 (will default to ZooKeeper when the schema is not specified)
 # * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)
 configurationMetadataStoreUrl: zk:localhost:2181
-# ZooKeeper session timeout in milliseconds
-zooKeeperSessionTimeoutMillis: 30000
-# ZooKeeper operation timeout in seconds
-zooKeeperOperationTimeoutSeconds: 30
+
+# Metadata store session timeout in milliseconds
+metadataStoreSessionTimeoutMillis: 30000
+
+# Metadata store operation timeout in seconds
+metadataStoreOperationTimeoutSeconds: 30
+
+# Metadata store cache expiry time in seconds
+metadataStoreCacheExpirySeconds: 300
 
 ################################
 # Function package management
@@ -151,6 +156,9 @@ functionRuntimeFactoryConfigs:
 #### Kubernetes Runtime ####
 # Pulsar function are deployed to Kubernetes
 
+# Upload the builtin sources/sinks to BookKeeper.
+# True by default.
+# uploadBuiltinSinksSources: true
 #functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory
 #functionRuntimeFactoryConfigs:
 #    # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
@@ -219,9 +227,6 @@ functionRuntimeFactoryConfigs:
 #    narExtractionDirectory:
 #    # The classpath where function instance files stored
 #    functionInstanceClassPath:
-#    # Upload the builtin sources/sinks to BookKeeper.
-#    # True by default.
-#    uploadBuiltinSinksSources: true
 #    # the directory for dropping extra function dependencies
 #    # if it is not an absolute path, it is relative to `pulsarRootDir`
 #    extraFunctionDependenciesDir:
@@ -335,3 +340,11 @@ initializedDlogMetadata: false
 
 ### --- Deprecated settings --- ###
 configurationStoreServers: localhost:2181
+
+# ZooKeeper session timeout in milliseconds
+# Deprecated: use metadataStoreSessionTimeoutMillis
+zooKeeperSessionTimeoutMillis: -1
+
+# ZooKeeper operation timeout in seconds
+# Deprecated: use metadataStoreOperationTimeoutSeconds
+zooKeeperOperationTimeoutSeconds: -1

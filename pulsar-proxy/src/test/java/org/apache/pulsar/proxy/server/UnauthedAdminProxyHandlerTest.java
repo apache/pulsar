@@ -68,6 +68,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
         // start proxy service
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setBrokerWebServiceURL(brokerUrl.toString());
         proxyConfig.setStatusFilePath(STATUS_FILE_PATH);

@@ -356,4 +356,9 @@ public class MockManagedLedger implements ManagedLedger {
     public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
         return null;
     }
+
+    @Override
+    public void checkInactiveLedgerAndRollOver() {
+
+    }
 }

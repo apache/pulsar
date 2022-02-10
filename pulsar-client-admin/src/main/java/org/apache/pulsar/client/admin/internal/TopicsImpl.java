@@ -136,12 +136,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
-        return getList(namespace, null);
+        return getList(namespace, null, null);
     }
 
     @Override
     public List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException {
-        return sync(() -> getListAsync(namespace, topicDomain));
+        return getList(namespace, topicDomain, Collections.emptyMap());
+    }
+
+    @Override
+    public List<String> getList(String namespace, TopicDomain topicDomain, Map<QueryParam, Object> params)
+            throws PulsarAdminException {
+        return sync(() -> getListAsync(namespace, topicDomain, params));
     }
 
     @Override
@@ -151,9 +157,21 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain) {
+        return getListAsync(namespace, topicDomain, Collections.emptyMap());
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain,
+            Map<QueryParam, Object> params) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns);
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
+        if (params != null && !params.isEmpty()) {
+            for (Entry<QueryParam, Object> param : params.entrySet()) {
+                persistentPath = persistentPath.queryParam(param.getKey().value, param.getValue());
+                nonPersistentPath = nonPersistentPath.queryParam(param.getKey().value, param.getValue());
+            }
+        }
         final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
         final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
         if (topicDomain == null || TopicDomain.persistent.equals(topicDomain)) {

@@ -655,7 +655,7 @@ Options
 |`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`--threads`|Number of threads writing|1|
 |`-w`, `--write-quorum`|Ledger write quorum|1|
-|`-zk`, `--zookeeperServers`|ZooKeeper connection string||
+|`-md`, `--metadata-store`|Metadata store service URL. For example: zk:my-zk:2181||
 
 
 ### `monitor-brokers`

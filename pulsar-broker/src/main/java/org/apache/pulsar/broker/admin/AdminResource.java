@@ -57,6 +57,8 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -566,7 +568,7 @@ public abstract class AdminResource extends PulsarWebResource {
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
         try {
             return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
-                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
                     namespaceName.toString(), e);
@@ -760,18 +762,21 @@ public abstract class AdminResource extends PulsarWebResource {
         return future;
     }
 
-    protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
-        if (throwable instanceof WebApplicationException) {
-            asyncResponse.resume(throwable);
-        } else if (throwable instanceof BrokerServiceException.NotAllowedException) {
-            asyncResponse.resume(new RestException(Status.CONFLICT, throwable));
+    protected static void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable exception) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(exception);
+        if (realCause instanceof WebApplicationException) {
+            asyncResponse.resume(realCause);
+        } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
+            asyncResponse.resume(new RestException(Status.CONFLICT, realCause));
         } else {
-            asyncResponse.resume(new RestException(throwable));
+            asyncResponse.resume(new RestException(realCause));
         }
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
-        return validateTopicOperationAsync(topicName, TopicOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY)
+        return validateTopicPolicyOperationAsync(topicName,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ)
                 .thenCompose((__) -> {
                     CompletableFuture<SchemaCompatibilityStrategy> future;
                     if (config().isTopicLevelPoliciesEnabled()) {

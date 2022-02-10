@@ -146,6 +146,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("version"));
         verify(mockBrokers).getVersion();
+
+        brokers.run(split("shutdown -m 10 -f"));
+        verify(mockBrokers).shutDownBrokerGracefully(10,true);
     }
 
     @Test
@@ -1313,7 +1316,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).revokePermissions("persistent://myprop/clust/ns1/ds1", "admin");
 
         cmdTopics.run(split("list myprop/clust/ns1"));
-        verify(mockTopics).getList("myprop/clust/ns1", null);
+        verify(mockTopics).getList("myprop/clust/ns1", null, null);
 
         cmdTopics.run(split("lookup persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).lookupTopic("persistent://myprop/clust/ns1/ds1");
@@ -1851,7 +1854,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, null);
 
         topics.run(split("list myprop/ns1"));
-        verify(mockTopics).getList("myprop/ns1", null);
+        verify(mockTopics).getList("myprop/ns1", null, null);
 
         NonPersistentTopics mockNonPersistentTopics = mock(NonPersistentTopics.class);
         when(admin.nonPersistentTopics()).thenReturn(mockNonPersistentTopics);

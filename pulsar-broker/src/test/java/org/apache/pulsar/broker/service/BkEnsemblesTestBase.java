@@ -88,7 +88,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
-            config.setZooKeeperOperationTimeoutSeconds(10);
+            config.setMetadataStoreOperationTimeoutSeconds(10);
             config.setNumIOThreads(1);
             Properties properties = new Properties();
             properties.put("bookkeeper_numWorkerThreads", "1");

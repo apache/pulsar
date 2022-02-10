@@ -674,13 +674,18 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     && individualAckPositions.containsKey(entry.getValue())) {
                 BitSetRecyclable thisBitSet =
                         BitSetRecyclable.valueOf(entry.getValue().getAckSet());
-                thisBitSet.flip(0, individualAckPositions.get(entry.getValue()).right);
+                int batchSize = individualAckPositions.get(entry.getValue()).right;
+                thisBitSet.flip(0, batchSize);
                 BitSetRecyclable otherBitSet =
                         BitSetRecyclable.valueOf(individualAckPositions
                                 .get(entry.getValue()).left.getAckSet());
                 otherBitSet.or(thisBitSet);
-                individualAckPositions.get(entry.getKey())
-                        .left.setAckSet(otherBitSet.toLongArray());
+                if (otherBitSet.cardinality() == batchSize) {
+                    individualAckPositions.remove(entry.getValue());
+                } else {
+                    individualAckPositions.get(entry.getKey())
+                            .left.setAckSet(otherBitSet.toLongArray());
+                }
                 otherBitSet.recycle();
                 thisBitSet.recycle();
             } else {

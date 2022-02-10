@@ -2337,6 +2337,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    public void checkInactiveLedgers() {
+        ledger.checkInactiveLedgerAndRollOver();
+    }
+
     @Override
     public void checkDeduplicationSnapshot() {
         messageDeduplication.takeSnapshot();
@@ -2476,14 +2480,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (backlogQuotaLimitInBytes < 0) {
             return false;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] - backlog quota limit = [{}]", getName(), backlogQuotaLimitInBytes);
-        }
 
         // check if backlog exceeded quota
         long storageSize = getBacklogSize();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Storage size = [{}], limit [{}]", getName(), storageSize, backlogQuotaLimitInBytes);
+            log.debug("[{}] Storage size = [{}], backlog quota limit [{}]",
+                    getName(), storageSize, backlogQuotaLimitInBytes);
         }
 
         return (storageSize >= backlogQuotaLimitInBytes);

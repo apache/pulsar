@@ -98,9 +98,15 @@ public class ManagedLedgerWriter {
                 description = "Number of threads writing", validateWith = PositiveNumberParameterValidator.class)
         public int numThreads = 1;
 
-        @Parameter(names = { "-zk", "--zookeeperServers" },
-                description = "ZooKeeper connection string", required = true)
+        @Deprecated
+        @Parameter(names = {"-zk", "--zookeeperServers"},
+                description = "ZooKeeper connection string",
+                hidden = true)
         public String zookeeperServers;
+
+        @Parameter(names = {"-md",
+                "--metadata-store"}, description = "Metadata store service URL. For example: zk:my-zk:2181")
+        private String metadataStoreUrl;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
         public int maxOutstanding = 1000;
@@ -151,6 +157,12 @@ public class ManagedLedgerWriter {
             PerfClientUtils.exit(-1);
         }
 
+        if (arguments.metadataStoreUrl == null && arguments.zookeeperServers == null) {
+            System.err.println("Metadata store address argument is required (--metadata-store)");
+            jc.usage();
+            PerfClientUtils.exit(1);
+        }
+
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
@@ -164,19 +176,23 @@ public class ManagedLedgerWriter {
         // Now processing command line arguments
         String managedLedgerPrefix = "test-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
 
+        if (arguments.metadataStoreUrl == null) {
+            arguments.metadataStoreUrl = arguments.zookeeperServers;
+        }
+
         ClientConfiguration bkConf = new ClientConfiguration();
         bkConf.setUseV2WireProtocol(true);
         bkConf.setAddEntryTimeout(30);
         bkConf.setReadEntryTimeout(30);
         bkConf.setThrottleValue(0);
         bkConf.setNumChannelsPerBookie(arguments.maxConnections);
-        bkConf.setZkServers(arguments.zookeeperServers);
+        bkConf.setMetadataServiceUri(arguments.metadataStoreUrl);
 
         ManagedLedgerFactoryConfig mlFactoryConf = new ManagedLedgerFactoryConfig();
         mlFactoryConf.setMaxCacheSize(0);
 
         @Cleanup
-        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.zookeeperServers,
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.metadataStoreUrl,
                 MetadataStoreConfig.builder().build());
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkConf, mlFactoryConf);
 
