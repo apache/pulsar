@@ -2480,7 +2480,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // check if backlog exceeded quota
         long storageSize = getBacklogSize();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Storage size = [{}], backlog quota limit [{}]", getName(), storageSize, backlogQuotaLimitInBytes);
+            log.debug("[{}] Storage size = [{}], backlog quota limit [{}]",
+                    getName(), storageSize, backlogQuotaLimitInBytes);
         }
 
         return (storageSize >= backlogQuotaLimitInBytes);
