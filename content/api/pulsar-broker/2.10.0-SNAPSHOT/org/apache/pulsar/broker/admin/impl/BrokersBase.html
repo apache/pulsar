@@ -233,7 +233,8 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteDynamicConfiguration(java.lang.String)">deleteDynamicConfiguration</a></span>&#8203;(java.lang.String&nbsp;configName)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#deleteDynamicConfiguration(javax.ws.rs.container.AsyncResponse,java.lang.String)">deleteDynamicConfiguration</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                          java.lang.String&nbsp;configName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
@@ -437,7 +438,7 @@ public&nbsp;void&nbsp;updateDynamicConfiguration&#8203;(@Suspended
                                        java.lang.String&nbsp;configValue)</pre>
 </li>
 </ul>
-<a id="deleteDynamicConfiguration(java.lang.String)">
+<a id="deleteDynamicConfiguration(javax.ws.rs.container.AsyncResponse,java.lang.String)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -445,13 +446,10 @@ public&nbsp;void&nbsp;updateDynamicConfiguration&#8203;(@Suspended
 <h4>deleteDynamicConfiguration</h4>
 <pre class="methodSignature">@DELETE
 @Path("/configuration/{configName}")
-public&nbsp;void&nbsp;deleteDynamicConfiguration&#8203;(@PathParam("configName")
-                                       java.lang.String&nbsp;configName)
-                                throws java.lang.Exception</pre>
-<dl>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code>java.lang.Exception</code></dd>
-</dl>
+public&nbsp;void&nbsp;deleteDynamicConfiguration&#8203;(@Suspended
+                                       javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                                       @PathParam("configName")
+                                       java.lang.String&nbsp;configName)</pre>
 </li>
 </ul>
 <a id="getAllDynamicConfigurations()">

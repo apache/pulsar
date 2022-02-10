@@ -316,94 +316,10 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll</p></li>
 <p>如果您使用 TLS 身份验证，您需要添加 <code>ssl</code>，默认端口是 <code>6651</code>。 以下是一个例子。</p>
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="创建一个-consumer"></a><a href="#创建一个-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建一个 consumer</h2>
-<p>若要使用 Pulsar 作为 consumer，您需要在 C++ 客户端创建一个 consumer。 有两种使用消费者的主要方式： -<a href=“#blocking-example”>阻塞模式</a>：同步调用<code>receive(msg)</code>。 - <a href="#consumer-with-a-message-listener">无阻塞模式</a> (基于事件) 风格：使用消息监听器。</p>
-<h3><a class="anchor" aria-hidden="true" id="阻塞示例"></a><a href="#阻塞示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>阻塞示例</h3>
-<p>这种方法的好处就是代码简单。 只需不断调用 <code>receive(msg)</code> 阻塞直到收到消息。</p>
-<p>此示例在最早的偏移量开始订阅并消费100条消息。</p>
-<pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
-
-<span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> pulsar;
-
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
-    <span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
-
-    Consumer consumer;
-    ConsumerConfiguration <span class="hljs-built_in">config</span>;
-    <span class="hljs-built_in">config</span>.setSubscriptionInitialPosition(InitialPositionEarliest);
-    Result result = client.subscribe(<span class="hljs-string">"persistent://public/default/my-topic"</span>, <span class="hljs-string">"consumer-1"</span>, <span class="hljs-built_in">config</span>, consumer);
-    <span class="hljs-keyword">if</span> (result != ResultOk) {
-        <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Failed to subscribe: "</span> &lt;&lt; result &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
-        <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
-    }
-
-    Message msg;
-    <span class="hljs-keyword">int</span> ctr = <span class="hljs-number">0</span>;
-    <span class="hljs-comment">// consume 100 messages</span>
-    <span class="hljs-keyword">while</span> (ctr &lt; <span class="hljs-number">100</span>) {
-        consumer.receive(msg);
-        <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Received: "</span> &lt;&lt; msg
-            &lt;&lt; <span class="hljs-string">"  with payload '"</span> &lt;&lt; msg.getDataAsString() &lt;&lt; <span class="hljs-string">"'"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
-
-        consumer.acknowledge(msg);
-        ctr++;
-    }
-
-    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Finished consuming synchronously!"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
-
-    client.<span class="hljs-built_in">close</span>();
-    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
-}
-</code></pre>
-<h3><a class="anchor" aria-hidden="true" id="消息监听器"></a><a href="#消息监听器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息监听器</h3>
-<p>你可以不运行循环阻塞方式，而选择调用基于事件的消息监听方式来接收每一条消息。</p>
-<p>此示例在最早的偏移量开始订阅并消费100条消息。</p>
-<pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;atomic&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;thread&gt;</span></span>
-
-<span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> pulsar;
-
-<span class="hljs-built_in">std</span>::atomic&lt;<span class="hljs-keyword">uint32_t</span>&gt; messagesReceived;
-
-<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">handleAckComplete</span><span class="hljs-params">(Result res)</span> </span>{
-    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Ack res: "</span> &lt;&lt; res &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
-}
-
-<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">listener</span><span class="hljs-params">(Consumer consumer, <span class="hljs-keyword">const</span> Message&amp; msg)</span> </span>{
-    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Got message "</span> &lt;&lt; msg &lt;&lt; <span class="hljs-string">" with content '"</span> &lt;&lt; msg.getDataAsString() &lt;&lt; <span class="hljs-string">"'"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
-    messagesReceived++;
-    consumer.acknowledgeAsync(msg.getMessageId(), handleAckComplete);
-}
-
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
-    <span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
-
-    Consumer consumer;
-    ConsumerConfiguration <span class="hljs-built_in">config</span>;
-    <span class="hljs-built_in">config</span>.setMessageListener(listener);
-    <span class="hljs-built_in">config</span>.setSubscriptionInitialPosition(InitialPositionEarliest);
-    Result result = client.subscribe(<span class="hljs-string">"persistent://public/default/my-topic"</span>, <span class="hljs-string">"consumer-1"</span>, <span class="hljs-built_in">config</span>, consumer);
-    <span class="hljs-keyword">if</span> (result != ResultOk) {
-        <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Failed to subscribe: "</span> &lt;&lt; result &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
-        <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
-    }
-
-    <span class="hljs-comment">// wait for 100 messages to be consumed</span>
-    <span class="hljs-keyword">while</span> (messagesReceived &lt; <span class="hljs-number">100</span>) {
-        <span class="hljs-built_in">std</span>::this_thread::sleep_for(<span class="hljs-built_in">std</span>::chrono::milliseconds(<span class="hljs-number">100</span>));
-    }
-
-    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Finished consuming asynchronously!"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
-
-    client.<span class="hljs-built_in">close</span>();
-    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
-}
-</code></pre>
-<h2><a class="anchor" aria-hidden="true" id="创建一个-producer"></a><a href="#创建一个-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建一个 producer</h2>
-<p>若要使用 Pulsar 作为 producer，您需要在 C++ 客户端创建一个 producer。 使用生产者有两种主要方式： - <a href="#simple-blocking-example">阻塞模式</a> : 每次调用 <code>发送</code> 都需要等待 broker端的确认答复。 - <a href="#non-blocking-example">无阻挡异步方式</a> : 调用 <code>sendAsync</code> 而不是 <code>send</code> 并当 broker 返回 ack 时会收到回调 。</p>
+<h2><a class="anchor" aria-hidden="true" id="create-a-producer"></a><a href="#create-a-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a producer</h2>
+<p>To use Pulsar as a producer, you need to create a producer on the C++ client. There are two main ways of using a producer: - <a href="#simple-blocking-example">Blocking style</a> : each call to <code>send</code> waits for an ack from the broker. - <a href="#non-blocking-example">Non-blocking asynchronous style</a> : <code>sendAsync</code> is called instead of <code>send</code> and a callback is supplied for when the ack is received from the broker.</p>
 <h3><a class="anchor" aria-hidden="true" id="简单的阻塞示例"></a><a href="#简单的阻塞示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>简单的阻塞示例</h3>
-<p>此示例使用阻止方式发送 100 条消息。 虽然简单，但它不会产生高吞吐量，因为它在发送下一条消息之前等待每个 ack 返回。</p>
+<p>This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.</p>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
 <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;thread&gt;</span></span>
 
@@ -443,7 +359,7 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll</p></li>
 <h3><a class="anchor" aria-hidden="true" id="非阻塞示例"></a><a href="#非阻塞示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>非阻塞示例</h3>
 <p>此示例使用非阻塞方式发送100条消息并使用 <code>sendAsync</code> 代替 <code>send</code> 。 这使得生产者可以并行发送多条消息，从而提高吞吐量。</p>
 <p>生产者配置<code>blockIfQueueFull</code>在这里很有用，可以避免传出发送请求的内部队列已满时出现<code>ResultProducerQueueIsFull</code>错误。 一旦内部队列已满， <code>sendAsync</code> 就会变成阻塞，使您的代码变得更加简单。</p>
-<p>如果没有这个配置，结果代码 <code>ResultProducerQueueIsFull</code> 将会传给回调函数。 您必须决定如何处理(重试、丢弃等)。</p>
+<p>Without this configuration, the result code <code>ResultProducerQueueIsFull</code> is passed to the callback. You must decide how to deal with that (retry, discard etc).</p>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
 <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;thread&gt;</span></span>
 
@@ -496,15 +412,120 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll</p></li>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="分区主题和懒惰生产者"></a><a href="#分区主题和懒惰生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分区主题和懒惰生产者</h3>
 <p>在扩展 Pulsar 主题时，您可以将主题配置成数百个分区。 同样，您也可以扩展您的生产者，从数百个到数千个生产者。 这可能会给 Pulsar brokers 带来一些压力，因为当你在分区主题上创建生产者时，内部会为每个分区创建一个内部生产者，这涉及到每个分区与 brokers 的通信。 因此，对于一个有1000个分区和1000个生产者的主题，它最终在生产者应用程序之间创建了1,000,000个内部生产者，每个生产者应用程序都必须与 broker 通信，以确定它应该连接到哪个 broker ，然后执行连接握手。</p>
-<p>您可以通过执行以下操作来减少由于大量分区和多个生产者组合而造成的影响： - 使用 SinglePartition 分区路由模式(这确保所有消息只发送到单个随机选择的分区)。 - 使用 non-keyed 消息(当消息被哈希时，路由基于键的哈希值，因此消息最终会被发送到多个分区)。 - 使用惰性生产者(这确保只有在消息需要路由到分区时才需要创建内部生产者)</p>
+<p>You can reduce the load caused by this combination of a large number of partitions and many producers by doing the following: - use SinglePartition partition routing mode (this ensures that all messages are only sent to a single, randomly selected partition) - use non-keyed messages (when messages are keyed, routing is based on the hash of the key and so messages will end up being sent to multiple partitions) - use lazy producers (this ensures that an internal producer is only created on demand when a message needs to be routed to a partition)</p>
 <p>通过我们上面的例子，这将1000个生产者应用程序的内部生产者数量从1000000减少到了1000。</p>
-<p>注意发送的第一条消息可能会有额外的延迟。如果设置较低的发送超时，如果初始连接握手完成较慢时可能会超时。</p>
+<p>Note that there can be extra latency for the first message sent. If you set a low send timeout, this timeout could be reached if the initial connection handshake is slow to complete.</p>
 <pre><code class="hljs css language-c++">ProducerConfiguration producerConf;
 producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
 producerConf.setLazyStartPartitionedProducers(<span class="hljs-literal">true</span>);
 </code></pre>
+<h3><a class="anchor" aria-hidden="true" id="enable-chunking"></a><a href="#enable-chunking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable chunking</h3>
+<p>Message <a href="/docs/zh-CN/next/concepts-messaging#chunking">chunking</a> enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.</p>
+<p>The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.</p>
+<pre><code class="hljs css language-c++">ProducerConfiguration conf;
+conf.setBatchingEnabled(<span class="hljs-literal">false</span>);
+conf.setChunkingEnabled(<span class="hljs-literal">true</span>);
+Producer producer;
+client.createProducer(<span class="hljs-string">"my-topic"</span>, conf, producer);
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> To enable chunking, you need to disable batching (<code>setBatchingEnabled</code>=<code>false</code>) concurrently.</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="create-a-consumer"></a><a href="#create-a-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a consumer</h2>
+<p>To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer: - <a href="#blocking-example">Blocking style</a>: synchronously calling <code>receive(msg)</code>. - <a href="#consumer-with-a-message-listener">Non-blocking</a> (event based) style: using a message listener.</p>
+<h3><a class="anchor" aria-hidden="true" id="阻塞示例"></a><a href="#阻塞示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>阻塞示例</h3>
+<p>The benefit of this approach is that it is the simplest code. Simply keeps calling <code>receive(msg)</code> which blocks until a message is received.</p>
+<p>此示例在最早的偏移量开始订阅并消费100条消息。</p>
+<pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
+
+<span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> pulsar;
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
+
+    Consumer consumer;
+    ConsumerConfiguration <span class="hljs-built_in">config</span>;
+    <span class="hljs-built_in">config</span>.setSubscriptionInitialPosition(InitialPositionEarliest);
+    Result result = client.subscribe(<span class="hljs-string">"persistent://public/default/my-topic"</span>, <span class="hljs-string">"consumer-1"</span>, <span class="hljs-built_in">config</span>, consumer);
+    <span class="hljs-keyword">if</span> (result != ResultOk) {
+        <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Failed to subscribe: "</span> &lt;&lt; result &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+        <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
+    }
+
+    Message msg;
+    <span class="hljs-keyword">int</span> ctr = <span class="hljs-number">0</span>;
+    <span class="hljs-comment">// consume 100 messages</span>
+    <span class="hljs-keyword">while</span> (ctr &lt; <span class="hljs-number">100</span>) {
+        consumer.receive(msg);
+        <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Received: "</span> &lt;&lt; msg
+            &lt;&lt; <span class="hljs-string">"  with payload '"</span> &lt;&lt; msg.getDataAsString() &lt;&lt; <span class="hljs-string">"'"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+
+        consumer.acknowledge(msg);
+        ctr++;
+    }
+
+    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Finished consuming synchronously!"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+
+    client.<span class="hljs-built_in">close</span>();
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="消息监听器"></a><a href="#消息监听器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息监听器</h3>
+<p>You can avoid running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.</p>
+<p>此示例在最早的偏移量开始订阅并消费100条消息。</p>
+<pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;atomic&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;thread&gt;</span></span>
+
+<span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> pulsar;
+
+<span class="hljs-built_in">std</span>::atomic&lt;<span class="hljs-keyword">uint32_t</span>&gt; messagesReceived;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">handleAckComplete</span><span class="hljs-params">(Result res)</span> </span>{
+    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Ack res: "</span> &lt;&lt; res &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">listener</span><span class="hljs-params">(Consumer consumer, <span class="hljs-keyword">const</span> Message&amp; msg)</span> </span>{
+    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Got message "</span> &lt;&lt; msg &lt;&lt; <span class="hljs-string">" with content '"</span> &lt;&lt; msg.getDataAsString() &lt;&lt; <span class="hljs-string">"'"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+    messagesReceived++;
+    consumer.acknowledgeAsync(msg.getMessageId(), handleAckComplete);
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
+
+    Consumer consumer;
+    ConsumerConfiguration <span class="hljs-built_in">config</span>;
+    <span class="hljs-built_in">config</span>.setMessageListener(listener);
+    <span class="hljs-built_in">config</span>.setSubscriptionInitialPosition(InitialPositionEarliest);
+    Result result = client.subscribe(<span class="hljs-string">"persistent://public/default/my-topic"</span>, <span class="hljs-string">"consumer-1"</span>, <span class="hljs-built_in">config</span>, consumer);
+    <span class="hljs-keyword">if</span> (result != ResultOk) {
+        <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Failed to subscribe: "</span> &lt;&lt; result &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+        <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
+    }
+
+    <span class="hljs-comment">// wait for 100 messages to be consumed</span>
+    <span class="hljs-keyword">while</span> (messagesReceived &lt; <span class="hljs-number">100</span>) {
+        <span class="hljs-built_in">std</span>::this_thread::sleep_for(<span class="hljs-built_in">std</span>::chrono::milliseconds(<span class="hljs-number">100</span>));
+    }
+
+    <span class="hljs-built_in">std</span>::<span class="hljs-built_in">cout</span> &lt;&lt; <span class="hljs-string">"Finished consuming asynchronously!"</span> &lt;&lt; <span class="hljs-built_in">std</span>::<span class="hljs-built_in">endl</span>;
+
+    client.<span class="hljs-built_in">close</span>();
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+}
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="configure-chunking"></a><a href="#configure-chunking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure chunking</h3>
+<p>You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the <code>setMaxPendingChunkedMessage</code> and <code>setAutoAckOldestChunkedMessageOnQueueFull</code> parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later.</p>
+<p>The following is an example of how to configure message chunking.</p>
+<pre><code class="hljs css language-c++">ConsumerConfiguration conf;
+conf.setAutoAckOldestChunkedMessageOnQueueFull(<span class="hljs-literal">true</span>);
+conf.setMaxPendingChunkedMessage(<span class="hljs-number">100</span>);
+Consumer consumer;
+client.subscribe(<span class="hljs-string">"my-topic"</span>, <span class="hljs-string">"my-sub"</span>, conf, consumer);
+</code></pre>
 <h2><a class="anchor" aria-hidden="true" id="启用连接-url-的身份验证"></a><a href="#启用连接-url-的身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用连接 URL 的身份验证</h2>
-<p>如果您连接到 Pulsar 时使用 TLS 身份验证， 您需要在连接 URL 中添加 <code>ssl</code> ，默认端口是 <code>6651</code>。 以下是一个例子。</p>
+<p>If you use TLS authentication when connecting to Pulsar, you need to add <code>ssl</code> in the connection URLs, and the default port is <code>6651</code>. The following is an example.</p>
 <pre><code class="hljs css language-cpp">ClientConfiguration config = ClientConfiguration();
 config.setUseTls(<span class="hljs-literal">true</span>);
 config.setTlsTrustCertsFilePath(<span class="hljs-string">"/path/to/cacert.pem"</span>);
@@ -514,9 +535,9 @@ config.setAuth(pulsar::AuthTls::create(
 
 <span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar+ssl://my-broker.com:6651"</span>, config)</span></span>;
 </code></pre>
-<p>如需完整的示例，请参阅 <a href="https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples">C++ 客户端示例</a>。</p>
+<p>For complete examples, refer to <a href="https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples">C++ client examples</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h2>
-<p>本节描述了一些示例关于结构的示例。欲了解更多有关结构的信息，请参阅 <a href="/docs/zh-CN/next/schema-get-started">Pulsar schema</a>。</p>
+<p>This section describes some examples about schema. For more information about schema, see <a href="/docs/zh-CN/next/schema-get-started">Pulsar schema</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="avro-模式"></a><a href="#avro-模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Avro 模式</h3>
 <ul>
 <li><p>下面的示例演示如何使用 Avro schema 创建一个 producer。</p>
@@ -539,14 +560,25 @@ client.subscribe(<span class="hljs-string">"topic-avro"</span>, <span class="hlj
 </code></pre></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="protobufnative-模式"></a><a href="#protobufnative-模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ProtobufNative 模式</h3>
-<p>下面的示例演示如何使用 ProtobufNative 模式创建生产者和消费者。 1. 使用 Protobuf3 生成 <code>User</code> 类。</p>
-<pre><code class="hljs">&gt; **注意**  
-&gt; 你需要使用 Protobuf3 或者最新版本.
+<p>The following example shows how to create a producer and a consumer with a ProtobufNative schema. ​ 1. Generate the <code>User</code> class using Protobuf3.</p>
+<pre><code class="hljs">&gt; **Note**  
+&gt; You need to use Protobuf3 or later versions.
 </code></pre>
 <p>​ ```protobuf syntax = &quot;proto3&quot;;</p>
-<p>message User { string name = 1; int32 age = 2; } <code>2. 在你的源代码中包含 `ProtobufNativeSchema.h` 。确保你的项目中添加了Protobuf 依赖关系。</code>c++ #include &lt;pulsar/ProtobufNativeSchema.h&gt; <code>3. 创建一个生产者来发送一个 `User` 实例。</code>c++ ProducerConfiguration producerConf; producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor())); Producer producer; client.createProducer(&quot;topic-protobuf&quot;, producerConf, producer); User user; user.set_name(&quot;my-name&quot;); user.set_age(10); std::string content; user.SerializeToString(&amp;content); producer.send(MessageBuilder().setContent(content).build()); <code>4. 创建消费者接收一个 `User` 实例。</code>c++ ConsumerConfiguration consumerConf; consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor())); consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest); Consumer consumer; client.subscribe(&quot;topic-protobuf&quot;, &quot;my-sub&quot;, consumerConf, consumer); Message msg; consumer.receive(msg); User user2; user2.ParseFromArray(msg.getData(), msg.getLength()); ```</p>
+<p>message User { string name = 1; int32 age = 2; }</p>
+<pre><code class="hljs">​
+2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
+​c++ #include &lt;pulsar/ProtobufNativeSchema.h&gt; 
+
+​
+3. Create a producer to send a `User` instance.
+​c++ ProducerConfiguration producerConf; producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor())); Producer producer; client.createProducer(&quot;topic-protobuf&quot;, producerConf, producer); User user; user.set_name(&quot;my-name&quot;); user.set_age(10); std::string content; user.SerializeToString(&amp;content); producer.send(MessageBuilder().setContent(content).build()); 
+
+​
+4. Create a consumer to receive a `User` instance.
+​c++ ConsumerConfiguration consumerConf; consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor())); consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest); Consumer consumer; client.subscribe(&quot;topic-protobuf&quot;, &quot;my-sub&quot;, consumerConf, consumer); Message msg; consumer.receive(msg); User user2; user2.ParseFromArray(msg.getData(), msg.getLength()); ```</code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-python"><span class="arrow-prev">← </span><span>Python</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-node"><span>Node.js
-</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#支持的平台">支持的平台</a></li><li><a href="#系统要求">系统要求</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#编译">编译</a></li><li><a href="#安装依赖项">安装依赖项</a></li><li><a href="#安装-rpm">安装 RPM</a></li><li><a href="#安装-debian">安装 Debian</a></li><li><a href="#编译-1">编译</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#编译-2">编译</a></li><li><a href="#安装-libpulsar">安装 <code>libpulsar</code></a></li></ul></li><li><a href="#windows-x64">Windows (x64)</a><ul class="toc-headings"><li><a href="#编译-3">编译</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#创建一个-consumer">创建一个 consumer</a><ul class="toc-headings"><li><a href="#阻塞示例">阻塞示例</a></li><li><a href="#消息监听器">消息监听器</a></li></ul></li><li><a href="#创建一个-producer">创建一个 producer</a><ul class="toc-headings"><li><a href="#简单的阻塞示例">简单的阻塞示例</a></li><li><a href="#非阻塞示例">非阻塞示例</a></li><li><a href="#分区主题和懒惰生产者">分区主题和懒惰生产者</a></li></ul></li><li><a href="#启用连接-url-的身份验证">启用连接 URL 的身份验证</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#avro-模式">Avro 模式</a></li><li><a href="#protobufnative-模式">ProtobufNative 模式</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#支持的平台">支持的平台</a></li><li><a href="#系统要求">系统要求</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#编译">编译</a></li><li><a href="#安装依赖项">安装依赖项</a></li><li><a href="#安装-rpm">安装 RPM</a></li><li><a href="#安装-debian">安装 Debian</a></li><li><a href="#编译-1">编译</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#编译-2">编译</a></li><li><a href="#安装-libpulsar">安装 <code>libpulsar</code></a></li></ul></li><li><a href="#windows-x64">Windows (x64)</a><ul class="toc-headings"><li><a href="#编译-3">编译</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#create-a-producer">Create a producer</a><ul class="toc-headings"><li><a href="#简单的阻塞示例">简单的阻塞示例</a></li><li><a href="#非阻塞示例">非阻塞示例</a></li><li><a href="#分区主题和懒惰生产者">分区主题和懒惰生产者</a></li><li><a href="#enable-chunking">Enable chunking</a></li></ul></li><li><a href="#create-a-consumer">Create a consumer</a><ul class="toc-headings"><li><a href="#阻塞示例">阻塞示例</a></li><li><a href="#消息监听器">消息监听器</a></li><li><a href="#configure-chunking">Configure chunking</a></li></ul></li><li><a href="#启用连接-url-的身份验证">启用连接 URL 的身份验证</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#avro-模式">Avro 模式</a></li><li><a href="#protobufnative-模式">ProtobufNative 模式</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
