@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
@@ -156,8 +157,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             try {
                 handler.newTransactionAsync(10, TimeUnit.SECONDS).get();
             } catch (ExecutionException | InterruptedException e) {
-                assertTrue(e.getCause()
-                        instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);
+                assertTrue(e.getCause() instanceof PulsarClientException.MetaStoreHandlerHasClosedException);
             }
         }
     }

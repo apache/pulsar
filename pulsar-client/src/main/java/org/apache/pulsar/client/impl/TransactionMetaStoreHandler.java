@@ -668,25 +668,18 @@ public class TransactionMetaStoreHandler extends HandlerState
             case Closing:
             case Closed:
                 op.callback.completeExceptionally(
-                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                "Transaction meta store handler for tcId "
-                                        + transactionCoordinatorId
-                                        + " is closing or closed."));
+                        new PulsarClientException.MetaStoreHandlerHasClosedException(transactionCoordinatorId));
                 onResponse(op);
                 return false;
             case Failed:
             case Uninitialized:
                 op.callback.completeExceptionally(
-                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                "Transaction meta store handler for tcId "
-                                        + transactionCoordinatorId
-                                        + " not connected."));
+                        new PulsarClientException.MetaStoreHandlerNotReadyException(transactionCoordinatorId));
                 onResponse(op);
                 return false;
             default:
                 op.callback.completeExceptionally(
-                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                transactionCoordinatorId));
+                        new PulsarClientException.MetaStoreHandlerNotReadyException(transactionCoordinatorId));
                 onResponse(op);
                 return false;
         }

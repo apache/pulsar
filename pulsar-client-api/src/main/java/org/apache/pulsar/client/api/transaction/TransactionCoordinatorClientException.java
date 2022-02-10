@@ -98,19 +98,6 @@ public class TransactionCoordinatorClientException extends IOException {
         }
     }
 
-    /**
-     * Thrown when send request to transaction meta store but the transaction meta store handler not ready.
-     */
-    public static class MetaStoreHandlerNotReadyException extends TransactionCoordinatorClientException {
-        public MetaStoreHandlerNotReadyException(long tcId) {
-            super("Transaction meta store handler for transaction meta store {} not ready now.");
-        }
-
-        public MetaStoreHandlerNotReadyException(String message) {
-            super(message);
-        }
-    }
-
     public static TransactionCoordinatorClientException unwrap(Throwable t) {
         if (t instanceof TransactionCoordinatorClientException) {
             return (TransactionCoordinatorClientException) t;

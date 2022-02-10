@@ -910,6 +910,32 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Thrown when send request to transaction meta store but the transaction meta store handler not ready.
+     */
+    public static class MetaStoreHandlerNotReadyException extends PulsarClientException {
+        public MetaStoreHandlerNotReadyException(long tcId) {
+            super("Transaction meta store handler for transaction meta store [" + tcId + "] not ready now.");
+        }
+
+        public MetaStoreHandlerNotReadyException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Thrown when send request to transaction meta store but the transaction meta store handler has closed.
+     */
+    public static class MetaStoreHandlerHasClosedException extends PulsarClientException {
+        public MetaStoreHandlerHasClosedException(long tcId) {
+            super("Transaction meta store handler for transaction meta store [" + tcId + "] has closed.");
+        }
+
+        public MetaStoreHandlerHasClosedException(String message) {
+            super(message);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -972,6 +998,10 @@ public class PulsarClientException extends IOException {
             return new MessageAcknowledgeException(msg);
         } else if (t instanceof TransactionConflictException) {
             return new TransactionConflictException(msg);
+        } else if (t instanceof MetaStoreHandlerNotReadyException) {
+            return new MetaStoreHandlerNotReadyException(msg);
+        } else if (t instanceof MetaStoreHandlerHasClosedException) {
+            return new MetaStoreHandlerHasClosedException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -1062,6 +1092,10 @@ public class PulsarClientException extends IOException {
             newException = new MessageAcknowledgeException(msg);
         } else if (cause instanceof TransactionConflictException) {
             newException = new TransactionConflictException(msg);
+        } else if (cause instanceof MetaStoreHandlerNotReadyException) {
+            newException = new MetaStoreHandlerNotReadyException(msg);
+        } else if (cause instanceof MetaStoreHandlerHasClosedException) {
+            newException = new MetaStoreHandlerHasClosedException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             newException = new TopicDoesNotExistException(msg);
         } else if (cause instanceof ProducerFencedException) {
