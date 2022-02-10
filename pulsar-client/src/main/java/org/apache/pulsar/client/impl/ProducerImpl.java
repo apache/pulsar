@@ -1991,12 +1991,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             log.trace("[{}] [{}] Batching the messages from the batch container from flush thread",
                     topic, producerName);
         }
-        // No need to prematurely cut batches if we're not ready to send them.
-        if (getState() != State.Ready) {
-            this.batchFlushTask = null;
-        } else {
-            // Set to null here to prevent the unnecessary attempt to cancel this task.
-            this.batchFlushTask = null;
+        // Set to null here to prevent the unnecessary attempt to cancel this task.
+        this.batchFlushTask = null;
+        // Only cut batches if we're able to send them now.
+        if (getState() == State.Ready) {
             batchMessageAndSend();
         }
     }
