@@ -635,7 +635,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         if (isBatchFull) {
                             batchMessageAndSend();
                         } else {
-                            maybeTriggerBatchFlushTask();
+                            maybeScheduleBatchFlushTask();
                         }
                     }
                     isLastSequenceIdPotentialDuplicated = false;
@@ -1627,9 +1627,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             this.msgIdGenerator = lastSequenceId + 1;
                         }
 
-                        // If any messages were enqueued while the producer was not ready, we would have skipped
-                        // scheduling the batch flush task. Schedule it now.
-                        maybeTriggerBatchFlushTask();
                         resendMessages(cnx, epoch);
                     }
                 }).exceptionally((e) -> {
@@ -1977,13 +1974,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     // must acquire semaphore before calling
-    private void maybeTriggerBatchFlushTask() {
-        if (this.batchFlushTask != null) {
+    private void maybeScheduleBatchFlushTask() {
+        if (this.batchFlushTask != null || getState() != State.Ready) {
             return;
         }
-        this.batchFlushTask = cnx().ctx().executor().schedule(catchingAndLoggingThrowables(this::batchFlushTask),
-                conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
-
+        ClientCnx cnx = cnx();
+        if (cnx != null) {
+            this.batchFlushTask = cnx.ctx().executor().schedule(catchingAndLoggingThrowables(this::batchFlushTask),
+                    conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
+        }
     }
 
     private synchronized void batchFlushTask() {
@@ -2132,6 +2131,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             cnx.channel().close();
             return;
         }
+        // If any messages were enqueued while the producer was not Ready, we would have skipped
+        // scheduling the batch flush task. Schedule it now, if there are messages in the batch container.
+        if (!batchMessageContainer.isEmpty()) {
+            maybeScheduleBatchFlushTask();
+        }
         if (pendingRegisteringOp != null) {
             tryRegisterSchema(cnx, pendingRegisteringOp.msg, pendingRegisteringOp.callback, expectedEpoch);
         }
@@ -2172,7 +2176,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     public int getPendingQueueSize() {
-        return pendingMessages.messagesCount();
+        if (!isBatchMessagingEnabled()) {
+            return pendingMessages.messagesCount();
+        } else {
+            synchronized (this) {
+                return pendingMessages.messagesCount() + batchMessageContainer.getNumMessagesInBatch();
+            }
+        }
     }
 
     @Override
