@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -411,6 +412,30 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 500, message = "Internal server error")})
     public String version() throws Exception {
         return PulsarVersion.getVersion();
+    }
+
+    @POST
+    @Path("/shutdown")
+    @ApiOperation(value =
+            "Shutdown broker gracefully.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Execute shutdown command successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void shutDownBrokerGracefully(
+            @ApiParam(name = "maxConcurrentUnloadPerSec",
+                    value = "if the value absent(value=0) means no concurrent limitation.")
+            @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
+            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
+    ) throws Exception {
+        validateSuperUserAccess();
+        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+    }
+
+    private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
+                                            boolean forcedTerminateTopic) {
+        pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        pulsar().closeAsync();
     }
 }
 
