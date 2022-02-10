@@ -39,20 +39,6 @@ public class TransactionCoordinatorClientException extends IOException {
     }
 
     /**
-     * Thrown when transaction coordinator with unexpected state.
-     */
-    public static class CoordinatorClientStateException extends TransactionCoordinatorClientException {
-
-        public CoordinatorClientStateException() {
-            super("Unexpected state for transaction metadata client.");
-        }
-
-        public CoordinatorClientStateException(String message) {
-            super(message);
-        }
-    }
-
-    /**
      * Thrown when transaction coordinator not found in broker side.
      */
     public static class CoordinatorNotFoundException extends TransactionCoordinatorClientException {

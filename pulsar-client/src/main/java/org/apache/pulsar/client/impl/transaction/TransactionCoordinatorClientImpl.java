@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
@@ -73,8 +72,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> startAsync() {
-        if (STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING)) {
-            return pulsarClient.getLookup().getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN)
+        STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING);
+        return pulsarClient.getLookup().getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN)
                 .thenCompose(partitionMeta -> {
                     List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
                     if (LOG.isDebugEnabled()) {
@@ -104,10 +103,6 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
                     return FutureUtil.waitForAll(connectFutureList);
                 });
-        } else {
-            return FutureUtil.failedFuture(
-                    new CoordinatorClientStateException("Can not start while current state is " + state));
-        }
     }
 
     private String getTCAssignTopicName(int partition) {
