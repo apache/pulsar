@@ -3283,7 +3283,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected void internalTerminateAsync(AsyncResponse asyncResponse, boolean authoritative) {
+    protected CompletableFuture<MessageId> internalTerminateAsync(boolean authoritative) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -3291,7 +3291,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
 
-        future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+        return future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
                 .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
                         throw new RestException(Status.METHOD_NOT_ALLOWED,
@@ -3307,13 +3307,6 @@ public class PersistentTopicsBase extends AdminResource {
                                 "Termination of a non-persistent topic is not allowed");
                     }
                     return ((PersistentTopic) topic).terminate();
-                })
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(e -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(e);
-                    log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, cause);
-                    resumeAsyncResponseExceptionally(asyncResponse, cause);
-                    return null;
                 });
     }
 
