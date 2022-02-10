@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -304,6 +305,49 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(properties.get("2"), "2");
         consumer4.close();
 
+
+    }
+
+    @Test
+    public void changeSubscriptionPropertiesTest() throws Exception {
+        String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        Map<String, String> map = new HashMap<>();
+        map.put("1", "1");
+        map.put("2", "2");
+        String subName = "my-sub";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+                .subscriptionProperties(map).subscriptionName(subName).subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription(subName);
+        Map<String, String> properties = subscription.getSubscriptionProperties();
+        assertTrue(properties.containsKey("1"));
+        assertTrue(properties.containsKey("2"));
+        assertEquals(properties.get("1"), "1");
+        assertEquals(properties.get("2"), "2");
+
+        map.put("3", "3");
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+                .subscriptionProperties(map).subscriptionName(subName).subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Map<String, String> properties2 = subscription.getSubscriptionProperties();
+        assertTrue(properties2.containsKey("1"));
+        assertTrue(properties2.containsKey("2"));
+        assertTrue(properties2.containsKey("3"));
+        assertEquals(properties2.get("1"), "1");
+        assertEquals(properties2.get("2"), "2");
+        assertEquals(properties2.get("3"), "3");
+
+        Map<String, String> map2 = new HashMap<>();
+
+        Consumer<byte[]> consumer3 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+                .subscriptionProperties(map2).subscriptionName(subName).subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Map<String, String> properties3 = subscription.getSubscriptionProperties();
+        assertTrue(properties3.isEmpty());
 
     }
 

@@ -1167,6 +1167,11 @@ public class PersistentSubscription implements Subscription {
         return subscriptionProperties;
     }
 
+    public void setSubscriptionProperties(Map<String, String> newSubscriptionProperties){
+        this.subscriptionProperties = newSubscriptionProperties == null
+                ? new HashMap<>() : Collections.unmodifiableMap(newSubscriptionProperties);
+    }
+
     /**
      * Return a merged map that contains the cursor properties specified by used
      * (eg. when using compaction subscription) and the subscription properties.

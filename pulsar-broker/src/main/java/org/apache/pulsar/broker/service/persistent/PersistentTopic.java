@@ -849,6 +849,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                   name -> createPersistentSubscription(subscriptionName, cursor,
                                           replicated, subscriptionProperties));
                 } else {
+
+                    //update subscription subscriptionProperties
+                    subscription.setSubscriptionProperties(subscriptionProperties);
+
                     // if subscription exists, check if it's a non-durable subscription
                     if (subscription.getCursor() != null && !subscription.getCursor().isDurable()) {
                         subscriptionFuture.completeExceptionally(
