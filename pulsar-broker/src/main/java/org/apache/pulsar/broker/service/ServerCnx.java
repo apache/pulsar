@@ -1256,8 +1256,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
                             CompletableFuture<Subscription> createInitSubFuture = new CompletableFuture<>();
                             if (!Strings.isNullOrEmpty(initialSubscriptionName)
-                                    && !topic.getSubscriptions().containsKey(initialSubscriptionName)
-                                    && topic.isPersistent()) {
+                                    && topic.isPersistent()
+                                    && !topic.getSubscriptions().containsKey(initialSubscriptionName)) {
                                 createInitSubFuture =
                                         topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
                                                 false);
