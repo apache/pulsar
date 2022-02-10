@@ -34,6 +34,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import io.netty.buffer.Unpooled;
+import io.netty.util.Timeout;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -45,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -93,6 +95,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -728,5 +731,68 @@ public class TransactionTest extends TransactionTestBase {
 
         TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
+    }
+
+    @Test
+    public void testRetryExceptionOfEndTxn() throws Exception{
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+        Class<TransactionMetadataStoreState> transactionMetadataStoreStateClass = TransactionMetadataStoreState.class;
+        getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores()
+                .values()
+                .forEach((transactionMetadataStore -> {
+                    try {
+                        Field field = transactionMetadataStoreStateClass.getDeclaredField("state");
+                        field.setAccessible(true);
+                        field.set(transactionMetadataStore, TransactionMetadataStoreState.State.Initializing);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }));
+        CompletableFuture<Void> completableFuture =  transaction.commit();
+        try {
+            completableFuture.get(5, TimeUnit.SECONDS);
+            fail();
+        } catch (TimeoutException ignored) {
+        }
+        getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores()
+                .values()
+                .stream()
+                .forEach((transactionMetadataStore -> {
+                    try {
+                        Field field = transactionMetadataStoreStateClass.getDeclaredField("state");
+                        field.setAccessible(true);
+                        field.set(transactionMetadataStore, TransactionMetadataStoreState.State.Ready);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }));
+        completableFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testCancelTxnTimeout() throws Exception{
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("timeout");
+        field.setAccessible(true);
+        Timeout timeout = (Timeout) field.get(transaction);
+        Assert.assertTrue(timeout.isCancelled());
+
+        transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.abort().get();
+        timeout = (Timeout) field.get(transaction);
+        Assert.assertTrue(timeout.isCancelled());
     }
 }

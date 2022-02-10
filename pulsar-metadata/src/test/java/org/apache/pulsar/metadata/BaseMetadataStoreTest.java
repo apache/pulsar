@@ -19,10 +19,14 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
+import io.etcd.jetcd.launcher.EtcdCluster;
+import io.etcd.jetcd.launcher.EtcdClusterFactory;
 import java.io.File;
+import java.net.URI;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
@@ -31,6 +35,7 @@ import org.testng.annotations.DataProvider;
 
 public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     protected TestZKServer zks;
+    protected EtcdCluster etcdCluster;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -47,6 +52,11 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
             zks.close();
             zks = null;
         }
+
+        if (etcdCluster != null) {
+            etcdCluster.close();
+            etcdCluster = null;
+        }
     }
 
     private static String createTempFolder() {
@@ -62,11 +72,20 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         // The Zookeeper test server gets restarted by TestRetrySupport before the retry.
         // The new connection string won't be available to the test method unless a
         // Supplier<String> lambda is used for providing the value.
-        return new Object[][] {
-                { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
-                { "Memory", stringSupplier(() -> "memory://" + UUID.randomUUID()) },
-                { "RocksDB", stringSupplier(() -> "rocksdb://" + createTempFolder()) },
+        return new Object[][]{
+                {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
+                {"Memory", stringSupplier(() -> "memory:" + UUID.randomUUID())},
+                {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
+                {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
         };
+    }
+
+    private synchronized String getEtcdClusterConnectString() {
+        if (etcdCluster == null) {
+            etcdCluster = EtcdClusterFactory.buildCluster("test", 1, false);
+            etcdCluster.start();
+        }
+        return etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
     }
 
     public static Supplier<String> stringSupplier(Supplier<String> supplier) {

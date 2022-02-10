@@ -1553,10 +1553,10 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     return true;
                 }
                 return worker().getAuthorizationService().isSuperUser(clientRole, authenticationData)
-                    .get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                    .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             } catch (InterruptedException e) {
                 log.warn("Time-out {} sec while checking the role {} is a super user role ",
-                    worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), clientRole);
+                    worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), clientRole);
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             } catch (Exception e) {
                 log.warn("Admin-client with Role - failed to check the role {} is a super user role {} ", clientRole,
@@ -1573,17 +1573,17 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             switch (componentType) {
                 case SINK:
                     return worker().getAuthorizationService().allowSinkOpsAsync(
-                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
                 case SOURCE:
                     return worker().getAuthorizationService().allowSourceOpsAsync(
-                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
                 case FUNCTION:
                 default:
                     return worker().getAuthorizationService().allowFunctionOpsAsync(
-                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             }
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking function authorization on {} ", worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), namespaceName);
+            log.warn("Time-out {} sec while checking function authorization on {} ", worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), namespaceName);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (Exception e) {
             log.warn("Admin-client with Role - {} failed to get function permissions for namespace - {}. {}", role, namespaceName,

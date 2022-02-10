@@ -104,25 +104,43 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
-        this.topic.getBrokerService().getPulsar().getTransactionReplayExecutor()
+        this.recover();
+    }
+
+    private void recover() {
+        this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
-                        if (!changeToReadyState()) {
-                            log.error("[{}]Transaction buffer recover fail", topic.getName());
-                        } else {
-                            timer.newTimeout(TopicTransactionBuffer.this,
-                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                            transactionBufferFuture.complete(null);
+                        synchronized (TopicTransactionBuffer.this) {
+                            // sync maxReadPosition change to LAC when TopicTransaction buffer have not recover
+                            // completely the normal message have been sent to broker and state is
+                            // not Ready can't sync maxReadPosition when no ongoing transactions
+                            if (ongoingTxns.isEmpty()) {
+                                maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
+                            }
+                            if (!changeToReadyState()) {
+                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                            } else {
+                                timer.newTimeout(TopicTransactionBuffer.this,
+                                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                                transactionBufferFuture.complete(null);
+                            }
                         }
                     }
 
                     @Override
                     public void noNeedToRecover() {
-                        if (!changeToNoSnapshotState()) {
-                            log.error("[{}]Transaction buffer recover fail", topic.getName());
-                        } else {
-                            transactionBufferFuture.complete(null);
+                        synchronized (TopicTransactionBuffer.this) {
+                            // sync maxReadPosition change to LAC when TopicTransaction buffer have not recover
+                            // completely the normal message have been sent to broker and state is
+                            // not NoSnapshot can't sync maxReadPosition
+                            maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
+                            if (!changeToNoSnapshotState()) {
+                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                            } else {
+                                transactionBufferFuture.complete(null);
+                            }
                         }
                     }
 
@@ -607,7 +625,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                 closeCursor(managedCursor);
                 callBack.recoverComplete();
-            }, topic.getBrokerService().getPulsar().getTransactionReplayExecutor()).exceptionally(e -> {
+            }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this))
+                    .exceptionally(e -> {
                 callBack.recoverExceptionally(new Exception(e));
                 log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
                 return null;

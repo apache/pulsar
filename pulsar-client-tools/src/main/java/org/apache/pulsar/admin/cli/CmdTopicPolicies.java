@@ -84,6 +84,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-deduplication", new GetDeduplicationStatus());
         jcommander.addCommand("remove-deduplication", new RemoveDeduplicationStatus());
 
+        jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
+        jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
+        jcommander.addCommand("remove-deduplication-snapshot-interval", new RemoveDeduplicationSnapshotInterval());
+
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
         jcommander.addCommand("remove-persistence", new RemovePersistence());
@@ -788,6 +792,62 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeDeduplicationStatus(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get deduplication snapshot interval for a topic")
+    private class GetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returns global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getDeduplicationSnapshotInterval(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set deduplication snapshot interval for a topic")
+    private class SetDeduplicationSnapshotInterval extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"-i", "--interval"}, description =
+                "Deduplication snapshot interval for topic in second, allowed range from 0 to Integer.MAX_VALUE",
+                required = true)
+        private int interval;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to set this policy globally.")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            if (interval < 0) {
+                throw new ParameterException(String.format("Invalid interval '%d'. ", interval));
+            }
+
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setDeduplicationSnapshotInterval(persistentTopic, interval);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove deduplication snapshot interval for a topic")
+    private class RemoveDeduplicationSnapshotInterval extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to remove this policy globally. ")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeDeduplicationSnapshotInterval(persistentTopic);
         }
     }
 

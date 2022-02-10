@@ -50,6 +50,8 @@ struct ConsumerConfigurationImpl {
     std::map<std::string, std::string> properties;
     int priorityLevel{0};
     KeySharedPolicy keySharedPolicy;
+    size_t maxPendingChunkedMessage{10};
+    bool autoAckOldestChunkedMessageOnQueueFull{false};
 };
 }  // namespace pulsar
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

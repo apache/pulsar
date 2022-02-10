@@ -241,7 +241,8 @@ public class AuthenticationProviderTokenTest {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         Properties properties = new Properties();
-        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "file:///" + secretKeyFile.toString().replace('\\', '/'));
+        String secretKeyFileUri = secretKeyFile.toURI().toString();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFileUri);
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);

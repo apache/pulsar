@@ -43,6 +43,7 @@ class TopicStats {
     double averageMsgSize;
 
     public long msgBacklog;
+    long publishRateLimitedTimes;
 
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
@@ -82,6 +83,7 @@ class TopicStats {
 
         managedLedgerStats.reset();
         msgBacklog = 0;
+        publishRateLimitedTimes = 0L;
         backlogQuotaLimit = 0;
         backlogQuotaLimitTime = -1;
 
@@ -133,6 +135,8 @@ class TopicStats {
                 splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size",
                 stats.managedLedgerStats.backlogSize, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_publish_rate_limit_times", stats.publishRateLimitedTimes,
+                splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.managedLedgerStats
                 .offloadedStorageUsed, splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit,

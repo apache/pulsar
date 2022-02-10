@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -40,9 +39,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
@@ -79,7 +75,8 @@ public class MessageDeduplication {
         Failed,
     }
 
-    enum MessageDupStatus {
+    @VisibleForTesting
+    public enum MessageDupStatus {
         // whether a message is a definitely a duplicate or not cannot be determined at this time
         Unknown,
         // message is definitely NOT a duplicate
@@ -311,7 +308,7 @@ public class MessageDeduplication {
      * @return true if the message should be published or false if it was recognized as a duplicate
      */
     public MessageDupStatus isDuplicate(PublishContext publishContext, ByteBuf headersAndPayload) {
-        if (!isEnabled()) {
+        if (!isEnabled() || publishContext.isMarkerMessage()) {
             return MessageDupStatus.NotDup;
         }
 
@@ -364,7 +361,7 @@ public class MessageDeduplication {
      * Call this method whenever a message is persisted to get the chance to trigger a snapshot.
      */
     public void recordMessagePersisted(PublishContext publishContext, PositionImpl position) {
-        if (!isEnabled()) {
+        if (!isEnabled() || publishContext.isMarkerMessage()) {
             return;
         }
 
@@ -472,26 +469,7 @@ public class MessageDeduplication {
     }
 
     public void takeSnapshot() {
-        // try to get topic-level policies
-        Integer interval = topic.getTopicPolicies()
-                .map(TopicPolicies::getDeduplicationSnapshotIntervalSeconds)
-                .orElse(null);
-        try {
-            //if topic-level policies not exists, try to get namespace-level policies
-            if (interval == null) {
-                final Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources()
-                        .getPolicies(TopicName.get(topic.getName()).getNamespaceObject());
-                if (policies.isPresent()) {
-                    interval = policies.get().deduplicationSnapshotIntervalSeconds;
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to get namespace policies", e);
-        }
-        //There is no other level of policies, use the broker-level by default
-        if (interval == null) {
-            interval = pulsar.getConfiguration().getBrokerDeduplicationSnapshotIntervalSeconds();
-        }
+        Integer interval = topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get();
         long currentTimeStamp = System.currentTimeMillis();
         if (interval == null || interval <= 0
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {

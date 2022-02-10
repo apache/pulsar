@@ -22,8 +22,8 @@ import lombok.Data;
 
 @Data
 public class ResourceGroup {
-    private int publishRateInMsgs = -1;
-    private long publishRateInBytes = -1;
-    private int dispatchRateInMsgs = -1;
-    private long dispatchRateInBytes = -1;
+    private Integer publishRateInMsgs;
+    private Long publishRateInBytes;
+    private Integer dispatchRateInMsgs;
+    private Long dispatchRateInBytes;
 }

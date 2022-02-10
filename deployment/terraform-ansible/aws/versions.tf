@@ -17,27 +17,15 @@
 # under the License.
 #
 
-version: '2'
-
-services:
-
-  standalone:
-    image: apachepulsar/pulsar
-    expose:
-      - 8080
-      - 6650
-    environment:
-      - BOOKIE_MEM=" -Xms512m -Xmx512m -XX:MaxDirectMemorySize=1g"
-    command: >
-      /bin/bash -c
-      "bin/apply-config-from-env.py conf/standalone.conf
-      && exec bin/pulsar standalone --advertised-address standalone"
-
-  dashboard:
-    image: apachepulsar/pulsar-dashboard
-    depends_on:
-      - standalone
-    ports:
-      - "80:80"
-    environment:
-      - SERVICE_URL=http://standalone:8080
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = ">=3.3.0"
+    }
+    random = {
+      source = "hashicorp/random"
+    }
+  }
+  required_version = ">= 0.13"
+}
