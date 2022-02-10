@@ -544,4 +544,8 @@ public class TransactionMetadataStoreService {
     public Map<TransactionCoordinatorID, TransactionMetadataStore> getStores() {
         return Collections.unmodifiableMap(stores);
     }
+
+    public void close () {
+        this.internalPinnedExecutor.shutdown();
+    }
 }
