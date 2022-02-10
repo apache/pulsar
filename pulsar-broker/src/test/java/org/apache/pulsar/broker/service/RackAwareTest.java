@@ -141,6 +141,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         for (int i = 0; i < 100; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
             log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
+            assertTrue(bookies.get(0).isRunning(), "first bookie in rack 0 is not running any more");
             assertTrue(lh.getLedgerMetadata().getEnsembleAt(0).contains(firstBookie),
                     "first bookie in rack 0 not included in ensemble");
             lh.close();
