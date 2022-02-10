@@ -1672,7 +1672,7 @@ public&nbsp;void&nbsp;getOffloadPolicies&#8203;(@Suspended
                                java.lang.String&nbsp;namespace,
                                @PathParam("topic") @Encoded
                                java.lang.String&nbsp;encodedTopic,
-                               @QueryParam("applied")
+                               @QueryParam("applied") @DefaultValue("false")
                                boolean&nbsp;applied,
                                @QueryParam("isGlobal") @DefaultValue("false")
                                boolean&nbsp;isGlobal,
@@ -1741,7 +1741,7 @@ public&nbsp;void&nbsp;getMaxUnackedMessagesOnConsumer&#8203;(@Suspended
                                             java.lang.String&nbsp;namespace,
                                             @PathParam("topic") @Encoded
                                             java.lang.String&nbsp;encodedTopic,
-                                            @QueryParam("applied")
+                                            @QueryParam("applied") @DefaultValue("false")
                                             boolean&nbsp;applied,
                                             @QueryParam("isGlobal") @DefaultValue("false")
                                             boolean&nbsp;isGlobal,
@@ -1877,7 +1877,7 @@ public&nbsp;void&nbsp;getInactiveTopicPolicies&#8203;(@Suspended
                                      java.lang.String&nbsp;namespace,
                                      @PathParam("topic") @Encoded
                                      java.lang.String&nbsp;encodedTopic,
-                                     @QueryParam("applied")
+                                     @QueryParam("applied") @DefaultValue("false")
                                      boolean&nbsp;applied,
                                      @QueryParam("isGlobal") @DefaultValue("false")
                                      boolean&nbsp;isGlobal,
@@ -1946,7 +1946,7 @@ public&nbsp;void&nbsp;getMaxUnackedMessagesOnSubscription&#8203;(@Suspended
                                                 java.lang.String&nbsp;namespace,
                                                 @PathParam("topic") @Encoded
                                                 java.lang.String&nbsp;encodedTopic,
-                                                @QueryParam("applied")
+                                                @QueryParam("applied") @DefaultValue("false")
                                                 boolean&nbsp;applied,
                                                 @QueryParam("isGlobal") @DefaultValue("false")
                                                 boolean&nbsp;isGlobal,
@@ -2017,7 +2017,7 @@ public&nbsp;void&nbsp;getDelayedDeliveryPolicies&#8203;(@Suspended
                                        java.lang.String&nbsp;encodedTopic,
                                        @QueryParam("isGlobal") @DefaultValue("false")
                                        boolean&nbsp;isGlobal,
-                                       @QueryParam("applied")
+                                       @QueryParam("applied") @DefaultValue("false")
                                        boolean&nbsp;applied,
                                        @QueryParam("authoritative") @DefaultValue("false")
                                        boolean&nbsp;authoritative)</pre>
@@ -2697,7 +2697,7 @@ public&nbsp;void&nbsp;getBacklogQuotaMap&#8203;(@Suspended
                                java.lang.String&nbsp;namespace,
                                @PathParam("topic") @Encoded
                                java.lang.String&nbsp;encodedTopic,
-                               @QueryParam("applied")
+                               @QueryParam("applied") @DefaultValue("false")
                                boolean&nbsp;applied,
                                @QueryParam("authoritative") @DefaultValue("false")
                                boolean&nbsp;authoritative,
@@ -2770,7 +2770,7 @@ public&nbsp;void&nbsp;getReplicationClusters&#8203;(@Suspended
                                    java.lang.String&nbsp;namespace,
                                    @PathParam("topic") @Encoded
                                    java.lang.String&nbsp;encodedTopic,
-                                   @QueryParam("applied")
+                                   @QueryParam("applied") @DefaultValue("false")
                                    boolean&nbsp;applied,
                                    @QueryParam("authoritative") @DefaultValue("false")
                                    boolean&nbsp;authoritative)</pre>
@@ -2835,7 +2835,7 @@ public&nbsp;void&nbsp;getMessageTTL&#8203;(@Suspended
                           java.lang.String&nbsp;namespace,
                           @PathParam("topic") @Encoded
                           java.lang.String&nbsp;encodedTopic,
-                          @QueryParam("applied")
+                          @QueryParam("applied") @DefaultValue("false")
                           boolean&nbsp;applied,
                           @QueryParam("isGlobal") @DefaultValue("false")
                           boolean&nbsp;isGlobal,
@@ -2905,7 +2905,7 @@ public&nbsp;void&nbsp;getDeduplication&#8203;(@Suspended
                              java.lang.String&nbsp;namespace,
                              @PathParam("topic") @Encoded
                              java.lang.String&nbsp;encodedTopic,
-                             @QueryParam("applied")
+                             @QueryParam("applied") @DefaultValue("false")
                              boolean&nbsp;applied,
                              @QueryParam("isGlobal") @DefaultValue("false")
                              boolean&nbsp;isGlobal,
@@ -2976,7 +2976,7 @@ public&nbsp;void&nbsp;getRetention&#8203;(@Suspended
                          java.lang.String&nbsp;encodedTopic,
                          @QueryParam("isGlobal") @DefaultValue("false")
                          boolean&nbsp;isGlobal,
-                         @QueryParam("applied")
+                         @QueryParam("applied") @DefaultValue("false")
                          boolean&nbsp;applied,
                          @QueryParam("authoritative") @DefaultValue("false")
                          boolean&nbsp;authoritative)</pre>
@@ -3043,7 +3043,7 @@ public&nbsp;void&nbsp;getPersistence&#8203;(@Suspended
                            java.lang.String&nbsp;namespace,
                            @PathParam("topic") @Encoded
                            java.lang.String&nbsp;encodedTopic,
-                           @QueryParam("applied")
+                           @QueryParam("applied") @DefaultValue("false")
                            boolean&nbsp;applied,
                            @QueryParam("isGlobal") @DefaultValue("false")
                            boolean&nbsp;isGlobal,
@@ -3181,7 +3181,7 @@ public&nbsp;void&nbsp;getReplicatorDispatchRate&#8203;(@Suspended
                                       java.lang.String&nbsp;encodedTopic,
                                       @QueryParam("isGlobal") @DefaultValue("false")
                                       boolean&nbsp;isGlobal,
-                                      @QueryParam("applied")
+                                      @QueryParam("applied") @DefaultValue("false")
                                       boolean&nbsp;applied,
                                       @QueryParam("authoritative") @DefaultValue("false")
                                       boolean&nbsp;authoritative)</pre>
@@ -3248,7 +3248,7 @@ public&nbsp;void&nbsp;getMaxProducers&#8203;(@Suspended
                             java.lang.String&nbsp;namespace,
                             @PathParam("topic") @Encoded
                             java.lang.String&nbsp;encodedTopic,
-                            @QueryParam("applied")
+                            @QueryParam("applied") @DefaultValue("false")
                             boolean&nbsp;applied,
                             @QueryParam("isGlobal") @DefaultValue("false")
                             boolean&nbsp;isGlobal,
@@ -3319,7 +3319,7 @@ public&nbsp;void&nbsp;getMaxConsumers&#8203;(@Suspended
                             java.lang.String&nbsp;encodedTopic,
                             @QueryParam("isGlobal") @DefaultValue("false")
                             boolean&nbsp;isGlobal,
-                            @QueryParam("applied")
+                            @QueryParam("applied") @DefaultValue("false")
                             boolean&nbsp;applied,
                             @QueryParam("authoritative") @DefaultValue("false")
                             boolean&nbsp;authoritative)</pre>
@@ -3590,7 +3590,7 @@ public&nbsp;void&nbsp;getDispatchRate&#8203;(@Suspended
                             java.lang.String&nbsp;namespace,
                             @PathParam("topic") @Encoded
                             java.lang.String&nbsp;encodedTopic,
-                            @QueryParam("applied")
+                            @QueryParam("applied") @DefaultValue("false")
                             boolean&nbsp;applied,
                             @QueryParam("isGlobal") @DefaultValue("false")
                             boolean&nbsp;isGlobal,
@@ -3659,7 +3659,7 @@ public&nbsp;void&nbsp;getSubscriptionDispatchRate&#8203;(@Suspended
                                         java.lang.String&nbsp;namespace,
                                         @PathParam("topic") @Encoded
                                         java.lang.String&nbsp;encodedTopic,
-                                        @QueryParam("applied")
+                                        @QueryParam("applied") @DefaultValue("false")
                                         boolean&nbsp;applied,
                                         @QueryParam("isGlobal") @DefaultValue("false")
                                         boolean&nbsp;isGlobal,
@@ -3728,7 +3728,7 @@ public&nbsp;void&nbsp;getCompactionThreshold&#8203;(@Suspended
                                    java.lang.String&nbsp;namespace,
                                    @PathParam("topic") @Encoded
                                    java.lang.String&nbsp;encodedTopic,
-                                   @QueryParam("applied")
+                                   @QueryParam("applied") @DefaultValue("false")
                                    boolean&nbsp;applied,
                                    @QueryParam("isGlobal") @DefaultValue("false")
                                    boolean&nbsp;isGlobal,
@@ -3998,7 +3998,7 @@ public&nbsp;void&nbsp;getSubscribeRate&#8203;(@Suspended
                              java.lang.String&nbsp;namespace,
                              @PathParam("topic") @Encoded
                              java.lang.String&nbsp;encodedTopic,
-                             @QueryParam("applied")
+                             @QueryParam("applied") @DefaultValue("false")
                              boolean&nbsp;applied,
                              @QueryParam("isGlobal") @DefaultValue("false")
                              boolean&nbsp;isGlobal,

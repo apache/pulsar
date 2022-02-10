@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":42,"i21":10,"i22":42,"i23":10,"i24":10,"i25":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":42,"i21":10,"i22":42,"i23":10,"i24":10,"i25":10,"i26":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -330,12 +330,18 @@ implements org.apache.pulsar.client.admin.Brokers</pre>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i24" class="altColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#shutDownBrokerGracefully(int,boolean)">shutDownBrokerGracefully</a></span>&#8203;(int&nbsp;maxConcurrentUnloadPerSec,
+                        boolean&nbsp;forcedTerminateTopic)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateDynamicConfiguration(java.lang.String,java.lang.String)">updateDynamicConfiguration</a></span>&#8203;(java.lang.String&nbsp;configName,
                           java.lang.String&nbsp;configValue)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateDynamicConfigurationAsync(java.lang.String,java.lang.String)">updateDynamicConfigurationAsync</a></span>&#8203;(java.lang.String&nbsp;configName,
                                java.lang.String&nbsp;configValue)</code></th>
@@ -746,6 +752,20 @@ public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;he
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code>healthcheckAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Brokers</code></dd>
+</dl>
+</li>
+</ul>
+<a id="shutDownBrokerGracefully(int,boolean)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>shutDownBrokerGracefully</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;shutDownBrokerGracefully&#8203;(int&nbsp;maxConcurrentUnloadPerSec,
+                                                                                       boolean&nbsp;forcedTerminateTopic)</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>shutDownBrokerGracefully</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Brokers</code></dd>
 </dl>
 </li>
 </ul>

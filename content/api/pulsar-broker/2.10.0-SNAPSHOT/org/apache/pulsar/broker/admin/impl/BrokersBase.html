@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -287,12 +287,18 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#shutDownBrokerGracefully(int,boolean)">shutDownBrokerGracefully</a></span>&#8203;(int&nbsp;maxConcurrentUnloadPerSec,
+                        boolean&nbsp;forcedTerminateTopic)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i12" class="altColor">
+<td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateDynamicConfiguration(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String)">updateDynamicConfiguration</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                           java.lang.String&nbsp;configName,
                           java.lang.String&nbsp;configValue)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#version()">version</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
@@ -542,13 +548,32 @@ public&nbsp;void&nbsp;healthCheck&#8203;(@Suspended
 <a id="version()">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>version</h4>
 <pre class="methodSignature">@GET
 @Path("/version")
 public&nbsp;java.lang.String&nbsp;version()
                          throws java.lang.Exception</pre>
+<dl>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>java.lang.Exception</code></dd>
+</dl>
+</li>
+</ul>
+<a id="shutDownBrokerGracefully(int,boolean)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>shutDownBrokerGracefully</h4>
+<pre class="methodSignature">@POST
+@Path("/shutdown")
+public&nbsp;void&nbsp;shutDownBrokerGracefully&#8203;(@QueryParam("maxConcurrentUnloadPerSec")
+                                     int&nbsp;maxConcurrentUnloadPerSec,
+                                     @QueryParam("forcedTerminateTopic") @DefaultValue("true")
+                                     boolean&nbsp;forcedTerminateTopic)
+                              throws java.lang.Exception</pre>
 <dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code>java.lang.Exception</code></dd>
