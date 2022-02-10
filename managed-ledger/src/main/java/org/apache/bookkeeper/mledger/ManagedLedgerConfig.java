@@ -74,6 +74,7 @@ public class ManagedLedgerConfig {
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
+    private int inactiveLedgerRollOverTimeMs = 0;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -653,4 +654,19 @@ public class ManagedLedgerConfig {
     public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
         this.managedLedgerInterceptor = managedLedgerInterceptor;
     }
+
+    public int getInactiveLedgerRollOverTimeMs() {
+        return inactiveLedgerRollOverTimeMs;
+    }
+
+    /**
+     * Set rollOver time for inactive ledgers.
+     *
+     * @param inactiveLedgerRollOverTimeMs
+     * @param unit
+     */
+    public void setInactiveLedgerRollOverTime(int inactiveLedgerRollOverTimeMs, TimeUnit unit) {
+        this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
+    }
+
 }
