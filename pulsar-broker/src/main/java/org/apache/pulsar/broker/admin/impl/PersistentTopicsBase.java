@@ -2540,8 +2540,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalExamineMessageAsync(AsyncResponse asyncResponse, String initialPosition,
-                                               long messagePosition, boolean authoritative) {
+    protected CompletableFuture<Response> internalExamineMessageAsync(String initialPosition, long messagePosition,
+                                                                      boolean authoritative) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -2566,7 +2566,7 @@ public class PersistentTopicsBase extends AdminResource {
                     });
         }
 
-        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+        return future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic)) {
@@ -2594,12 +2594,12 @@ public class PersistentTopicsBase extends AdminResource {
                             }
                         }, null);
                         return readEntry;
-                    } catch (Exception exception) {
+                    } catch (ManagedLedgerException exception) {
                         throw new RestException(exception);
                     }
-                }).thenAccept(entry -> {
+                }).thenApply(entry -> {
                     try {
-                        asyncResponse.resume(generateResponseWithEntry(entry));
+                        return generateResponseWithEntry(entry);
                     } catch (IOException exception) {
                         throw new RestException(exception);
                     } finally {
@@ -2607,13 +2607,6 @@ public class PersistentTopicsBase extends AdminResource {
                             entry.release();
                         }
                     }
-                }).exceptionally(ex -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
-                            msgPos,
-                            topicName, cause);
-                    resumeAsyncResponseExceptionally(asyncResponse, cause);
-                    return null;
                 });
     }
 
