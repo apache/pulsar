@@ -194,7 +194,7 @@ public class PulsarProtobufNativeColumnDecoder {
                 return floatToIntBits((Float) value);
             }
 
-            //return millisecond which parsed from protobuf/timestamp
+            //return millisecond which parsed from protobuf/timestamp or protobuf/duration
             if (columnType instanceof TimestampType && value instanceof DynamicMessage) {
                 DynamicMessage message = (DynamicMessage) value;
                 int nanos = (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));

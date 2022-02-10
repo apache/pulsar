@@ -20,6 +20,7 @@ package org.apache.pulsar.sql.presto.decoder.protobufnative;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -73,6 +74,10 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
                 .setSeconds(mills / 1000)
                 .setNanos((int) (mills % 1000) * 1000000)
                 .build();
+        Duration duration = Duration.newBuilder()
+                .setSeconds(mills / 1000)
+                .setNanos((int) (mills % 1000) * 1000000)
+                .build();
 
         TestMsg.TestMessage testMessage = TestMsg.TestMessage.newBuilder()
                 .setStringField("aaa")
@@ -92,6 +97,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
                 .setBytesField(ByteString.copyFrom("abc".getBytes()))
                 .setTestEnum(TestMsg.TestEnum.FAILOVER)
                 .setTimestampField(timestamp)
+                .setDurationField(duration)
                 .build();
 
         ByteBuf payload = io.netty.buffer.Unpooled
@@ -176,6 +182,11 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
                 "timestampField", TIMESTAMP,false,false,"timestampField",null,null,
                 PulsarColumnHandle.HandleKeyValueType.NONE);
         checkValue(decodedRow, timestampFieldColumnHandle, mills);
+
+        PulsarColumnHandle durationFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
+                "durationField", TIMESTAMP,false,false,"durationField",null,null,
+                PulsarColumnHandle.HandleKeyValueType.NONE);
+        checkValue(decodedRow, durationFieldColumnHandle, mills);
 
     }
 

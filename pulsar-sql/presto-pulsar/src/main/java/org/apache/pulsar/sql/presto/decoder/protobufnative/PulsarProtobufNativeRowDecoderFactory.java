@@ -24,6 +24,7 @@ import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.util.stream.Collectors.toList;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.DurationProto;
 import com.google.protobuf.TimestampProto;
 import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -147,8 +148,10 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
                             ImmutableList.of(TypeSignatureParameter.typeParameter(keyType),
                                     TypeSignatureParameter.typeParameter(valueType)));
                 } else {
-                    if (TimestampProto.getDescriptor().toProto().getName().equals(msg.getFile().toProto().getName())) {
-                        //if msg type is protobuf/timestamp
+                    String messageProtoName = msg.getFile().toProto().getName();
+                    if (TimestampProto.getDescriptor().toProto().getName().equals(messageProtoName)
+                            || DurationProto.getDescriptor().toProto().getName().equals(messageProtoName)) {
+                        //if msg type is protobuf/timestamp or protobuf/duration
                         dataType = TimestampType.TIMESTAMP;
                     } else {
                         //row
