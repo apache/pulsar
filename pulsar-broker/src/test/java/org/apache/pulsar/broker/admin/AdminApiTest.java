@@ -749,7 +749,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.auth_policies.getNamespaceAuthentication().remove("my-role");
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
 
-        assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), null);
+        assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), new PersistencePolicies(2, 2, 2, 1.0));
         admin.namespaces().setPersistence("prop-xyz/ns1", new PersistencePolicies(3, 2, 1, 10.0));
         assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), new PersistencePolicies(3, 2, 1, 10.0));
 
