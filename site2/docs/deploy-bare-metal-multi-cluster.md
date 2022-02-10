@@ -201,8 +201,8 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](refer
 ```shell
 $ bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
-  --zookeeper zk1.us-west.example.com:2181 \
-  --configuration-store zk1.us-west.example.com:2184 \
+  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
@@ -275,7 +275,7 @@ Once you set up ZooKeeper, initialize cluster metadata, and spin up BookKeeper b
 
 You can configure brokers using the [`conf/broker.conf`](reference-configuration.md#broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`metadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the local quorum and the [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
 
 You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter. In addition, you need to match the broker and web service ports provided when you initialize the metadata (especially when you use a different port from default) of the cluster.
 
@@ -283,10 +283,10 @@ The following is an example configuration:
 
 ```properties
 # Local ZooKeeper servers
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
 # Configuration store quorum connection string.
-configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+configurationMetadataStoreUrl=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
 

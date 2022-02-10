@@ -194,7 +194,10 @@ public class ThreadRuntime implements Runtime {
                 collectorRegistry,
                 functionClassLoader);
 
-        log.info("ThreadContainer starting function with instance config {}", instanceConfig);
+        log.info("ThreadContainer starting function with instanceId {} functionId {} namespace {}",
+                instanceConfig.getInstanceId(),
+                instanceConfig.getFunctionId(),
+                instanceConfig.getFunctionDetails().getNamespace());
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
@@ -233,7 +236,10 @@ public class ThreadRuntime implements Runtime {
             // make sure JavaInstanceRunnable is closed
             this.javaInstanceRunnable.close();
 
-            log.info("Unloading JAR files for function {}", instanceConfig);
+            log.info("Unloading JAR files for instanceId {} functionId {} namespace {}",
+                    instanceConfig.getInstanceId(),
+                    instanceConfig.getFunctionId(),
+                    instanceConfig.getFunctionDetails().getNamespace());
             // once the thread quits, clean up the instance
             fnCache.unregisterFunctionInstance(
                     instanceConfig.getFunctionId(),

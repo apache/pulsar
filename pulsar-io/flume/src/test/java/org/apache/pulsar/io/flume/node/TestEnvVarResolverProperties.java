@@ -19,19 +19,20 @@
 package org.apache.pulsar.io.flume.node;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
+
+import lombok.SneakyThrows;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.powermock.reflect.Whitebox;
 
 public final class TestEnvVarResolverProperties {
     private static final File TESTFILE = new File(
             TestEnvVarResolverProperties.class.getClassLoader()
                     .getResource("flume-conf-with-envvars.properties").getFile());
 
-    @Rule
-    public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     private PropertiesFileConfigurationProvider provider;
 
     @Before
@@ -41,15 +42,15 @@ public final class TestEnvVarResolverProperties {
 
     @Test
     public void resolveEnvVar() {
-        environmentVariables.set("VARNAME", "varvalue");
+        injectEnvironmentVariable("VARNAME", "varvalue");
         String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
         Assert.assertEquals("padding varvalue padding", resolved);
     }
 
     @Test
     public void resolveEnvVars() {
-        environmentVariables.set("VARNAME1", "varvalue1");
-        environmentVariables.set("VARNAME2", "varvalue2");
+        injectEnvironmentVariable("VARNAME1", "varvalue1");
+        injectEnvironmentVariable("VARNAME2", "varvalue2");
         String resolved = EnvVarResolverProperties
                 .resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
         Assert.assertEquals("padding varvalue1 varvalue2 padding", resolved);
@@ -58,12 +59,27 @@ public final class TestEnvVarResolverProperties {
     @Test
     public void getProperty() {
         String NC_PORT = "6667";
-        environmentVariables.set("NC_PORT", NC_PORT);
+        injectEnvironmentVariable("NC_PORT", NC_PORT);
         System.setProperty("propertiesImplementation",
                 "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
         Assert.assertEquals(NC_PORT, provider.getFlumeConfiguration()
                 .getConfigurationFor("a1")
                 .getSourceContext().get("r1").getParameters().get("port"));
+    }
+
+    @SneakyThrows
+    private static void injectEnvironmentVariable(String key, String value) {
+
+        Class<?> processEnvironment = Class.forName("java.lang.ProcessEnvironment");
+        Map<String,String> unmodifiableMap = new HashMap<>(Whitebox
+                .getInternalState(processEnvironment, "theUnmodifiableEnvironment"));
+        unmodifiableMap.put(key, value);
+        Whitebox.setInternalState(processEnvironment, "theUnmodifiableEnvironment", unmodifiableMap);
+
+        Map<String,String> envMap = new HashMap<>(Whitebox
+                .getInternalState(processEnvironment, "theEnvironment"));
+        envMap.put(key, value);
+        Whitebox.setInternalState(processEnvironment, "theEnvironment", envMap);
     }
 }

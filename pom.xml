@@ -105,6 +105,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <bookkeeper.version>4.14.4</bookkeeper.version>
     <zookeeper.version>3.6.3</zookeeper.version>
+    <commons-cli.version>1.5.0</commons-cli.version>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
@@ -148,7 +149,7 @@ flexible messaging model and an intuitive client API.</description>
     <guice.version>5.0.1</guice.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.2.24</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.2.25</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
@@ -158,6 +159,7 @@ flexible messaging model and an intuitive client API.</description>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
+    <debezium.postgresql.version>42.2.25</debezium.postgresql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>
@@ -205,6 +207,7 @@ flexible messaging model and an intuitive client API.</description>
     <jetcd.version>0.5.11</jetcd.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
+    <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -220,7 +223,6 @@ flexible messaging model and an intuitive client API.</description>
     <mockito.version>3.12.4</mockito.version>
     <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
-    <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.0.3</awaitility.version>
@@ -345,6 +347,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper-jute</artifactId>
         <version>${zookeeper.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-cli</groupId>
+        <artifactId>commons-cli</artifactId>
+        <version>${commons-cli.version}</version>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
@@ -1879,7 +1886,10 @@ flexible messaging model and an intuitive client API.</description>
         <!-- see https://github.com/apache/pulsar/issues/8445 -->
         <maven.compiler.release>${maven.compiler.target}</maven.compiler.release>
         <!-- required for running tests on JDK11+ -->
-        <test.additional.args> --add-opens java.base/jdk.internal.loader=ALL-UNNAMED </test.additional.args>
+        <test.additional.args>
+          --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+          --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+        </test.additional.args>
       </properties>
       <build>
         <pluginManagement>
@@ -2326,6 +2336,7 @@ flexible messaging model and an intuitive client API.</description>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-false-positives.xml</suppressionFile>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-suppressions.xml</suppressionFile>
               </suppressionFiles>
+              <failBuildOnCVSS>7</failBuildOnCVSS>
               <msbuildAnalyzerEnabled>false</msbuildAnalyzerEnabled>
               <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
               <yarnAuditAnalyzerEnabled>false</yarnAuditAnalyzerEnabled>

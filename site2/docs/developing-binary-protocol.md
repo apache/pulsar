@@ -233,9 +233,10 @@ Parameters:
 ##### Command Send
 
 Command `Send` is used to publish a new message within the context of an
-already existing producer. This command is used in a frame that includes command
-as well as message payload, for which the complete format is specified in the
-[payload commands](#payload-commands) section.
+already existing producer. If a producer has not yet been created for the
+connection, the broker will terminate the connection. This command is used
+in a frame that includes command as well as message payload, for which the
+complete format is specified in the [payload commands](#payload-commands) section.
 
 ```protobuf
 message CommandSend {

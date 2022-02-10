@@ -161,7 +161,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
-                        ProducerInterceptors interceptors) {
+                        ProducerInterceptors interceptors, Optional<String> overrideProducerName) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
@@ -173,6 +173,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.semaphore = Optional.empty();
         }
+        overrideProducerName.ifPresent(key -> this.producerName = key);
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
@@ -1559,7 +1560,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         }
                         topicEpoch = response.getTopicEpoch();
 
-
                         if (this.producerName == null) {
                             this.producerName = producerName;
                         }
@@ -1575,7 +1575,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
                             // schedule the first batch message task
                             batchTimerTask = cnx.ctx().executor()
-                                    .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                                    .scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
                                         if (log.isTraceEnabled()) {
                                             log.trace(
                                                     "[{}] [{}] Batching the messages from the batch container from "

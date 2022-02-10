@@ -39,6 +39,7 @@ import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import lombok.Getter;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -70,16 +71,26 @@ public class ProxyServiceStarter {
     @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
     private String configFile;
 
-    @Parameter(names = { "-zk", "--zookeeper-servers" }, description = "Local zookeeper connection string")
+    @Deprecated
+    @Parameter(names = { "-zk", "--zookeeper-servers" },
+            description = "Local zookeeper connection string, please use --metadata-store instead")
     private String zookeeperServers = "";
+    @Parameter(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
+    private String metadataStoreUrl = "";
 
     @Deprecated
-    @Parameter(names = { "-gzk", "--global-zookeeper-servers" }, description = "Global zookeeper connection string")
+    @Parameter(names = { "-gzk", "--global-zookeeper-servers" },
+            description = "Global zookeeper connection string, please use --configuration-metadata-store instead")
     private String globalZookeeperServers = "";
 
+    @Deprecated
     @Parameter(names = { "-cs", "--configuration-store-servers" },
-        description = "Configuration store connection string")
+                    description = "Configuration store connection string, "
+                            + "please use --configuration-metadata-store instead")
     private String configurationStoreServers = "";
+    @Parameter(names = { "-cms", "--configuration-metadata-store" },
+            description = "The metadata store URL for the configuration data")
+    private String configurationMetadataStoreUrl = "";
 
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
@@ -89,6 +100,7 @@ public class ProxyServiceStarter {
 
     private ProxyConfiguration config;
 
+    @Getter
     private ProxyService proxyService;
 
     private WebServer server;
@@ -131,30 +143,35 @@ public class ProxyServiceStarter {
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
-            if (!isBlank(zookeeperServers)) {
-                // Use zookeeperServers from command line
-                config.setZookeeperServers(zookeeperServers);
+            if (isBlank(metadataStoreUrl)) {
+                // Use zookeeperServers from command line if metadataStoreUrl is empty;
+                config.setMetadataStoreUrl(zookeeperServers);
+            } else {
+                // Use metadataStoreUrl from command line
+                config.setMetadataStoreUrl(metadataStoreUrl);
             }
 
             if (!isBlank(globalZookeeperServers)) {
-                // Use globalZookeeperServers from command line
-                config.setConfigurationStoreServers(globalZookeeperServers);
+                config.setConfigurationMetadataStoreUrl(globalZookeeperServers);
             }
             if (!isBlank(configurationStoreServers)) {
-                // Use configurationStoreServers from command line
-                config.setConfigurationStoreServers(configurationStoreServers);
+                // Use configurationMetadataStoreUrl from command line
+                config.setConfigurationMetadataStoreUrl(configurationStoreServers);
+            }
+            if (!isBlank(configurationMetadataStoreUrl)) {
+                config.setConfigurationMetadataStoreUrl(configurationMetadataStoreUrl);
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                     || config.isAuthorizationEnabled()) {
-                checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-                checkArgument(!isEmpty(config.getConfigurationStoreServers()),
-                        "configurationStoreServers must be provided");
+                checkArgument(!isEmpty(config.getMetadataStoreUrl()), "metadataStoreUrl must be provided");
+                checkArgument(!isEmpty(config.getConfigurationMetadataStoreUrl()),
+                        "configurationMetadataStoreUrl must be provided");
             }
 
             if ((!config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURL()))
                     || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
-                checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
+                checkArgument(!isEmpty(config.getMetadataStoreUrl()), "metadataStoreUrl must be provided");
             }
 
         } catch (Exception e) {

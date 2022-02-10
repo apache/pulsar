@@ -4,9 +4,9 @@ title: Pulsar Java client
 sidebar_label: Java
 ---
 
-You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView]](#tableview) of messages and to perform [administrative tasks](admin-api-overview.md). The current Java client version is **{{pulsar:version}}**.
+You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](admin-api-overview.md). The current Java client version is **{{pulsar:version}}**.
 
-All the methods in [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView]](#tableview) of a Java client are thread-safe.
+All the methods in [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of a Java client are thread-safe.
 
 Javadoc for the Pulsar client is divided into two domains by package as follows.
 
@@ -207,6 +207,7 @@ Name| Type |  <div style="width:300px">Description</div>|  Default
 `batchingMaxPublishDelayMicros`| long|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1)
 `batchingMaxMessages` |int|The maximum number of messages permitted in a batch.|1000
 `batchingEnabled`| boolean|Enable batching of messages. |true
+`chunkingEnabled` | boolean | Enable chunking of messages. |false
 `compressionType`|CompressionType|Message data compression type used by a producer. <br />Available options:<li>[`LZ4`](https://github.com/lz4/lz4)</li><li>[`ZLIB`](https://zlib.net/)<br /><li>[`ZSTD`](https://facebook.github.io/zstd/)</li><li>[`SNAPPY`](https://google.github.io/snappy/)</li>| No compression
 
 You can configure parameters if you do not want to use the default configuration.
@@ -254,6 +255,21 @@ producer.newMessage()
 ```
 
 You can terminate the builder chain with `sendAsync()` and get a future return.
+
+### Enable chunking
+
+Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side. 
+
+The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.
+
+```java
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .enableChunking(true)
+        .enableBatching(false)
+        .create();
+```
+> **Note:** To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
 
 ## Consumer
 
@@ -338,6 +354,9 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
 `negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
 `ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
+`autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true
+`maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10
+`expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
 
@@ -403,6 +422,22 @@ consumer.acknowledge(messages)
 >     .timeout(100, TimeUnit.MILLISECONDS)
 >     .build();
 > ```
+
+### Configure chunking
+
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `maxPendingChunkedMessage` and `autoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. The `expireTimeOfIncompleteChunkedMessage` parameter decides the time interval to expire incomplete chunks if the consumer fails to receive all chunks of a message within the specified time period.
+
+The following is an example of how to configure message chunking.
+
+```java
+Consumer<byte[]> consumer = client.newConsumer()
+        .topic(topic)
+        .subscriptionName("test")
+        .autoAckOldestChunkedMessageOnQueueFull(true)
+        .maxPendingChunkedMessage(100)
+        .expireTimeOfIncompleteChunkedMessage(10, TimeUnit.MINUTES)
+        .subscribe();
+```
 
 ### Negative acknowledgment redelivery backoff
 
