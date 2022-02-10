@@ -22,6 +22,7 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -59,6 +60,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -165,22 +167,45 @@ public final class WorkerUtils {
     }
 
     public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
-        String zookeeperServers = internalConf.getZookeeperServers();
-        String ledgersRootPath;
-        String ledgersStoreServers;
+        final String ledgersRootPath;
+        final String ledgersStoreServers;
+        final String chrootPath;
+
         // for BC purposes
         if (internalConf.getBookkeeperMetadataServiceUri() == null) {
             ledgersRootPath = internalConf.getLedgersRootPath();
-            ledgersStoreServers = zookeeperServers;
+            ledgersStoreServers = internalConf.getZookeeperServers();
+            chrootPath = "";
         } else {
             URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
             ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
-            ledgersRootPath = metadataServiceUri.getPath();
+            final String fullPath = metadataServiceUri.getPath();
+            if (StringUtils.isBlank(fullPath)) {
+                chrootPath = "";
+                ledgersRootPath = "/";
+            } else {
+                if (!fullPath.startsWith("/")) {
+                    throw new IllegalStateException("Found invalid path: " + fullPath + " for metadataServiceUri: " + metadataServiceUri);
+                }
+                ledgersRootPath = fullPath;
+                final int lastSlash = fullPath.lastIndexOf("/");
+                if (lastSlash == 0) {
+                    // /ledgers
+                    chrootPath = "";
+                } else {
+                    // my-chroot/ledgers
+                    chrootPath = fullPath.substring(0, lastSlash);
+                }
+            }
         }
+
         BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
 
-        URI dlogUri = newDlogNamespaceURI(internalConf.getZookeeperServers());
+        final URI dlogUri = newDlogNamespaceURI(ledgersStoreServers + chrootPath);
+
+        log.info("initialize DistributedLog Namespace with ledgersStoreServers: {} " +
+                        "ledgersRootPath: {} uri: {}", ledgersStoreServers, ledgersRootPath, dlogUri);
         try {
             dlMetadata.create(dlogUri);
         } catch (ZKException e) {

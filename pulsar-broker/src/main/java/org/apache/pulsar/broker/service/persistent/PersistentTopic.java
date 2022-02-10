@@ -310,7 +310,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenAccept(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         isEncryptionRequired = false;
-                        updateUnackedMessagesAppliedOnSubscription(null);
                         return;
                     }
 
@@ -320,17 +319,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     this.isEncryptionRequired = policies.encryption_required;
 
-                    setSchemaCompatibilityStrategy(policies);
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
-
-                    updateUnackedMessagesAppliedOnSubscription(policies);
                 }).exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
                     isEncryptionRequired = false;
-                    updateUnackedMessagesAppliedOnSubscription(null);
                     return null;
                 }));
     }
@@ -827,16 +822,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
                 replicatedSubscriptionStateArg, keySharedMeta, null);
-    }
-
-    public void updateUnackedMessagesAppliedOnSubscription(Policies policies) {
-        maxUnackedMessagesOnSubscriptionApplied = getTopicPolicies()
-                .map(TopicPolicies::getMaxUnackedMessagesOnSubscription)
-                .orElseGet(() ->
-                        policies != null && policies.max_unacked_messages_per_subscription != null
-                                ? policies.max_unacked_messages_per_subscription
-                                : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription()
-                );
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -1877,7 +1862,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else {
-                stats.publishers.add(publisherStats);
+                stats.addPublisher(publisherStats);
             }
         });
 
@@ -2384,11 +2369,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         isEncryptionRequired = data.encryption_required;
 
-        setSchemaCompatibilityStrategy(data);
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
-        updateUnackedMessagesAppliedOnSubscription(data);
 
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
@@ -3013,7 +2996,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public int getMaxUnackedMessagesOnSubscription() {
-        return maxUnackedMessagesOnSubscriptionApplied;
+        return topicPolicies.getMaxUnackedMessagesOnSubscription().get();
     }
 
     @Override
@@ -3054,7 +3037,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 updateMaxPublishRate(namespacePolicies.orElse(null));
             }
 
-            updateUnackedMessagesAppliedOnSubscription(namespacePolicies.orElse(null));
             initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
             if (this.subscribeRateLimiter.isPresent()) {
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->

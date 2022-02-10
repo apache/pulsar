@@ -276,7 +276,7 @@ public class NonPersistentTopics extends PersistentTopics {
         NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         try {
             if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
-                .get(pulsar().getConfig().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
+                .get(pulsar().getConfig().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property,
                     cluster, namespace, bundleRange);
                 return null;
@@ -302,7 +302,7 @@ public class NonPersistentTopics extends PersistentTopics {
     private Topic getTopicReference(TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
         } catch (ExecutionException e) {
             throw new RuntimeException(e.getCause());

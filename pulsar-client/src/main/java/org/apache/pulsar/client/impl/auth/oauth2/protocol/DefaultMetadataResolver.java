@@ -33,6 +33,9 @@ import java.time.Duration;
  */
 public class DefaultMetadataResolver implements MetadataResolver {
 
+    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
+
     private final URL metadataUrl;
     private final ObjectReader objectReader;
     private Duration connectTimeout;
@@ -41,6 +44,9 @@ public class DefaultMetadataResolver implements MetadataResolver {
     public DefaultMetadataResolver(URL metadataUrl) {
         this.metadataUrl = metadataUrl;
         this.objectReader = new ObjectMapper().readerFor(Metadata.class);
+        // set a default timeout to ensure that this doesn't block
+        this.connectTimeout = Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS);
+        this.readTimeout = Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS);
     }
 
     public DefaultMetadataResolver withConnectTimeout(Duration connectTimeout) {

@@ -231,7 +231,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     public ServerCnx(PulsarService pulsar, String listenerName) {
-        super(pulsar.getBrokerService().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+        // pulsar.getBrokerService() can sometimes be null in unit tests when using mocks
+        // the null check is a workaround for #13620
+        super(pulsar.getBrokerService() != null ? pulsar.getBrokerService().getKeepAliveIntervalSeconds() : 0,
+                TimeUnit.SECONDS);
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
@@ -1141,6 +1144,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
                 ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
         final boolean isTxnEnabled = cmdProducer.isTxnEnabled();
+        final boolean supportsPartialProducer = supportsPartialProducer();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -1214,7 +1218,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
                         String msg = String.format("Encryption is required in %s", topicName);
                         log.warn("[{}] {}", remoteAddress, msg);
-                        commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
+                        if (producerFuture.completeExceptionally(new ServerMetadataException(msg))) {
+                            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
+                        }
                         producers.remove(producerId, producerFuture);
                         return;
                     }
@@ -1224,13 +1230,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
 
                     schemaVersionFuture.exceptionally(exception -> {
-                        String message = exception.getMessage();
-                        if (exception.getCause() != null) {
-                            message += (" caused by " + exception.getCause());
+                        if (producerFuture.completeExceptionally(exception)) {
+                            String message = exception.getMessage();
+                            if (exception.getCause() != null) {
+                                message += (" caused by " + exception.getCause());
+                            }
+                            commandSender.sendErrorResponse(requestId,
+                                    BrokerServiceException.getClientErrorCode(exception),
+                                    message);
                         }
-                        commandSender.sendErrorResponse(requestId,
-                                BrokerServiceException.getClientErrorCode(exception),
-                                message);
                         producers.remove(producerId, producerFuture);
                         return null;
                     });
@@ -1239,7 +1247,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
                             buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                     metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
-                                    producerAccessMode, topicEpoch, producerFuture);
+                                    producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture);
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
                             log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
@@ -1274,12 +1282,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return null;
                 }
 
+                // Do not print stack traces for expected exceptions
                 if (cause instanceof NoSuchElementException) {
                     cause = new TopicNotFoundException("Topic Not Found.");
-                }
-                if (!Exceptions.areExceptionsPresentInChain(cause,
+                    log.info("[{}] Failed to load topic {}, producerId={}: Topic not found", remoteAddress, topicName,
+                            producerId);
+                } else if (!Exceptions.areExceptionsPresentInChain(cause,
                         ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
-                    // Do not print stack traces for expected exceptions
                     log.error("[{}] Failed to create topic {}, producerId={}",
                             remoteAddress, topicName, producerId, exception);
                 }
@@ -1306,11 +1315,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
                              boolean userProvidedProducerName, TopicName topicName,
                              ProducerAccessMode producerAccessMode,
-                             Optional<Long> topicEpoch, CompletableFuture<Producer> producerFuture){
+                             Optional<Long> topicEpoch, boolean supportsPartialProducer,
+                             CompletableFuture<Producer> producerFuture){
         CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                userProvidedProducerName, producerAccessMode, topicEpoch);
+                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer);
 
         topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
             if (isActive()) {
@@ -2727,6 +2737,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     boolean supportBrokerMetadata() {
         return features != null && features.isSupportsBrokerEntryMetadata();
+    }
+
+    boolean supportsPartialProducer() {
+        return features != null && features.isSupportsPartialProducer();
     }
 
     @Override

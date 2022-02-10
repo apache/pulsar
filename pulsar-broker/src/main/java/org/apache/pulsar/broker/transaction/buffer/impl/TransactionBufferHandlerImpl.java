@@ -28,14 +28,12 @@ import io.netty.util.ReferenceCountUtil;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
-import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -52,8 +50,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     private final AtomicLong requestIdGenerator = new AtomicLong();
     private final long operationTimeoutInMills;
     private final HashedWheelTimer timer;
-    private final Semaphore semaphore;
-    private final boolean blockIfReachMaxPendingOps;
     private final PulsarClient pulsarClient;
 
     private final LoadingCache<String, CompletableFuture<ClientCnx>> cache = CacheBuilder.newBuilder()
@@ -77,8 +73,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         this.pulsarClient = pulsarClient;
         this.pendingRequests = new ConcurrentSkipListMap<>();
         this.operationTimeoutInMills = 3000L;
-        this.semaphore = new Semaphore(10000);
-        this.blockIfReachMaxPendingOps = true;
         this.timer = timer;
     }
 
@@ -90,9 +84,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
         }
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
-        if (!canSendRequest(cb)) {
-            return cb;
-        }
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, lowWaterMark);
@@ -108,9 +99,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
         }
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
-        if (!canSendRequest(cb)) {
-            return cb;
-        }
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, subscription, action, lowWaterMark);
@@ -210,29 +198,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         onResponse(op);
     }
 
-    private boolean canSendRequest(CompletableFuture<?> callback) {
-        try {
-            if (blockIfReachMaxPendingOps) {
-                semaphore.acquire();
-            } else {
-                if (!semaphore.tryAcquire()) {
-                    callback.completeExceptionally(new ReachMaxPendingOpsException("Reach max pending ops."));
-                    return false;
-                }
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            callback.completeExceptionally(TransactionBufferClientException.unwrap(e));
-            return false;
-        }
-        return true;
-    }
-
-
     void onResponse(OpRequestSend op) {
         ReferenceCountUtil.safeRelease(op.byteBuf);
         op.recycle();
-        semaphore.release();
     }
 
     private static final class OpRequestSend {
