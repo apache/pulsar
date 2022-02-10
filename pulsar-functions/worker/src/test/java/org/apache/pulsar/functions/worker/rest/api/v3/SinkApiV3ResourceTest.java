@@ -204,10 +204,7 @@ public class SinkApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SinksImpl(() -> mockedWorkerService));
-        mockStatic(InstanceUtils.class, ctx -> {
-            ctx.when(() -> InstanceUtils.calculateSubjectType(any()))
-                    .thenReturn(FunctionDetails.ComponentType.SINK);
-        });
+
     }
 
     @AfterMethod(alwaysRun = true)
@@ -233,6 +230,13 @@ public class SinkApiV3ResourceTest {
             if (consumer != null) {
                 consumer.accept(ctx);
             }
+        });
+    }
+
+    private void mockInstanceUtils() {
+        mockStatic(InstanceUtils.class, ctx -> {
+            ctx.when(() -> InstanceUtils.calculateSubjectType(any()))
+                    .thenReturn(FunctionDetails.ComponentType.SINK);
         });
     }
 
@@ -323,6 +327,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink class UnknownClass must "
             + "be in class path")
     public void testRegisterSinkWrongClassName() {
+        mockInstanceUtils();
         try {
             testRegisterSinkMissingArguments(
                     tenant,
@@ -346,6 +351,7 @@ public class SinkApiV3ResourceTest {
             + " or JAR package. Sink classname is not provided and attempts to load it as a NAR package produced the "
             + "following error.")
     public void testRegisterSinkMissingPackageDetails() {
+        mockInstanceUtils();
         try {
             testRegisterSinkMissingArguments(
                     tenant,
@@ -367,6 +373,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class "
             + "from archive")
     public void testRegisterSinkInvalidJarNoSink() throws IOException {
+        mockInstanceUtils();
         try {
             try (FileInputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
                 testRegisterSinkMissingArguments(
@@ -390,6 +397,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Must specify at least one "
             + "topic of input via topicToSerdeClassName, topicsPattern, topicToSchemaType or inputSpecs")
     public void testRegisterSinkNoInput() throws IOException {
+        mockInstanceUtils();
         try {
             try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
                 testRegisterSinkMissingArguments(
@@ -413,6 +421,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism must be a "
             + "positive number")
     public void testRegisterSinkNegativeParallelism() throws IOException {
+        mockInstanceUtils();
         try {
             try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
                 testRegisterSinkMissingArguments(
@@ -436,6 +445,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink parallelism must be a "
             + "positive number")
     public void testRegisterSinkZeroParallelism() throws IOException {
+        mockInstanceUtils();
         try {
             try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
                 testRegisterSinkMissingArguments(
@@ -581,6 +591,7 @@ public class SinkApiV3ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSinkUploadFailure() throws Exception {
+        mockInstanceUtils();
         try {
             mockWorkerUtils(ctx -> {
                     ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
@@ -601,6 +612,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testRegisterSinkSuccess() throws Exception {
+        mockInstanceUtils();
         mockWorkerUtils();
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
@@ -610,6 +622,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testRegisterSinkConflictingFields() throws Exception {
+        mockInstanceUtils();
         mockWorkerUtils();
 
         String actualTenant = "DIFFERENT_TENANT";
@@ -642,6 +655,7 @@ public class SinkApiV3ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
     public void testRegisterSinkFailure() throws Exception {
+        mockInstanceUtils();
         try {
             mockWorkerUtils();
 
@@ -660,6 +674,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration "
             + "interrupted")
     public void testRegisterSinkInterrupted() throws Exception {
+        mockInstanceUtils();
         try {
             mockWorkerUtils();
 
@@ -677,6 +692,7 @@ public class SinkApiV3ResourceTest {
 
     @Test(timeOut = 20000)
     public void testRegisterSinkSuccessWithPackageName() throws IOException {
+        mockInstanceUtils();
         registerDefaultSinkWithPackageUrl("sink://public/default/test@v1");
     }
 
@@ -1179,6 +1195,7 @@ public class SinkApiV3ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to deregister")
     public void testDeregisterSinkFailure() throws Exception {
+        mockInstanceUtils();
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -1198,6 +1215,7 @@ public class SinkApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregistration "
             + "interrupted")
     public void testDeregisterSinkInterrupted() throws Exception {
+        mockInstanceUtils();
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
@@ -1216,6 +1234,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testDeregisterSinkBKPackageCleanup() throws IOException {
+        mockInstanceUtils();
         try (final MockedStatic<WorkerUtils> ctx = Mockito.mockStatic(WorkerUtils.class)) {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
@@ -1236,6 +1255,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testDeregisterBuiltinSinkBKPackageCleanup() {
+        mockInstanceUtils();
 
         try (final MockedStatic<WorkerUtils> ctx = Mockito.mockStatic(WorkerUtils.class)) {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
@@ -1256,6 +1276,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testDeregisterHTTPSinkBKPackageCleanup() {
+        mockInstanceUtils();
 
         try (final MockedStatic<WorkerUtils> ctx = Mockito.mockStatic(WorkerUtils.class)) {
 
@@ -1278,6 +1299,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testDeregisterFileSinkBKPackageCleanup() throws IOException {
+        mockInstanceUtils();
 
         try (final MockedStatic<WorkerUtils> ctx = Mockito.mockStatic(WorkerUtils.class)) {
 
@@ -1468,6 +1490,7 @@ public class SinkApiV3ResourceTest {
 
     @Test
     public void testListSinksSuccess() {
+        mockInstanceUtils();
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         functionMetaDataList.add(FunctionMetaData.newBuilder().setFunctionDetails(

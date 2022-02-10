@@ -65,7 +65,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
@@ -194,7 +193,6 @@ public class SourceApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SourcesImpl(() -> mockedWorkerService));
-        mockStatic(InstanceUtils.class, ctx -> ctx.when(() -> InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.SOURCE));
     }
 
     private <T> void mockStatic(Class<T> classStatic, Consumer<MockedStatic<T>> consumer) {
@@ -1500,24 +1498,24 @@ public class SourceApiV3ResourceTest {
         final List<String> functions = Lists.newArrayList("test-1");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-1").build()).build();
+                FunctionDetails.newBuilder()
+                        .setName("test-1")
+                        .setComponentType(FunctionDetails.ComponentType.SOURCE)
+                        .build()).build();
         functionMetaDataList.add(f1);
         FunctionMetaData f2 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-2").build()).build();
+                FunctionDetails.newBuilder()
+                        .setName("test-2")
+                        .setComponentType(FunctionDetails.ComponentType.FUNCTION)
+                        .build()).build();
         functionMetaDataList.add(f2);
         FunctionMetaData f3 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-3").build()).build();
+                FunctionDetails.newBuilder()
+                        .setName("test-3")
+                        .setComponentType(FunctionDetails.ComponentType.SINK)
+                        .build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-        mockStatic(InstanceUtils.class, ctx -> {
-            ctx.when(() -> InstanceUtils.calculateSubjectType(f1.getFunctionDetails()))
-                    .thenReturn(FunctionDetails.ComponentType.SOURCE);
-            ctx.when(() -> InstanceUtils.calculateSubjectType(f2.getFunctionDetails()))
-                    .thenReturn(FunctionDetails.ComponentType.FUNCTION);
-            ctx.when(() -> InstanceUtils.calculateSubjectType(f3.getFunctionDetails()))
-                    .thenReturn(FunctionDetails.ComponentType.SINK);
-        });
-
         List<String> sourceList = listDefaultSources();
         assertEquals(functions, sourceList);
     }

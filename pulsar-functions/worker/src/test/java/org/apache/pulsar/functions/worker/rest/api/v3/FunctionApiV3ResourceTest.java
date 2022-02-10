@@ -199,8 +199,6 @@ public class FunctionApiV3ResourceTest {
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
-        mockStatic(InstanceUtils.class, ctx -> ctx.when(() -> InstanceUtils.calculateSubjectType(any()))
-                .thenReturn(FunctionDetails.ComponentType.FUNCTION));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -227,6 +225,13 @@ public class FunctionApiV3ResourceTest {
             if (consumer != null) {
                 consumer.accept(ctx);
             }
+        });
+    }
+
+    private void mockInstanceUtils() {
+        mockStatic(InstanceUtils.class, ctx -> {
+            ctx.when(() -> InstanceUtils.calculateSubjectType(any()))
+                    .thenReturn(FunctionDetails.ComponentType.FUNCTION);
         });
     }
 
@@ -1342,6 +1347,7 @@ public class FunctionApiV3ResourceTest {
 
     @Test
     public void testGetFunctionSuccess() {
+        mockInstanceUtils();
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         SinkSpec sinkSpec = SinkSpec.newBuilder()
@@ -1421,6 +1427,7 @@ public class FunctionApiV3ResourceTest {
 
     @Test
     public void testListFunctionsSuccess() {
+        mockInstanceUtils();
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> metaDataList = new LinkedList<>();
         FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
@@ -1442,25 +1449,24 @@ public class FunctionApiV3ResourceTest {
         List<String> functions = Lists.newArrayList("test-2");
         List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-1").build()).build();
+                FunctionDetails.newBuilder()
+                        .setName("test-1")
+                        .setComponentType(FunctionDetails.ComponentType.SOURCE)
+                        .build()).build();
         functionMetaDataList.add(f1);
         FunctionMetaData f2 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-2").build()).build();
+                FunctionDetails.newBuilder()
+                        .setName("test-2")
+                        .setComponentType(FunctionDetails.ComponentType.FUNCTION)
+                        .build()).build();
         functionMetaDataList.add(f2);
         FunctionMetaData f3 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-3").build()).build();
+                FunctionDetails.newBuilder()
+                        .setName("test-3")
+                        .setComponentType(FunctionDetails.ComponentType.SINK)
+                        .build()).build();
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
-
-        mockStatic(InstanceUtils.class, ctx -> {
-            ctx.when(() -> InstanceUtils.calculateSubjectType(eq(f1.getFunctionDetails())))
-                    .thenReturn(FunctionDetails.ComponentType.SOURCE);
-            ctx.when(() -> InstanceUtils.calculateSubjectType(eq(f2.getFunctionDetails())))
-                    .thenReturn(FunctionDetails.ComponentType.FUNCTION);
-            ctx.when(() -> InstanceUtils.calculateSubjectType(eq(f3.getFunctionDetails())))
-                    .thenReturn(FunctionDetails.ComponentType.SINK);
-
-        });
 
         List<String> functionList = listDefaultFunctions();
         assertEquals(functions, functionList);

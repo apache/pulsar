@@ -189,9 +189,6 @@ public class FunctionApiV2ResourceTest {
 
         FunctionsImpl functions = spy(new FunctionsImpl(() -> mockedWorkerService));
 
-        mockStatic(InstanceUtils.class, ctx -> {
-            ctx.when(() -> InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.FUNCTION);
-        });
         this.resource = spy(new FunctionsImplV2(functions));
 
     }
@@ -224,6 +221,12 @@ public class FunctionApiV2ResourceTest {
         });
     }
 
+    private void mockInstanceUtils() {
+        mockStatic(InstanceUtils.class, ctx -> {
+            ctx.when(() -> InstanceUtils.calculateSubjectType(any()))
+                    .thenReturn(FunctionDetails.ComponentType.FUNCTION);
+        });
+    }
 
     //
     // Register Functions
@@ -1286,6 +1289,7 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testGetFunctionSuccess() throws IOException {
+        mockInstanceUtils();
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         SinkSpec sinkSpec = SinkSpec.newBuilder()
@@ -1365,6 +1369,7 @@ public class FunctionApiV2ResourceTest {
 
     @Test
     public void testListFunctionsSuccess() {
+        mockInstanceUtils();
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> metaDataList = new LinkedList<>();
         FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
