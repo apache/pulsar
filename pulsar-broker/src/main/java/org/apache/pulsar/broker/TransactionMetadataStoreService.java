@@ -92,7 +92,7 @@ public class TransactionMetadataStoreService {
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
-    private static final ThreadFactory threadFactory =
+    private final ThreadFactory threadFactory =
             new DefaultThreadFactory("transaction-coordinator-thread-factory");
 
 
