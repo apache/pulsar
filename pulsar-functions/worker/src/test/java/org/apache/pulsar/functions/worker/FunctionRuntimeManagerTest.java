@@ -111,8 +111,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
         try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
-            runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
-                    .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
 
             // test new assignment add functions
             FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
@@ -201,6 +200,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
 
 
             // test new assignment delete functions
@@ -270,6 +270,11 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
+    private void mockRuntimeFactory(MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic) {
+        runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+                .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+    }
+
     @Test
     public void testProcessAssignmentUpdateModifyFunctions() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
@@ -293,8 +298,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
-            runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
-                    .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
             // test new assignment update functions
             FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                     workerConfig,
@@ -429,8 +433,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
-            runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
-                    .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
 
             // test new assignment update functions
             FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -622,8 +625,7 @@ public class FunctionRuntimeManagerTest {
         ErrorNotifier errorNotifier = mock(ErrorNotifier.class);
 
         try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
-            runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
-                    .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
 
             // test new assignment add functions
             FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -899,8 +901,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
             try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
-                runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
-                        .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+                mockRuntimeFactory(runtimeFactoryMockedStatic);
 
 
                 FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -1051,8 +1052,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(pulsarAdmin).when(workerService).getFunctionAdmin();
         try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
 
-            runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
-                    .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
 
             List<WorkerInfo> workerInfos = new LinkedList<>();
             workerInfos.add(WorkerInfo.of("worker-1", "localhost", 0));
@@ -1137,8 +1137,7 @@ public class FunctionRuntimeManagerTest {
             doReturn(pulsarAdmin).when(workerService).getFunctionAdmin();
             try (final MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class);) {
 
-                runtimeFactoryMockedStatic.when(() -> RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
-                        .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
+                mockRuntimeFactory(runtimeFactoryMockedStatic);
 
                 List<WorkerInfo> workerInfos = new LinkedList<>();
                 workerInfos.add(WorkerInfo.of("worker-1", "localhost", 0));
