@@ -145,9 +145,9 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |exposePublisherStats|Whether to enable topic level metrics.|true|
 |statsUpdateFrequencyInSecs||60|
 |statsUpdateInitialDelayInSecs||60|
-|zookeeperServers|  Zookeeper quorum connection string  ||
+|metadataStoreUrl|  Zookeeper quorum connection string  ||
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
+|configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| Broker data port  |6650|
 |brokerServicePortTls|  Broker data port for TLS  |6651|
 |webServicePort|  Port to use to server HTTP request  |8080|
@@ -207,7 +207,6 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |statusFilePath|  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks ||
 |preferLaterVersions| If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)  |false|
 |maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
-|tlsEnabled|Deprecated - Use `webServicePortTls` and `brokerServicePortTls` instead. |false|
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
 |tlsKeyFilePath|  Path for the TLS private key file ||
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped. ||
@@ -254,7 +253,10 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
-|isSchemaValidationEnforced|Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.|false|
+|isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
+|isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
+|schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
+|systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
 |offloadersDirectory|The directory for all the offloader implementations.|./offloaders|
 |bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: zk+hierarchical://localhost:2181/ledgers. The metadata service uri list can also be semicolon separated values like below: zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
@@ -319,8 +321,6 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
-|replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false|
-|brokerServicePurgeInactiveFrequencyInSeconds|Deprecated. Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
@@ -369,6 +369,22 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
+
+
+### Deprecated Parameters
+The following parameters have been deprecated.
+
+|Name|Description|Default|
+|---|---|---|
+|backlogQuotaDefaultLimitGB|  Use `backlogQuotaDefaultLimitBytes` instead. |-1|
+|brokerServicePurgeInactiveFrequencyInSeconds|  Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
+|tlsEnabled|  Use `webServicePortTls` and `brokerServicePortTls` instead. |false|
+|replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages. Use `brokerClientTlsEnabled` instead. |false|
+|subscriptionKeySharedEnable|  Whether to enable the Key_Shared subscription. Use `subscriptionTypesEnabled` instead. |true|
+|zookeeperServers|  Zookeeper quorum connection string. Use `metadataStoreUrl` instead.  |N/A|
+|configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
+
+
 
 ## Client
 
@@ -443,9 +459,9 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |Name|Description|Default|
 |---|---|---|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
-|zookeeperServers|  The quorum connection string for local ZooKeeper  ||
+|metadataStoreUrl|  The quorum connection string for local ZooKeeper  ||
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
+|configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
@@ -472,7 +488,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
 | subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically | 0 |
 | subscriptionRedeliveryTrackerEnabled | Enable subscription message redelivery tracker to send redelivery count to consumer. | true |
-|subscriptionKeySharedEnable|Whether to enable the Key_Shared subscription.|true|
 | subscriptionKeySharedUseConsistentHashing | In Key_Shared subscription type, with default AUTO_SPLIT mode, use splitting ranges or consistent hashing to reassign keys to new consumers. | false |
 | subscriptionKeySharedConsistentHashingReplicaPoints | In Key_Shared subscription type, the number of points in the consistent-hashing ring. The greater the number, the more equal the assignment of keys to consumers. | 100 |
 | subscriptionExpiryCheckIntervalInMinutes | How frequently to proactively check and purge expired subscription |5 |
@@ -680,13 +695,17 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 | metadataStoreConfigPath | The configuration file path of the local metadata store. Standalone Pulsar uses [RocksDB](http://rocksdb.org/) as the local metadata store. The format is `/xxx/xx/rocksdb.ini`. |N/A|
-
+|schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
+|isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
+|isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
+|schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
+|systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
 
 ## WebSocket
 
 |Name|Description|Default|
 |---|---|---|
-|configurationStoreServers    |||
+|configurationMetadataStoreUrl    |||
 |zooKeeperSessionTimeoutMillis|   |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |serviceUrl|||
@@ -717,8 +736,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |Name|Description|Default|
 |---|---|---|
 |forwardAuthorizationCredentials| Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect. |false|
-|zookeeperServers|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
+|metadataStoreUrl|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
+|configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 | brokerServiceURL | The service URL pointing to the broker cluster. | |
 | brokerServiceURLTLS | The TLS service URL pointing to the broker cluster | |
 | brokerWebServiceURL | The Web service URL pointing to the broker cluster | |

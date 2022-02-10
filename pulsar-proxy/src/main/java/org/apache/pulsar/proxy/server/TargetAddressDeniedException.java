@@ -17,41 +17,10 @@
  * under the License.
  */
 
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.proxy.server;
 
-/**
- * Topic authorization operations.
- */
-public enum TopicOperation {
-    LOOKUP,
-    PRODUCE,
-    CONSUME,
-
-    COMPACT,
-    EXPIRE_MESSAGES,
-    OFFLOAD,
-    PEEK_MESSAGES,
-    RESET_CURSOR,
-    SKIP,
-    TERMINATE,
-    UNLOAD,
-
-    GRANT_PERMISSION,
-    GET_PERMISSION,
-    REVOKE_PERMISSION,
-
-    ADD_BUNDLE_RANGE,
-    GET_BUNDLE_RANGE,
-    DELETE_BUNDLE_RANGE,
-
-    SUBSCRIBE,
-    GET_SUBSCRIPTIONS,
-    UNSUBSCRIBE,
-
-    GET_STATS,
-    GET_METADATA,
-    GET_BACKLOG_SIZE,
-
-    SET_REPLICATED_SUBSCRIPTION_STATUS,
-    GET_REPLICATED_SUBSCRIPTION_STATUS,
+class TargetAddressDeniedException extends RuntimeException {
+    public TargetAddressDeniedException(String message) {
+        super(message);
+    }
 }

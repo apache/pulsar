@@ -233,23 +233,6 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void validateAdminAndClientPermission() {
-        try {
-            validateAdminAccessForTenant(topicName.getTenant());
-        } catch (Exception ve) {
-            try {
-                checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
-            } catch (RestException re) {
-                throw re;
-            } catch (Exception e) {
-                // unknown error marked as internal server error
-                log.warn("Unexpected error while authorizing request. topic={}, role={}. Error: {}",
-                        topicName, clientAppId(), e.getMessage(), e);
-                throw new RestException(e);
-            }
-        }
-    }
-
     protected void validateCreateTopic(TopicName topicName) {
         if (isTransactionInternalName(topicName)) {
             log.warn("Forbidden to create transaction internal topic: {}", topicName);
@@ -611,6 +594,7 @@ public class PersistentTopicsBase extends AdminResource {
                             log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
                                     clientAppId(), topicName, realCause);
                         }
+                        asyncResponse.resume(realCause);
                     } else if (realCause instanceof PreconditionFailedException) {
                         asyncResponse.resume(
                                 new RestException(Status.PRECONDITION_FAILED,
@@ -2613,16 +2597,6 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private void verifyReadOperation(boolean authoritative) {
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
-        if (partitionMetadata.partitions > 0) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
-        }
-    }
-
     private Response generateResponseWithEntry(Entry entry) throws IOException {
         checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
@@ -2885,44 +2859,49 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
-                                           BacklogQuotaImpl backlogQuota, boolean isGlobal) {
-        validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
+                                                              BacklogQuotaImpl backlogQuota, boolean isGlobal) {
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
-        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-            .thenCompose(op -> {
-                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
-                if (!checkBacklogQuota(backlogQuota, retentionPolicies)) {
-                    log.warn(
-                            "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
-                            clientAppId(), topicName);
-                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                            "Backlog Quota exceeds configured retention quota for topic. "
-                                    + "Please increase retention quota and retry"));
-                }
-
-                if (backlogQuota != null) {
-                    topicPolicies.getBackLogQuotaMap().put(finalBacklogQuotaType.name(), backlogQuota);
-                } else {
-                    topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
-                }
-                Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
-                topicPolicies.setIsGlobal(isGlobal);
-                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                    .thenRun(() -> {
-                        try {
-                            log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}",
-                                    clientAppId(),
-                                    namespaceName,
-                                    topicName.getLocalName(),
-                                    jsonMapper().writeValueAsString(backLogQuotaMap));
-                        } catch (JsonProcessingException ignore) { }
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE)
+                .thenAccept(__ -> validatePoliciesReadOnlyAccess())
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    return getRetentionPoliciesAsync(topicName, topicPolicies)
+                            .thenCompose(retentionPolicies -> {
+                                if (!checkBacklogQuota(backlogQuota, retentionPolicies)) {
+                                    log.warn(
+                                            "[{}] Failed to update backlog configuration for topic {}: conflicts with"
+                                                    + " retention quota",
+                                            clientAppId(), topicName);
+                                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                            "Backlog Quota exceeds configured retention quota for topic. "
+                                                    + "Please increase retention quota and retry"));
+                                }
+                                if (backlogQuota != null) {
+                                    topicPolicies.getBackLogQuotaMap().put(finalBacklogQuotaType.name(), backlogQuota);
+                                } else {
+                                    topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
+                                }
+                                Map<String, BacklogQuotaImpl> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+                                topicPolicies.setIsGlobal(isGlobal);
+                                return pulsar().getTopicPoliciesService()
+                                        .updateTopicPoliciesAsync(topicName, topicPolicies)
+                                        .thenRun(() -> {
+                                            try {
+                                                log.info(
+                                                        "[{}] Successfully updated backlog quota map: namespace={}, "
+                                                                + "topic={}, map={}",
+                                                        clientAppId(),
+                                                        namespaceName,
+                                                        topicName.getLocalName(),
+                                                        jsonMapper().writeValueAsString(backLogQuotaMap));
+                                            } catch (JsonProcessingException ignore) {
+                                            }
+                                        });
+                            });
                 });
-            });
     }
 
     protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
@@ -3020,18 +2999,14 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    private RetentionPolicies getRetentionPolicies(TopicName topicName, TopicPolicies topicPolicies) {
+    private CompletableFuture<RetentionPolicies> getRetentionPoliciesAsync(TopicName topicName,
+                                                                           TopicPolicies topicPolicies) {
         RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies();
-        if (retentionPolicies == null){
-            try {
-                retentionPolicies = getNamespacePoliciesAsync(topicName.getNamespaceObject())
-                        .thenApply(policies -> policies.retention_policies)
-                        .get(1L, TimeUnit.SECONDS);
-            } catch (Exception e) {
-               throw new RestException(e);
-            }
+        if (retentionPolicies != null) {
+            return CompletableFuture.completedFuture(retentionPolicies);
         }
-        return retentionPolicies;
+        return getNamespacePoliciesAsync(topicName.getNamespaceObject())
+                .thenApply(policies -> policies.retention_policies);
     }
 
     protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
@@ -3763,27 +3738,63 @@ public class PersistentTopicsBase extends AdminResource {
         return topic.compactionStatus();
     }
 
-    protected void internalTriggerOffload(boolean authoritative, MessageIdImpl messageId) {
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.OFFLOAD);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        try {
-            topic.triggerOffload(messageId);
-        } catch (AlreadyRunningException e) {
-            throw new RestException(Status.CONFLICT, e.getMessage());
-        } catch (Exception e) {
-            log.warn("Unexpected error triggering offload", e);
-            throw new RestException(e);
-        }
+    protected void internalTriggerOffload(AsyncResponse asyncResponse,
+                                          boolean authoritative, MessageIdImpl messageId) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.OFFLOAD))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> {
+                    try {
+                        ((PersistentTopic) topic).triggerOffload(messageId);
+                        asyncResponse.resume(Response.noContent().build());
+                    } catch (AlreadyRunningException e) {
+                        resumeAsyncResponseExceptionally(asyncResponse,
+                                new RestException(Status.CONFLICT, e.getMessage()));
+                        return;
+                    } catch (Exception e) {
+                        log.warn("Unexpected error triggering offload", e);
+                        resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
+                        return;
+                    }
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to trigger offload on topic {},"
+                                    + " redirecting to other brokers.", clientAppId(), topicName, cause);
+                        }
+                    } else {
+                        log.error("[{}] Failed to trigger offload for {}", clientAppId(), topicName, cause);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
-    protected OffloadProcessStatus internalOffloadStatus(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.OFFLOAD);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        return topic.offloadStatus();
+    protected void internalOffloadStatus(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.OFFLOAD))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenAccept(topic -> {
+                    OffloadProcessStatus offloadProcessStatus = ((PersistentTopic) topic).offloadStatus();
+                    asyncResponse.resume(offloadProcessStatus);
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof WebApplicationException
+                            && ((WebApplicationException) cause).getResponse().getStatus()
+                            == Status.TEMPORARY_REDIRECT.getStatusCode()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to offload status on topic {},"
+                                    + " redirecting to other brokers.", clientAppId(), topicName, cause);
+                        }
+                    } else {
+                        log.error("[{}] Failed to offload status on topic {}", clientAppId(), topicName, cause);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    return null;
+                });
     }
 
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
@@ -4845,7 +4856,9 @@ public class PersistentTopicsBase extends AdminResource {
         if (applied) {
             return getSchemaCompatibilityStrategyAsync();
         }
-        return validateTopicOperationAsync(topicName, TopicOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY)
+        return validateTopicPolicyOperationAsync(topicName,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ)
                 .thenCompose(n -> getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
                     if (!op.isPresent()) {
                         return null;
@@ -4856,7 +4869,9 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
-        return validateTopicOperationAsync(topicName, TopicOperation.SET_SCHEMA_COMPATIBILITY_STRATEGY)
+        return validateTopicPolicyOperationAsync(topicName,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.WRITE)
                 .thenCompose((__) -> getTopicPoliciesAsyncWithRetry(topicName)
                         .thenCompose(op -> {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);

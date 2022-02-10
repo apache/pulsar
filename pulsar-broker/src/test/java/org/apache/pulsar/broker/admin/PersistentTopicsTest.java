@@ -865,14 +865,15 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testOffloadWithNullMessageId() {
         final String topicName = "topic-123";
-        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
-
-        try {
-            persistentTopics.triggerOffload(testTenant, testNamespace, topicName, true, null);
-            Assert.fail("should have failed");
-        } catch (RestException e) {
-            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
-        }
+        persistentTopics.createNonPartitionedTopic(
+                testTenant, testNamespace, topicName, true, null);
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.triggerOffload(
+                response, testTenant, testNamespace, topicName, true, null);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(),
+                Response.Status.BAD_REQUEST.getStatusCode());
     }
 
     @Test

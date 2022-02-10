@@ -43,8 +43,8 @@ Note that if you do not use functions, you do not need to configure `functionWor
 
 Pulsar uses [ZooKeeper](https://zookeeper.apache.org) for service discovery. To connect the proxy to ZooKeeper, specify the following in `conf/proxy.conf`.
 ```properties
-zookeeperServers=zk-0,zk-1,zk-2
-configurationStoreServers=zk-0:2184,zk-remote:2184
+metadataStoreUrl=my-zk-0:2181,my-zk-1:2181,my-zk-2:2181
+configurationMetadataStoreUrl=my-zk-0:2184,my-zk-remote:2184
 ```
 
 > To use service discovery, you need to open the network ACLs, so the proxy can connects to the ZooKeeper nodes through the ZooKeeper client port (port `2181`) and the configuration store client port (port `2184`).

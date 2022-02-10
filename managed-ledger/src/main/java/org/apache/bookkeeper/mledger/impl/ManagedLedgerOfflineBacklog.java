@@ -152,7 +152,7 @@ public class ManagedLedgerOfflineBacklog {
                         }
 
                         // find no of entries in last ledger
-                        if (ledgers.size() > 0) {
+                        if (!ledgers.isEmpty()) {
                             final long id = ledgers.lastKey();
                             AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> {
                                 if (log.isDebugEnabled()) {
@@ -212,7 +212,7 @@ public class ManagedLedgerOfflineBacklog {
             final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers,
             final PersistentOfflineTopicStats offlineTopicStats) throws Exception {
 
-        if (ledgers.size() == 0) {
+        if (ledgers.isEmpty()) {
             return;
         }
         String managedLedgerName = topicName.getPersistenceNamingEncoding();

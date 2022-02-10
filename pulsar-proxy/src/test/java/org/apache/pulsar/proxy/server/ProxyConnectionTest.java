@@ -16,42 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.proxy.server;
 
-package org.apache.pulsar.common.policies.data;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import org.testng.annotations.Test;
 
-/**
- * Topic authorization operations.
- */
-public enum TopicOperation {
-    LOOKUP,
-    PRODUCE,
-    CONSUME,
+public class ProxyConnectionTest {
 
-    COMPACT,
-    EXPIRE_MESSAGES,
-    OFFLOAD,
-    PEEK_MESSAGES,
-    RESET_CURSOR,
-    SKIP,
-    TERMINATE,
-    UNLOAD,
-
-    GRANT_PERMISSION,
-    GET_PERMISSION,
-    REVOKE_PERMISSION,
-
-    ADD_BUNDLE_RANGE,
-    GET_BUNDLE_RANGE,
-    DELETE_BUNDLE_RANGE,
-
-    SUBSCRIBE,
-    GET_SUBSCRIPTIONS,
-    UNSUBSCRIBE,
-
-    GET_STATS,
-    GET_METADATA,
-    GET_BACKLOG_SIZE,
-
-    SET_REPLICATED_SUBSCRIPTION_STATUS,
-    GET_REPLICATED_SUBSCRIPTION_STATUS,
+    @Test
+    public void testMatchesHostAndPort() {
+        assertTrue(ProxyConnection
+                .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:6650", "1.2.3.4:6650"));
+        assertTrue(ProxyConnection
+                .matchesHostAndPort("pulsar+ssl://", "pulsar+ssl://1.2.3.4:6650", "1.2.3.4:6650"));
+        assertFalse(ProxyConnection
+                .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:12345", "5.6.7.8:1234"));
+        assertFalse(ProxyConnection
+                .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:12345", "1.2.3.4:1234"));
+    }
 }
