@@ -583,7 +583,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // If the producer doesn't have permission to create the init sub, we should also avoid creating the topic.
-        Assert.assertFalse(admin.topics().getList(tn.getNamespace()).contains(tn.getLocalName()));
+        Assert.assertFalse(admin.namespaces().getTopics(tn.getNamespace()).contains(tn.getLocalName()));
 
         @Cleanup
         PulsarClient pulsarClientProducerRole = PulsarClient.builder().serviceUrl(lookupUrl)
