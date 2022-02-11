@@ -63,8 +63,8 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
-    private volatile CompletableFuture<Void> ackFuture;
-    private volatile CompletableFuture<MessageId> sendFuture;
+    private volatile CompletableFuture<Void> ackFuture = new CompletableFuture<>();
+    private volatile CompletableFuture<MessageId> sendFuture = new CompletableFuture<>();
 
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
@@ -101,7 +101,8 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.tcClient = client.getTcClient();
 
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
-
+        this.sendFuture.complete(null);
+        this.ackFuture.complete(null);
     }
 
     // register the topics that will be modified by this transaction
