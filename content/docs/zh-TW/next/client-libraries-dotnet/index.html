@@ -243,7 +243,10 @@ metadata[<span class="hljs-string">"SomeKey"</span>] = <span class="hljs-string"
 <p>Messages can be acknowledged individually or cumulatively. For details about message acknowledgement, see <a href="/docs/zh-TW/next/concepts-messaging#acknowledgement">acknowledgement</a>.</p>
 <ul>
 <li><p>Acknowledge messages individually.</p>
-<pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> consumer.Acknowledge(message);
+<pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> <span class="hljs-keyword">foreach</span> (<span class="hljs-keyword">var</span> message <span class="hljs-keyword">in</span> consumer.Messages())
+{
+    Console.WriteLine(<span class="hljs-string">"Received: "</span> + Encoding.UTF8.GetString(message.Data.ToArray()));
+}
 </code></pre></li>
 <li><p>Acknowledge messages cumulatively.</p>
 <pre><code class="hljs css language-c#"><span class="hljs-keyword">await</span> consumer.AcknowledgeCumulative(message);

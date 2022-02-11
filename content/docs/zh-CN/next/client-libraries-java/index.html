@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). Java 客户端的当前版本是 **2.9.1**。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Java 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). Java 客户端的当前版本是 **2.9.1**。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="可以使用 Pulsar Java 客户端来创建消息的 Java [生产者](#producer), [消费者](#consumer), 以及 [Reader](#reader) ，还可以执行 [管理任务](/docs/zh-CN/next/admin-api-overview)。 Java 客户端的当前版本是 **2.9.1**。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Java 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="可以使用 Pulsar Java 客户端来创建消息的 Java [生产者](#producer), [消费者](#consumer), 以及 [Reader](#reader) ，还可以执行 [管理任务](/docs/zh-CN/next/admin-api-overview)。 Java 客户端的当前版本是 **2.9.1**。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -75,8 +75,8 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java 客户端</h1></header><article><div><span><p>You can use a Pulsar Java client to create the Java <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and <a href="#tableview">TableView</a> of messages and to perform <a href="/docs/zh-CN/next/admin-api-overview">administrative tasks</a>. Java 客户端的当前版本是 <strong>2.9.1</strong>。</p>
-<p>All the methods in <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, <a href="#reader">readers</a> and <a href="#tableview">TableView</a> of a Java client are thread-safe.</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java 客户端</h1></header><article><div><span><p>可以使用 Pulsar Java 客户端来创建消息的 Java <a href="#producer">生产者</a>, <a href="#consumer">消费者</a>, 以及 <a href="#reader">Reader</a> ，还可以执行 <a href="/docs/zh-CN/next/admin-api-overview">管理任务</a>。 Java 客户端的当前版本是 <strong>2.9.1</strong>。</p>
+<p>在利用 Java 客户端所创建的<a href="#producer">生产者</a>，<a href="#consumer">消费者</a>和<a href="#reader">读者</a>中所提供的方法都是线程安全的。</p>
 <p>Pulsar 客户端的Javadoc 分为如下两个包：</p>
 <table>
 <thead>
@@ -251,7 +251,7 @@ If it is set to <code>false</code>，当传出消息队列已满时， <code>Sen
 <ul>
 <li><p><strong>FAIL</strong>：如果加密失败，则未加密的消息将会发送失败。</p></li>
 <li><p><strong>SEND</strong>：如果加密失败，则未加密的消息将会发送成功。 |
-<code>ProducerCryptoFailureAction.FAIL</code> <code>batchingMaxPublishDelayMicros</code>| long | 发送消息时的批处理时间。| TimeUnit.MILLISECONDS.toMicros(1) <code>batchingMaxMessages</code> | int | 一批消息中允许的最大消息个数。| 1000 <code>batchingEnabled</code>| boolean | 启用消息批处理。| true <code>chunkingEnabled</code> | boolean | Enable chunking of messages. |false <code>compressionType</code>|CompressionType|Message data compression type used by a producer.<br>
+<code>ProducerCryptoFailureAction.FAIL</code> <code>batchingMaxPublishDelayMicros</code>| long | 发送消息时的批处理时间。| TimeUnit.MILLISECONDS.toMicros(1) <code>batchingMaxMessages</code> | int | 一批消息中允许的最大消息个数。| 1000 <code>batchingEnabled</code>| boolean | 启用消息批处理。| true <code>compressionType</code>|CompressionType|Message data compression type used by a producer.<br>
 Available options:</p></li>
 <li><p><a href="https://github.com/lz4/lz4"><code>LZ4</code></a></p></li>
 <li><p><a href="https://zlib.net/"><code>ZLIB</code></a></p>
@@ -290,18 +290,6 @@ You can configure parameters if you do not want to use the default configuration
     .send();
 </code></pre>
 <p>You can terminate the builder chain with <code>sendAsync()</code> and get a future return.</p>
-<h3><a class="anchor" aria-hidden="true" id="enable-chunking"></a><a href="#enable-chunking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable chunking</h3>
-<p>Message <a href="/docs/zh-CN/next/concepts-messaging#chunking">chunking</a> enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.</p>
-<p>The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.</p>
-<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
-        .topic(topic)
-        .enableChunking(<span class="hljs-keyword">true</span>)
-        .enableBatching(<span class="hljs-keyword">false</span>)
-        .create();
-</code></pre>
-<blockquote>
-<p><strong>Note:</strong> To enable chunking, you need to disable batching (<code>enableBatching</code>=<code>false</code>) concurrently.</p>
-</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="消费者consumer"></a><a href="#消费者consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者（Consumer）</h2>
 <p>在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个<a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
 对象并传递给他一个borker(<a href="#client-configuration">如上所示</a>) URL来实例化一个<a href="/docs/zh-CN/next/reference-terminology#consumer">消费者</a>。</p>
@@ -429,7 +417,7 @@ To set a custom dead letter topic name:
   
 When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.  
   
-**Note**: this is only for partitioned consumers.|true `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false `negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff` `ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff` `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true `maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10 `expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
+**Note**: this is only for partitioned consumers.|true `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false `negativeAckRedeliveryBackoff`|NegativeAckRedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `NegativeAckRedeliveryBackoff` for a consumer.| `NegativeAckRedeliveryExponentialBackoff`
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
 
@@ -498,68 +486,22 @@ consumer.acknowledge(messages)
 &gt;     .build();
 &gt; ```
 
-### Configure chunking
-
-You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `maxPendingChunkedMessage` and `autoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. The `expireTimeOfIncompleteChunkedMessage` parameter decides the time interval to expire incomplete chunks if the consumer fails to receive all chunks of a message within the specified time period.
-
-The following is an example of how to configure message chunking.
-
-```java
-Consumer&lt;byte[]&gt; consumer = client.newConsumer()
-        .topic(topic)
-        .subscriptionName(&quot;test&quot;)
-        .autoAckOldestChunkedMessageOnQueueFull(true)
-        .maxPendingChunkedMessage(100)
-        .expireTimeOfIncompleteChunkedMessage(10, TimeUnit.MINUTES)
-        .subscribe();
-```
-
 ### Negative acknowledgment redelivery backoff
 
-The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount` of messages.
+The `NegativeAckRedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount` of messages.
 
 ```java
 Consumer consumer =  client.newConsumer()
         .topic(&quot;my-topic&quot;)
         .subscriptionName(&quot;my-subscription&quot;)
-        .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-                .minDelayMs(1000)
-                .maxDelayMs(60 * 1000)
+        .negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+                .minNackTimeMs(1000)
+                .maxNackTimeMs(60 * 1000)
                 .build())
         .subscribe();
 ```
 
-### Acknowledgement timeout redelivery backoff
-
-The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can redeliver messages with different delays by setting the number of times the messages is retried.
-
-```java
-Consumer consumer =  client.newConsumer()
-        .topic(&quot;my-topic&quot;)
-        .subscriptionName(&quot;my-subscription&quot;)
-        .ackTimeout(10, TimeUnit.SECOND)
-        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-                .minDelayMs(1000)
-                .maxDelayMs(60000)
-                .multiplier(2)
-                .build())
-        .subscribe();
-```
-
-The message redelivery behavior should be as follows.
-
-| Redelivery count | Redelivery delay |
-|:---------------- |:---------------- |
-| 1                | 10 + 1 seconds   |
-| 2                | 10 + 2 seconds   |
-| 3                | 10 + 4 seconds   |
-| 4                | 10 + 8 seconds   |
-| 5                | 10 + 16 seconds  |
-| 6                | 10 + 32 seconds  |
-| 7                | 10 + 60 seconds  |
-| 8                | 10 + 60 seconds  |
-
-&gt; **Note** - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID. - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `RedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
+&gt; **Note** - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID. - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `NegativeAckRedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
 
 ### 多主题订阅
 
@@ -913,40 +855,6 @@ pulsarClient.newReader()
 
 Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
 
-## TableView
-
-The TableView interface serves an encapsulated access pattern, providing a continuously updated key-value map view of the compacted topic data. Messages without keys will be ignored.
-
-With TableView, Pulsar clients can fetch all the message updates from a topic and construct a map with the latest values of each key. These values can then be used to build a local cache of data. In addition, you can register consumers with the TableView by specifying a listener to perform a scan of the map and then receive notifications when new messages are received. Consequently, event handling can be triggered to serve use cases, such as event-driven applications and message monitoring.
-
-&gt; **Note:** Each TableView uses one Reader instance per partition, and reads the topic starting from the compacted view by default. It is highly recommended to enable automatic compaction by [configuring the topic compaction policies](/docs/zh-CN/next/cookbooks-compaction#configuring-compaction-to-run-automatically) for the given topic or namespace. More frequent compaction results in shorter startup times because less data is replayed to reconstruct the TableView of the topic.
-
-The following figure illustrates the dynamic construction of a TableView updated with newer values of each key. ![TableView](/docs/assets/tableview.png)
-
-### Configure TableView
-
-The following is an example of how to configure a TableView.
-
-    try (TableView&lt;String&gt; tv = client.newTableViewBuilder(Schema.STRING)
-      .topic(&quot;tableview-test&quot;)
-      .create()) {
-        String value = tv.get(&quot;my-key&quot;);
-        System.out.println(&quot;Key's value: &quot; + value);
-    }
-    
-
-You can use the available parameters in the `loadConf` configuration or related [API](https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
-
-| Name | Type| Required? |
-
-&lt;div style=&quot;width:300px&quot;&gt;
-  说明
-&lt;/div&gt;
-| 默认值                                                                                                         |
-| ----------------------------------------------------------------------------------------------------------- |
-| `topic` | string | yes | The topic name of the TableView. | N/A                                             |
-| `autoUpdatePartitionInterval` | int | no | The interval to check for newly added partitions. | 60 (seconds) |
-
 ## Schema
 
 In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/zh-CN/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). 如果在不指定 schema 的情况下构造 [生产者](#producer)，那么生产者只能生产 `byte[]` 类型的消息。 The following is an example.
@@ -1131,7 +1039,7 @@ PulsarClient client = PulsarClient.builder()
     .authentication(auth)
     .build();
 ```</code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li><li><a href="#客户端内存分配器配置">客户端内存分配器配置</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#配置消息">配置消息</a></li><li><a href="#enable-chunking">Enable chunking</a></li></ul></li><li><a href="#消费者consumer">消费者（Consumer）</a><ul class="toc-headings"><li><a href="#配置消费者">配置消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li><li><a href="#客户端内存分配器配置">客户端内存分配器配置</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#配置消息">配置消息</a></li></ul></li><li><a href="#消费者consumer">消费者（Consumer）</a><ul class="toc-headings"><li><a href="#配置消费者">配置消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

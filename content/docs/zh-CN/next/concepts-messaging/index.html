@@ -150,26 +150,16 @@ nettyMaxFrameSizeBytes=5253120
 <p>为了避免批量的向 consumer 重发已确认的消息，Pulsar 从 Pulsar 2.6.0 开始采用批量索引确认机制。如果启用批量索引确认机制，consumer 将筛选出已被确认的批量索引，并将批量索引确认请求发送给 broker。 Broker 维护批量索引的确认状态并跟踪每批索引的确认状态，以避免向 consumer 发送已确认的消息。 当该批信息的所有索引都被确认后，该批信息将被删除。</p>
 <p>By default, batch index acknowledgement is disabled (<code>acknowledgmentAtBatchIndexLevelEnabled=false</code>). You can enable batch index acknowledgement by setting the <code>acknowledgmentAtBatchIndexLevelEnabled</code> parameter to <code>true</code> at the broker side. 启用批量索引确认将会导致更多内存开销。</p>
 <h3><a class="anchor" aria-hidden="true" id="分块"></a><a href="#分块" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分块</h3>
-<p>Message chunking enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.</p>
-<p>With message chunking enabled, when the size of a message exceeds the allowed maximum payload size (the <code>maxMessageSize</code> parameter of broker), the workflow of messaging is as follows: 1. The producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. 2. The broker stores the chunked messages in one managed-ledger in the same way as that of ordinary messages, and it uses the <code>chunkedMessageRate</code> parameter to record chunked message rate on the topic. 3. The consumer buffers the chunked messages and aggregates them into the receiver queue when it receives all the chunks of a message. 4. The client consumes the aggregated message from the receiver queue.</p>
-<p><strong>Limitations:</strong> - Chunking is only available for persisted topics. - Chunking is only available for the exclusive and failover subscription types. - Chunking cannot be enabled simultaneously with batching.</p>
-<h4><a class="anchor" aria-hidden="true" id="handle-consecutive-chunked-messages-with-one-ordered-consumer"></a><a href="#handle-consecutive-chunked-messages-with-one-ordered-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Handle consecutive chunked messages with one ordered consumer</h4>
-<p>The following figure shows a topic with one producer which publishes a large message payload in chunked messages along with regular non-chunked messages. The producer publishes message M1 in three chunks labeled M1-C1, M1-C2 and M1-C3. The broker stores all the three chunked messages in the managed-ledger and dispatches them to the ordered (exclusive/failover) consumer in the same order. The consumer buffers all the chunked messages in memory until it receives all the chunked messages, aggregates them into one message and then hands over the original message M1 to the client.</p>
+<p>当你想要启用分块(chunking) 时，请阅读以下说明。 - Batching and chunking cannot be enabled simultaneously. 如果想要启用分块(chunking) ，您必须提前禁用批量处理。 - Chunking is only supported for persisted topics. - Chunking is only supported for Exclusive and Failover subscription types.</p>
+<p>当启用分块(chunking) 时(<code>chunkingEnabled=true</code>) ，如果消息大小大于允许的最大发布有效载荷大小，则 producer 将原始消息分割成分块的消息，并将它们与块状的元数据一起单独和按顺序发布到 broker。 在 broker 中，分块的消息将和普通的消息以相同的方式存储在 Managed Ledger 上。 唯一的区别是，consumer 需要缓冲分块消息，并在收集完所有分块消息后将其合并成真正的消息。 Managed Ledger 上的分块消息可以和普通消息交织在一起。 如果 producer 未能发布消息的所有分块，则当 consumer 未能在过期时间(expire time) 内接收所有分块时，consumer 可以过期未完成的分块。 By default, the expire time is set to one hour.</p>
+<p>Consumer 会缓存收到的块状消息，直到收到消息的所有分块为止。 然后 consumer 将分块的消息拼接在一起，并将它们放入接收器队列中。 客户端从接收器队列中消费消息。 一旦 consumer 使用整个大消息并确认，consumer 就会在内部发送与该大消息关联的所有分块消息的确认。 You can set the <code>maxPendingChunkedMessage</code> parameter on the consumer. 当达到阈值时，consumer 通过静默确认未分块的消息或通过将其标记为未确认，要求 broker 稍后重新发送这些消息。</p>
+<p>The broker does not require any changes to support chunking for non-shared subscription. The broker only uses <code>chunkedMessageRate</code> to record chunked message rate on the topic.</p>
+<h4><a class="anchor" aria-hidden="true" id="处理一个-producer-和一个订阅-consumer-的分块消息"></a><a href="#处理一个-producer-和一个订阅-consumer-的分块消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>处理一个 producer 和一个订阅 consumer 的分块消息</h4>
+<p>如下图所示，当生产者向主题发送一批大的分块消息和普通的非分块消息时。 假设生产者发送的消息为 M1，M1 有三个分块 M1-C1，M1-C2 和 M1-C3。 这个 broker 在其管理的ledger里面保存所有的三个块消息，然后以相同的顺序分发给消费者（独占/灾备模式）。 消费者将在内存缓存所有的块消息，直到收到所有的消息块。将这些消息合并成为原始的消息M1，发送给处理进程。</p>
 <p><img src="/docs/assets/chunking-01.png" alt=""></p>
-<h4><a class="anchor" aria-hidden="true" id="handle-interwoven-chunked-messages-with-one-ordered-consumer"></a><a href="#handle-interwoven-chunked-messages-with-one-ordered-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Handle interwoven chunked messages with one ordered consumer</h4>
-<p>When multiple producers publish chunked messages into a single topic, the broker stores all the chunked messages coming from different producers in the same managed-ledger. The chunked messages in the managed-ledger can be interwoven with each other. 如下所示，生产者1发布的消息 M1，M1 由 M1-C1, M1-C2 和 M1-C3 三个块组成。 生产者2发布的消息 M2，M2 由 M2-C1, M2-C2 和 M2-C3 三个块组成。 这些特定消息的所有分块是顺序排列的，但是其在 ledger 里面可能不是连续的。</p>
+<h4><a class="anchor" aria-hidden="true" id="多个生产者和一个生产者处理块消息"></a><a href="#多个生产者和一个生产者处理块消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多个生产者和一个生产者处理块消息。</h4>
+<p>当多个生产者发布块消息到单个主题，这个 Broker 在同一个 Ledger 里面保存来自不同生产者的所有块消息。 如下所示，生产者1发布的消息 M1，M1 由 M1-C1, M1-C2 和 M1-C3 三个块组成。 生产者2发布的消息 M2，M2 由 M2-C1, M2-C2 和 M2-C3 三个块组成。 这些特定消息的所有分块是顺序排列的，但是其在 ledger 里面可能不是连续的。 这种方式会给消费者带来一定的内存负担。因为消费者会为每个大消息在内存开辟一块缓冲区，以便将所有的块消息合并为原始的大消息。</p>
 <p><img src="/docs/assets/chunking-02.png" alt=""></p>
-<blockquote>
-<p><strong>Note</strong>  <br>
-In this case, interwoven chunked messages may bring some memory pressure to the consumer because the consumer keeps a separate buffer for each large message to aggregate all its chunks in one message. You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the <code>maxPendingChunkedMessage</code> parameter. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later, optimizing memory utilization.</p>
-</blockquote>
-<h4><a class="anchor" aria-hidden="true" id="enable-message-chunking"></a><a href="#enable-message-chunking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Message Chunking</h4>
-<p><strong>Prerequisite:</strong> Disable batching by setting the <code>enableBatching</code> parameter to <code>false</code>.</p>
-<p>The message chunking feature is OFF by default. To enable message chunking, set the <code>chunkingEnabled</code> parameter to <code>true</code> when creating a producer.</p>
-<blockquote>
-<p><strong>Note</strong>  <br>
-If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default value is 1 minute. For more information about the <code>expireTimeOfIncompleteChunkedMessage</code> parameter, refer to <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/">org.apache.pulsar.client.api</a>.</p>
-</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="消费者"></a><a href="#消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者</h2>
 <p>A consumer is a process that attaches to a topic via a subscription and then receives messages.</p>
 <p>Consumer 向 broker 发送消息流获取申请（<a href="/docs/zh-CN/next/develop-binary-protocol#flow-control">flow permit request</a>）以获取消息。 在 Consumer 端有一个队列，用于接收从 broker 推送来的消息。 你能够通过<a href="/docs/zh-CN/next/client-libraries-java#configure-consumer"><code>receiverQueueSize</code></a>参数配置队列的长度 (队列的默认长度是<code>1000</code>) 每当 <code>consumer.receive()</code> 被调用一次，就从缓冲区（buffer）获取一条消息。</p>
@@ -235,38 +225,14 @@ If batching is enabled, all messages in one batch are redelivered to the consume
 <p>It happens sometimes that consumers fail to process messages successfully. In this case, you can use <a href="#negative-acknowledgement">negative acknowledgement</a> to redeliver the messages after consumption failures. For the Shared subscription type, the messages are redelivered to other consumers; for other subscription types, the messages are redelivered to the same consumer.</p>
 <p>But this is not flexible enough. A better way is to use the <strong>redelivery backoff mechanism</strong>. You can redeliver messages with different delays by setting the number of times the messages are retried.</p>
 <p>Use the following API to enable <code>Negative Redelivery Backoff</code>.</p>
-<pre><code class="hljs css language-java">consumer.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-        .minDelayMs(<span class="hljs-number">1000</span>)
-        .maxDelayMs(<span class="hljs-number">60</span> * <span class="hljs-number">1000</span>)
+<pre><code class="hljs css language-java">consumer.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+        .minNackTimeMs(<span class="hljs-number">1000</span>)
+        .maxNackTimeMs(<span class="hljs-number">60</span> * <span class="hljs-number">1000</span>)
         .build())
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="确认超时"></a><a href="#确认超时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认超时</h3>
 <p>The acknowledgement timeout mechanism allows you to set a time range during which the client tracks the unacknowledged messages. After this acknowledgement timeout (<code>ackTimeout</code>) period, the client sends <code>redeliver unacknowledged messages</code> request to the broker, thus the broker resends the unacknowledged messages to the consumer.</p>
 <p>You can configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after <code>ackTimeout</code> or to execute a timer task to check the acknowledgement timeout messages during every <code>ackTimeoutTickTime</code> period.</p>
-<p>You can also use the redelivery backoff mechanism, redeliver messages with different delays by setting the number of times the messages is retried.</p>
-<p>If you want to use redelivery backoff, you can use the following API.</p>
-<pre><code class="hljs css language-java">consumer.ackTimeout(<span class="hljs-number">10</span>, TimeUnit.SECOND)
-        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-        .minDelayMs(<span class="hljs-number">1000</span>)
-        .maxDelayMs(<span class="hljs-number">60000</span>)
-        .multiplier(<span class="hljs-number">2</span>).build())
-</code></pre>
-<p>The message redelivery behavior should be as follows.</p>
-<table>
-<thead>
-<tr><th style="text-align:left">Redelivery count</th><th style="text-align:left">Redelivery delay</th></tr>
-</thead>
-<tbody>
-<tr><td style="text-align:left">1</td><td style="text-align:left">10 + 1 seconds</td></tr>
-<tr><td style="text-align:left">2</td><td style="text-align:left">10 + 2 seconds</td></tr>
-<tr><td style="text-align:left">3</td><td style="text-align:left">10 + 4 seconds</td></tr>
-<tr><td style="text-align:left">4</td><td style="text-align:left">10 + 8 seconds</td></tr>
-<tr><td style="text-align:left">5</td><td style="text-align:left">10 + 16 seconds</td></tr>
-<tr><td style="text-align:left">6</td><td style="text-align:left">10 + 32 seconds</td></tr>
-<tr><td style="text-align:left">7</td><td style="text-align:left">10 + 60 seconds</td></tr>
-<tr><td style="text-align:left">8</td><td style="text-align:left">10 + 60 seconds</td></tr>
-</tbody>
-</table>
 <blockquote>
 <p><strong>Note</strong></p>
 <ul>

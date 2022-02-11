@@ -220,8 +220,8 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
 <p>You can initialize this metadata using the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-initialize-cluster-metadata"><code>initialize-cluster-metadata</code></a> command of the <a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> CLI tool. 如下所示：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar initialize-cluster-metadata \</span>
   --cluster us-west \
-  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
-  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --zookeeper zk1.us-west.example.com:2181 \
+  --configuration-store zk1.us-west.example.com:2184 \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
@@ -268,14 +268,14 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.9.1
 <p>一旦部署了 Zookeeper，初始化了集群元数据，部署了 Bookeeper bookies 后，你就能开始部署 broker了。</p>
 <h3><a class="anchor" aria-hidden="true" id="broker-configuration"></a><a href="#broker-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker configuration</h3>
 <p>你能够通过<a href="/docs/zh-CN/next/reference-configuration#broker"><code>conf/broker.conf</code></a>配置文件配置broker。</p>
-<p>The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the <a href="/docs/zh-CN/next/reference-configuration#broker"><code>metadataStoreUrl</code></a> parameter to reflect the local quorum and the <a href="/docs/zh-CN/next/reference-configuration#broker"><code>configurationMetadataStoreUrl</code></a> parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).</p>
+<p>The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. 必须确保<a href="/docs/zh-CN/next/reference-configuration#broker-zookeeperServers"><code>zookeeperServers</code></a>设置为本地 zookeeper 集群的地址，确保<a href="/docs/zh-CN/next/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a>设置为配置存储集群的地址(即使配置存储集群和本地的 Zookeeper 集群是同一个，也需要配置该选项)。</p>
 <p>You also need to specify the name of the <a href="/docs/zh-CN/next/reference-terminology#cluster">cluster</a> to which the broker belongs using the <a href="/docs/zh-CN/next/reference-configuration#broker-clusterName"><code>clusterName</code></a> parameter. 此外，broker 和 web 服务的端口必须和初始化集群元数据时指定的端口是一样的(特别是当你使用了和默认值不同的端口的时候)。</p>
 <p>下面是一个示例配置：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-comment"># Local ZooKeeper servers</span>
-<span class="hljs-attr">metadataStoreUrl</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+<span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 <span class="hljs-comment">
 # Configuration store quorum connection string.</span>
-<span class="hljs-attr">configurationMetadataStoreUrl</span>=<span class="hljs-string">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
+<span class="hljs-attr">configurationStoreServers</span>=<span class="hljs-string">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
 
 <span class="hljs-attr">clusterName</span>=<span class="hljs-string">us-west</span>
 <span class="hljs-comment">
