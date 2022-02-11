@@ -1748,7 +1748,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     cnx.channel().close();
                     return;
                 }
-                long messagesToResend = pendingMessages.messagesCount();
+                int messagesToResend = pendingMessages.messagesCount();
                 if (messagesToResend == 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] No pending messages to resend {}", topic, producerName, messagesToResend);
