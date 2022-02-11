@@ -372,12 +372,4 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
     }
-
-    public long getInitialBackoffIntervalNanos() {
-        return initialBackoffIntervalNanos
-    }
-
-    public long getMaxBackoffIntervalNanos() {
-        return maxBackoffIntervalNanos;
-    }
 }
