@@ -113,6 +113,7 @@ public class PersistentSubscriptionTest {
         ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setTransactionCoordinatorEnabled(true);
+        svcConfig.setClusterName("pulsar-cluster");
         pulsarMock = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         PulsarResources pulsarResources = mock(PulsarResources.class);
         doReturn(pulsarResources).when(pulsarMock).getPulsarResources();
@@ -216,7 +217,9 @@ public class PersistentSubscriptionTest {
 
         store.close();
         executor.shutdownNow();
-        eventLoopGroup.shutdownGracefully().get();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+        }
     }
 
     @Test

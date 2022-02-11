@@ -33,26 +33,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.apache.pulsar.functions.worker.executor.MockExecutorController;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link ClusterServiceCoordinator}.
  */
-@PrepareForTest({ ClusterServiceCoordinator.class })
-@PowerMockIgnore({ "javax.management.*", "org.apache.logging.log4j.*" })
 public class ClusterServiceCoordinatorTest {
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     private LeaderService leaderService;
     private ClusterServiceCoordinator coordinator;
@@ -62,20 +51,15 @@ public class ClusterServiceCoordinatorTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        PowerMockito.mockStatic(Executors.class);
 
-        this.mockExecutor = PowerMockito.mock(ScheduledExecutorService.class);
+        this.mockExecutor = mock(ScheduledExecutorService.class);
         this.mockExecutorController = new MockExecutorController()
             .controlScheduleAtFixedRate(mockExecutor, 10);
-
-        PowerMockito.when(
-            Executors.newSingleThreadScheduledExecutor(
-                any(ThreadFactory.class))
-        ).thenReturn(mockExecutor);
 
         this.leaderService = mock(LeaderService.class);
         this.checkIsStillLeader = () -> leaderService.isLeader();
         this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService, checkIsStillLeader);
+        Whitebox.setInternalState(coordinator, "executor", mockExecutor);
     }
 
 

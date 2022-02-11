@@ -154,6 +154,7 @@ public class ServerCnxTest {
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 
@@ -210,7 +211,9 @@ public class ServerCnxTest {
         pulsar.close();
         brokerService.close();
         executor.shutdownNow();
-        eventLoopGroup.shutdownGracefully().get();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+        }
         store.close();
     }
 
