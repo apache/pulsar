@@ -127,6 +127,23 @@ If authentication is enabled for your broker cluster, you *should* configure the
 - `clientAuthenticationPlugin`
 - `clientAuthenticationParameters`
 
+#### Customize Java runtime options
+
+If you want to pass additional arguments to the JVM command line to every process started by a function worker,
+you can configure the `additionalJavaRuntimeArguments` parameter.
+
+```
+additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError','-Dfoo=bar']
+```
+
+This is very useful in case you want to:
+- add JMV flags, like `-XX:+ExitOnOutOfMemoryError`
+- pass custom system properties, like `-Dlog4j2.formatMsgNoLookups`
+
+> **Note**
+> 
+> This feature applies only to Process and Kubernetes runtimes.
+
 #### Security settings
 
 If you want to enable security on functions workers, you *should*:
@@ -199,12 +216,12 @@ properties:
 
 ##### Enable Authorization Provider
 
-To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
+To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationMetadataStoreUrl`. The authentication provider connects to `configurationMetadataStoreUrl` to receive namespace policies.
 
 ```yaml
 authorizationEnabled: true
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
-configurationStoreServers: <configuration-store-servers>
+configurationMetadataStoreUrl: <meta-type>:<configuration-metadata-store-url>
 ```
 
 You should also configure a list of superuser roles. The superuser roles are able to access any admin API. The following is a configuration example.

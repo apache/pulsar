@@ -20,9 +20,7 @@
 package org.apache.pulsar.broker.authentication;
 
 import java.util.concurrent.atomic.AtomicLong;
-
 import javax.naming.AuthenticationException;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.AuthData;
 

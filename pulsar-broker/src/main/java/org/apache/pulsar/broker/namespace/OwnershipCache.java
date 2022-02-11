@@ -266,7 +266,8 @@ public class OwnershipCache {
 
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             try {
-                return future.get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                return future.get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(),
+                        TimeUnit.SECONDS);
             } catch (InterruptedException | TimeoutException e) {
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {

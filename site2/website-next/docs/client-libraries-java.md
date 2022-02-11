@@ -382,7 +382,9 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `deadLetterPolicy`|DeadLetterPolicy|Dead letter policy for consumers.<br /><br />By default, some messages are probably redelivered many times, even to the extent that it never stops.<br /><br />By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.<br /><br />You can enable the dead letter mechanism by setting `deadLetterPolicy`.<br /><br />**Example**<br /><br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())<br />.subscribe();</code><br /><br />Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.<br /><br />To set a custom dead letter topic name:<br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)<br />.deadLetterTopic("your-topic-name").build())<br />.subscribe();</code><br /><br />When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None
 `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.<br /><br />**Note**: this is only for partitioned consumers.|true
 `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
-`negativeAckRedeliveryBackoff`|NegativeAckRedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `NegativeAckRedeliveryBackoff` for a consumer.| `NegativeAckRedeliveryExponentialBackoff`
+`negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
+`ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
+
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
 
@@ -464,7 +466,7 @@ BatchReceivePolicy.builder()
 
 ### Negative acknowledgment redelivery backoff
 
-The `NegativeAckRedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount ` of messages. 
+The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount ` of messages. 
 
 ```java
 
@@ -479,10 +481,40 @@ Consumer consumer =  client.newConsumer()
 
 ```
 
+### Acknowledgement timeout redelivery backoff
+
+The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can redeliver messages with different delays by setting the number
+of times the messages is retried.
+
+```java
+Consumer consumer =  client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .ackTimeout(10, TimeUnit.SECOND)
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(60000)
+                .multiplier(2)
+                .build())
+        .subscribe();
+```
+The message redelivery behavior should be as follows.
+
+Redelivery count | Redelivery delay
+:--------------------|:-----------
+1 | 10 + 1 seconds
+2 | 10 + 2 seconds
+3 | 10 + 4 seconds
+4 | 10 + 8 seconds
+5 | 10 + 16 seconds
+6 | 10 + 32 seconds
+7 | 10 + 60 seconds
+8 | 10 + 60 seconds
+
 :::note
 
 - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID.
-- If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `NegativeAckRedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
+- If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `RedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
 
 :::
 

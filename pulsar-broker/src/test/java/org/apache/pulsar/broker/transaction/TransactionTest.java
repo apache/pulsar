@@ -27,13 +27,16 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import io.netty.buffer.Unpooled;
+import io.netty.util.Timeout;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -43,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -91,6 +95,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -153,7 +158,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().getSubscriptions(topicName);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Can not create transaction system topic " + topicName);
         }
 
@@ -161,7 +166,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().createPartitionedTopic(topicName, 3);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
         }
 
@@ -169,7 +174,7 @@ public class TransactionTest extends TransactionTestBase {
         try {
             admin.topics().createNonPartitionedTopic(topicName);
             fail();
-        } catch (PulsarAdminException.ConflictException e) {
+        } catch (PulsarAdminException e) {
             assertEquals(e.getMessage(), "Cannot create topic in system topic format!");
         }
     }
@@ -696,4 +701,98 @@ public class TransactionTest extends TransactionTestBase {
         commitTxn.commit();
     }
 
+    @Test
+    public void testNoEntryCanBeReadWhenRecovery() throws Exception {
+        String topic = NAMESPACE1 + "/test";
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                        .getTopic(TopicName.get(topic).toString(), true)
+                        .get()
+                        .get();
+
+        Class<PersistentTopic> persistentTopicClass = PersistentTopic.class;
+        Field filed1 = persistentTopicClass.getDeclaredField("ledger");
+        Field field2 = persistentTopicClass.getDeclaredField("transactionBuffer");
+        filed1.setAccessible(true);
+        field2.setAccessible(true);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) spy(filed1.get(persistentTopic));
+        filed1.set(persistentTopic, managedLedger);
+
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) field2.get(persistentTopic);
+        Method method = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
+        method.setAccessible(true);
+        CompletableFuture<Void> completableFuture = (CompletableFuture<Void>) method.invoke(topicTransactionBuffer);
+        completableFuture.get();
+
+        doReturn(PositionImpl.LATEST).when(managedLedger).getLastConfirmedEntry();
+        ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
+        doReturn(false).when(managedCursor).hasMoreEntries();
+        doReturn(managedCursor).when(managedLedger).newNonDurableCursor(any(), any());
+
+        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic);
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
+    }
+
+    @Test
+    public void testRetryExceptionOfEndTxn() throws Exception{
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+        Class<TransactionMetadataStoreState> transactionMetadataStoreStateClass = TransactionMetadataStoreState.class;
+        getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores()
+                .values()
+                .forEach((transactionMetadataStore -> {
+                    try {
+                        Field field = transactionMetadataStoreStateClass.getDeclaredField("state");
+                        field.setAccessible(true);
+                        field.set(transactionMetadataStore, TransactionMetadataStoreState.State.Initializing);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }));
+        CompletableFuture<Void> completableFuture =  transaction.commit();
+        try {
+            completableFuture.get(5, TimeUnit.SECONDS);
+            fail();
+        } catch (TimeoutException ignored) {
+        }
+        getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores()
+                .values()
+                .stream()
+                .forEach((transactionMetadataStore -> {
+                    try {
+                        Field field = transactionMetadataStoreStateClass.getDeclaredField("state");
+                        field.setAccessible(true);
+                        field.set(transactionMetadataStore, TransactionMetadataStoreState.State.Ready);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }));
+        completableFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testCancelTxnTimeout() throws Exception{
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("timeout");
+        field.setAccessible(true);
+        Timeout timeout = (Timeout) field.get(transaction);
+        Assert.assertTrue(timeout.isCancelled());
+
+        transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.abort().get();
+        timeout = (Timeout) field.get(transaction);
+        Assert.assertTrue(timeout.isCancelled());
+    }
 }

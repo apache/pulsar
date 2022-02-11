@@ -6,6 +6,7 @@
     "docusaurus": "docusaurus",
     "start": "NODE_OPTIONS=--max_old_space_size=20480 docusaurus start",
     "build": "NODE_OPTIONS=--max_old_space_size=20480 node scripts/replace.js && docusaurus build",
+    "preview": "npm run build && git checkout . && sh scripts/docker.sh",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",

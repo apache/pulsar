@@ -74,7 +74,8 @@ Result BatchMessageContainerBase::createOpSendMsgHelper(OpSendMsg& opSendMsg,
         return ResultMessageTooBig;
     }
 
-    opSendMsg.msg_.impl_ = impl;
+    opSendMsg.metadata_ = impl->metadata;
+    opSendMsg.payload_ = impl->payload;
     opSendMsg.sequenceId_ = impl->metadata.sequence_id();
     opSendMsg.producerId_ = producerId_;
     opSendMsg.timeout_ = TimeUtils::now() + milliseconds(producerConfig_.getSendTimeout());

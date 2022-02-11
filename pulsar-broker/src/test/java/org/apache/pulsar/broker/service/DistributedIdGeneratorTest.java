@@ -46,7 +46,7 @@ public class DistributedIdGeneratorTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        store  = MetadataStoreExtended.create("memory://local", MetadataStoreConfig.builder().build());
+        store  = MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build());
         coordinationService = new CoordinationServiceImpl(store);
     }
 

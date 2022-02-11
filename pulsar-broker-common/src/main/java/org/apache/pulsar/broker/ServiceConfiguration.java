@@ -35,6 +35,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -48,6 +49,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
  * Pulsar service configuration object.
@@ -110,6 +112,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "metadataStoreUrl"
     )
     @Getter(AccessLevel.NONE)
+    @Deprecated
     private String zookeeperServers;
 
     @FieldContext(
@@ -124,7 +127,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreUrl;
 
-    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
         required = false,
@@ -133,6 +135,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Deprecated in favor of using `configurationStoreServers`"
     )
     @Getter(AccessLevel.NONE)
+    @Deprecated
     private String globalZookeeperServers;
 
     @FieldContext(
@@ -326,6 +329,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -333,39 +337,73 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable cluster's failure-domain which can distribute brokers into logical region"
     )
     private boolean failureDomainsEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store session timeout in milliseconds."
+    )
+    private long metadataStoreSessionTimeoutMillis = 30_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store operation timeout in seconds."
+    )
+    private int metadataStoreOperationTimeoutSeconds = 30;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "ZooKeeper session timeout in milliseconds"
+        deprecated = true,
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
     )
-    private long zooKeeperSessionTimeoutMillis = 30000;
+    private long zooKeeperSessionTimeoutMillis = -1;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "ZooKeeper operation timeout in seconds"
+            deprecated = true,
+            doc = "ZooKeeper operation timeout in seconds. "
+                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
         )
-    private int zooKeeperOperationTimeoutSeconds = 30;
+    private int zooKeeperOperationTimeoutSeconds = -1;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "ZooKeeper cache expiry time in seconds"
+            deprecated = true,
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
         )
-    private int zooKeeperCacheExpirySeconds = 300;
+    private int zooKeeperCacheExpirySeconds = -1;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Time to wait for broker graceful shutdown. After this time elapses, the process will be killed"
     )
     private long brokerShutdownTimeoutMs = 60000;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Flag to skip broker shutdown when broker handles Out of memory error"
     )
     private boolean skipBrokerShutdownOnOOM = false;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
@@ -570,8 +608,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_POLICIES,
             doc = "On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or "
-                    + "consistent hashing to reassign keys to new consumers")
-    private boolean subscriptionKeySharedUseConsistentHashing = false;
+                    + "consistent hashing to reassign keys to new consumers (default is consistent hashing)")
+    private boolean subscriptionKeySharedUseConsistentHashing = true;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -749,6 +787,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Default messages per second dispatch throttling-limit for whole broker. "
+                    + "Using a value of 0, is disabling default message-byte dispatch-throttling"
+    )
+    private int dispatchThrottlingRateInMsg = 0;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Default bytes per second dispatch throttling-limit for whole broker. "
+                    + "Using a value of 0, is disabling default message-byte dispatch-throttling"
+    )
+    private long dispatchThrottlingRateInByte = 0;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -1819,10 +1871,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
-            doc = "load balance load shedding strategy (It requires broker restart if value is changed using dynamic "
-                    + "config)"
+            doc = "load balance load shedding strategy "
+                + "(It requires broker restart if value is changed using dynamic config). "
+                + "Default is ThresholdShedder since 2.10.0"
     )
-    private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.OverloadShedder";
+    private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder";
 
     @FieldContext(
         dynamic = true,
@@ -2181,10 +2234,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SCHEMA,
-            doc = "The schema compatibility strategy in broker level. If this config in namespace policy is `UNDEFINED`"
-                    + ", schema compatibility strategy check will use it in broker level."
+            doc = "The schema compatibility strategy in broker level"
     )
-    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.UNDEFINED;
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.FULL;
 
     /**** --- WebSocket. --- ****/
     @FieldContext(
@@ -2309,6 +2361,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Stats update initial delay in seconds"
     )
     private int statsUpdateInitialDelayInSecs = 60;
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "If true, aggregate publisher stats of PartitionedTopicStats by producerName"
+    )
+    private boolean aggregatePublisherStatsByProducerName = false;
 
     /**** --- Ledger Offloading. --- ****/
     /****
@@ -2344,6 +2401,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Maximum prefetch rounds for ledger reading for offloading"
     )
     private int managedLedgerOffloadPrefetchRounds = 1;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "Time to rollover ledger for inactive topic (duration without any publish on that topic). "
+                + "Disable rollover with value 0 (Default value 0)"
+        )
+    private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
 
     /**** --- Transaction config variables. --- ****/
     @FieldContext(
@@ -2566,7 +2631,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         } else {
             // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
             // metadata adapter
-            return "metadata-store:" + getMetadataStoreUrl();
+            String suffix;
+            if (StringUtils.isNotBlank(metadataStoreUrl)) {
+                suffix = metadataStoreUrl;
+            } else {
+                // Fallback to old setting
+                // Note: chroot is not settable by using 'zookeeperServers' config.
+                suffix = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
+            }
+            return "metadata-store:" + suffix + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         }
     }
 
@@ -2596,4 +2669,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
         }
     }
 
+    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy() {
+        if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+            return SchemaCompatibilityStrategy.FULL;
+        }
+        return schemaCompatibilityStrategy;
+    }
+
+    public long getMetadataStoreSessionTimeoutMillis() {
+        return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreOperationTimeoutSeconds() {
+        return zooKeeperOperationTimeoutSeconds > 0 ? zooKeeperOperationTimeoutSeconds
+                : metadataStoreOperationTimeoutSeconds;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
 }

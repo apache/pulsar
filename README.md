@@ -103,7 +103,7 @@ $ mvn -pl module-name (e.g: pulsar-broker) install -DskipTests
 
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
 ```
-mvn install -Pcore-modules,-main
+mvn install -Pcore-modules,-main -DskipTests
 ```
 
 Run Unit Tests:

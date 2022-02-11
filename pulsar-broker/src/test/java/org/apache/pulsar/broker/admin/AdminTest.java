@@ -626,6 +626,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void brokers() throws Exception {
         clusters.createCluster("use", ClusterDataImpl.builder()
                 .serviceUrl("http://broker.messaging.use.example.com")
@@ -639,12 +640,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
         uriField.set(brokers, mockUri);
-
-        Set<String> activeBrokers = brokers.getActiveBrokers("use");
+        Object res = asynRequests(ctx -> brokers.getActiveBrokers(ctx, "use"));
+        assertTrue(res instanceof Set);
+        Set<String> activeBrokers = (Set<String>) res;
         assertEquals(activeBrokers.size(), 1);
         assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
-
-        BrokerInfo leaderBroker = brokers.getLeaderBroker();
+        Object leaderBrokerRes = asynRequests(ctx -> brokers.getLeaderBroker(ctx));
+        assertTrue(leaderBrokerRes instanceof BrokerInfo);
+        BrokerInfo leaderBroker = (BrokerInfo)leaderBrokerRes;
         assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
     }
 
@@ -754,7 +757,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .createPolicies(NamespaceName.get(property, cluster, namespace), new Policies());
 
         AsyncResponse response = mock(AsyncResponse.class);
-        persistentTopics.getList(response, property, cluster, namespace);
+        persistentTopics.getList(response, property, cluster, namespace, null);
         verify(response, times(1)).resume(Lists.newArrayList());
         // create topic
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());

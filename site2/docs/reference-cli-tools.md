@@ -166,14 +166,14 @@ Options
 |`-ub` , `--broker-service-url`|The broker service URL for the new cluster||
 |`-tb` , `--broker-service-url-tls`|The broker service URL for the new cluster with TLS encryption||
 |`-c` , `--cluster`|Cluster name||
-|`-cs` , `--configuration-store`|The configuration store quorum connection string||
+|`-cms` , `--configuration-metadata-store`|The configuration metadata store quorum connection string||
 |`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster that you want to use||
 |`-h` , `--help`|Cluster name|false|
 |`--initial-num-stream-storage-containers`|The number of storage containers of BookKeeper stream storage|16|
 |`--initial-num-transaction-coordinators`|The number of transaction coordinators assigned in a cluster|16|
 |`-uw` , `--web-service-url`|The web service URL for the new cluster||
 |`-tw` , `--web-service-url-tls`|The web service URL for the new cluster with TLS encryption||
-|`-zk` , `--zookeeper`|The local ZooKeeper quorum connection string||
+|`-md` , `--metadata-store`|The metadata store service url||
 |`--zookeeper-session-timeout-ms`|The local ZooKeeper session timeout. The time unit is in millisecond(ms)|30000|
 
 
@@ -190,14 +190,14 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`--configuration-store`|Configuration store connection string||
-|`-zk` , `--zookeeper-servers`|Local ZooKeeper connection string||
+|`-cms`, `--configuration-metadata-store`|Configuration meta store connection string||
+|`-md` , `--metadata-store`|Metadata Store service url||
 
 Example
 ```bash
 $ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
-  --zookeeper-servers zk-0,zk-1,zk2 \
-  --configuration-store zk-0,zk-1,zk-2
+  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 ### `standalone`
@@ -655,7 +655,7 @@ Options
 |`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`--threads`|Number of threads writing|1|
 |`-w`, `--write-quorum`|Ledger write quorum|1|
-|`-zk`, `--zookeeperServers`|ZooKeeper connection string||
+|`-md`, `--metadata-store`|Metadata store service URL. For example: zk:my-zk:2181||
 
 
 ### `monitor-brokers`

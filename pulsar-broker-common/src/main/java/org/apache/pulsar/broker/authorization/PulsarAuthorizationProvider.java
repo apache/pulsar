@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -43,7 +44,6 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -275,42 +275,52 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        return grantPermissionAsync(topicName.getNamespaceObject(), actions, role, authDataJson);
+        try {
+            validatePoliciesReadOnlyAccess();
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+
+        String topicUri = topicName.toString();
+        return pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
+                    policies.auth_policies.getTopicAuthentication()
+                            .computeIfAbsent(topicUri, __ -> new HashMap<>())
+                            .put(role, actions);
+                    return policies;
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName,
+                                throwable);
+                    } else {
+                        log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
+                                topicUri);
+                    }
+                });
     }
 
     @Override
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespaceName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            result.completeExceptionally(e);
+            return FutureUtil.failedFuture(e);
         }
 
-        try {
-            pulsarResources.getNamespaceResources().setPolicies(namespaceName, policies -> {
-                policies.auth_policies.getNamespaceAuthentication().put(role, actions);
-                return policies;
-            });
-            log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
-                    namespaceName);
-            result.complete(null);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", role, namespaceName);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespaceName));
-        } catch (BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", role, namespaceName);
-            result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on metadata: " + namespaceName + ", " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for namespace {}", role, namespaceName, e);
-            result.completeExceptionally(
-                    new IllegalStateException("Failed to get permissions for namespace " + namespaceName));
-        }
-
-        return result;
+        return pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(namespaceName, policies -> {
+                    policies.auth_policies.getNamespaceAuthentication().put(role, actions);
+                    return policies;
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to set permissions for role {} namespace {}", role, role, namespaceName,
+                                throwable);
+                    } else {
+                        log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
+                                namespaceName);
+                    }
+                });
     }
 
     @Override
@@ -334,8 +344,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             return FutureUtil.failedFuture(e);
         }
 
-        CompletableFuture<Void> future =
-                pulsarResources.getNamespaceResources().setPoliciesAsync(namespace, policies -> {
+        return pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(namespace, policies -> {
                     if (remove) {
                         Set<String> subscriptionAuth =
                                 policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName);
@@ -350,18 +360,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
                     }
                     return policies;
-                }).thenRun(() -> {
-                    log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName,
-                            roles);
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles,
+                                namespace, throwable);
+                    } else {
+                        log.info("[{}] Successfully granted access for role {} for sub = {}", namespace,
+                                roles, subscriptionName);
+                    }
                 });
-
-        future.exceptionally(ex -> {
-            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace,
-                    ex);
-            return null;
-        });
-
-        return future;
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {

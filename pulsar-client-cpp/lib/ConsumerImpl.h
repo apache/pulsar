@@ -33,6 +33,7 @@
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include "MessageCrypto.h"
 #include "AckGroupingTracker.h"
+#include "GetLastMessageIdResponse.h"
 
 #include "CompressionCodec.h"
 #include <boost/dynamic_bitset.hpp>
@@ -40,6 +41,7 @@
 #include "BatchAcknowledgementTracker.h"
 #include <limits>
 #include <lib/BrokerConsumerStatsImpl.h>
+#include <lib/MapCache.h>
 #include <lib/stats/ConsumerStatsImpl.h>
 #include <lib/stats/ConsumerStatsDisabled.h>
 #include <queue>
@@ -53,7 +55,7 @@ class ExecutorService;
 class ConsumerImpl;
 class BatchAcknowledgementTracker;
 typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
-typedef std::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
+typedef std::function<void(Result, const GetLastMessageIdResponse&)> BrokerGetLastMessageIdCallback;
 
 enum ConsumerTopicType
 {
@@ -157,8 +159,9 @@ class ConsumerImpl : public ConsumerImplBase,
 
    private:
     bool waitingForZeroQueueSizeMessage;
-    bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
-                                   const proto::MessageMetadata& metadata, SharedBuffer& payload);
+    bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageIdData,
+                                   const proto::MessageMetadata& metadata, SharedBuffer& payload,
+                                   bool checkMaxMessageSize);
     void discardCorruptedMessage(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageId,
                                  proto::CommandAck::ValidationError validationError);
     void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int delta = 1);
@@ -177,7 +180,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
-    void trackMessage(const Message& msg);
+    void trackMessage(const MessageId& messageId);
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -191,10 +194,8 @@ class ConsumerImpl : public ConsumerImplBase,
     bool hasParent_;
     ConsumerTopicType consumerTopicType_;
 
-    Commands::SubscriptionMode subscriptionMode_;
-    Optional<MessageId> startMessageId_;
+    const Commands::SubscriptionMode subscriptionMode_;
 
-    Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
     std::queue<ReceiveCallback> pendingReceives_;
     std::atomic_int availablePermits_;
@@ -215,17 +216,88 @@ class ConsumerImpl : public ConsumerImplBase,
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;
 
-    Optional<MessageId> lastMessageInBroker_;
-    void brokerGetLastMessageIdListener(Result res, MessageId messageId,
-                                        BrokerGetLastMessageIdCallback callback);
+    // Make the access to `startMessageId_`, `lastDequedMessageId_` and `lastMessageIdInBroker_` thread safe
+    mutable std::mutex mutexForMessageId_;
+    Optional<MessageId> startMessageId_;
+    MessageId lastDequedMessageId_{MessageId::earliest()};
+    MessageId lastMessageIdInBroker_{MessageId::earliest()};
 
-    const MessageId& lastMessageIdDequed() {
-        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId::earliest();
-    }
+    class ChunkedMessageCtx {
+       public:
+        ChunkedMessageCtx() : totalChunks_(0) {}
+        ChunkedMessageCtx(int totalChunks, int totalChunkMessageSize)
+            : totalChunks_(totalChunks), chunkedMsgBuffer_(SharedBuffer::allocate(totalChunkMessageSize)) {
+            chunkedMessageIds_.reserve(totalChunks);
+        }
 
-    const MessageId& lastMessageIdInBroker() {
-        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId::earliest();
-    }
+        ChunkedMessageCtx(const ChunkedMessageCtx&) = delete;
+        // Here we don't use =default to be compatible with GCC 4.8
+        ChunkedMessageCtx(ChunkedMessageCtx&& rhs) noexcept
+            : totalChunks_(rhs.totalChunks_),
+              chunkedMsgBuffer_(std::move(rhs.chunkedMsgBuffer_)),
+              chunkedMessageIds_(std::move(rhs.chunkedMessageIds_)) {}
+
+        bool validateChunkId(int chunkId) const noexcept { return chunkId == numChunks(); }
+
+        void appendChunk(const MessageId& messageId, const SharedBuffer& payload) {
+            chunkedMessageIds_.emplace_back(messageId);
+            chunkedMsgBuffer_.write(payload.data(), payload.readableBytes());
+        }
+
+        bool isCompleted() const noexcept { return totalChunks_ == numChunks(); }
+
+        const SharedBuffer& getBuffer() const noexcept { return chunkedMsgBuffer_; }
+
+        const std::vector<MessageId>& getChunkedMessageIds() const noexcept { return chunkedMessageIds_; }
+
+        friend std::ostream& operator<<(std::ostream& os, const ChunkedMessageCtx& ctx) {
+            return os << "ChunkedMessageCtx " << ctx.chunkedMsgBuffer_.readableBytes() << " of "
+                      << ctx.chunkedMsgBuffer_.writerIndex() << " bytes, " << ctx.numChunks() << " of "
+                      << ctx.totalChunks_ << " chunks";
+        }
+
+       private:
+        const int totalChunks_;
+        SharedBuffer chunkedMsgBuffer_;
+        std::vector<MessageId> chunkedMessageIds_;
+
+        int numChunks() const noexcept { return static_cast<int>(chunkedMessageIds_.size()); }
+    };
+
+    const size_t maxPendingChunkedMessage_;
+    // if queue size is reasonable (most of the time equal to number of producers try to publish messages
+    // concurrently on the topic) then it guards against broken chunked message which was not fully published
+    const bool autoAckOldestChunkedMessageOnQueueFull_;
+
+    // The key is UUID, value is the associated ChunkedMessageCtx of the chunked message.
+    std::unordered_map<std::string, ChunkedMessageCtx> chunkedMessagesMap_;
+    // This list contains all the keys of `chunkedMessagesMap_`, each key is an UUID that identifies a pending
+    // chunked message. Once the number of pending chunked messages exceeds the limit, the oldest UUIDs and
+    // the associated ChunkedMessageCtx will be removed.
+    std::list<std::string> pendingChunkedMessageUuidQueue_;
+
+    // The key is UUID, value is the associated ChunkedMessageCtx of the chunked message.
+    MapCache<std::string, ChunkedMessageCtx> chunkedMessageCache_;
+    mutable std::mutex chunkProcessMutex_;
+
+    /**
+     * Process a chunk. If the chunk is the last chunk of a message, concatenate all buffered chunks into the
+     * payload and return it.
+     *
+     * @param payload the payload of a chunk
+     * @param metadata the message metadata
+     * @param messageId
+     * @param messageIdData
+     * @param cnx
+     *
+     * @return the concatenated payload if chunks are concatenated into a completed message payload
+     *   successfully, else Optional::empty()
+     */
+    Optional<SharedBuffer> processMessageChunk(const SharedBuffer& payload,
+                                               const proto::MessageMetadata& metadata,
+                                               const MessageId& messageId,
+                                               const proto::MessageIdData& messageIdData,
+                                               const ClientConnectionPtr& cnx);
 
     friend class PulsarFriend;
 

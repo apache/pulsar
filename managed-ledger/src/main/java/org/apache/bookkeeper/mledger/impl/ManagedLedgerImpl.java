@@ -225,6 +225,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private ManagedLedgerInterceptor managedLedgerInterceptor;
 
+    private volatile long lastAddEntryTimeMs = 0;
+    private long inactiveLedgerRollOverTimeMs = 0;
+
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
 
@@ -323,13 +326,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
+        if (config.getManagedLedgerInterceptor() != null) {
+            this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
+        }
+        this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
         log.info("Opening managed ledger {}", name);
 
         // Fetch the list of existing ledgers in the managed ledger
-        store.getManagedLedgerInfo(name, config.isCreateIfMissing(), new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo(name, config.isCreateIfMissing(), config.getProperties(),
+                new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 ledgersStat = stat;
@@ -355,7 +363,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 // Last ledger stat may be zeroed, we must update it
-                if (ledgers.size() > 0) {
+                if (!ledgers.isEmpty()) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
                         executor.executeOrdered(name, safeRun(() -> {
@@ -796,6 +804,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             addOperation.initiate();
         }
+        // mark add entry activity
+        lastAddEntryTimeMs = System.currentTimeMillis();
     }
 
     private boolean beforeAddEntry(OpAddEntry addOperation) {
@@ -1504,7 +1514,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             // Return ManagedLedgerFencedException to addFailed callback
                             // to indicate that the ledger is now fenced and topic needs to be closed
                             clearPendingAddEntries(new ManagedLedgerFencedException(e));
-                            // Do not need to unlock ledgersListMutex here because we are going to close to topic
+                            // Do not need to unlock metadataMutex here because we are going to close to topic
                             // anyways
                             return;
                         }
@@ -2275,7 +2285,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void trimConsumedLedgersInBackground() {
-        trimConsumedLedgersInBackground(Futures.nullPromise_);
+        trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
     }
 
     @Override
@@ -2294,7 +2304,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
         if (config.getLedgerOffloader() != null
-                && config.getLedgerOffloader() != NullLedgerOffloader.instance_
+                && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 && config.getLedgerOffloader().getOffloadPolicies() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
@@ -2318,7 +2328,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 });
 
             if (config.getLedgerOffloader() != null
-                    && config.getLedgerOffloader() != NullLedgerOffloader.instance_
+                    && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                     && config.getLedgerOffloader().getOffloadPolicies() != null
                     && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes()
                     != null) {
@@ -2404,7 +2414,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         List<LedgerInfo> ledgersToDelete = Lists.newArrayList();
         List<LedgerInfo> offloadedLedgersToDelete = Lists.newArrayList();
         Optional<OffloadPolicies> optionalOffloadPolicies = Optional.ofNullable(config.getLedgerOffloader() != null
-                && config.getLedgerOffloader() != NullLedgerOffloader.instance_
+                && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 ? config.getLedgerOffloader().getOffloadPolicies()
                 : null);
         synchronized (this) {
@@ -2940,7 +2950,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
                                                                        TimeUnit.SECONDS.toHours(1)).limit(10),
-                                            failOnConflict_,
+                                           FAIL_ON_CONFLICT,
                                            () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
                                            scheduledExecutor, name)
                             .whenComplete((ignore2, exception) -> {
@@ -2990,7 +3000,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         LedgerInfo transform(LedgerInfo oldInfo) throws ManagedLedgerException;
     }
 
-    static Predicate<Throwable> failOnConflict_ = (throwable) -> {
+    static final Predicate<Throwable> FAIL_ON_CONFLICT = (throwable) -> {
         return !(throwable instanceof OffloadConflict) && Retries.NonFatalPredicate.test(throwable);
     };
 
@@ -4072,6 +4082,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (this.checkLedgerRollTask != null) {
             this.checkLedgerRollTask.cancel(false);
+        }
+    }
+
+    @Override
+    public void checkInactiveLedgerAndRollOver() {
+        long currentTimeMs = System.currentTimeMillis();
+        if (inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
+            log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
+            ledgerClosed(currentLedger);
         }
     }
 

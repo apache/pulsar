@@ -146,8 +146,8 @@
     </dependency>
 
     <dependency>
-  	  <groupId>org.elasticsearch.client</groupId>
-  	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+      <groupId>org.opensearch.client</groupId>
+      <artifactId>opensearch-rest-high-level-client</artifactId>
       <scope>test</scope>
   	</dependency>
 
@@ -168,13 +168,6 @@
       <groupId>io.prestosql</groupId>
       <artifactId>presto-jdbc</artifactId>
       <version>${presto.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>net.jodah</groupId>
-      <artifactId>failsafe</artifactId>
-      <version>${failsafe.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -242,6 +235,7 @@
             <configuration>
               <argLine>-Xmx1G -XX:MaxDirectMemorySize=1G
               -Dio.netty.leakDetectionLevel=advanced
+              ${test.additional.args}
               </argLine>
               <skipTests>false</skipTests>
               <suiteXmlFiles>
