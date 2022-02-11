@@ -197,8 +197,6 @@ The minimum configuration changes required in `conf/bookkeeper.conf` are as foll
 > **Note**
 > The configuration of journalDirectory and ledgerDirectories need to be chosen carefully，as it is very troublesome to change later.
 
- 
-
 ```properties
 
 # Change to point to journal disk mount point
@@ -212,7 +210,6 @@ zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 
 #This parameter best be set, otherwise，the BookKeeper can't start normally in special environment, for example, Huawei Cloud.
 advertisedAddress=
-
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.

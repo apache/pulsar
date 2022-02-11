@@ -212,7 +212,6 @@ zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 
 #This parameter best be set, otherwise，the BookKeeper can't start normally in special environment, for example, Huawei Cloud.
 advertisedAddress=
-
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.

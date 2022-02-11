@@ -184,8 +184,6 @@ The minimum configuration changes required in `conf/bookkeeper.conf` are as foll
 > **Note**
 > The configuration of journalDirectory and ledgerDirectories need to be chosen carefully，as it is very troublesome to change later.
 
- 
-
 ```properties
 # Change to point to journal disk mount point
 journalDirectory=data/bookkeeper/journal
