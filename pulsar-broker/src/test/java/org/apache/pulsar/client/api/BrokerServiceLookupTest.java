@@ -610,7 +610,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 .subscribe();
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
+        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit.toString());
 
         consumer1.close();
         consumer2.close();
