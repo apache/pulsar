@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
@@ -1167,9 +1168,11 @@ public class PersistentSubscription implements Subscription {
         return subscriptionProperties;
     }
 
-    public void setSubscriptionProperties(Map<String, String> newSubscriptionProperties){
-        this.subscriptionProperties = newSubscriptionProperties == null
-                ? new HashMap<>() : Collections.unmodifiableMap(newSubscriptionProperties);
+    public void setSubscriptionProperties(Map<String, String> newSubscriptionProperties) {
+        if (MapUtils.isEmpty(newSubscriptionProperties)) {
+            return;
+        }
+        this.subscriptionProperties = Collections.unmodifiableMap(newSubscriptionProperties);
     }
 
     /**
