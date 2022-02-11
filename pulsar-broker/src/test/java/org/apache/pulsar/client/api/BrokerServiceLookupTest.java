@@ -731,7 +731,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             // broker-2 loadManager is a leader and let it refresh load-report from all the brokers
             pulsar.getLeaderElectionService().close();
 
-            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+            Awaitility.await()
                     .untilAsserted(() -> pulsar2.getLeaderElectionService().isLeader());
 
             ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar2
