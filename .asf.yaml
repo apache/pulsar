@@ -46,42 +46,31 @@ github:
       required_status_checks:
         # strict means "Require branches to be up to date before merging".
         strict: false
-        # Contexts are the names of checks that must pass. These names are
-        # found in the "name:" field of ./github/workflows/*.yaml files
-        # Note: here is the list of intentionally excluded contexts:
-        # - CI - OWASP Dependency Check
+        # Contexts are the names of checks that must pass.
+        # See ./github/workflows/README.md for more documentation on this list.
         contexts:
-          - CI - Build - MacOS
-          - CI - Cancel duplicate workflows
-          - CI - CPP, Python Tests
-          - CI - CPP build on CentOS 7
-          - CI - CPP build on Windows
-          - CI - Go Functions style check
-          - CI - Go Functions Tests
-          - CI - Integration - Backwards Compatibility
-          - CI - Integration - Cli
-          - CI - Integration - Function & IO
-          - CI - Integration - Messaging
-          - CI - Integration - Process
-          - CI - Integration - Pulsar-IO Sinks and Sources
-          - CI - Integration - Pulsar-IO Oracle Source
-          - CI - Integration - Schema
-          - CI - Integration - Sql
-          - CI - Integration - Standalone
-          - CI - Integration - Thread
-          - CI - Integration - Tiered FileSystem
-          - CI - Integration - Tiered JCloud
-          - CI - Integration - Transaction
-          - CI - Misc
-          - CI - Python - Build 3.9 client
-          - CI - Shade - Test
-          - CI - Unit
-          - CI - Unit - Brokers - Broker Group
-          - CI - Unit - Brokers - Client Api
-          - CI - Unit - Brokers - Client Impl
-          - CI - Unit - Broker - JDK8
-          - CI - Unit - Brokers - Other
-          - CI - Unit - Proxy
+          - License check
+          - backwards-compatibility
+          - build
+          - cli
+          - cpp-tests
+          - function-state
+          - messaging
+          - owasp-dep-check
+          - process
+          - pulsar-ci-test (group1)
+          - pulsar-ci-test (group2)
+          - pulsar-ci-test (group3)
+          - pulsar-io
+          - schema
+          - shade-check
+          - sql
+          - standalone
+          - thread
+          - tiered-filesystem
+          - tiered-jcloud
+          - transaction
+          - unit-tests
 
       required_pull_request_reviews:
         dismiss_stale_reviews: true
