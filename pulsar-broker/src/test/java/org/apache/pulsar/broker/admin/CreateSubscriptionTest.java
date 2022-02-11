@@ -276,7 +276,10 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         subscription4 = (PersistentSubscription) pulsar.getBrokerService()
                 .getTopicReference(topic).get().getSubscription(subName);
         properties4 = subscription4.getSubscriptionProperties();
-        assertTrue(properties4.isEmpty());
+        assertTrue(properties4.containsKey("3"));
+        assertTrue(properties4.containsKey("4"));
+        assertEquals(properties4.get("3"), "3");
+        assertEquals(properties4.get("4"), "4");
         consumer4.close();
 
         //restart broker, it won't get any properties
