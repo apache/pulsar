@@ -1168,7 +1168,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     public void setSubscriptionProperties(Map<String, String> newSubscriptionProperties) {
-        if (MapUtils.isEmpty(newSubscriptionProperties)) {
+        if (newSubscriptionProperties == null) {
             return;
         }
         this.subscriptionProperties = Collections.unmodifiableMap(newSubscriptionProperties);
