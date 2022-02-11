@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -2095,10 +2096,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return pendingMessages.size();
         }
         MutableInt size = new MutableInt(0);
-        synchronized (ProducerImpl.this) {
-            pendingMessages.forEach(op -> {
+        Iterator<OpSendMsg> iterator = pendingMessages.iterator();
+        while (iterator.hasNext()) {
+            try {
+                OpSendMsg op = iterator.next();
                 size.add(Math.max(op.numMessagesInBatch, 1));
-            });
+            } catch (NoSuchElementException e) {
+                // Ok here, since the element might be removed by other thread
+                break;
+            }
         }
         return size.getValue();
     }
