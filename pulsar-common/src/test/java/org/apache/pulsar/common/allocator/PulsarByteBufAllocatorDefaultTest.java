@@ -26,11 +26,8 @@ import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
