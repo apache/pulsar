@@ -2104,6 +2104,39 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testTwoPhraseDeletion() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(0);
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("two_phrase_deletion", config);
+        ManagedCursor c1 = ml.openCursor("testCursor1");
+        ml.addEntry("m1".getBytes());
+        ml.addEntry("m2".getBytes());
+        c1.skipEntries(2, IndividualDeletedEntries.Exclude);
+        // let current ledger close
+        ml.rollCurrentLedgerIfFull();
+        // let retention expire
+        Thread.sleep(1500);
+        // delete the expired ledger
+        ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
+
+        // the closed and expired ledger should be deleted
+        assertTrue(ml.getLedgersInfoAsList().size() <= 1);
+        assertEquals(ml.getTotalSize(), 0);
+
+        // check metrics within each phrase
+        assertEquals(ml.mbean.getNumberOfLedgersMarkedDeletable(), 2);
+        assertEquals(ml.mbean.getNumberOfLedgersBeingDeleted(), 2);
+        assertEquals(ml.mbean.getNumberOfLedgersExceededMaxRetryCount(), 0);
+        ml.close();
+    }
+
+    @Test
     public void testTimestampOnWorkingLedger() throws Exception {
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);

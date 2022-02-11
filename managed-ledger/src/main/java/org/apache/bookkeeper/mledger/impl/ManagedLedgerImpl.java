@@ -4137,12 +4137,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * because the {@code propertiesMap} would be updated (not thread-safe).
      * @param deletableLedgerIds
      */
-    @Override
-    public void markDeletableLedgers(Collection<Long> deletableLedgerIds,
+    private void markDeletableLedgers(Collection<Long> deletableLedgerIds,
                                      Collection<Long> deletableOffloadedLedgerIds) {
         for (Long ledgerId : deletableLedgerIds) {
             final String deletableLedgerMarker = DELETABLE_LEDGER_MARKER_PREFIX + ledgerId;
             propertiesMap.put(deletableLedgerMarker, DELETABLE_LEDGER_PLACEHOLDER);
+            mbean.addLedgerMarkedDeletableCounter();
         }
         for (Long ledgerId : deletableOffloadedLedgerIds) {
             final String deletableOffloadedLedgerMarker = DELETABLE_OFFLOADED_LEDGER_MARKER_PREFIX + ledgerId;
@@ -4150,6 +4150,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // is kept in the propertiesMap until the ledger deletion is done
             final String offloadedLedgerInfo = BaseEncoding.base64().encode(ledgers.get(ledgerId).toByteArray());
             propertiesMap.put(deletableOffloadedLedgerMarker, offloadedLedgerInfo);
+            mbean.addLedgerMarkedDeletableCounter();
         }
     }
 
@@ -4174,13 +4175,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Sets.newHashSet();
     }
 
-    @Override
-    public Set<Long> getAllDeletableLedgers() {
+    private Set<Long> getAllDeletableLedgers() {
         return getAllDeletableLedgers(DELETABLE_LEDGER_MARKER_PREFIX);
     }
 
-    @Override
-    public Set<Long> getAllDeletableOffloadedLedgers() {
+    private Set<Long> getAllDeletableOffloadedLedgers() {
         return getAllDeletableLedgers(DELETABLE_OFFLOADED_LEDGER_MARKER_PREFIX);
     }
 
@@ -4188,8 +4187,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * During the execution of this method, lock {@code metadataMutex} needs to be held
      * because the {@code propertiesMap} would be updated (not thread-safe).
      */
-    @Override
-    public void removeAllDeletableLedgers() {
+    private void removeAllDeletableLedgers() {
         Set<Long> deletableLedgers = getAllDeletableLedgers();
         Set<Long> deletableOffloadedLedgers = getAllDeletableOffloadedLedgers();
         final CountDownLatch counter = new CountDownLatch(deletableLedgers.size() + deletableOffloadedLedgers.size());
@@ -4281,10 +4279,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             for (Long ledgerId : succeedDeletedLedgers) {
                 final String deletableLedgerMarker = DELETABLE_LEDGER_MARKER_PREFIX + ledgerId;
                 propertiesMap.remove(deletableLedgerMarker);
+                if (deletableLedgerRetryCounter.containsKey(ledgerId)) {
+                    deletableLedgerRetryCounter.remove(ledgerId);
+                }
+                mbean.addLedgerDeletedAfterMarkedCounter();
             }
             for (Long ledgerId : succeedDeletedOffloadedLedgers) {
                 final String deletableLedgerMarker = DELETABLE_OFFLOADED_LEDGER_MARKER_PREFIX + ledgerId;
                 propertiesMap.remove(deletableLedgerMarker);
+                if (deletableLedgerRetryCounter.containsKey(ledgerId)) {
+                    deletableLedgerRetryCounter.remove(ledgerId);
+                }
+                mbean.addLedgerDeletedAfterMarkedCounter();
             }
 
             // update retry count to track whether the max limit is reached

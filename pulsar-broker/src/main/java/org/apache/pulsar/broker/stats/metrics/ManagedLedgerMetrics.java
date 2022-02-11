@@ -128,6 +128,16 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
                         statsPeriodSeconds);
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_MarkDeleteRate",
                         lStats.getMarkDeleteRate());
+
+                // collect metrics for ledger deletion
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_NumberOfLedgersMarkedDeletable",
+                        (double) lStats.getNumberOfLedgersMarkedDeletable());
+
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_NumberOfLedgersBeingDeleted",
+                        (double) lStats.getNumberOfLedgersBeingDeleted());
+
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_NumberOfLedgersExceededMaxRetryCount",
+                        (double) lStats.getNumberOfLedgersExceededMaxRetryCount());
             }
 
             // SUM up collections of each metrics

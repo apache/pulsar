@@ -127,4 +127,10 @@ public interface ManagedLedgerMXBean {
     long[] getLedgerAddEntryLatencyBuckets();
 
     StatsBuckets getInternalLedgerAddEntryLatencyBuckets();
+
+    long getNumberOfLedgersMarkedDeletable();
+
+    long getNumberOfLedgersBeingDeleted();
+
+    long getNumberOfLedgersExceededMaxRetryCount();
 }

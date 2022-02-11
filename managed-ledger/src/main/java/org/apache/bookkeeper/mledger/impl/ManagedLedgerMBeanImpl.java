@@ -50,6 +50,9 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final LongAdder cursorLedgerCreateOp = new LongAdder();
     private final LongAdder cursorLedgerDeleteOp = new LongAdder();
 
+    private final LongAdder ledgerMarkedDeletableCounter = new LongAdder();
+    private final LongAdder ledgerDeletedAfterMarkedCounter = new LongAdder();
+
     // addEntryLatencyStatsUsec measure total latency including time entry spent while waiting in queue
     private final StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
     // ledgerAddEntryLatencyStatsUsec measure latency to persist entry into ledger
@@ -172,6 +175,14 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void endCursorLedgerDeleteOp() {
         cursorLedgerDeleteOp.decrement();
+    }
+
+    public void addLedgerMarkedDeletableCounter() {
+        ledgerMarkedDeletableCounter.increment();
+    }
+
+    public void addLedgerDeletedAfterMarkedCounter() {
+        ledgerDeletedAfterMarkedCounter.increment();
     }
 
     @Override
@@ -319,4 +330,20 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         return result;
     }
 
+    @Override
+    public long getNumberOfLedgersMarkedDeletable() {
+        return ledgerMarkedDeletableCounter.longValue();
+    }
+
+    @Override
+    public long getNumberOfLedgersBeingDeleted() {
+        return ledgerDeletedAfterMarkedCounter.longValue();
+    }
+
+    @Override
+    public long getNumberOfLedgersExceededMaxRetryCount() {
+        return managedLedger.deletableLedgerRetryCounter.values().stream()
+                .filter(c -> c.get() >= ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES)
+                .count();
+    }
 }
