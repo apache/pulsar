@@ -53,13 +53,14 @@ public class PulsarByteBufAllocatorDefaultTest {
             final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
             // use the variable, in case the compiler optimization
             log.trace("{}", byteBufAllocator);
+
+            if (!called.get()) {
+                // maybe PulsarByteBufAllocator static initialization has already been called by a previous test
+                // let's rerun the same method
+                PulsarByteBufAllocator.createByteBufAllocator();
+            }
+            assertTrue(called.get());
         }
-        if (!called.get()) {
-            // maybe PulsarByteBufAllocator static initialization has already been called by a previous test
-            // let's rerun the same method
-            PulsarByteBufAllocator.createByteBufAllocator();
-        }
-        assertTrue(called.get());
     }
 
 }
