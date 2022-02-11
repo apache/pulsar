@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.admin.Topics.QueryParam;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -817,6 +818,40 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "test", "invalid-group");
         assertEquals(namespaces2.size(), 0);
+    }
+
+    @Test
+    public void testPersistentTopicList() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String topicName = "non-persistent://" + namespace + "/bundle-topic";
+        admin.namespaces().createNamespace(namespace, 20);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+        int totalTopics = 100;
+
+        Set<String> topicNames = Sets.newHashSet();
+        for (int i = 0; i < totalTopics; i++) {
+            topicNames.add(topicName + i);
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName + i).create();
+            producer.close();
+        }
+
+        Set<String> topics = Sets.newHashSet();
+        String bundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                .getBundle(TopicName.get(topicName + "0")).getBundleRange();
+        for (int i = 0; i < totalTopics; i++) {
+            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i).get();
+            if (bundle.equals(pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundle(TopicName.get(topicName + i)).getBundleRange())) {
+                topics.add(topic.getName());
+            }
+        }
+
+        Set<String> topicsInNs = Sets
+                .newHashSet(
+                        admin.topics().getList(namespace, null, Collections.singletonMap(QueryParam.Bundle, bundle)));
+        assertEquals(topicsInNs.size(), topics.size());
+        topicsInNs.removeAll(topics);
+        assertEquals(topicsInNs.size(), 0);
     }
 
     @Test

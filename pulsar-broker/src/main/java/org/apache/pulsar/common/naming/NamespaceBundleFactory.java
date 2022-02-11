@@ -231,6 +231,11 @@ public class NamespaceBundleFactory {
         });
     }
 
+    public NamespaceBundle getBundle(TopicName topic) {
+        NamespaceBundles bundles = bundlesCache.synchronous().get(topic.getNamespaceObject());
+        return bundles != null ? bundles.findBundle(topic) : null;
+    }
+
     public NamespaceBundle getBundleWithHighestThroughput(NamespaceName nsName) {
         LoadManager loadManager = pulsar.getLoadManager().get();
         if (loadManager instanceof ModularLoadManagerWrapper) {
