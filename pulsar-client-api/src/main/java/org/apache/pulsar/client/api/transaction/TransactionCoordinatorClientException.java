@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api.transaction;
 
 import java.io.IOException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -123,7 +124,7 @@ public class TransactionCoordinatorClientException extends IOException {
             return (CoordinatorNotFoundException) t;
         } else if (t instanceof InvalidTxnStatusException) {
             return (InvalidTxnStatusException) t;
-        } else if (t instanceof ExecutionException) {
+        } else if (t instanceof ExecutionException | t instanceof CompletionException) {
             // Generic exception
             return unwrap(t.getCause());
         } else {
