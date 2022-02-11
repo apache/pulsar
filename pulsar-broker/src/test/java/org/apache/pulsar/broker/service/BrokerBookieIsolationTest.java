@@ -205,6 +205,7 @@ public class BrokerBookieIsolationTest {
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns1);
+            fail("ns1 should have no bookie affinity group set");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
         }
@@ -315,6 +316,7 @@ public class BrokerBookieIsolationTest {
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns2);
+            fail("ns2 should have no bookie affinity group set");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
         }
@@ -485,6 +487,7 @@ public class BrokerBookieIsolationTest {
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns1);
+            fail("ns1 should have no bookie affinity group set");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
         }
@@ -644,6 +647,7 @@ public class BrokerBookieIsolationTest {
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns1);
+            fail("ns1 should have no bookie affinity group set");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
         }
