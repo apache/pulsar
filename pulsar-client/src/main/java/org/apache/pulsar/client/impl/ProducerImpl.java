@@ -49,7 +49,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -60,7 +59,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -1028,7 +1026,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (sequenceId > op.sequenceId) {
                 log.warn("[{}] [{}] Got ack for msg. expecting: {} - {} - got: {} - {} - queue-size: {}",
                         topic, producerName, op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId,
-                        pendingMessages.size());
+                        pendingMessages.messagesCount());
                 // Force connection closing so that messages can be re-transmitted in a new connection
                 cnx.channel().close();
                 return;
@@ -1052,7 +1050,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     log.warn("[{}] [{}] Got ack for batch msg error. expecting: {} - {} - got: {} - {} - queue-size: {}"
                                     + "",
                             topic, producerName, op.sequenceId, op.highestSequenceId, sequenceId, highestSequenceId,
-                            pendingMessages.size());
+                            pendingMessages.messagesCount());
                     // Force connection closing so that messages can be re-transmitted in a new connection
                     cnx.channel().close();
                     return;
@@ -1430,6 +1428,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         private final Queue<OpSendMsg> delegate = new ArrayDeque<>();
         private int forEachDepth = 0;
         private List<OpSendMsg> postponedOpSendMgs;
+        private final AtomicInteger messagesCount = new AtomicInteger(0);
 
         @Override
         public void forEach(Consumer<? super OpSendMsg> action) {
@@ -1450,6 +1449,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         public boolean add(OpSendMsg o) {
             // postpone adding to the queue while forEach iteration is in progress
+            messagesCount.addAndGet(o.numMessagesInBatch);
             if (forEachDepth > 0) {
                 if (postponedOpSendMgs == null) {
                     postponedOpSendMgs = new ArrayList<>();
@@ -1462,18 +1462,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         public void clear() {
             delegate.clear();
+            messagesCount.set(0);
         }
 
         public void remove() {
-            delegate.remove();
+            OpSendMsg op = delegate.remove();
+            if (op != null) {
+                messagesCount.addAndGet(-op.numMessagesInBatch);
+            }
         }
 
         public OpSendMsg peek() {
             return delegate.peek();
         }
 
-        public int size() {
-            return delegate.size();
+        public int messagesCount() {
+            return messagesCount.get();
         }
 
         @Override
@@ -1642,7 +1646,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] [{}] Pending messages: {}", topic, producerName,
-                                        pendingMessages.size());
+                                        pendingMessages.messagesCount());
                             }
 
                             PulsarClientException bqe = new PulsarClientException.ProducerBlockedQuotaExceededException(
@@ -1744,7 +1748,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     cnx.channel().close();
                     return;
                 }
-                int messagesToResend = pendingMessages.size();
+                long messagesToResend = pendingMessages.messagesCount();
                 if (messagesToResend == 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] No pending messages to resend {}", topic, producerName, messagesToResend);
@@ -1850,7 +1854,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // The diff is less than or equal to zero, meaning that the message has been timed out.
                     // Set the callback to timeout on every message, then clear the pending queue.
                     log.info("[{}] [{}] Message send timed out. Failing {} messages", topic, producerName,
-                            pendingMessages.size());
+                            pendingMessages.messagesCount());
 
                     PulsarClientException te = new PulsarClientException.TimeoutException(
                         format("The producer %s can not send message to the topic %s within given timeout",
@@ -2020,7 +2024,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // called again once the new connection registers the producer with the broker.
             log.info("[{}][{}] Producer epoch mismatch or the current connection is null. Skip re-sending the "
                     + " {} pending messages since they will deliver using another connection.", topic, producerName,
-                    pendingMessages.size());
+                    pendingMessages.messagesCount());
             return;
         }
         final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
@@ -2092,21 +2096,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     public int getPendingQueueSize() {
-        if (!isBatchMessagingEnabled()) {
-            return pendingMessages.size();
-        }
-        MutableInt size = new MutableInt(0);
-        Iterator<OpSendMsg> iterator = pendingMessages.iterator();
-        while (iterator.hasNext()) {
-            try {
-                OpSendMsg op = iterator.next();
-                size.add(Math.max(op.numMessagesInBatch, 1));
-            } catch (NoSuchElementException e) {
-                // Ok here, since the element might be removed by other thread
-                break;
-            }
-        }
-        return size.getValue();
+        return pendingMessages.messagesCount();
     }
 
     @Override
