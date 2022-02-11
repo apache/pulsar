@@ -275,7 +275,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
         }
-        FutureUtil.waitForAll(futures).thenApply(__ -> {
+        FutureUtil.waitForAll(futures).thenCompose(__ -> {
             futures.clear();
             try {
                 NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
@@ -287,7 +287,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
                     }
                 }
-                return futures;
+                return FutureUtil.waitForAll(futures);
             } catch (Exception e) {
                 throw new RestException(e);
             }
