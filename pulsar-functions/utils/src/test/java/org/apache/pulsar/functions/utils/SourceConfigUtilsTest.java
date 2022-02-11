@@ -32,7 +32,6 @@ import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -49,7 +48,7 @@ import static org.testng.Assert.expectThrows;
 /**
  * Unit test of {@link SourceConfigUtilsTest}.
  */
-public class SourceConfigUtilsTest extends PowerMockTestCase {
+public class SourceConfigUtilsTest {
 
     private ConnectorDefinition defn;
 

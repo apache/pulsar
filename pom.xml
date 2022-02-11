@@ -324,7 +324,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-testng</artifactId>
+        <artifactId>powermock-reflect</artifactId>
         <version>${powermock.version}</version>
       </dependency>
 
@@ -1306,13 +1306,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <dependency>
       <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito2</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-testng</artifactId>
+      <artifactId>powermock-reflect</artifactId>
       <scope>test</scope>
     </dependency>
 
