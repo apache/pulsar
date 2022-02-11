@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.allocator;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.List;
@@ -50,19 +51,21 @@ public class PulsarByteBufAllocator {
         LISTENERS.add(listener);
     }
 
-    private static final boolean EXIT_ON_OOM;
-
     static {
+        DEFAULT = createByteBufAllocator();
+    }
+
+    @VisibleForTesting
+    static ByteBufAllocator createByteBufAllocator() {
         boolean isPooled = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_POOLED, "true"));
-        EXIT_ON_OOM = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_EXIT_ON_OOM, "false"));
+        boolean isExitOnOutOfMemory = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_EXIT_ON_OOM, "false"));
         OutOfMemoryPolicy outOfMemoryPolicy = OutOfMemoryPolicy.valueOf(
                 System.getProperty(PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY, "FallbackToHeap"));
 
         LeakDetectionPolicy leakDetectionPolicy = LeakDetectionPolicy
                 .valueOf(System.getProperty(PULSAR_ALLOCATOR_LEAK_DETECTION, "Disabled"));
-
         if (log.isDebugEnabled()) {
-            log.debug("Is Pooled: {} -- Exit on OOM: {}", isPooled, EXIT_ON_OOM);
+            log.debug("Is Pooled: {} -- Exit on OOM: {}", isPooled, isExitOnOutOfMemory);
         }
 
         ByteBufAllocatorBuilder builder = ByteBufAllocatorBuilder.create()
@@ -78,7 +81,7 @@ public class PulsarByteBufAllocator {
                         }
                     });
 
-                    if (EXIT_ON_OOM) {
+                    if (isExitOnOutOfMemory) {
                         log.info("Exiting JVM process for OOM error: {}", oomException.getMessage(), oomException);
                         Runtime.getRuntime().halt(1);
                     }
@@ -90,7 +93,7 @@ public class PulsarByteBufAllocator {
             builder.poolingPolicy(PoolingPolicy.UnpooledHeap);
         }
         builder.outOfMemoryPolicy(outOfMemoryPolicy);
+        return builder.build();
 
-        DEFAULT = builder.build();
     }
 }

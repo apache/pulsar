@@ -57,6 +57,11 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
         } finally {
             System.clearProperty("pulsar.allocator.out_of_memory_policy");
         }
+        if (!called.get()) {
+            // maybe PulsarByteBufAllocator static initialization has already been called by a previous test
+            // let's rerun the same method
+            PulsarByteBufAllocator.createByteBufAllocator();
+        }
         assertTrue(called.get());
 
     }

@@ -26,8 +26,11 @@ import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -54,8 +57,12 @@ public class PulsarByteBufAllocatorDefaultTest {
             // use the variable, in case the compiler optimization
             log.trace("{}", byteBufAllocator);
         }
+        if (!called.get()) {
+            // maybe PulsarByteBufAllocator static initialization has already been called by a previous test
+            // let's rerun the same method
+            PulsarByteBufAllocator.createByteBufAllocator();
+        }
         assertTrue(called.get());
-
     }
 
 }
