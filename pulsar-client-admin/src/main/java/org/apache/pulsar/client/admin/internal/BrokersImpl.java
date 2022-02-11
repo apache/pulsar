@@ -341,7 +341,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
   @Override
   public CompletableFuture<Void> updateLoggerLevelAsync(String classname, String level) {
-    WebTarget path = adminBrokers.path("log4j").path(classname).path(level);
+    WebTarget path = adminBrokers.path("logging").path(classname).path(level);
     return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
   }
 }

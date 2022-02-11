@@ -176,11 +176,12 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update dynamic log4j2 logger level in runtime by classname.")
+    @Parameters(commandDescription = "Dynamic update logger level in runtime by classname.")
     private class UpdateLoggerLevelCmd extends CliCommand {
-        @Parameter(names = "--classname", description = "The except class name", required = true)
+        @Parameter(names = {"-c", "--classname"}, description =
+          "The except class name,if set \"ROOT\" will take effect to rootLogger", required = true)
         private String classname;
-        @Parameter(names = "--level", description = "The target logger level", required = true)
+        @Parameter(names = {"-l", "--level"}, description = "The target logger level", required = true)
         private String level;
 
         @Override
