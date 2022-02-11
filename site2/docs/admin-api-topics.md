@@ -323,9 +323,13 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **blockedConsumerOnUnackedMsgs**: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.
                 
-                -   **lastConsumedTimestamp**: The timestamp when the consumer reads a message the last time.
+                -   **lastConsumedTimestamp**: (Deprecated) The timestamp when the consumer reads a message the last time.
 
-                -   **lastAckedTimestamp**: The timestamp when the consumer acknowledges a message the last time.
+                -   **lastConsumedTime**: The time when the consumer reads a message the last time.
+
+                -   **lastAckedTimestamp**: (Deprecated) The timestamp when the consumer acknowledges a message the last time.
+
+                -   **lastAckedTime**: The time when the consumer acknowledges a message the last time.
 
                 -   **address**: The IP address and source port for the connection of this consumer.
 
