@@ -56,7 +56,6 @@ github:
           - CI - CPP, Python Tests
           - CI - CPP build on CentOS 7
           - CI - CPP build on Windows
-          - Auto Labeling
           - CI - Go Functions style check
           - CI - Go Functions Tests
           - CI - Integration - Backwards Compatibility
@@ -74,9 +73,6 @@ github:
           - CI - Integration - Tiered JCloud
           - CI - Integration - Transaction
           - CI - Misc
-          - CI - Maven Dependency Cache Update
-          - CI - Pulsar Website build
-          - Pulsar Bot
           - CI - Python - Build 3.9 client
           - CI - Shade - Test
           - CI - Unit
@@ -98,7 +94,6 @@ github:
       required_signatures: false
 
     # The following branch protections only ensure that force pushes are not allowed
-    asf-site: {}
     branch-1.15: {}
     branch-1.16: {}
     branch-1.17: {}
