@@ -2095,9 +2095,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return pendingMessages.size();
         }
         MutableInt size = new MutableInt(0);
-        pendingMessages.forEach(op -> {
-            size.add(Math.max(op.numMessagesInBatch, 1));
-        });
+        synchronized (ProducerImpl.this) {
+            pendingMessages.forEach(op -> {
+                size.add(Math.max(op.numMessagesInBatch, 1));
+            });
+        }
         return size.getValue();
     }
 
