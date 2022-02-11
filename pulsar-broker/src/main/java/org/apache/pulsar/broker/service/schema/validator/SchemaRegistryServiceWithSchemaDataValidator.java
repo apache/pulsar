@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
