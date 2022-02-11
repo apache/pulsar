@@ -195,8 +195,6 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
 The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 
-
-
 ```properties
 
 # Change to point to journal disk mount point
