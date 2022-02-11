@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
