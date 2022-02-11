@@ -263,22 +263,23 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 this.testLocalNamespaces.get(1).toString(), this.testLocalNamespaces.get(2).toString(),
                 this.testGlobalNamespaces.get(0).toString());
         expectedList.sort(null);
-        assertEquals(namespaces.getTenantNamespaces(this.testTenant), expectedList);
 
-        try {
-            // check the tenant name is valid
-            namespaces.getTenantNamespaces(this.testTenant + "/default");
-            fail("should have failed");
-        } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
-        }
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        namespaces.getTenantNamespaces(this.testTenant, asyncResponse);
+        verify(asyncResponse, timeout(5000).times(1)).resume(expectedList);
 
-        try {
-            namespaces.getTenantNamespaces("non-existing-tenant");
-            fail("should have failed");
-        } catch (RestException e) {
-            // Ok, does not exist
-        }
+        // check the tenant name is valid
+        asyncResponse = mock(AsyncResponse.class);
+        namespaces.getTenantNamespaces(this.testTenant + "/default", asyncResponse);
+        ArgumentCaptor<RestException> captor = ArgumentCaptor.forClass(RestException.class);
+        verify(asyncResponse, timeout(5000).times(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+
+        asyncResponse = mock(AsyncResponse.class);
+        captor = ArgumentCaptor.forClass(RestException.class);
+        namespaces.getTenantNamespaces("non-existing-tenant", asyncResponse);
+        verify(asyncResponse, timeout(5000).times(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
 
         try {
             namespaces.getNamespacesForCluster(this.testTenant, "other-cluster");
@@ -298,12 +299,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
         tenantCache.invalidateAll();
         store.invalidateAll();
-        try {
-            namespaces.getTenantNamespaces(this.testTenant);
-            fail("should have failed");
-        } catch (RestException e) {
-            // Ok
-        }
+
+        asyncResponse = mock(AsyncResponse.class);
+        captor = ArgumentCaptor.forClass(RestException.class);
+        namespaces.getTenantNamespaces(this.testTenant, asyncResponse);
+        verify(asyncResponse, timeout(5000).times(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
 
         mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.GET_CHILDREN
@@ -758,7 +759,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         List<String> nsList = Lists.newArrayList(this.testLocalNamespaces.get(1).toString(),
                 this.testLocalNamespaces.get(2).toString());
         nsList.sort(null);
-        assertEquals(namespaces.getTenantNamespaces(this.testTenant), nsList);
+        response = mock(AsyncResponse.class);
+        namespaces.getTenantNamespaces(this.testTenant, response);
+        verify(response, timeout(5000).times(1)).resume(nsList);
 
         testNs = this.testLocalNamespaces.get(1);
         // setup ownership to localhost

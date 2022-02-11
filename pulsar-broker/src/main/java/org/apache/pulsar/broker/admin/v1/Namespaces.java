@@ -84,8 +84,8 @@ public class Namespaces extends NamespacesBase {
             response = String.class, responseContainer = "Set")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property doesn't exist")})
-    public List<String> getTenantNamespaces(@PathParam("property") String property) {
-        return internalGetTenantNamespaces(property);
+    public void getTenantNamespaces(@PathParam("property") String property, @Suspended AsyncResponse asyncResponse) {
+        internalGetTenantNamespaces(asyncResponse, property);
     }
 
     @GET

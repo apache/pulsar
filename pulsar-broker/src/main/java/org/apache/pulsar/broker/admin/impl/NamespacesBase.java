@@ -107,26 +107,31 @@ import org.slf4j.LoggerFactory;
 
 public abstract class NamespacesBase extends AdminResource {
 
-    protected List<String> internalGetTenantNamespaces(String tenant) {
-        checkNotNull(tenant, "Tenant should not be null");
+    protected void internalGetTenantNamespaces(AsyncResponse asyncResponse, String tenant) {
         try {
             NamedEntity.checkName(tenant);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Tenant name is invalid {}", clientAppId(), tenant, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
+            resumeAsyncResponseExceptionally(asyncResponse,
+                    new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
+            return;
         }
-        validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
 
-        try {
-            if (!tenantResources().tenantExists(tenant)) {
-                throw new RestException(Status.NOT_FOUND, "Tenant not found");
-            }
-
-            return tenantResources().getListOfNamespaces(tenant);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
-            throw new RestException(e);
-        }
+        validateTenantOperationAsync(tenant, TenantOperation.LIST_NAMESPACES)
+                .thenCompose((__) -> tenantResources().tenantExistsAsync(tenant).thenCompose((exist) -> {
+                    if (!exist) {
+                        throw new RestException(Status.NOT_FOUND, "Tenant not found");
+                    }
+                    return tenantResources().getListOfNamespacesAsync(tenant);
+                })).whenComplete((namespaces, ex) -> {
+                    if (ex != null) {
+                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                        log.error("Failed to get namespace list for tenant {}: {}", tenant, t);
+                        resumeAsyncResponseExceptionally(asyncResponse, t);
+                        return;
+                    }
+                    asyncResponse.resume(namespaces);
+                });
     }
 
     protected void internalCreateNamespace(Policies policies) {
