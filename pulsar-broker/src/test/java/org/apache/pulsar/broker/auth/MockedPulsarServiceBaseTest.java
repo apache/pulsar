@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -477,6 +478,25 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setBrokerMaxConnections(0);
         configuration.setBrokerMaxConnectionsPerIp(0);
         return configuration;
+    }
+
+    protected void setupDefaultTenantAndNamespace() throws Exception {
+        final String tenant = "public";
+        final String namespace = tenant + "/default";
+
+        if (!admin.clusters().getClusters().contains(configClusterName)) {
+            admin.clusters().createCluster(configClusterName,
+                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        }
+
+        if (!admin.tenants().getTenants().contains(tenant)) {
+            admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(
+                    Sets.newHashSet(configClusterName)).build());
+        }
+
+        if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
+            admin.namespaces().createNamespace(namespace);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
