@@ -85,7 +85,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                     bookieAddressListLastTime.add(BookieId.parse(address));
                 }
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}", bookieAddressListLastTime);
+                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
+                            bookieAddressListLastTime);
                 }
             }
         } catch (InterruptedException | ExecutionException e) {
