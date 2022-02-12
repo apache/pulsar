@@ -139,7 +139,7 @@ class ContextImpl(pulsar.Context):
     return list(self.instance_config.function_details.source.inputSpecs.keys())
 
   def get_output_topic(self):
-    return self.instance_config.function_details.output
+    return self.instance_config.function_details.sink.topic
 
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
