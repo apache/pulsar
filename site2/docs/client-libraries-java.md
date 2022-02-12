@@ -856,7 +856,7 @@ You can use the available parameters in the `loadConf` configuration or related 
 
 ### Register listeners
  
-You can register listeners for both existing messages on a topic and new messages coming into the topic by using `forEachAndListen`, and specify to perform the registration for all existing messages by using `forEach`.
+You can register listeners for both existing messages on a topic and new messages coming into the topic by using `forEachAndListen`, and specify to perform operations for all existing messages by using `forEach`.
 
 The following is an example of how to register listeners with TableView.
 
