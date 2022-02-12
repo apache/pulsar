@@ -73,8 +73,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             if (tlsEnabledWithKeyStore) {
                 AuthenticationDataProvider authData1 = conf.getAuthentication().getAuthData();
                 if (conf.getTlsTrustStorePath() == null) {
-                    throw new RuntimeException("Failed to create TLS context, Due to empty " +
-                            "TlsTrustStorePath configuration.");
+                    throw new RuntimeException("Failed to create TLS context, Due to empty "
+                            + "TlsTrustStorePath configuration.");
                 }
                 nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                             conf.getSslProvider(),
