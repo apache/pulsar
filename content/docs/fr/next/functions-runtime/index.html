@@ -298,7 +298,7 @@ If you use tokens that expire when deploying functions, these tokens will expire
 <p>For example, if you use token authentication, you need to configure the following properties in the <code>function-worker.yml</code> file.</p>
 <pre><code class="hljs css language-Yaml"><span class="hljs-attr">clientAuthenticationPlugin:</span> <span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationToken</span>
 <span class="hljs-attr">clientAuthenticationParameters:</span> <span class="hljs-string">file:///etc/pulsar/token/admin-token.txt</span>
-<span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">zookeeper-cluster:2181</span> <span class="hljs-comment"># auth requires a connection to zookeeper</span>
+<span class="hljs-attr">configurationMetadataStoreUrl:</span> <span class="hljs-string">zk:zookeeper-cluster:2181</span> <span class="hljs-comment"># auth requires a connection to zookeeper</span>
 <span class="hljs-attr">authenticationProviders:</span>
  <span class="hljs-bullet">-</span> <span class="hljs-string">"org.apache.pulsar.broker.authentication.AuthenticationProviderToken"</span>
 <span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
