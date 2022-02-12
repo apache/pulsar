@@ -633,7 +633,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         lastSendFuture = callback.getFuture();
                         payload.release();
                         if (isBatchFull) {
-                            batchMessageAndSend();
+                            batchMessageAndSend(false);
                         } else {
                             maybeScheduleBatchFlushTask();
                         }
@@ -825,7 +825,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msg.getUncompressedSize());
         }
         try {
-            batchMessageAndSend();
+            batchMessageAndSend(false);
             batchMessageContainer.add(msg, callback);
             lastSendFuture = callback.getFuture();
         } finally {
@@ -1957,7 +1957,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         CompletableFuture<MessageId> lastSendFuture;
         synchronized (ProducerImpl.this) {
             if (isBatchMessagingEnabled()) {
-                batchMessageAndSend();
+                batchMessageAndSend(false);
             }
             lastSendFuture = this.lastSendFuture;
         }
@@ -1968,7 +1968,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected void triggerFlush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
-                batchMessageAndSend();
+                batchMessageAndSend(false);
             }
         }
     }
@@ -1994,14 +1994,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.batchFlushTask = null;
         // Only cut batches if we're able to send them now.
         if (getState() == State.Ready) {
-            batchMessageAndSend();
+            batchMessageAndSend(true);
         }
     }
 
     // must acquire semaphore before enqueuing
-    private void batchMessageAndSend() {
+    private void batchMessageAndSend(boolean shouldScheduleNextBatchFlush) {
         if (this.batchFlushTask != null) {
-            // Cancel batch timer task since we're sending the batch now.
+            // Cancel batch flush task since we're sending the batch now.
             this.batchFlushTask.cancel(false);
             this.batchFlushTask = null;
         }
@@ -2027,6 +2027,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
                 log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
             }
+            if (shouldScheduleNextBatchFlush) {
+                maybeScheduleBatchFlushTask();
+            }
         }
     }
 
@@ -2036,7 +2039,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         try {
             if (op.msg != null && isBatchMessagingEnabled()) {
-                batchMessageAndSend();
+                batchMessageAndSend(false);
             }
             if (isMessageSizeExceeded(op)) {
                 return;
