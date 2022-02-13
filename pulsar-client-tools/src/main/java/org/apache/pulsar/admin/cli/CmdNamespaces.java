@@ -254,11 +254,12 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--subscription",
+        @Parameter(names = {"-s", "--subscription"},
                 description = "Subscription name for which permission will be granted to roles", required = true)
         private String subscription;
 
-        @Parameter(names = "--roles", description = "Client roles to which grant permissions (comma separated roles)",
+        @Parameter(names = {"-rs", "--roles"},
+                description = "Client roles to which grant permissions (comma separated roles)",
                 required = true, splitter = CommaParameterSplitter.class)
         private List<String> roles;
 
@@ -274,11 +275,12 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--subscription", description = "Subscription name for which permission "
+        @Parameter(names = {"-s", "--subscription"}, description = "Subscription name for which permission "
                 + "will be revoked to roles", required = true)
         private String subscription;
 
-        @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
+        @Parameter(names = {"-r", "--role"},
+                description = "Client role to which revoke permissions", required = true)
         private String role;
 
         @Override
