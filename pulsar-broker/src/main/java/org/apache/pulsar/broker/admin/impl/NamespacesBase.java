@@ -276,18 +276,18 @@ public abstract class NamespacesBase extends AdminResource {
             }
         }
         FutureUtil.waitForAll(futures).thenCompose(__ -> {
-            futures.clear();
+            List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
             try {
                 NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                         .getBundles(namespaceName);
                 for (NamespaceBundle bundle : bundles.getBundles()) {
                     // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
                     if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                        futures.add(pulsar().getAdminClient().namespaces()
+                        deleteBundleFutures.add(pulsar().getAdminClient().namespaces()
                                 .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
                     }
                 }
-                return FutureUtil.waitForAll(futures);
+                return FutureUtil.waitForAll(deleteBundleFutures);
             } catch (Exception e) {
                 throw new RestException(e);
             }
