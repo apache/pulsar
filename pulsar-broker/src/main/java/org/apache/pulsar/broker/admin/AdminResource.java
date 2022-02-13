@@ -860,8 +860,8 @@ public abstract class AdminResource extends PulsarWebResource {
      */
      protected static boolean isRedirectException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-        return realCause instanceof WebApplicationException &&
-                ((WebApplicationException) realCause).getResponse().getStatus()
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
                         == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
 }
