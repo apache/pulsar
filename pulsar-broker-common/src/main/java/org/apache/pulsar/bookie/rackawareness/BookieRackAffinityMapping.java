@@ -90,7 +90,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 }
             }
         } catch (InterruptedException | ExecutionException e) {
-            LOG.warn("Failed to init BookieId list", e);
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }
         store.registerListener(this::handleUpdates);
 
