@@ -1750,6 +1750,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
+                isDirty = true;
                 log.warn("[{}] Failed to mark delete position for cursor={} position={}", ledger.getName(),
                         ManagedCursorImpl.this, mdEntry.newPosition);
                 if (log.isDebugEnabled()) {
