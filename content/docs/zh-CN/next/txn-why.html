@@ -80,7 +80,7 @@
 <p>随着流处理的兴起，对具有更强处理保证的流处理应用的需求也在增长。 例如，在金融行业，金融机构使用流处理引擎为用户处理借款和信贷。 这种类型的用例要求每条消息都只处理一次，无一例外。</p>
 <p>换句话说，如果流处理应用程序消费消息 A 并将结果作为消息B (B = f(A))，那么恰好一次处理保证意味着当且仅当 B 被成功生产后 A 才能被标记为消费，反之亦然。</p>
 <p><img src="/docs/assets/txn-1.png" alt=""></p>
-<p>Pulsar 事务 API 加强了消息传递语义和流处理的处理保证。 它使流处理应用程序能够在一个原子操作中使用、处理和生成消息。 这意味着，事务中的一批消息可以从许多主题分区接收、生成和确认。 一个事务涉及的所有操作都作为整体成功或失败。</p>
+<p>Pulsar 事务 API 加强了消息传递语义和流处理的处理保证。 它使流处理应用程序能够在一个原子操作中使用、处理和生成消息。 这意味着，事务中的一批消息可以从许多主题分区接收、生成和确认。 All the operations involved in a transaction succeed or fail as one single unit.</p>
 <h2><a class="anchor" aria-hidden="true" id="幂等生产者的局限性"></a><a href="#幂等生产者的局限性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>幂等生产者的局限性</h2>
 <p>使用Pulsar幂等生产者可以避免数据丢失或重复，但它不为跨多个分区的写入提供保证。</p>
 <p>在Pulsar中，最高级别的消息传递保证是使用 <a href="https://pulsar.apache.org/docs/en/next/concepts-messaging/#producer-idempotency">幂等生产者</a> 在单个分区上使用恰好一次语义，即每条消息只持久化一次，不会丢失和重复。 然而，这种解决办法有一些限制：</p>
