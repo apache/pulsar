@@ -210,7 +210,7 @@ ledgerDirectories=data/bookkeeper/ledgers
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 
-#This parameter best be set, otherwise，the BookKeeper can't start normally in special environment, for example, Huawei Cloud.
+#It is recommended to set this parameter. Otherwise, BookKeeper can't start normally in certain environments (for example, Huawei Cloud).
 advertisedAddress=
 ```
 
