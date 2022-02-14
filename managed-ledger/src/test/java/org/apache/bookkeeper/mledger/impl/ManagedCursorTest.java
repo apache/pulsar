@@ -29,11 +29,11 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.time.Duration;
@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -58,8 +57,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
-import io.netty.buffer.ByteBufAllocator;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -85,8 +82,9 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
@@ -3417,7 +3415,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         ManagedCursor c2 = ledger2.openCursor("c");
 
                         assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
-
                     } finally {
                         factory2.shutdown();
                     }
@@ -3425,6 +3422,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         factory1.shutdown();
         dirtyFactory.shutdown();
+    }
+
+    @Test
+    public void testConsistencyOfIndividualMessages() throws Exception {
+        ManagedLedger ledger1 = factory.open("testConsistencyOfIndividualMessages");
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger1.openCursor("c");
+
+        PositionImpl p1 = (PositionImpl) ledger1.addEntry(new byte[1024]);
+        c1.markDelete(p1);
+
+        // Artificially add a position that is before the current mark-delete position
+        LongPairRangeSet<PositionImpl> idm = c1.getIndividuallyDeletedMessagesSet();
+        idm.addOpenClosed(p1.getLedgerId() - 1, 0, p1.getLedgerId() - 1, 10);
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            positions.add(ledger1.addEntry(new byte[1024]));
+        }
+
+        for (int i = 0; i < 20; i++) {
+            c1.delete(positions.get(i));
+        }
+
+        assertEquals(c1.getTotalNonContiguousDeletedMessagesRange(), 0);
+        assertEquals(c1.getMarkDeletedPosition(), positions.get(positions.size() - 1));
     }
 
     @Test
