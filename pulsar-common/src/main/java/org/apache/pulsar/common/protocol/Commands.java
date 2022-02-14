@@ -22,6 +22,7 @@ import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
@@ -764,9 +765,19 @@ public class Commands {
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-          boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
-          long epoch, boolean userProvidedProducerName,
-          ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled) {
+                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                      long epoch, boolean userProvidedProducerName,
+                                      ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled) {
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, schemaInfo, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, isTxnEnabled, null);
+
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                      long epoch, boolean userProvidedProducerName,
+                                      ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled,
+                                      String initialSubscriptionName) {
         BaseCommand cmd = localCmd(Type.PRODUCER);
         CommandProducer producer = cmd.setProducer()
                 .setTopic(topic)
@@ -792,6 +803,11 @@ public class Commands {
         }
 
         topicEpoch.ifPresent(producer::setTopicEpoch);
+
+        if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
+            producer.setInitialSubscriptionName(initialSubscriptionName);
+        }
+
         return serializeWithSize(cmd);
     }
 

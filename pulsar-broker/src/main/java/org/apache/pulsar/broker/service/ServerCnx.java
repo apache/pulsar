@@ -1144,6 +1144,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
                 ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
         final boolean isTxnEnabled = cmdProducer.isTxnEnabled();
+        final String initialSubscriptionName =
+                cmdProducer.hasInitialSubscriptionName() ? cmdProducer.getInitialSubscriptionName() : null;
         final boolean supportsPartialProducer = supportsPartialProducer();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
@@ -1160,8 +1162,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
-            topicName, TopicOperation.PRODUCE
+                topicName, TopicOperation.PRODUCE
         );
+
+        if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
+            isAuthorizedFuture =
+                    isAuthorizedFuture.thenCombine(isTopicOperationAllowed(topicName, TopicOperation.SUBSCRIBE),
+                            (canProduce, canSubscribe) -> canProduce && canSubscribe);
+        }
+
         isAuthorizedFuture.thenApply(isAuthorized -> {
             if (!isAuthorized) {
                 String msg = "Client is not authorized to Produce";
@@ -1245,9 +1254,33 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                     schemaVersionFuture.thenAccept(schemaVersion -> {
                         topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
-                            buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                            CompletableFuture<Subscription> createInitSubFuture;
+                            if (!Strings.isNullOrEmpty(initialSubscriptionName)
+                                    && topic.isPersistent()
+                                    && !topic.getSubscriptions().containsKey(initialSubscriptionName)) {
+                                createInitSubFuture =
+                                        topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
+                                                false);
+                            } else {
+                                createInitSubFuture = CompletableFuture.completedFuture(null);
+                            }
+
+                            createInitSubFuture.whenComplete((sub, ex) -> {
+                                if (ex != null) {
+                                    String msg =
+                                            "Failed to create the initial subscription: " + ex.getCause().getMessage();
+                                    log.warn("[{}] {} initialSubscriptionName: {}, topic: {}",
+                                            remoteAddress, msg, initialSubscriptionName, topicName);
+                                    commandSender.sendErrorResponse(requestId,
+                                            BrokerServiceException.getClientErrorCode(ex), msg);
+                                    producers.remove(producerId, producerFuture);
+                                    return;
+                                }
+
+                                buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                     metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
                                     producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture);
+                            });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
                             log.error("producerId {}, requestId {} : TransactionBuffer recover failed",

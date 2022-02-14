@@ -49,4 +49,9 @@ public class DeadLetterPolicy {
      */
     private String deadLetterTopic;
 
+    /**
+     * Name of the initial subscription name of the dead letter topic.
+     * If this field is not set, the initial subscription for the dead letter topic will not be created.
+     */
+    private String initialSubscriptionName;
 }

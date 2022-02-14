@@ -353,6 +353,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         topic, subscription));
             }
 
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitialSubscriptionName())) {
+                this.deadLetterPolicy.setInitialSubscriptionName(
+                        conf.getDeadLetterPolicy().getInitialSubscriptionName());
+            }
+
         } else {
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
@@ -1897,10 +1902,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                            .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                            .blockIfQueueFull(false)
-                            .createAsync();
+                    deadLetterProducer =
+                            ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                    .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
+                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                    .blockIfQueueFull(false)
+                                    .createAsync();
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
