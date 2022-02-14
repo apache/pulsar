@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
@@ -220,12 +221,16 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
                                     bookieAddressList);
                         }
-                        if (bookieAddressListLastTime.size() > bookieAddressList.size()) {
-                            rackawarePolicy.onBookieRackChange(bookieAddressListLastTime);
-                        } else {
-                            rackawarePolicy.onBookieRackChange(bookieAddressList);
-                        }
+                        // find the bookies has been deleted rack
+                        List<BookieId> deletedBookies =
+                                bookieAddressListLastTime
+                                        .stream()
+                                        .filter(bookie -> !bookieAddressList.contains(bookie))
+                                        .collect(Collectors.toList());
                         bookieAddressListLastTime = bookieAddressList;
+                        // calculate final bookie list to notify RackAwarePolicy
+                        bookieAddressList.addAll(deletedBookies);
+                        rackawarePolicy.onBookieRackChange(bookieAddressList);
                     });
         }
     }
