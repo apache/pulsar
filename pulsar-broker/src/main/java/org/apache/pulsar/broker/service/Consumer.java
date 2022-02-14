@@ -465,17 +465,13 @@ public class Consumer {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
+                ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
+                ackedCount = batchSize;
             }
 
-            if (msgId.hasBatchIndex()) {
-                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
-            } else {
-                positionsAcked.add(new MutablePair<>(position, 0));
-            }
+            positionsAcked.add(new MutablePair<>(position, (int) batchSize));
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
@@ -519,7 +515,7 @@ public class Consumer {
     }
 
     private long getAckedCountForMsgIdNoAckSets(long batchSize, PositionImpl position) {
-        if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET);
@@ -545,6 +541,13 @@ public class Consumer {
                 ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
             }
         }
+        return ackedCount;
+    }
+
+    private long getAckedCountForTransactionAck(long batchSize, long[] ackSets) {
+        BitSetRecyclable bitset = BitSetRecyclable.create().resetWords(ackSets);
+        long ackedCount = batchSize - bitset.cardinality();
+        bitset.recycle();
         return ackedCount;
     }
 
@@ -925,9 +928,6 @@ public class Consumer {
         if (Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
-        }
-        if (unackedMsgs < 0) {
-            log.error("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
         }
         return unackedMsgs;
     }

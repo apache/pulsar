@@ -119,15 +119,34 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String configurationMetadataStoreUrl;
 
     @FieldContext(
-        category = CATEGORY_BROKER_DISCOVERY,
-        doc = "ZooKeeper session timeout (in milliseconds)"
+            category = CATEGORY_SERVER,
+            doc = "Metadata store session timeout in milliseconds."
     )
-    private int zookeeperSessionTimeoutMs = 30_000;
+    private int metadataStoreSessionTimeoutMillis = 30_000;
+
     @FieldContext(
-            category = CATEGORY_BROKER_DISCOVERY,
-            doc = "ZooKeeper cache expiry time in seconds"
-        )
-    private int zooKeeperCacheExpirySeconds = 300;
+            category = CATEGORY_SERVER,
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
+    )
+    private int zookeeperSessionTimeoutMs = -1;
+
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
+        doc = "ZooKeeper cache expiry time in seconds. "
+                + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
+    )
+    private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -794,5 +813,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
         public String toString() {
             return String.format("HttpReverseProxyConfig(%s, path=%s, proxyTo=%s)", name, path, proxyTo);
         }
+    }
+
+    public int getMetadataStoreSessionTimeoutMillis() {
+        return zookeeperSessionTimeoutMs > 0 ? zookeeperSessionTimeoutMs : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
     }
 }

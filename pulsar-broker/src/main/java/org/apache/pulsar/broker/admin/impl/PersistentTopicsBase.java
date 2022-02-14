@@ -101,6 +101,7 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -150,7 +151,7 @@ public class PersistentTopicsBase extends AdminResource {
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
 
-    protected List<String> internalGetList() {
+    protected List<String> internalGetList(Optional<String> bundle) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
@@ -166,9 +167,18 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         try {
-            return topicResources().listPersistentTopicsAsync(namespaceName).thenApply(topics ->
-                    topics.stream().filter(topic ->
-                            !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList())).join();
+            List<String> topics = topicResources().listPersistentTopicsAsync(namespaceName).join();
+            return topics.stream().filter(topic -> {
+                if (isTransactionInternalName(TopicName.get(topic))) {
+                    return false;
+                }
+                if (bundle.isPresent()) {
+                    NamespaceBundle b = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                            .getBundle(TopicName.get(topic));
+                    return b != null && bundle.get().equals(b.getBundleRange());
+                }
+                return true;
+            }).collect(Collectors.toList());
         } catch (Exception e) {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
@@ -3876,7 +3886,7 @@ public class PersistentTopicsBase extends AdminResource {
     private Topic getTopicReference(TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                    .get(pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                    .get(pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
                     .orElseThrow(() -> topicNotFoundReason(topicName));
         } catch (RestException e) {
             throw e;
@@ -3907,7 +3917,7 @@ public class PersistentTopicsBase extends AdminResource {
                     == null ? "has no metadata" : "has zero partitions";
             return new RestException(Status.NOT_FOUND, String.format(
                     "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
-        } else if (!internalGetList().contains(topicName.toString())) {
+        } else if (!internalGetList(Optional.empty()).contains(topicName.toString())) {
             return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
         }
         return new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
@@ -3926,7 +3936,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 == null ? "has no metadata" : "has zero partitions";
                         throw new RestException(Status.NOT_FOUND, String.format(
                                 "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
-                    } else if (!internalGetList().contains(topicName.toString())) {
+                    } else if (!internalGetList(Optional.empty()).contains(topicName.toString())) {
                         throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                     }
                     throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
@@ -4130,7 +4140,7 @@ public class PersistentTopicsBase extends AdminResource {
      * @param topicName
      */
     private void validatePartitionTopicUpdate(String topicName, int numberOfPartition) {
-        List<String> existingTopicList = internalGetList();
+        List<String> existingTopicList = internalGetList(Optional.empty());
         TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
         int oldPartition = metadata.partitions;
@@ -4856,7 +4866,9 @@ public class PersistentTopicsBase extends AdminResource {
         if (applied) {
             return getSchemaCompatibilityStrategyAsync();
         }
-        return validateTopicOperationAsync(topicName, TopicOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY)
+        return validateTopicPolicyOperationAsync(topicName,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ)
                 .thenCompose(n -> getTopicPoliciesAsyncWithRetry(topicName).thenApply(op -> {
                     if (!op.isPresent()) {
                         return null;
@@ -4867,7 +4879,9 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
-        return validateTopicOperationAsync(topicName, TopicOperation.SET_SCHEMA_COMPATIBILITY_STRATEGY)
+        return validateTopicPolicyOperationAsync(topicName,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.WRITE)
                 .thenCompose((__) -> getTopicPoliciesAsyncWithRetry(topicName)
                         .thenCompose(op -> {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);

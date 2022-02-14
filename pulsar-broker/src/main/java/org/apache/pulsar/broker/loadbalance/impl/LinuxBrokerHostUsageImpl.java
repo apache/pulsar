@@ -23,6 +23,7 @@ import com.google.common.base.Charsets;
 import com.sun.management.OperatingSystemMXBean;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -231,8 +232,15 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                 Files.readAllBytes(path.resolve("speed"));
                 return true;
             } catch (Exception e) {
-                // wireless nics don't report speed, ignore them.
-                return false;
+                // In some cases, VMs in EC2 won't have the speed reported on the NIC and will give a read-error.
+                // Check the type to make sure it's ethernet (type "1")
+                try {
+                    String type = new String(Files.readAllBytes(path.resolve("type")), StandardCharsets.UTF_8).trim();
+                    return Integer.parseInt(type) == 1;
+                } catch (IOException ioe) {
+                    // wireless nics don't report speed, ignore them.
+                    return false;
+                }
             }
         }
         return false;

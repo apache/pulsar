@@ -610,7 +610,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 .subscribe();
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService().getBundle(TopicName.get(topic2));
-        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit);
+        assertNotEquals(unsplitBundle, bundleInBroker1AfterSplit.toString());
 
         consumer1.close();
         consumer2.close();
@@ -730,6 +730,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
             // broker-2 loadManager is a leader and let it refresh load-report from all the brokers
             pulsar.getLeaderElectionService().close();
+
+            Awaitility.await()
+                    .untilAsserted(() -> pulsar2.getLeaderElectionService().isLeader());
 
             ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar2
                     .getLoadManager().get()).getLoadManager();

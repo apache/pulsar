@@ -115,6 +115,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-dispatcher-failover-test").build();
         ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
@@ -200,7 +201,9 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
 
         executor.shutdown();
-        eventLoopGroup.shutdownGracefully().get();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+        }
         store.close();
     }
 

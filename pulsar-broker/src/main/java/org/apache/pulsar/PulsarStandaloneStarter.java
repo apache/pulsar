@@ -87,7 +87,17 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         // Priority: args > conf > default
         if (!argsContains(args, "--zookeeper-port")) {
             if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
-                this.setZkPort(Integer.parseInt(config.getMetadataStoreUrl().split(":")[1]));
+                String[] metadataStoreUrl = config.getMetadataStoreUrl().split(",")[0].split(":");
+                if (metadataStoreUrl.length == 2) {
+                    this.setZkPort(Integer.parseInt(metadataStoreUrl[1]));
+                } else if ((metadataStoreUrl.length == 3)){
+                    String zkPort = metadataStoreUrl[2];
+                    if (zkPort.contains("/")) {
+                        this.setZkPort(Integer.parseInt(zkPort.substring(0, zkPort.lastIndexOf("/"))));
+                    } else {
+                        this.setZkPort(Integer.parseInt(zkPort));
+                    }
+                }
             }
         }
         config.setZookeeperServers(zkServers + ":" + this.getZkPort());

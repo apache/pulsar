@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -109,6 +110,9 @@ public class PulsarConfigurationLoaderTest {
         printWriter.println("managedLedgerDigestType=CRC32C");
         printWriter.println("managedLedgerCacheSizeMB=");
         printWriter.println("bookkeeperDiskWeightBasedPlacementEnabled=true");
+        printWriter.println("metadataStoreSessionTimeoutMillis=60");
+        printWriter.println("metadataStoreOperationTimeoutSeconds=600");
+        printWriter.println("metadataStoreCacheExpirySeconds=500");
         printWriter.close();
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -126,6 +130,9 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
         assertTrue(serviceConfig.getManagedLedgerCacheSizeMB() > 0);
         assertTrue(serviceConfig.isBookkeeperDiskWeightBasedPlacementEnabled());
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
     }
 
     @Test
@@ -150,6 +157,66 @@ public class PulsarConfigurationLoaderTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+    }
+
+    @Test
+    public void testBackwardCompatibility() throws IOException {
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("zooKeeperSessionTimeoutMillis=60");
+            printWriter.println("zooKeeperOperationTimeoutSeconds=600");
+            printWriter.println("zooKeeperCacheExpirySeconds=500");
+        }
+        testConfigFile.deleteOnExit();
+        InputStream stream = new FileInputStream(testConfigFile);
+        ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+
+        testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("metadataStoreSessionTimeoutMillis=60");
+            printWriter.println("metadataStoreOperationTimeoutSeconds=600");
+            printWriter.println("metadataStoreCacheExpirySeconds=500");
+            printWriter.println("zooKeeperSessionTimeoutMillis=-1");
+            printWriter.println("zooKeeperOperationTimeoutSeconds=-1");
+            printWriter.println("zooKeeperCacheExpirySeconds=-1");
+        }
+        testConfigFile.deleteOnExit();
+        stream = new FileInputStream(testConfigFile);
+        serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+
+        testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("metadataStoreSessionTimeoutMillis=10");
+            printWriter.println("metadataStoreOperationTimeoutSeconds=20");
+            printWriter.println("metadataStoreCacheExpirySeconds=30");
+            printWriter.println("zooKeeperSessionTimeoutMillis=100");
+            printWriter.println("zooKeeperOperationTimeoutSeconds=200");
+            printWriter.println("zooKeeperCacheExpirySeconds=300");
+        }
+        testConfigFile.deleteOnExit();
+        stream = new FileInputStream(testConfigFile);
+        serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 200);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
     }
 
     @Test

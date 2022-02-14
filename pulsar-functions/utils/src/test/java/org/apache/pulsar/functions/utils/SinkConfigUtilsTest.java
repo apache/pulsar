@@ -28,23 +28,13 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarUnpacker;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -53,19 +43,15 @@ import java.util.Map;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATMOST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
-import static org.mockito.ArgumentMatchers.any;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
 /**
- * Unit test of {@link Reflections}.
+ * Unit test of {@link SinkConfigUtilsTest}.
  */
-@PrepareForTest({ConnectorUtils.class, NarUnpacker.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "javax.xml.*", "org.xml.*", "org.w3c.dom.*", "org.springframework.context.*", "org.apache.log4j.*", "com.sun.org.apache.xerces.*", "javax.management.*" })
-public class SinkConfigUtilsTest extends PowerMockTestCase {
+public class SinkConfigUtilsTest {
 
     private ConnectorDefinition defn;
 
@@ -430,29 +416,16 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
 
     @Test
     public void testValidateConfig() throws IOException {
-        mockStatic(ConnectorUtils.class);
-        mockStatic(NarUnpacker.class);
-        defn = new ConnectorDefinition();
-        defn.setSinkConfigClass(TestSinkConfig.class.getName());
-        PowerMockito.when(ConnectorUtils.getConnectorDefinition(any())).thenReturn(defn);
-
-        File tmpdir = Files.createTempDirectory("test").toFile();
-        PowerMockito.when(NarUnpacker.unpackNar(any(), any())).thenReturn(tmpdir);
-
         SinkConfig sinkConfig = createSinkConfig();
-
-        NarClassLoader narClassLoader = NarClassLoader.getFromArchive(
-                tmpdir, Collections.emptySet(),
-                Thread.currentThread().getContextClassLoader(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
 
         // Good config
         sinkConfig.getConfigs().put("configParameter", "Test");
-        SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader);
+        SinkConfigUtils.validateSinkConfig(sinkConfig, TestSinkConfig.class);
 
         // Bad config
         sinkConfig.getConfigs().put("configParameter", null);
         Exception e = expectThrows(IllegalArgumentException.class,
-                () -> SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader));
+                () -> SinkConfigUtils.validateSinkConfig(sinkConfig, TestSinkConfig.class));
         assertTrue(e.getMessage().contains("Could not validate sink config: Field 'configParameter' cannot be null!"));
     }
 

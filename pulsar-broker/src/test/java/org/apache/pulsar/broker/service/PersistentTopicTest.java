@@ -176,6 +176,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         svcConfig.setAdvertisedAddress("localhost");
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setMaxUnackedMessagesPerConsumer(50000);
+        svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
@@ -244,7 +245,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }
 
         executor.shutdownNow();
-        eventLoopGroup.shutdownGracefully().get();
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+        }
     }
 
     @Test
