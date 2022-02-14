@@ -3302,11 +3302,15 @@ public class PersistentTopicsBase extends AdminResource {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                checkNotNull(repl);
+                if (repl == null) {
+                    throw new RestException(Status.NOT_FOUND, "Replicator not found");
+                }
                 issued = repl.expireMessages(expireTimeInSeconds);
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                checkNotNull(sub);
+                if (sub == null) {
+                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                }
                 issued = sub.expireMessages(expireTimeInSeconds);
             }
             if (issued) {
