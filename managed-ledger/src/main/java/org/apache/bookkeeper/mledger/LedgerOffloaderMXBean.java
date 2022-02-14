@@ -45,7 +45,7 @@ public interface LedgerOffloaderMXBean {
     long getOffloadErrors(String topic);
 
     /**
-     * Record the offloaded data in bytes
+     * Record the offloaded data in bytes.
      *
      * @return offload rate per topic.
      */
@@ -80,7 +80,7 @@ public interface LedgerOffloaderMXBean {
     StatsBuckets getReadOffloadDataLatencyBuckets(String topic);
 
     /**
-     * Record the read offloaded data in bytes
+     * Record the read offloaded data in bytes.
      *
      * @return read offload data rate.
      */
