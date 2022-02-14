@@ -1402,7 +1402,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Failed to add producer to topic {}: producerId={}, {}",
-                            remoteAddress, topicName, producerId, ex.getMessage());
+                            remoteAddress, topicName, producerId, ex.getCause().getMessage());
                 }
             } else {
                 log.warn("[{}] Failed to add producer to topic {}: producerId={}, {}",
