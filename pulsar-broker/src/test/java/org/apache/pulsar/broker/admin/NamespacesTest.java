@@ -799,8 +799,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return bundle.getNamespaceObject().equals(testNs);
             }
         }));
-        doReturn(Optional.of(mock(NamespaceEphemeralData.class))).when(nsSvc)
-                .getOwner(Mockito.argThat(new ArgumentMatcher<NamespaceBundle>() {
+        doReturn(CompletableFuture.completedFuture(Optional.of(mock(NamespaceEphemeralData.class)))).when(nsSvc)
+                .getOwnerAsync(Mockito.argThat(new ArgumentMatcher<NamespaceBundle>() {
                     @Override
                     public boolean matches(NamespaceBundle bundle) {
                         return bundle.getNamespaceObject().equals(testNs);

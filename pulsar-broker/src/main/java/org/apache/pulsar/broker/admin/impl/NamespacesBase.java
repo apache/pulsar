@@ -277,20 +277,24 @@ public abstract class NamespacesBase extends AdminResource {
         }
         FutureUtil.waitForAll(futures).thenCompose(__ -> {
             List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
-            try {
-                NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                        .getBundles(namespaceName);
-                for (NamespaceBundle bundle : bundles.getBundles()) {
-                    // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
-                    if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                        deleteBundleFutures.add(pulsar().getAdminClient().namespaces()
-                                .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
+            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                            .getBundles(namespaceName);
+            for (NamespaceBundle bundle : bundles.getBundles()) {
+                        // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
+                deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle).thenCompose(ownership -> {
+                    if (ownership.isPresent()) {
+                        try {
+                            return pulsar().getAdminClient().namespaces()
+                                    .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange());
+                        } catch (PulsarServerException e) {
+                            throw new RestException(e);
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(null);
                     }
-                }
-                return FutureUtil.waitForAll(deleteBundleFutures);
-            } catch (Exception e) {
-                throw new RestException(e);
+                }));
             }
+            return FutureUtil.waitForAll(deleteBundleFutures);
         })
         .thenCompose(__ -> internalClearZkSources())
         .thenAccept(__ -> {
