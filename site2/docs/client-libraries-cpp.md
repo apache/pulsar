@@ -18,7 +18,7 @@ Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms
 ## Linux
 
 > **Note**   
-> You can choose one of the following three installation methods according to your own situation: Compilation, Install RPM or Install Debian.
+> You can choose one of the following installation methods based on your needs: Compilation, Install RPM or Install Debian.
 
 ### Compilation 
 
@@ -138,7 +138,7 @@ lrwxrwxrwx 1 root root 23 Dec 30 22:21 libpulsarnossl.so -> libpulsarnossl.so.2.
 > **Note**  
 > If you get the error that `libpulsar.so: cannot open shared object file: No such file or directory` when starting Pulsar client, you may need to run `ldconfig` first.
 
-2. Install the gcc and g++ using the following command, otherwise the problems will occur in installing Node.js.
+2. Install the GCC and g++ using the following command, otherwise errors would occur in installing Node.js.
 
 ```bash
 $ sudo yum -y install gcc automake autoconf libtool make
