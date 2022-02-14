@@ -38,7 +38,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
@@ -92,14 +91,15 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    if (realCause instanceof WebApplicationException) {
-                        asyncResponse.resume(realCause);
-                    } else {
-                        asyncResponse.resume(new RestException(realCause));
+                .thenAccept(activeBrokers -> {
+                    LOG.info("[{}] Successfully to get active brokers, cluster={}", clientAppId(), cluster);
+                    asyncResponse.resume(activeBrokers);
+                }).exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        LOG.error("[{}] Fail to get active brokers, cluster={}", clientAppId(), cluster, ex);
                     }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
@@ -119,16 +119,12 @@ public class BrokersBase extends AdminResource {
                     LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
                     BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
                     asyncResponse.resume(brokerInfo);
                 })
                 .exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), realCause);
-                    if (realCause instanceof WebApplicationException) {
-                        asyncResponse.resume(realCause);
-                    } else {
-                        asyncResponse.resume(new RestException(realCause));
-                    }
+                    LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
@@ -268,7 +264,7 @@ public class BrokersBase extends AdminResource {
             });
         } else {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Cannot update non-dynamic configuration"));
+                    "Can't update non-dynamic configuration"));
         }
     }
 
@@ -333,7 +329,8 @@ public class BrokersBase extends AdminResource {
                     asyncResponse.resume("ok");
                 }).exceptionally(ex -> {
                     LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
-                    return handleCommonRestAsyncException(asyncResponse, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
                 });
     }
 
@@ -427,7 +424,7 @@ public class BrokersBase extends AdminResource {
                     value = "if the value absent(value=0) means no concurrent limitation.")
             @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
             @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
-    ) throws Exception {
+    ) {
         validateSuperUserAccess();
         doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
     }

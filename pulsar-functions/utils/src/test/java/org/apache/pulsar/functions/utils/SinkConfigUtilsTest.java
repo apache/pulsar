@@ -31,7 +31,6 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -52,7 +51,7 @@ import static org.testng.Assert.expectThrows;
 /**
  * Unit test of {@link SinkConfigUtilsTest}.
  */
-public class SinkConfigUtilsTest extends PowerMockTestCase {
+public class SinkConfigUtilsTest {
 
     private ConnectorDefinition defn;
 

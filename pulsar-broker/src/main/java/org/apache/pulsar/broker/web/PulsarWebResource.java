@@ -204,8 +204,10 @@ public abstract class PulsarWebResource {
                                     String.format("Original principal not authorized for super-user operation "
                                                     + "(original:%s)", originalPrincipal));
                         }
-                        log.debug("Successfully authorized {} (proxied by {}) as super-user",
-                                originalPrincipal, appId);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Successfully authorized {} (proxied by {}) as super-user",
+                                    originalPrincipal, appId);
+                        }
                     });
         } else {
             if (config().isAuthorizationEnabled()) {
@@ -219,8 +221,10 @@ public abstract class PulsarWebResource {
                             }
                         });
             }
-            log.debug("Successfully authorized {} as super-user",
-                    appId);
+            if (log.isDebugEnabled()) {
+                log.debug("Successfully authorized {} as super-user",
+                        appId);
+            }
             return CompletableFuture.completedFuture(null);
         }
     }
