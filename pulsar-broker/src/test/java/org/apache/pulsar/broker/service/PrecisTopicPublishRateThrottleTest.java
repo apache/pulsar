@@ -59,7 +59,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-        ((AbstractTopic)topicRef).updateMaxPublishRate(policies);
+        topicRef.onPoliciesUpdate(policies);
         MessageId messageId = null;
         try {
             // first will be success
@@ -98,7 +98,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-        ((AbstractTopic)topicRef).updateMaxPublishRate(policies);
+        topicRef.onPoliciesUpdate(policies);
         MessageId messageId = null;
         try {
             // first will be success, and will set auto read to false
@@ -130,7 +130,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-        ((AbstractTopic)topicRef).updateMaxPublishRate(policies);
+        topicRef.onPoliciesUpdate(policies);
         MessageId messageId = null;
         try {
             // first will be success, and will set auto read to false

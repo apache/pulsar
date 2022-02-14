@@ -310,12 +310,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenAccept(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         isEncryptionRequired = false;
+                        updatePublishDispatcher();
+                        updateResourceGroupLimiter(optPolicies);
                         return;
                     }
 
                     Policies policies = optPolicies.get();
 
                     this.updateTopicPolicyByNamespacePolicy(policies);
+
+                    updatePublishDispatcher();
+
+                    updateResourceGroupLimiter(optPolicies);
 
                     this.isEncryptionRequired = policies.encryption_required;
 
@@ -2382,7 +2388,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         initializeRateLimiterIfNeeded(Optional.ofNullable(data));
 
-        this.updateMaxPublishRate(data);
+        updatePublishDispatcher();
+
+        this.updateResourceGroupLimiter(Optional.of(data));
 
         List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
         producers.values().forEach(producer -> producerCheckFutures.add(
@@ -3033,12 +3041,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }));
 
         FutureUtil.waitForAll(consumerCheckFutures).thenRun(() -> {
-            if (policies.getPublishRate() != null) {
-                updatePublishDispatcher(policies.getPublishRate());
-            } else {
-                updateMaxPublishRate(namespacePolicies.orElse(null));
-            }
-
+            updatePublishDispatcher();
             initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
             if (this.subscribeRateLimiter.isPresent()) {
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->

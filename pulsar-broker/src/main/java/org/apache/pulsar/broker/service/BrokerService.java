@@ -2206,6 +2206,12 @@ public class BrokerService implements Closeable {
     }
 
     private void updateBrokerPublisherThrottlingMaxRate() {
+        forEachTopic(topic -> {
+            if (topic instanceof AbstractTopic) {
+                ((AbstractTopic) topic).updateBrokerPublishRate();
+                ((AbstractTopic) topic).updatePublishDispatcher();
+            }
+        });
         int currentMaxMessageRate = pulsar.getConfiguration().getBrokerPublisherThrottlingMaxMessageRate();
         long currentMaxByteRate = pulsar.getConfiguration().getBrokerPublisherThrottlingMaxByteRate();
         int brokerTickMs = pulsar.getConfiguration().getBrokerPublisherThrottlingTickTimeMillis();

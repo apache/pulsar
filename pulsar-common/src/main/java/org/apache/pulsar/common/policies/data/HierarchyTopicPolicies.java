@@ -47,6 +47,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> messageTTLInSeconds;
     final PolicyHierarchyValue<Long> compactionThreshold;
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
+    final PolicyHierarchyValue<PublishRate> publishRate;
     final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
@@ -71,6 +72,7 @@ public class HierarchyTopicPolicies {
                 .build();
         topicMaxMessageSize = new PolicyHierarchyValue<>();
         messageTTLInSeconds = new PolicyHierarchyValue<>();
+        publishRate = new PolicyHierarchyValue<>();
         delayedDeliveryEnabled = new PolicyHierarchyValue<>();
         delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
         compactionThreshold = new PolicyHierarchyValue<>();
