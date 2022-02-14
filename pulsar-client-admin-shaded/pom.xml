@@ -126,7 +126,8 @@
                   <include>com.fasterxml.jackson.core</include>
                   <include>io.netty:*</include>
                   <include>com.datastax.oss:pulsar-common</include>
-                  <include>org.apache.bookkeeper:*</include>
+                  <include>com.datastax.oss:bookkeeper-common-allocator</include>
+                  <include>com.datastax.oss:cpu-affinity</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>

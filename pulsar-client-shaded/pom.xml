@@ -130,7 +130,8 @@
                 <includes>
                   <include>com.datastax.oss:pulsar-client-original</include>
                   <include>com.datastax.oss:pulsar-transaction-common</include>
-                  <include>org.apache.bookkeeper:*</include>
+                  <include>com.datastax.oss:bookkeeper-common-allocator</include>
+                  <include>com.datastax.oss:cpu-affinity</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
