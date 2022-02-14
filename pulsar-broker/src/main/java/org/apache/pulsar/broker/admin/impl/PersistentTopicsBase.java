@@ -1951,7 +1951,7 @@ public class PersistentTopicsBase extends AdminResource {
                 log.error("[{}] Failed to expire messages for all subscription up to {} on {}", clientAppId(),
                         expireTimeInSeconds, topicName, ex);
             }
-            asyncResponse.resume(new RestException(ex));
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
