@@ -539,7 +539,7 @@ Options
 |`-bw`, `--busy-wait`|Enable or disable Busy-Wait on the Pulsar client|false|
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-m`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-e`, `--expire_time_incomplete_chunked_messages`|The expiration time for incomplete chunk messages (in milliseconds)|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
@@ -592,7 +592,7 @@ Options
 |`-ch`, `--chunking`|Split the message and publish in chunks if the message size is larger than allowed max size|false|
 |`-d`, `--delay`|Mark messages with a given delay in seconds|0s|
 |`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.||
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-k`, `--encryption-key-name`|The public key name to encrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the public key to encrypt payload||
 |`-ef`, `--exit-on-failure`|Exit from the process on publish failure|false|
@@ -642,7 +642,7 @@ Options
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
@@ -676,7 +676,7 @@ Options
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth-plugin`|Authentication plugin class name||
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-t`, `--num-topic`|The number of topics|1|
