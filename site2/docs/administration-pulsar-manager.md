@@ -21,9 +21,9 @@ The easiest way to use the Pulsar Manager is to run it inside a [Docker](https:/
 ```shell
 docker pull apachepulsar/pulsar-manager:v0.2.0
 docker run -it \
--p 9527:9527 -p 7750:7750 \
--e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
-apachepulsar/pulsar-manager:v0.2.0
+    -p 9527:9527 -p 7750:7750 \
+    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+    apachepulsar/pulsar-manager:v0.2.0
 ```
 
 * `SPRING_CONFIGURATION_FILE`: Default configuration file for spring.
@@ -98,7 +98,7 @@ cd pulsar-manager
 tar -zxvf pulsar-manager.tar
 cd pulsar-manager
 cp -r ../dist ui
-./bin/pulsar-manager --redirect.host=http://localhost --redirect.port=9527 insert.stats.interval=600000 --backend.jwt.token=token --jwt.broker.token.mode=PRIVATE --jwt.broker.private.key=file:///path/broker-private.key --jwt.broker.public.key=file:///path/broker-public.key
+./bin/pulsar-manager --redirect.host=http://localhost --redirect.port=9527 insert.stats.interval=600000 --backend.jwt.token=token --jwt.broker.token.mode=PRIVATE --jwt.broker.private.key=file:///path/broker-private.key --jwt.broker.public.key=file:///path/broker-public.key 
 ```
 Firstly, [set the administrator account and password](#set-administrator-account-and-password)
 
@@ -113,7 +113,7 @@ jwt.broker.token.mode=PRIVATE
 jwt.broker.public.key=file:///path/broker-public.key
 jwt.broker.private.key=file:///path/broker-private.key
 
-or
+or 
 jwt.broker.token.mode=SECRET
 jwt.broker.secret.key=file:///path/broker-secret.key
 ```
