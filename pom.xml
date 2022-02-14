@@ -1889,6 +1889,7 @@ flexible messaging model and an intuitive client API.</description>
         <test.additional.args>
           --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
           --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+          --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
         </test.additional.args>
       </properties>
       <build>
