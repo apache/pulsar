@@ -50,8 +50,6 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +82,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMandatoryStopTimeInMs(),
             TimeUnit.MILLISECONDS);
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
-        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+        this.initializeDispatchRateLimiterIfNeeded();
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -551,25 +549,20 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void updateRateLimiter(DispatchRate dispatchRate) {
-        if (!this.dispatchRateLimiter.isPresent() && dispatchRate != null) {
-            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION));
+    public void updateRateLimiter() {
+        if (!initializeDispatchRateLimiterIfNeeded()) {
+            this.dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
         }
-        this.dispatchRateLimiter.ifPresent(limiter -> {
-            if (dispatchRate != null) {
-                this.dispatchRateLimiter.get().updateDispatchRate(dispatchRate);
-            } else {
-                this.dispatchRateLimiter.get().updateDispatchRate();
-            }
-        });
     }
 
     @Override
-    public void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
-        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
-                .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.SUBSCRIPTION)) {
+    public boolean initializeDispatchRateLimiterIfNeeded() {
+        if (!dispatchRateLimiter.isPresent()
+            && DispatchRateLimiter.isDispatchRateEnabled(topic.getSubscriptionDispatchRate())) {
             this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION));
+            return true;
         }
+        return false;
     }
 
     @Override

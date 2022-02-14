@@ -65,6 +65,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -151,6 +152,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         updatePublishDispatcher(Optional.empty());
     }
 
+    public DispatchRateImpl getSubscriptionDispatchRate() {
+        return this.topicPolicies.getSubscriptionDispatchRate().get();
+    }
+
     public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy() {
         return this.topicPolicies.getSchemaCompatibilityStrategy().get();
     }
@@ -188,6 +193,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getMessageTTLInSeconds().updateTopicValue(data.getMessageTTLInSeconds());
         topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis());
+        topicPolicies.getSubscriptionDispatchRate().updateTopicValue(normalize(data.getSubscriptionDispatchRate()));
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
     }
 
@@ -227,7 +233,24 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(
                 type -> this.topicPolicies.getBackLogQuotaMap().get(type)
                         .updateNamespaceValue(MapUtils.getObject(namespacePolicies.backlog_quota_map, type)));
+        updateNamespaceSubscriptionDispatchRate(namespacePolicies,
+            brokerService.getPulsar().getConfig().getClusterName());
         updateSchemaCompatibilityStrategyNamespaceValue(namespacePolicies);
+    }
+
+    private void updateNamespaceSubscriptionDispatchRate(Policies namespacePolicies, String cluster) {
+        topicPolicies.getSubscriptionDispatchRate()
+            .updateNamespaceValue(normalize(namespacePolicies.subscriptionDispatchRate.get(cluster)));
+    }
+
+    private DispatchRateImpl normalize(DispatchRateImpl dispatchRate) {
+        if (dispatchRate != null
+            && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
+            || dispatchRate.getDispatchThrottlingRateInByte() > 0)) {
+            return dispatchRate;
+        } else {
+            return null;
+        }
     }
 
     private void updateSchemaCompatibilityStrategyNamespaceValue(Policies namespacePolicies){
@@ -283,8 +306,17 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (isSystemTopic()) {
             schemaCompatibilityStrategy = config.getSystemTopicSchemaCompatibilityStrategy();
         }
+        topicPolicies.getSubscriptionDispatchRate().updateBrokerValue(subscriptionDispatchRateInBroker(config));
         topicPolicies.getSchemaCompatibilityStrategy()
                 .updateBrokerValue(formatSchemaCompatibilityStrategy(schemaCompatibilityStrategy));
+    }
+
+    private DispatchRateImpl subscriptionDispatchRateInBroker(ServiceConfiguration config) {
+        return DispatchRateImpl.builder()
+            .dispatchThrottlingRateInMsg(config.getDispatchThrottlingRatePerSubscriptionInMsg())
+            .dispatchThrottlingRateInByte(config.getDispatchThrottlingRatePerSubscriptionInByte())
+            .ratePeriodInSecond(1)
+            .build();
     }
 
     private EnumSet<SubType> subTypeStringsToEnumSet(Set<String> getSubscriptionTypesEnabled) {
@@ -1097,5 +1129,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public void updateBrokerSubscriptionTypesEnabled() {
         topicPolicies.getSubscriptionTypesEnabled().updateBrokerValue(
                 subTypeStringsToEnumSet(brokerService.pulsar().getConfiguration().getSubscriptionTypesEnabled()));
+    }
+
+    public void updateBrokerSubscriptionDispatchRate() {
+        topicPolicies.getSubscriptionDispatchRate().updateBrokerValue(
+            subscriptionDispatchRateInBroker(brokerService.pulsar().getConfiguration()));
     }
 }
