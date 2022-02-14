@@ -94,6 +94,7 @@ flexible messaging model and an intuitive client API.</description>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+    <testJacocoAgentArgument></testJacocoAgentArgument>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
@@ -1405,7 +1406,7 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>@{argLine} -Xmx1G -XX:+UseG1GC
+          <argLine>@{testJacocoAgentArgument} -Xmx1G -XX:+UseG1GC
             -Dpulsar.allocator.pooled=true
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
@@ -1914,6 +1915,9 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
             <version>${jacoco-maven-plugin.version}</version>
+            <configuration>
+              <propertyName>testJacocoAgentArgument</propertyName>
+            </configuration>
             <executions>
               <execution>
                 <id>pre-unit-test</id>

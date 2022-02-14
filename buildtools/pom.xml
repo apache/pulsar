@@ -170,7 +170,7 @@
               <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier</value>
             </property>
           </properties>
-          <argLine>@{argLine}
+          <argLine>@{testJacocoAgentArgument}
             ${test.additional.args}
           </argLine>
         </configuration>
