@@ -558,7 +558,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">Dispatcher.</span><code><span class="memberNameLink"><a href="../Dispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">Dispatcher.</span><code><span class="memberNameLink"><a href="../Dispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
@@ -569,7 +570,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">Subscription.</span><code><span class="memberNameLink"><a href="../Subscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">Subscription.</span><code><span class="memberNameLink"><a href="../Subscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
@@ -764,7 +766,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>default void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">NonPersistentDispatcher.</span><code><span class="memberNameLink"><a href="../nonpersistent/NonPersistentDispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">NonPersistentDispatcher.</span><code><span class="memberNameLink"><a href="../nonpersistent/NonPersistentDispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
@@ -775,7 +778,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">NonPersistentSubscription.</span><code><span class="memberNameLink"><a href="../nonpersistent/NonPersistentSubscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">NonPersistentSubscription.</span><code><span class="memberNameLink"><a href="../nonpersistent/NonPersistentSubscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
@@ -919,15 +923,22 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#dispatchEntriesToConsumer(org.apache.pulsar.broker.service.Consumer,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.SendMessageInfo)">dispatchEntriesToConsumer</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;currentConsumer,
-                         java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
-                         <a href="../EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
-                         <a href="../EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
-                         <a href="../SendMessageInfo.html" title="class in org.apache.pulsar.broker.service">SendMessageInfo</a>&nbsp;sendMessageInfo)</code></th>
+<td class="colFirst"><code>static <a href="../persistent/PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx</a></code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.html#create(org.apache.pulsar.broker.service.Consumer,long)">create</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+      long&nbsp;epoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#dispatchEntriesToConsumer(org.apache.pulsar.broker.service.Consumer,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.SendMessageInfo,long)">dispatchEntriesToConsumer</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;currentConsumer,
+                         java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
+                         <a href="../EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
+                         <a href="../EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
+                         <a href="../SendMessageInfo.html" title="class in org.apache.pulsar.broker.service">SendMessageInfo</a>&nbsp;sendMessageInfo,
+                         long&nbsp;epoch)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentSubscription.</span><code><span class="memberNameLink"><a href="../persistent/PersistentSubscription.html#doUnsubscribe(org.apache.pulsar.broker.service.Consumer)">doUnsubscribe</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
 <td class="colLast">
@@ -935,65 +946,68 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
  unsubscribe.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherMultipleConsumers.html#isConsumerAvailable(org.apache.pulsar.broker.service.Consumer)">isConsumerAvailable</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#readMoreEntries(org.apache.pulsar.broker.service.Consumer)">readMoreEntries</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentStreamingDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentStreamingDispatcherSingleActiveConsumer.html#readMoreEntries(org.apache.pulsar.broker.service.Consumer)">readMoreEntries</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherMultipleConsumers.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherMultipleConsumers.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherMultipleConsumers.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,java.util.List)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
                                java.util.List&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,java.util.List)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
                                java.util.List&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentSubscription.</span><code><span class="memberNameLink"><a href="../persistent/PersistentSubscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentSubscription.</span><code><span class="memberNameLink"><a href="../persistent/PersistentSubscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentSubscription.</span><code><span class="memberNameLink"><a href="../persistent/PersistentSubscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,java.util.List)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
                                java.util.List&lt;org.apache.bookkeeper.mledger.impl.PositionImpl&gt;&nbsp;positions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherMultipleConsumers.html#removeConsumer(org.apache.pulsar.broker.service.Consumer)">removeConsumer</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentStickyKeyDispatcherMultipleConsumers.</span><code><span class="memberNameLink"><a href="../persistent/PersistentStickyKeyDispatcherMultipleConsumers.html#removeConsumer(org.apache.pulsar.broker.service.Consumer)">removeConsumer</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><span class="typeNameLabel">PersistentSubscription.</span><code><span class="memberNameLink"><a href="../persistent/PersistentSubscription.html#removeConsumer(org.apache.pulsar.broker.service.Consumer,boolean)">removeConsumer</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
               boolean&nbsp;isResetCursor)</code></th>

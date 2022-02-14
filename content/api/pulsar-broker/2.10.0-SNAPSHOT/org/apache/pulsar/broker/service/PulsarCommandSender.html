@@ -226,14 +226,15 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>io.netty.util.concurrent.Future&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker)">sendMessagesToConsumer</a></span>&#8203;(long&nbsp;consumerId,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker,long)">sendMessagesToConsumer</a></span>&#8203;(long&nbsp;consumerId,
                       java.lang.String&nbsp;topicName,
                       <a href="Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
                       int&nbsp;partitionIdx,
                       java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
                       <a href="EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
                       <a href="EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
-                      <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker)</code></th>
+                      <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker,
+                      long&nbsp;epoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i12" class="altColor">
@@ -545,7 +546,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre class="methodSignature">void&nbsp;sendReachedEndOfTopic&#8203;(long&nbsp;consumerId)</pre>
 </li>
 </ul>
-<a id="sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker)">
+<a id="sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker,long)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -558,7 +559,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                                                                        java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
                                                                        <a href="EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
                                                                        <a href="EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
-                                                                       <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker)</pre>
+                                                                       <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker,
+                                                                       long&nbsp;epoch)</pre>
 </li>
 </ul>
 <a id="sendTcClientConnectResponse(long,org.apache.pulsar.common.api.proto.ServerError,java.lang.String)">

@@ -122,7 +122,7 @@ you can deploy a full Pulsar configuration on one node, where Zookeeper, the boo
 <blockquote>
 <p>If you do not have a DNS server, you can use the multi-host format in the service URL instead.</p>
 </blockquote>
-<p>Each machine in your cluster needs to have <a href="https://adoptopenjdk.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptopenjdk.net/?variant=openjdk11">Java 11</a> installed.</p>
+<p>Each machine in your cluster needs to have <a href="https://adoptium.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptium.net/?variant=openjdk11">Java 11</a> installed.</p>
 <p>The following is a diagram showing the basic setup:</p>
 <p><img src="/docs/assets/pulsar-basic-setup.png" alt="alt-text"></p>
 <p>In this diagram, connecting clients need to be able to communicate with the Pulsar cluster using a single URL. In this case, <code>pulsar-cluster.acme.com</code> abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.</p>

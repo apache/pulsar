@@ -311,7 +311,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i31" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i32" class="altColor">
@@ -611,13 +612,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre class="methodSignature">boolean&nbsp;expireMessages&#8203;(org.apache.bookkeeper.mledger.Position&nbsp;position)</pre>
 </li>
 </ul>
-<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">
+<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>redeliverUnacknowledgedMessages</h4>
-<pre class="methodSignature">void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</pre>
+<pre class="methodSignature">void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                                     long&nbsp;consumerEpoch)</pre>
 </li>
 </ul>
 <a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,java.util.List)">

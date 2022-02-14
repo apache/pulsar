@@ -497,8 +497,8 @@ implements <a href="../Dispatcher.html" title="interface in org.apache.pulsar.br
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i28" class="altColor">
-<td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initializeDispatchRateLimiterIfNeeded(java.util.Optional)">initializeDispatchRateLimiterIfNeeded</a></span>&#8203;(java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;policies)</code></th>
+<td class="colFirst"><code>boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initializeDispatchRateLimiterIfNeeded()">initializeDispatchRateLimiterIfNeeded</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i29" class="rowColor">
@@ -550,7 +550,8 @@ implements <a href="../Dispatcher.html" title="interface in org.apache.pulsar.br
 </tr>
 <tr id="i37" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i38" class="altColor">
@@ -603,7 +604,7 @@ implements <a href="../Dispatcher.html" title="interface in org.apache.pulsar.br
 </tr>
 <tr id="i46" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateRateLimiter(org.apache.pulsar.common.policies.data.DispatchRate)">updateRateLimiter</a></span>&#8203;(org.apache.pulsar.common.policies.data.DispatchRate&nbsp;dispatchRate)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateRateLimiter()">updateRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -1184,16 +1185,17 @@ implements <a href="../Dispatcher.html" title="interface in org.apache.pulsar.br
 </dl>
 </li>
 </ul>
-<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">
+<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>redeliverUnacknowledgedMessages</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</pre>
+<pre class="methodSignature">public&nbsp;void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                                            long&nbsp;consumerEpoch)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../Dispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
+<dd><code><a href="../Dispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
 </dl>
 </li>
 </ul>
@@ -1295,29 +1297,29 @@ implements <a href="../Dispatcher.html" title="interface in org.apache.pulsar.br
 </dl>
 </li>
 </ul>
-<a id="updateRateLimiter(org.apache.pulsar.common.policies.data.DispatchRate)">
+<a id="updateRateLimiter()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>updateRateLimiter</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;updateRateLimiter&#8203;(org.apache.pulsar.common.policies.data.DispatchRate&nbsp;dispatchRate)</pre>
+<pre class="methodSignature">public&nbsp;void&nbsp;updateRateLimiter()</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../Dispatcher.html#updateRateLimiter(org.apache.pulsar.common.policies.data.DispatchRate)">updateRateLimiter</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
+<dd><code><a href="../Dispatcher.html#updateRateLimiter()">updateRateLimiter</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
 </dl>
 </li>
 </ul>
-<a id="initializeDispatchRateLimiterIfNeeded(java.util.Optional)">
+<a id="initializeDispatchRateLimiterIfNeeded()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>initializeDispatchRateLimiterIfNeeded</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;initializeDispatchRateLimiterIfNeeded&#8203;(java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;policies)</pre>
+<pre class="methodSignature">public&nbsp;boolean&nbsp;initializeDispatchRateLimiterIfNeeded()</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../Dispatcher.html#initializeDispatchRateLimiterIfNeeded(java.util.Optional)">initializeDispatchRateLimiterIfNeeded</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
+<dd><code><a href="../Dispatcher.html#initializeDispatchRateLimiterIfNeeded()">initializeDispatchRateLimiterIfNeeded</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
 </dl>
 </li>
 </ul>

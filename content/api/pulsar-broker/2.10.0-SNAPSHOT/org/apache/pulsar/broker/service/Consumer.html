@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -154,7 +154,7 @@ extends java.lang.Object</pre>
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr class="altColor">
-<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,boolean,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId)">Consumer</a></span>&#8203;(<a href="Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
+<th class="colConstructorName" scope="row"><code><span class="memberNameLink"><a href="#%3Cinit%3E(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,boolean,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId,long)">Consumer</a></span>&#8203;(<a href="Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
         org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subType,
         java.lang.String&nbsp;topicName,
         long&nbsp;consumerId,
@@ -167,7 +167,8 @@ extends java.lang.Object</pre>
         boolean&nbsp;readCompacted,
         org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;subscriptionInitialPosition,
         org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta,
-        org.apache.pulsar.client.api.MessageId&nbsp;startMessageId)</code></th>
+        org.apache.pulsar.client.api.MessageId&nbsp;startMessageId,
+        long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -342,7 +343,7 @@ extends java.lang.Object</pre>
 </tr>
 <tr id="i30" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages()">redeliverUnacknowledgedMessages</a></span>()</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(long)">redeliverUnacknowledgedMessages</a></span>&#8203;(long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i31" class="rowColor">
@@ -359,31 +360,43 @@ extends java.lang.Object</pre>
             long&nbsp;totalBytes,
             long&nbsp;totalChunkedMessages,
             <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i33" class="rowColor">
+<td class="colFirst"><code>io.netty.util.concurrent.Future&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#sendMessages(java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,int,long,long,org.apache.pulsar.broker.service.RedeliveryTracker,long)">sendMessages</a></span>&#8203;(java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
+            <a href="EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
+            <a href="EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
+            int&nbsp;totalMessages,
+            long&nbsp;totalBytes,
+            long&nbsp;totalChunkedMessages,
+            <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker,
+            long&nbsp;epoch)</code></th>
 <td class="colLast">
 <div class="block">Dispatch a list of entries to the consumer.</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setReadPositionWhenJoining(org.apache.bookkeeper.mledger.impl.PositionImpl)">setReadPositionWhenJoining</a></span>&#8203;(org.apache.bookkeeper.mledger.impl.PositionImpl&nbsp;readPositionWhenJoining)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.api.proto.CommandSubscribe.SubType</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#subType()">subType</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#toString()">toString</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateRates()">updateRates</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateStats(org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl)">updateStats</a></span>&#8203;(org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl&nbsp;consumerStats)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -412,7 +425,7 @@ extends java.lang.Object</pre>
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a id="&lt;init&gt;(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,boolean,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId)">
+<a id="&lt;init&gt;(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,boolean,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId,long)">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -431,7 +444,8 @@ extends java.lang.Object</pre>
                 boolean&nbsp;readCompacted,
                 org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;subscriptionInitialPosition,
                 org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta,
-                org.apache.pulsar.client.api.MessageId&nbsp;startMessageId)</pre>
+                org.apache.pulsar.client.api.MessageId&nbsp;startMessageId,
+                long&nbsp;consumerEpoch)</pre>
 </li>
 </ul>
 </li>
@@ -493,6 +507,22 @@ extends java.lang.Object</pre>
                                                                     long&nbsp;totalBytes,
                                                                     long&nbsp;totalChunkedMessages,
                                                                     <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker)</pre>
+</li>
+</ul>
+<a id="sendMessages(java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,int,long,long,org.apache.pulsar.broker.service.RedeliveryTracker,long)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>sendMessages</h4>
+<pre class="methodSignature">public&nbsp;io.netty.util.concurrent.Future&lt;java.lang.Void&gt;&nbsp;sendMessages&#8203;(java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
+                                                                    <a href="EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
+                                                                    <a href="EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
+                                                                    int&nbsp;totalMessages,
+                                                                    long&nbsp;totalBytes,
+                                                                    long&nbsp;totalChunkedMessages,
+                                                                    <a href="RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker,
+                                                                    long&nbsp;epoch)</pre>
 <div class="block">Dispatch a list of entries to the consumer. <br/>
  <b>It is also responsible to release entries data and recycle entries object.</b></div>
 <dl>
@@ -732,13 +762,13 @@ extends java.lang.Object</pre>
 <pre class="methodSignature">public&nbsp;int&nbsp;getPriorityLevel()</pre>
 </li>
 </ul>
-<a id="redeliverUnacknowledgedMessages()">
+<a id="redeliverUnacknowledgedMessages(long)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>redeliverUnacknowledgedMessages</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;redeliverUnacknowledgedMessages()</pre>
+<pre class="methodSignature">public&nbsp;void&nbsp;redeliverUnacknowledgedMessages&#8203;(long&nbsp;consumerEpoch)</pre>
 </li>
 </ul>
 <a id="redeliverUnacknowledgedMessages(java.util.List)">

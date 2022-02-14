@@ -592,14 +592,15 @@ implements <a href="TransportCnx.html" title="interface in org.apache.pulsar.bro
 </tr>
 <tr id="i67" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.protocol.ByteBufPair</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#newMessageAndIntercept(long,long,long,int,int,io.netty.buffer.ByteBuf,long%5B%5D,java.lang.String)">newMessageAndIntercept</a></span>&#8203;(long&nbsp;consumerId,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#newMessageAndIntercept(long,long,long,int,int,io.netty.buffer.ByteBuf,long%5B%5D,java.lang.String,long)">newMessageAndIntercept</a></span>&#8203;(long&nbsp;consumerId,
                       long&nbsp;ledgerId,
                       long&nbsp;entryId,
                       int&nbsp;partition,
                       int&nbsp;redeliveryCount,
                       io.netty.buffer.ByteBuf&nbsp;metadataAndPayload,
                       long[]&nbsp;ackSet,
-                      java.lang.String&nbsp;topic)</code></th>
+                      java.lang.String&nbsp;topic,
+                      long&nbsp;epoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i68" class="altColor">
@@ -1383,7 +1384,7 @@ implements <a href="TransportCnx.html" title="interface in org.apache.pulsar.bro
 </dl>
 </li>
 </ul>
-<a id="newMessageAndIntercept(long,long,long,int,int,io.netty.buffer.ByteBuf,long[],java.lang.String)">
+<a id="newMessageAndIntercept(long,long,long,int,int,io.netty.buffer.ByteBuf,long[],java.lang.String,long)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -1396,7 +1397,8 @@ implements <a href="TransportCnx.html" title="interface in org.apache.pulsar.bro
                                                                             int&nbsp;redeliveryCount,
                                                                             io.netty.buffer.ByteBuf&nbsp;metadataAndPayload,
                                                                             long[]&nbsp;ackSet,
-                                                                            java.lang.String&nbsp;topic)</pre>
+                                                                            java.lang.String&nbsp;topic,
+                                                                            long&nbsp;epoch)</pre>
 </li>
 </ul>
 <a id="getState()">

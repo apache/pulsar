@@ -209,7 +209,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tbody>
 <tr class="altColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../Consumer.html#%3Cinit%3E(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,boolean,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId)">Consumer</a></span>&#8203;(<a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../Consumer.html#%3Cinit%3E(org.apache.pulsar.broker.service.Subscription,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,java.lang.String,long,int,java.lang.String,boolean,org.apache.pulsar.broker.service.TransportCnx,java.lang.String,java.util.Map,boolean,org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition,org.apache.pulsar.common.api.proto.KeySharedMeta,org.apache.pulsar.client.api.MessageId,long)">Consumer</a></span>&#8203;(<a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
         org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subType,
         java.lang.String&nbsp;topicName,
         long&nbsp;consumerId,
@@ -222,7 +222,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
         boolean&nbsp;readCompacted,
         org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition&nbsp;subscriptionInitialPosition,
         org.apache.pulsar.common.api.proto.KeySharedMeta&nbsp;keySharedMeta,
-        org.apache.pulsar.client.api.MessageId&nbsp;startMessageId)</code></th>
+        org.apache.pulsar.client.api.MessageId&nbsp;startMessageId,
+        long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">

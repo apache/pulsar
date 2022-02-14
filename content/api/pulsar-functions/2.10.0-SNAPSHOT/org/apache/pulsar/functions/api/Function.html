@@ -26,8 +26,8 @@
     catch(err) {
     }
 //-->
-var data = {"i0":6};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
+var data = {"i0":18,"i1":18,"i2":6};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -150,13 +150,27 @@ public interface <span class="typeNameLabel">Function&lt;I,&#8203;O&gt;</span></
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t5" class="tableTab"><span><a href="javascript:show(16);">Default Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colSecond" scope="col">Method</th>
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code>default void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#close()">close</a></span>()</code></th>
+<td class="colLast">
+<div class="block">Called once to properly close resources when function instance is stopped.</div>
+</td>
+</tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code>default void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initialize(org.apache.pulsar.functions.api.Context)">initialize</a></span>&#8203;(<a href="Context.html" title="interface in org.apache.pulsar.functions.api">Context</a>&nbsp;context)</code></th>
+<td class="colLast">
+<div class="block">Called once to initialize resources when function instance is started.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code><a href="Function.html" title="type parameter in Function">O</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#process(I,org.apache.pulsar.functions.api.Context)">process</a></span>&#8203;(<a href="Function.html" title="type parameter in Function">I</a>&nbsp;input,
        <a href="Context.html" title="interface in org.apache.pulsar.functions.api">Context</a>&nbsp;context)</code></th>
@@ -186,7 +200,7 @@ public interface <span class="typeNameLabel">Function&lt;I,&#8203;O&gt;</span></
 </a><a id="process(I,org.apache.pulsar.functions.api.Context)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>process</h4>
 <pre class="methodSignature"><a href="Function.html" title="type parameter in Function">O</a>&nbsp;process&#8203;(<a href="Function.html" title="type parameter in Function">I</a>&nbsp;input,
@@ -196,6 +210,38 @@ public interface <span class="typeNameLabel">Function&lt;I,&#8203;O&gt;</span></
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the output</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>java.lang.Exception</code></dd>
+</dl>
+</li>
+</ul>
+<a id="initialize(org.apache.pulsar.functions.api.Context)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>initialize</h4>
+<pre class="methodSignature">default&nbsp;void&nbsp;initialize&#8203;(<a href="Context.html" title="interface in org.apache.pulsar.functions.api">Context</a>&nbsp;context)
+                 throws java.lang.Exception</pre>
+<div class="block">Called once to initialize resources when function instance is started.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>context</code> - The Function context</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>java.lang.Exception</code></dd>
+</dl>
+</li>
+</ul>
+<a id="close()">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>close</h4>
+<pre class="methodSignature">default&nbsp;void&nbsp;close()
+            throws java.lang.Exception</pre>
+<div class="block">Called once to properly close resources when function instance is stopped.</div>
+<dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code>java.lang.Exception</code></dd>
 </dl>

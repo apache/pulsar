@@ -244,8 +244,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i16" class="altColor">
-<td class="colFirst"><code>default void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initializeDispatchRateLimiterIfNeeded(java.util.Optional)">initializeDispatchRateLimiterIfNeeded</a></span>&#8203;(java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;policies)</code></th>
+<td class="colFirst"><code>default boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#initializeDispatchRateLimiterIfNeeded()">initializeDispatchRateLimiterIfNeeded</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i17" class="rowColor">
@@ -265,7 +265,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i20" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i21" class="rowColor">
@@ -302,7 +303,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i26" class="altColor">
 <td class="colFirst"><code>default void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateRateLimiter(org.apache.pulsar.common.policies.data.DispatchRate)">updateRateLimiter</a></span>&#8203;(org.apache.pulsar.common.policies.data.DispatchRate&nbsp;dispatchRate)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateRateLimiter()">updateRateLimiter</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -474,13 +475,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre class="methodSignature">org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;getType()</pre>
 </li>
 </ul>
-<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">
+<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>redeliverUnacknowledgedMessages</h4>
-<pre class="methodSignature">void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</pre>
+<pre class="methodSignature">void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                                     long&nbsp;consumerEpoch)</pre>
 </li>
 </ul>
 <a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,java.util.List)">
@@ -520,22 +522,22 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <pre class="methodSignature">default&nbsp;java.util.Optional&lt;<a href="persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&gt;&nbsp;getRateLimiter()</pre>
 </li>
 </ul>
-<a id="updateRateLimiter(org.apache.pulsar.common.policies.data.DispatchRate)">
+<a id="updateRateLimiter()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>updateRateLimiter</h4>
-<pre class="methodSignature">default&nbsp;void&nbsp;updateRateLimiter&#8203;(org.apache.pulsar.common.policies.data.DispatchRate&nbsp;dispatchRate)</pre>
+<pre class="methodSignature">default&nbsp;void&nbsp;updateRateLimiter()</pre>
 </li>
 </ul>
-<a id="initializeDispatchRateLimiterIfNeeded(java.util.Optional)">
+<a id="initializeDispatchRateLimiterIfNeeded()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>initializeDispatchRateLimiterIfNeeded</h4>
-<pre class="methodSignature">default&nbsp;void&nbsp;initializeDispatchRateLimiterIfNeeded&#8203;(java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;policies)</pre>
+<pre class="methodSignature">default&nbsp;boolean&nbsp;initializeDispatchRateLimiterIfNeeded()</pre>
 </li>
 </ul>
 <a id="trackDelayedDelivery(long,long,org.apache.pulsar.common.api.proto.MessageMetadata)">

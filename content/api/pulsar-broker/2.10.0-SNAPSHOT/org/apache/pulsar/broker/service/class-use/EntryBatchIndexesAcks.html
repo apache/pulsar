@@ -185,32 +185,46 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
             long&nbsp;totalBytes,
             long&nbsp;totalChunkedMessages,
             <a href="../RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>io.netty.util.concurrent.Future&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">Consumer.</span><code><span class="memberNameLink"><a href="../Consumer.html#sendMessages(java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,int,long,long,org.apache.pulsar.broker.service.RedeliveryTracker,long)">sendMessages</a></span>&#8203;(java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
+            <a href="../EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
+            <a href="../EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
+            int&nbsp;totalMessages,
+            long&nbsp;totalBytes,
+            long&nbsp;totalChunkedMessages,
+            <a href="../RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker,
+            long&nbsp;epoch)</code></th>
 <td class="colLast">
 <div class="block">Dispatch a list of entries to the consumer.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>io.netty.util.concurrent.Future&lt;java.lang.Void&gt;</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PulsarCommandSender.</span><code><span class="memberNameLink"><a href="../PulsarCommandSender.html#sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker)">sendMessagesToConsumer</a></span>&#8203;(long&nbsp;consumerId,
+<th class="colSecond" scope="row"><span class="typeNameLabel">PulsarCommandSender.</span><code><span class="memberNameLink"><a href="../PulsarCommandSender.html#sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker,long)">sendMessagesToConsumer</a></span>&#8203;(long&nbsp;consumerId,
                       java.lang.String&nbsp;topicName,
                       <a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
                       int&nbsp;partitionIdx,
                       java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
                       <a href="../EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
                       <a href="../EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
-                      <a href="../RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker)</code></th>
+                      <a href="../RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker,
+                      long&nbsp;epoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>io.netty.channel.ChannelPromise</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PulsarCommandSenderImpl.</span><code><span class="memberNameLink"><a href="../PulsarCommandSenderImpl.html#sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker)">sendMessagesToConsumer</a></span>&#8203;(long&nbsp;consumerId,
+<th class="colSecond" scope="row"><span class="typeNameLabel">PulsarCommandSenderImpl.</span><code><span class="memberNameLink"><a href="../PulsarCommandSenderImpl.html#sendMessagesToConsumer(long,java.lang.String,org.apache.pulsar.broker.service.Subscription,int,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.RedeliveryTracker,long)">sendMessagesToConsumer</a></span>&#8203;(long&nbsp;consumerId,
                       java.lang.String&nbsp;topicName,
                       <a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
                       int&nbsp;partitionIdx,
                       java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
                       <a href="../EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
                       <a href="../EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
-                      <a href="../RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker)</code></th>
+                      <a href="../RedeliveryTracker.html" title="interface in org.apache.pulsar.broker.service">RedeliveryTracker</a>&nbsp;redeliveryTracker,
+                      long&nbsp;epoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -232,11 +246,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#dispatchEntriesToConsumer(org.apache.pulsar.broker.service.Consumer,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.SendMessageInfo)">dispatchEntriesToConsumer</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;currentConsumer,
+<th class="colSecond" scope="row"><span class="typeNameLabel">PersistentDispatcherSingleActiveConsumer.</span><code><span class="memberNameLink"><a href="../persistent/PersistentDispatcherSingleActiveConsumer.html#dispatchEntriesToConsumer(org.apache.pulsar.broker.service.Consumer,java.util.List,org.apache.pulsar.broker.service.EntryBatchSizes,org.apache.pulsar.broker.service.EntryBatchIndexesAcks,org.apache.pulsar.broker.service.SendMessageInfo,long)">dispatchEntriesToConsumer</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;currentConsumer,
                          java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries,
                          <a href="../EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a>&nbsp;batchSizes,
                          <a href="../EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a>&nbsp;batchIndexesAcks,
-                         <a href="../SendMessageInfo.html" title="class in org.apache.pulsar.broker.service">SendMessageInfo</a>&nbsp;sendMessageInfo)</code></th>
+                         <a href="../SendMessageInfo.html" title="class in org.apache.pulsar.broker.service">SendMessageInfo</a>&nbsp;sendMessageInfo,
+                         long&nbsp;epoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>

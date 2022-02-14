@@ -481,7 +481,8 @@ implements <a href="../Subscription.html" title="interface in org.apache.pulsar.
 </tr>
 <tr id="i43" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i44" class="altColor">
@@ -1156,16 +1157,17 @@ implements <a href="../Subscription.html" title="interface in org.apache.pulsar.
                                                                                    boolean&nbsp;getEarliestTimeInBacklog)</pre>
 </li>
 </ul>
-<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">
+<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>redeliverUnacknowledgedMessages</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</pre>
+<pre class="methodSignature">public&nbsp;void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                                            long&nbsp;consumerEpoch)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../Subscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></code>&nbsp;in interface&nbsp;<code><a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a></code></dd>
+<dd><code><a href="../Subscription.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></code>&nbsp;in interface&nbsp;<code><a href="../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a></code></dd>
 </dl>
 </li>
 </ul>

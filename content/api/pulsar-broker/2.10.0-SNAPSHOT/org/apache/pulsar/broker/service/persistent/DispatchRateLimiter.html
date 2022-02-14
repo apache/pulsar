@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":9,"i6":9,"i7":9,"i8":10,"i9":9,"i10":10,"i11":10,"i12":9,"i13":9,"i14":10,"i15":10,"i16":10,"i17":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":9,"i6":9,"i7":9,"i8":10,"i9":9,"i10":10,"i11":9,"i12":10,"i13":9,"i14":9,"i15":10,"i16":10,"i17":10,"i18":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -276,13 +276,18 @@ extends java.lang.Object</pre>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
+<td class="colFirst"><code>static boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isDispatchRateEnabled(org.apache.pulsar.common.policies.data.DispatchRate)">isDispatchRateEnabled</a></span>&#8203;(org.apache.pulsar.common.policies.data.DispatchRate&nbsp;dispatchRate)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isDispatchRateLimitingEnabled()">isDispatchRateLimitingEnabled</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Checks if dispatch-rate limiting is enabled.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>static boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isDispatchRateNeeded(org.apache.pulsar.broker.service.BrokerService,java.util.Optional,java.lang.String,org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type)">isDispatchRateNeeded</a></span>&#8203;(<a href="../BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService,
                     java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;policies,
@@ -290,7 +295,7 @@ extends java.lang.Object</pre>
                     <a href="DispatchRateLimiter.Type.html" title="enum in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter.Type</a>&nbsp;type)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>static boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isDispatchRateNeeded(org.apache.pulsar.broker.ServiceConfiguration,java.util.Optional,java.lang.String,org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type)">isDispatchRateNeeded</a></span>&#8203;(org.apache.pulsar.broker.ServiceConfiguration&nbsp;serviceConfig,
                     java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;policies,
@@ -298,12 +303,12 @@ extends java.lang.Object</pre>
                     <a href="DispatchRateLimiter.Type.html" title="enum in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter.Type</a>&nbsp;type)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#onPoliciesUpdate(org.apache.pulsar.common.policies.data.Policies)">onPoliciesUpdate</a></span>&#8203;(org.apache.pulsar.common.policies.data.Policies&nbsp;data)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tryDispatchPermit(long,long)">tryDispatchPermit</a></span>&#8203;(long&nbsp;msgPermits,
                  long&nbsp;bytePermits)</code></th>
@@ -311,14 +316,14 @@ extends java.lang.Object</pre>
 <div class="block">It acquires msg and bytes permits from rate-limiter and returns if acquired permits succeed.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateDispatchRate()">updateDispatchRate</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Update dispatch-throttling-rate.</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateDispatchRate(org.apache.pulsar.common.policies.data.DispatchRate)">updateDispatchRate</a></span>&#8203;(org.apache.pulsar.common.policies.data.DispatchRate&nbsp;dispatchRate)</code></th>
 <td class="colLast">
@@ -586,6 +591,15 @@ extends java.lang.Object</pre>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
+</li>
+</ul>
+<a id="isDispatchRateEnabled(org.apache.pulsar.common.policies.data.DispatchRate)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>isDispatchRateEnabled</h4>
+<pre class="methodSignature">public static&nbsp;boolean&nbsp;isDispatchRateEnabled&#8203;(org.apache.pulsar.common.policies.data.DispatchRate&nbsp;dispatchRate)</pre>
 </li>
 </ul>
 <a id="close()">

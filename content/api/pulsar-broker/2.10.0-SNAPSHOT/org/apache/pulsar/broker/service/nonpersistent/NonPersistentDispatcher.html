@@ -209,7 +209,8 @@ extends <a href="../Dispatcher.html" title="interface in org.apache.pulsar.broke
 </tr>
 <tr id="i10" class="altColor">
 <td class="colFirst"><code>default void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></span>&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                               long&nbsp;consumerEpoch)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i11" class="rowColor">
@@ -241,7 +242,7 @@ extends <a href="../Dispatcher.html" title="interface in org.apache.pulsar.broke
 <!--   -->
 </a>
 <h3>Methods inherited from interface&nbsp;org.apache.pulsar.broker.service.<a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></h3>
-<code><a href="../Dispatcher.html#checkAndUnblockIfStuck()">checkAndUnblockIfStuck</a>, <a href="../Dispatcher.html#clearDelayedMessages()">clearDelayedMessages</a>, <a href="../Dispatcher.html#consumerFlow(org.apache.pulsar.broker.service.Consumer,int)">consumerFlow</a>, <a href="../Dispatcher.html#cursorIsReset()">cursorIsReset</a>, <a href="../Dispatcher.html#disconnectActiveConsumers(boolean)">disconnectActiveConsumers</a>, <a href="../Dispatcher.html#disconnectAllConsumers()">disconnectAllConsumers</a>, <a href="../Dispatcher.html#getNumberOfDelayedMessages()">getNumberOfDelayedMessages</a>, <a href="../Dispatcher.html#getRateLimiter()">getRateLimiter</a>, <a href="../Dispatcher.html#getRedeliveryTracker()">getRedeliveryTracker</a>, <a href="../Dispatcher.html#initializeDispatchRateLimiterIfNeeded(java.util.Optional)">initializeDispatchRateLimiterIfNeeded</a>, <a href="../Dispatcher.html#isClosed()">isClosed</a>, <a href="../Dispatcher.html#markDeletePositionMoveForward()">markDeletePositionMoveForward</a>, <a href="../Dispatcher.html#resetCloseFuture()">resetCloseFuture</a>, <a href="../Dispatcher.html#trackDelayedDelivery(long,long,org.apache.pulsar.common.api.proto.MessageMetadata)">trackDelayedDelivery</a>, <a href="../Dispatcher.html#updateRateLimiter(org.apache.pulsar.common.policies.data.DispatchRate)">updateRateLimiter</a></code></li>
+<code><a href="../Dispatcher.html#checkAndUnblockIfStuck()">checkAndUnblockIfStuck</a>, <a href="../Dispatcher.html#clearDelayedMessages()">clearDelayedMessages</a>, <a href="../Dispatcher.html#consumerFlow(org.apache.pulsar.broker.service.Consumer,int)">consumerFlow</a>, <a href="../Dispatcher.html#cursorIsReset()">cursorIsReset</a>, <a href="../Dispatcher.html#disconnectActiveConsumers(boolean)">disconnectActiveConsumers</a>, <a href="../Dispatcher.html#disconnectAllConsumers()">disconnectAllConsumers</a>, <a href="../Dispatcher.html#getNumberOfDelayedMessages()">getNumberOfDelayedMessages</a>, <a href="../Dispatcher.html#getRateLimiter()">getRateLimiter</a>, <a href="../Dispatcher.html#getRedeliveryTracker()">getRedeliveryTracker</a>, <a href="../Dispatcher.html#initializeDispatchRateLimiterIfNeeded()">initializeDispatchRateLimiterIfNeeded</a>, <a href="../Dispatcher.html#isClosed()">isClosed</a>, <a href="../Dispatcher.html#markDeletePositionMoveForward()">markDeletePositionMoveForward</a>, <a href="../Dispatcher.html#resetCloseFuture()">resetCloseFuture</a>, <a href="../Dispatcher.html#trackDelayedDelivery(long,long,org.apache.pulsar.common.api.proto.MessageMetadata)">trackDelayedDelivery</a>, <a href="../Dispatcher.html#updateRateLimiter()">updateRateLimiter</a></code></li>
 </ul>
 </li>
 </ul>
@@ -417,16 +418,17 @@ extends <a href="../Dispatcher.html" title="interface in org.apache.pulsar.broke
 <pre class="methodSignature">boolean&nbsp;hasPermits()</pre>
 </li>
 </ul>
-<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">
+<a id="redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>redeliverUnacknowledgedMessages</h4>
-<pre class="methodSignature">default&nbsp;void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</pre>
+<pre class="methodSignature">default&nbsp;void&nbsp;redeliverUnacknowledgedMessages&#8203;(<a href="../Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer,
+                                             long&nbsp;consumerEpoch)</pre>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../Dispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer)">redeliverUnacknowledgedMessages</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
+<dd><code><a href="../Dispatcher.html#redeliverUnacknowledgedMessages(org.apache.pulsar.broker.service.Consumer,long)">redeliverUnacknowledgedMessages</a></code>&nbsp;in interface&nbsp;<code><a href="../Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></code></dd>
 </dl>
 </li>
 </ul>
