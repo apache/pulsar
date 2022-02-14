@@ -138,6 +138,10 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         return acker.getBatchSize();
     }
 
+    public int getOriginalBatchSize() {
+        return this.batchSize;
+    }
+
     public MessageIdImpl prevBatchMessageId() {
         return new MessageIdImpl(
             ledgerId, entryId - 1, partitionIndex);
