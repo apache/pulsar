@@ -363,7 +363,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         value = ConcurrentBitSetRecyclable.create(batchMessageId.getAcker().getBitSet());
                     } else {
                         value = ConcurrentBitSetRecyclable.create();
-                        value.set(0, batchMessageId.getBatchIndex());
+                        value.set(0, batchMessageId.getOriginalBatchSize());
                     }
                     return value;
                 });
@@ -546,8 +546,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
         if (shouldFlush) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {} -- individual-batch-index-acks: {}",
-                        consumer, lastCumulativeAck, pendingIndividualAcks, pendingIndividualBatchIndexAcks);
+                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}"
+                                + " -- individual-batch-index-acks: {}",
+                        consumer, lastCumulativeAck, pendingIndividualAcks, entriesToAck);
             }
             cnx.ctx().flush();
         }
