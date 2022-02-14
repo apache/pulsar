@@ -67,19 +67,34 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
 
     // public key in oauth2 server to verify the client passed in token. get from https://jwt.io/
-    private final String TOKEN_TEST_PUBLIC_KEY = "data:;base64,MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2tZd/4gJda3U2Pc3tpgRAN7JPGWx/Gn17v/0IiZlNNRbP/Mmf0Vc6G1qsnaRaWNWOR+t6/a6ekFHJMikQ1N2X6yfz4UjMc8/G2FDPRmWjA+GURzARjVhxc/BBEYGoD0Kwvbq/u9CZm2QjlKrYaLfg3AeB09j0btNrDJ8rBsNzU6AuzChRvXj9IdcE/A/4N/UQ+S9cJ4UXP6NJbToLwajQ5km+CnxdGE6nfB7LWHvOFHjn9C2Rb9e37CFlmeKmIVFkagFM0gbmGOb6bnGI8Bp/VNGV0APef4YaBvBTqwoZ1Z4aDHy5eRxXfAMdtBkBupmBXqL6bpd15XRYUbu/7ck9QIDAQAB";
+    private final String TOKEN_TEST_PUBLIC_KEY = "data:;base64,MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2tZd/"
+            + "4gJda3U2Pc3tpgRAN7JPGWx/Gn17v/0IiZlNNRbP/Mmf0Vc6G1qsnaRaWNWOR+t6/a6ekFHJMikQ1N2X6yfz4UjMc8/G2FDPRm"
+            + "WjA+GURzARjVhxc/BBEYGoD0Kwvbq/u9CZm2QjlKrYaLfg3AeB09j0btNrDJ8rBsNzU6AuzChRvXj9IdcE/A/4N/UQ+S9cJ4UXP6"
+            + "NJbToLwajQ5km+CnxdGE6nfB7LWHvOFHjn9C2Rb9e37CFlmeKmIVFkagFM0gbmGOb6bnGI8Bp/VNGV0APef4YaBvBTqwoZ1Z4aDH"
+            + "y5eRxXfAMdtBkBupmBXqL6bpd15XRYUbu/7ck9QIDAQAB";
 
     private final String ADMIN_ROLE = "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x@clients";
 
     // Credentials File, which contains "client_id" and "client_secret"
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
 
+    private final String authenticationPlugin = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
+
+    private String authenticationParameters;
+
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        ServiceConfiguration serviceConfiguration = getDefaultConf();
-        serviceConfiguration.setSystemTopicEnabled(true);
-        serviceConfiguration.setTransactionCoordinatorEnabled(true);
+        Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
+        HashMap<String, Object> params = new HashMap<>();
+        params.put("issuerUrl", new URL("https://dev-kt-aa9ne.us.auth0.com"));
+        params.put("privateKey", path.toUri().toURL());
+        params.put("audience", "https://dev-kt-aa9ne.us.auth0.com/api/v2/");
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        authenticationParameters = jsonMapper.writeValueAsString(params);
+
+        conf.setSystemTopicEnabled(true);
+        conf.setTransactionCoordinatorEnabled(true);
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setAuthenticationRefreshCheckSeconds(5);
@@ -99,7 +114,17 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         properties.setProperty("tokenPublicKey", TOKEN_TEST_PUBLIC_KEY);
 
         conf.setProperties(properties);
+
+        conf.setBrokerClientAuthenticationPlugin(authenticationPlugin);
+        conf.setBrokerClientAuthenticationParameters(authenticationParameters);
         super.init();
+        PerfClientUtils.setExitProcedure(code -> {
+            log.error("JVM exit code is {}", code);
+            if (code != 0) {
+                throw new RuntimeException("JVM should exit with code " + code);
+            }
+        });
+        clientSetup();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -113,48 +138,36 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
         log.info("Credentials File path: {}", path.toString());
 
-        // AuthenticationOAuth2
-        Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
-                new URL("https://dev-kt-aa9ne.us.auth0.com"),
-                path.toUri().toURL(),  // key file path
-                "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
-        );
-
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
-                .authentication(authentication)
+                .authentication(authenticationPlugin, authenticationParameters)
                 .build());
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .authentication(authentication));
 
         // Setup namespaces
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test",
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+
+        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(true)
+                .authentication(authenticationPlugin, authenticationParameters));
     }
 
     @Test
     public void testTransactionPerf() throws Exception {
-        Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
-        clientSetup();
         String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -np 1 -au %s"
-                + " --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2"
-                + " --auth-params %s";
-        HashMap<String, Object> params = new HashMap<>();
-        params.put("issuerUrl", new URL("https://dev-kt-aa9ne.us.auth0.com"));
-        params.put("privateKey", path.toUri().toURL());
-        params.put("audience", "https://dev-kt-aa9ne.us.auth0.com/api/v2/");
+                + " --auth-plugin %s --auth-params %s";
         String testConsumeTopic = testTopic + UUID.randomUUID();
         String testProduceTopic = testTopic + UUID.randomUUID();
         String testSub = "testSub";
-        ObjectMapper jsonMapper = ObjectMapperFactory.create();
         String args = String.format(argString, testConsumeTopic, testProduceTopic,
                 pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()),
-                jsonMapper.writeValueAsString(params));
+                authenticationPlugin, authenticationParameters);
 
         Producer<byte[]> produceToConsumeTopic = pulsarClient.newProducer(Schema.BYTES)
                 .producerName("perf-transaction-producer")
@@ -211,46 +224,4 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
 
     }
 
-
-    private void testSyncProducerAndConsumer() throws Exception {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionName("my-subscriber-name").subscribe();
-
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
-
-        Producer<byte[]> producer = producerBuilder.create();
-        for (int i = 0; i < 10; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
-        for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-        }
-        // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
-    }
-
-    @Test
-    public void testTokenProducerAndConsumer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-        clientSetup();
-
-        // test rest by admin
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
-
-        // test protocol by producer/consumer
-        testSyncProducerAndConsumer();
-
-        log.info("-- Exiting {} test --", methodName);
-    }
 }
