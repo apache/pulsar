@@ -11,8 +11,7 @@ Pulsar Manager is a web-based GUI management and monitoring tool that helps admi
 
 ## Install
 
-> **Note**
-> You can choose Docker installation（Method 1）, or directly download the source file and decompress it for installation（Method2），Method 1 and Method 2 can be chosen either.
+To install Pulsar manager, you can choose one of the following methods.
 
 * Method 1: use Docker tool
 
@@ -53,7 +52,7 @@ cd pulsar-manager
 cp -r ../dist ui
 ```
 
-### Use custom databases[optional]
+### Use custom databases(optional)
 
 If you have a large amount of data, you can use a custom database, otherwise, some display errors may occur, such as the topic information cannot be displayed when the topic exceeds 10000. The following is an example of PostgreSQL.
 
@@ -74,7 +73,7 @@ spring.datasource.password=postgres
 ./gradlew build -x test
 ```
 
-### Enable JWT authentication[optional]
+### Enable JWT authentication(optional)
 
 If you want to turn on JWT authentication, configure the following parameters:
 
