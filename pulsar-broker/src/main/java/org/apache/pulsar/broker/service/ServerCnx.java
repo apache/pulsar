@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -952,6 +953,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 subscriptionName,
                 TopicOperation.CONSUME
         );
+
+        // Make sure the consumer future is put into the consumers map first to avoid the same consumer
+        // epoch using different consumer futures, and only remove the consumer future from the map
+        // if subscribe failed .
+        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+        CompletableFuture<Consumer> existingConsumerFuture =
+                consumers.putIfAbsent(consumerId, consumerFuture);
         isAuthorizedFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
@@ -964,12 +972,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     Metadata.validateMetadata(metadata);
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();
+                    consumers.remove(consumerId, consumerFuture);
                     commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                     return null;
                 }
-                CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-                CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
-                        consumerFuture);
 
                 if (existingConsumerFuture != null) {
                     if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
@@ -1024,6 +1030,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 new SubscriptionNotFoundException(
                                                         "Subscription does not exist"));
                             }
+                            long consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+                            if (subscribe.hasConsumerEpoch()) {
+                                consumerEpoch = subscribe.getConsumerEpoch();
+                            }
                             SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
                                     .subscriptionName(subscriptionName)
                                     .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
@@ -1034,6 +1044,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(SubscriptionOption.getPropertiesMap(
                                             subscribe.getSubscriptionPropertiesList()))
+                                    .consumerEpoch(consumerEpoch)
                                     .build();
                             if (schema != null) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
@@ -1101,11 +1112,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                consumers.remove(consumerId, consumerFuture);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
+            consumers.remove(consumerId, consumerFuture);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         });
@@ -1533,7 +1546,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleRedeliverUnacknowledged(CommandRedeliverUnacknowledgedMessages redeliver) {
         checkArgument(state == State.Connected);
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received Resend Command from consumer {} ", remoteAddress, redeliver.getConsumerId());
+            log.debug("[{}] redeliverUnacknowledged from consumer {}, consumerEpoch {}",
+                    remoteAddress, redeliver.getConsumerId(), redeliver.getConsumerEpoch());
         }
 
         CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
@@ -1543,7 +1557,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
-                consumer.redeliverUnacknowledgedMessages();
+                if (redeliver.hasConsumerEpoch()) {
+                    consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch());
+                } else {
+                    consumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+                }
             }
         }
     }
@@ -2693,9 +2711,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     public ByteBufPair newMessageAndIntercept(long consumerId, long ledgerId, long entryId, int partition,
-            int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, String topic) {
+            int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, String topic, long epoch) {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
-                ackSet);
+                ackSet, epoch);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
         try {
             val brokerInterceptor = getBrokerService().getInterceptor();

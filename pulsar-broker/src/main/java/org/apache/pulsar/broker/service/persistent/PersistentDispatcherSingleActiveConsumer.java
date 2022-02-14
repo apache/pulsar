@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import io.netty.util.Recycler;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -148,7 +150,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
-        Consumer readConsumer = (Consumer) obj;
+        ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) obj;
+        Consumer readConsumer = readEntriesCtx.getConsumer();
+        long epoch = readEntriesCtx.getEpoch();
+        readEntriesCtx.recycle();
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
         }
@@ -201,17 +206,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, false);
-            dispatchEntriesToConsumer(currentConsumer, entries, batchSizes, batchIndexesAcks, sendMessageInfo);
+            dispatchEntriesToConsumer(currentConsumer, entries, batchSizes, batchIndexesAcks, sendMessageInfo, epoch);
         }
     }
 
     protected void dispatchEntriesToConsumer(Consumer currentConsumer, List<Entry> entries,
                                              EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-                                             SendMessageInfo sendMessageInfo) {
+                                             SendMessageInfo sendMessageInfo, long epoch) {
         currentConsumer
             .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    redeliveryTracker)
+                    redeliveryTracker, epoch)
             .addListener(future -> {
                 if (future.isSuccess()) {
                     int permits = dispatchThrottlingOnBatchMessageEnabled ? entries.size()
@@ -283,13 +288,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer) {
+    public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalRedeliverUnacknowledgedMessages(consumer);
+            internalRedeliverUnacknowledgedMessages(consumer, consumerEpoch);
         }));
     }
 
-    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer) {
+    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
@@ -305,6 +310,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         cancelPendingRead();
 
         if (!havePendingRead) {
+            if (consumerEpoch > consumer.getConsumerEpoch()) {
+                consumer.setConsumerEpoch(consumerEpoch);
+            }
             cursor.rewind();
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
@@ -321,7 +329,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         // We cannot redeliver single messages to single consumers to preserve ordering.
         positions.forEach(redeliveryTracker::addIfAbsent);
-        redeliverUnacknowledgedMessages(consumer);
+        redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
     }
 
     @Override
@@ -351,8 +359,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
                         this, consumer);
             } else {
+                ReadEntriesCtx readEntriesCtx =
+                        ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
                 cursor.asyncReadEntriesOrWait(messagesToRead,
-                        bytesToRead, this, consumer, topic.getMaxReadPosition());
+                        bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -467,7 +477,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     private synchronized void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
         havePendingRead = false;
-        Consumer c = (Consumer) ctx;
+        ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) ctx;
+        Consumer c = readEntriesCtx.getConsumer();
+        readEntriesCtx.recycle();
 
         long waitTimeMillis = readFailureBackoff.next();
 
@@ -584,4 +596,44 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
+
+    public static class ReadEntriesCtx {
+
+        private Consumer consumer;
+        private long epoch;
+
+        private final Recycler.Handle<ReadEntriesCtx> recyclerHandle;
+
+        private ReadEntriesCtx(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+        private static final Recycler<ReadEntriesCtx> RECYCLER =
+                new Recycler<ReadEntriesCtx>() {
+            @Override
+            protected ReadEntriesCtx newObject(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
+                return new ReadEntriesCtx(recyclerHandle);
+            }
+        };
+
+        public static ReadEntriesCtx create(Consumer consumer, long epoch) {
+            ReadEntriesCtx readEntriesCtx = RECYCLER.get();
+            readEntriesCtx.consumer = consumer;
+            readEntriesCtx.epoch = epoch;
+            return readEntriesCtx;
+        }
+
+        Consumer getConsumer() {
+            return consumer;
+        }
+
+        long getEpoch() {
+            return epoch;
+        }
+
+        public void recycle() {
+            consumer = null;
+            epoch = 0;
+            recyclerHandle.recycle(this);
+        }
+    }
 }
