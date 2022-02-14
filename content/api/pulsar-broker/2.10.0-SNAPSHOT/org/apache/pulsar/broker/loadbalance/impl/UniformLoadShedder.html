@@ -140,9 +140,9 @@ extends java.lang.Object
 implements <a href="../LoadSheddingStrategy.html" title="interface in org.apache.pulsar.broker.loadbalance">LoadSheddingStrategy</a></pre>
 <div class="block">This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between
  broker with highest load and broker with lowest load. If the difference is higher than configured thresholds
- <code>ServiceConfiguration.getLoadBalancerMsgRateDifferenceShedderThreshold()</code> and
- <code>ServiceConfiguration.getLoadBalancerMsgRateDifferenceShedderThreshold()</code> then it finds out bundles which can
- be unloaded to distribute traffic evenly across all brokers.</div>
+ <code>ServiceConfiguration.getLoadBalancerMsgRateDifferenceShedderThreshold()</code> or
+ <code>ServiceConfiguration#loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold()</code> then it finds out
+ bundles which can be unloaded to distribute traffic evenly across all brokers.</div>
 </li>
 </ul>
 </div>

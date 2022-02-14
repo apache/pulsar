@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":9,"i11":9,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":9,"i29":10,"i30":10,"i31":9,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":42,"i42":10,"i43":10,"i44":10,"i45":10,"i46":42,"i47":10,"i48":10,"i49":10,"i50":10,"i51":42};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":9,"i11":9,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":9,"i29":9,"i30":10,"i31":10,"i32":9,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":42,"i43":10,"i44":10,"i45":10,"i46":10,"i47":42,"i48":10,"i49":10,"i50":10,"i51":10,"i52":42};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -380,55 +380,62 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i28" class="altColor">
+<td class="colFirst"><code>protected static boolean</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isRedirectException(java.lang.Throwable)">isRedirectException</a></span>&#8203;(java.lang.Throwable&nbsp;ex)</code></th>
+<td class="colLast">
+<div class="block">Check current exception whether is redirect exception.</div>
+</td>
+</tr>
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code>static com.fasterxml.jackson.databind.ObjectMapper</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#jsonMapper()">jsonMapper</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.BacklogQuota</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#namespaceBacklogQuota(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType)">namespaceBacklogQuota</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespace,
                      org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType&nbsp;backlogQuotaType)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.impl.DispatchRateImpl</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#replicatorDispatchRate()">replicatorDispatchRate</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i32" class="altColor">
 <td class="colFirst"><code>protected static void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resumeAsyncResponseExceptionally(javax.ws.rs.container.AsyncResponse,java.lang.Throwable)">resumeAsyncResponseExceptionally</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                 java.lang.Throwable&nbsp;exception)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#setServletContext(javax.servlet.ServletContext)">setServletContext</a></span>&#8203;(javax.servlet.ServletContext&nbsp;servletContext)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.SubscribeRate</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#subscribeRate()">subscribeRate</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.impl.DispatchRateImpl</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#subscriptionDispatchRate()">subscriptionDispatchRate</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tryCreatePartitionsAsync(int)">tryCreatePartitionsAsync</a></span>&#8203;(int&nbsp;numPartitions)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateAdminAccessForTenant(java.lang.String)">validateAdminAccessForTenant</a></span>&#8203;(java.lang.String&nbsp;property)</code></th>
 <td class="colLast">
 <div class="block">Checks that the http client role has admin access to the specified tenant.</div>
 </td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateBundleOwnership(java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.naming.NamespaceBundle)">validateBundleOwnership</a></span>&#8203;(java.lang.String&nbsp;property,
                        java.lang.String&nbsp;cluster,
@@ -438,23 +445,23 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
                        <a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateClusterExists(java.lang.String)">validateClusterExists</a></span>&#8203;(java.lang.String&nbsp;cluster)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateGlobalNamespaceOwnership()">validateGlobalNamespaceOwnership</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i40" class="altColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespaceName(java.lang.String,java.lang.String)">validateNamespaceName</a></span>&#8203;(java.lang.String&nbsp;property,
                      java.lang.String&nbsp;namespace)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i41" class="rowColor">
+<tr id="i42" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespaceName(java.lang.String,java.lang.String,java.lang.String)">validateNamespaceName</a></span>&#8203;(java.lang.String&nbsp;property,
                      java.lang.String&nbsp;cluster,
@@ -463,33 +470,33 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 </td>
 </tr>
-<tr id="i42" class="altColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePartitionedTopicMetadata(java.lang.String,java.lang.String,java.lang.String)">validatePartitionedTopicMetadata</a></span>&#8203;(java.lang.String&nbsp;tenant,
                                 java.lang.String&nbsp;namespace,
                                 java.lang.String&nbsp;encodedTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePartitionedTopicName(java.lang.String,java.lang.String,java.lang.String)">validatePartitionedTopicName</a></span>&#8203;(java.lang.String&nbsp;tenant,
                             java.lang.String&nbsp;namespace,
                             java.lang.String&nbsp;encodedTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePersistencePolicies(org.apache.pulsar.common.policies.data.PersistencePolicies)">validatePersistencePolicies</a></span>&#8203;(org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistence)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePersistentTopicName(java.lang.String,java.lang.String,java.lang.String)">validatePersistentTopicName</a></span>&#8203;(java.lang.String&nbsp;property,
                            java.lang.String&nbsp;namespace,
                            java.lang.String&nbsp;encodedTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePersistentTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">validatePersistentTopicName</a></span>&#8203;(java.lang.String&nbsp;property,
                            java.lang.String&nbsp;cluster,
@@ -499,7 +506,7 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 </td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePoliciesReadOnlyAccess()">validatePoliciesReadOnlyAccess</a></span>()</code></th>
 <td class="colLast">
@@ -507,26 +514,26 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
  configuration metadata-store.</div>
 </td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePoliciesReadOnlyAccessAsync()">validatePoliciesReadOnlyAccessAsync</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateSuperUserAccess()">validateSuperUserAccess</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Checks whether the user has Pulsar Super-User access to the system.</div>
 </td>
 </tr>
-<tr id="i50" class="altColor">
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicName(java.lang.String,java.lang.String,java.lang.String)">validateTopicName</a></span>&#8203;(java.lang.String&nbsp;property,
                  java.lang.String&nbsp;namespace,
                  java.lang.String&nbsp;encodedTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i51" class="rowColor">
+<tr id="i52" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">validateTopicName</a></span>&#8203;(java.lang.String&nbsp;property,
                  java.lang.String&nbsp;cluster,
@@ -1169,10 +1176,26 @@ public static&nbsp;&lt;T&gt;&nbsp;T&nbsp;checkNotNull&#8203;(T&nbsp;reference)</
 <a id="validatePersistencePolicies(org.apache.pulsar.common.policies.data.PersistencePolicies)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>validatePersistencePolicies</h4>
 <pre class="methodSignature">protected&nbsp;void&nbsp;validatePersistencePolicies&#8203;(org.apache.pulsar.common.policies.data.PersistencePolicies&nbsp;persistence)</pre>
+</li>
+</ul>
+<a id="isRedirectException(java.lang.Throwable)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>isRedirectException</h4>
+<pre class="methodSignature">protected static&nbsp;boolean&nbsp;isRedirectException&#8203;(java.lang.Throwable&nbsp;ex)</pre>
+<div class="block">Check current exception whether is redirect exception.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>ex</code> - The throwable.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Whether is redirect exception</dd>
+</dl>
 </li>
 </ul>
 </li>
