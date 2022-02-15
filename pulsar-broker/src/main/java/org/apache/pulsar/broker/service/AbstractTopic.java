@@ -1046,8 +1046,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
      */
     public void updatePublishDispatcher() {
         PublishRate publishRate = topicPolicies.getPublishRate().get();
-        if (publishRate != null && (publishRate.publishThrottlingRateInByte > 0
-                || publishRate.publishThrottlingRateInMsg > 0)) {
+        if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
             log.info("Enabling publish rate limiting {} ", publishRate);
             if (!preciseTopicPublishRateLimitingEnable) {
                 this.brokerService.setupTopicPublishRateLimiterMonitor();
