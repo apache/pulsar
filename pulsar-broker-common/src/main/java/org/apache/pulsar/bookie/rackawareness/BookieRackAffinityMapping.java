@@ -22,12 +22,13 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
@@ -221,16 +222,10 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
                                     bookieAddressList);
                         }
-                        // find the bookies has been deleted rack
-                        List<BookieId> deletedBookies =
-                                bookieAddressListLastTime
-                                        .stream()
-                                        .filter(bookie -> !bookieAddressList.contains(bookie))
-                                        .collect(Collectors.toList());
+                        Set<BookieId> bookieIdSet = new HashSet<>(bookieAddressList);
+                        bookieIdSet.addAll(bookieAddressListLastTime);
                         bookieAddressListLastTime = bookieAddressList;
-                        // calculate final bookie list to notify RackAwarePolicy
-                        bookieAddressList.addAll(deletedBookies);
-                        rackawarePolicy.onBookieRackChange(bookieAddressList);
+                        rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
                     });
         }
     }
