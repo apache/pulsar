@@ -94,7 +94,7 @@ public class CmdBookies extends CmdBase {
                 + "it falls back to /default-rack or /default-region/default-rack.", required = true)
         private String bookieRack;
 
-        @Parameter(names = { "--hostname" }, description = "Bookie host name", required = false)
+        @Parameter(names = {"-hn", "--hostname"}, description = "Bookie host name", required = false)
         private String bookieHost;
 
         @Override
