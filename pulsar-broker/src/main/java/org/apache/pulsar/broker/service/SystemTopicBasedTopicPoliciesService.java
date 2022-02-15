@@ -273,9 +273,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         reader.getSystemTopic().getTopicName(), ex);
                 future.completeExceptionally(ex);
                 readerCaches.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
-                policyCacheInitMap.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
-                reader.closeAsync();
-                return;
             }
             if (hasMore) {
                 reader.readNextAsync().whenComplete((msg, e) -> {
@@ -284,9 +281,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 reader.getSystemTopic().getTopicName(), ex);
                         future.completeExceptionally(e);
                         readerCaches.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
-                        policyCacheInitMap.remove(reader.getSystemTopic().getTopicName().getNamespaceObject());
-                        reader.closeAsync();
-                        return;
                     }
                     refreshTopicPoliciesCache(msg);
                     if (log.isDebugEnabled()) {
