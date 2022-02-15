@@ -1406,7 +1406,7 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>@{testJacocoAgentArgument} -Xmx1G -XX:+UseG1GC
+          <argLine>${testJacocoAgentArgument} -Xmx1G -XX:+UseG1GC
             -Dpulsar.allocator.pooled=true
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
@@ -1910,6 +1910,9 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
     <profile>
       <id>coverage</id>
+      <properties>
+        <testJacocoAgentArgument>@{jacoco.agent.argument}</testJacocoAgentArgument>
+      </properties>
       <build>
         <plugins>
           <plugin>
@@ -1917,7 +1920,7 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>jacoco-maven-plugin</artifactId>
             <version>${jacoco-maven-plugin.version}</version>
             <configuration>
-              <propertyName>testJacocoAgentArgument</propertyName>
+              <propertyName>jacoco.agent.argument</propertyName>
             </configuration>
             <executions>
               <execution>
