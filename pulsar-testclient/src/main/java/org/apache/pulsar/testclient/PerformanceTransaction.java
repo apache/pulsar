@@ -99,7 +99,7 @@ public class PerformanceTransaction {
         @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = {"--conf-file"}, description = "Configuration file")
+        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
         @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =

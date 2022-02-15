@@ -56,7 +56,7 @@ public interface NonPersistentDispatcher extends Dispatcher {
     boolean hasPermits();
 
     @Override
-    default void redeliverUnacknowledgedMessages(Consumer consumer) {
+    default void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         // No-op
     }
 

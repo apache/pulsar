@@ -39,6 +39,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.Exceptions;
@@ -151,7 +152,10 @@ public class ConnectorUtils {
             for (Path archive : stream) {
                 try {
 
-                    NarClassLoader ncl = NarClassLoader.getFromArchive(new File(archive.toString()), Collections.emptySet(), narExtractionDirectory);
+                    NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                            .narFile(new File(archive.toString()))
+                            .extractionDirectory(narExtractionDirectory)
+                            .build();
 
                     Connector.ConnectorBuilder connectorBuilder = Connector.builder();
                     ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(ncl);

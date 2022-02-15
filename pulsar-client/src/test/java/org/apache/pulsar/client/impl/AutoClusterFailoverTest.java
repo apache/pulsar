@@ -30,9 +30,10 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.mock;
 
 @Test(groups = "broker-impl")
 public class AutoClusterFailoverTest {
@@ -116,7 +117,7 @@ public class AutoClusterFailoverTest {
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
-        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -172,7 +173,7 @@ public class AutoClusterFailoverTest {
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
-        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
@@ -225,7 +226,7 @@ public class AutoClusterFailoverTest {
                 .build();
 
         AutoClusterFailover autoClusterFailover = Mockito.spy((AutoClusterFailover) provider);
-        PulsarClientImpl pulsarClient = PowerMockito.mock(PulsarClientImpl.class);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(secondary);
         Mockito.doReturn(configurationData).when(pulsarClient).getConfiguration();
