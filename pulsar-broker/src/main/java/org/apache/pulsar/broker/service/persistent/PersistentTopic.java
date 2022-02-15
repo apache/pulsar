@@ -289,8 +289,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
             this.transactionBuffer = new TransactionBufferDisable();
+            // when disable transaction, update maxReadPosition to PositionImpl.LATEST
+            this.ledger.updateMaxReadPosition(this.transactionBuffer.getMaxReadPosition());
         }
-        transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
     }
 
     @Override

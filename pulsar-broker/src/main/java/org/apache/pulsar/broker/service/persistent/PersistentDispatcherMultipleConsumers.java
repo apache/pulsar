@@ -271,7 +271,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 havePendingRead = true;
                 minReplayedPosition = getMessagesToReplayNow(1).stream().findFirst().orElse(null);
                 cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
-                        ReadType.Normal, topic.getMaxReadPosition());
+                        ReadType.Normal, maxReadPositionEnabled);
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
             }

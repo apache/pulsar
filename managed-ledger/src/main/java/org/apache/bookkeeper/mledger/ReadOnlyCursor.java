@@ -44,11 +44,11 @@ public interface ReadOnlyCursor {
      * @param numberOfEntriesToRead maximum number of entries to return
      * @param callback              callback object
      * @param ctx                   opaque context
-     * @param maxPosition           max position can read
+     * @param maxReadPositionEnabled max read position enabled
      * @see #readEntries(int)
      */
     void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition);
+                          Object ctx, boolean maxReadPositionEnabled);
 
     /**
      * Asynchronously read entries from the ManagedLedger.
@@ -57,10 +57,10 @@ public interface ReadOnlyCursor {
      * @param maxSizeBytes          max size in bytes of the entries to return
      * @param callback              callback object
      * @param ctx                   opaque context
-     * @param maxPosition           max position can read
+     * @param maxReadPositionEnabled max read position enabled
      */
     void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition);
+                          Object ctx, boolean maxReadPositionEnabled);
 
     /**
      * Get the read position. This points to the next message to be read from the cursor.

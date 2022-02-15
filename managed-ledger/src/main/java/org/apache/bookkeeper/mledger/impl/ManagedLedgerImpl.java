@@ -68,6 +68,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -184,6 +185,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
 
+    // Cursors that are waiting to be notified when new maxReadPosition is updated
+    final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursorsByMaxReadPosition;
+
     // Objects that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<WaitingEntryCallBack> waitingEntryCallBacks;
 
@@ -230,6 +234,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
+
+    // The position is cursor can read max position, it will be changed by external invoke
+    // it like LAC, so it will not be produce race condition.
+    @Getter
+    private volatile PositionImpl maxReadPosition = PositionImpl.EARLIEST;
 
     public enum State {
         None, // Uninitialized
@@ -318,6 +327,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
+        this.waitingCursorsByMaxReadPosition = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
         this.uninitializedCursors = Maps.newHashMap();
         this.clock = config.getClock();
@@ -1906,7 +1916,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
 
-        if (opReadEntry.readPosition.compareTo(opReadEntry.maxPosition) > 0) {
+        // use localMaxReadPosition to prevent maxReadPosition updates from causing calculation errors
+        PositionImpl localMaxReadPosition = maxReadPosition;
+        if (opReadEntry.maxReadPositionEnabled && opReadEntry.readPosition.compareTo(localMaxReadPosition) > 0) {
             opReadEntry.checkReadCompletion();
             return;
         }
@@ -1926,8 +1938,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // can read max position entryId
-        if (ledger.getId() == opReadEntry.maxPosition.getLedgerId()) {
-            lastEntryInLedger = min(opReadEntry.maxPosition.getEntryId(), lastEntryInLedger);
+        if (opReadEntry.maxReadPositionEnabled && ledger.getId() == localMaxReadPosition.getLedgerId()) {
+            lastEntryInLedger = min(localMaxReadPosition.getEntryId(), lastEntryInLedger);
         }
 
         if (firstEntry > lastEntryInLedger) {
@@ -2233,6 +2245,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             executor.execute(safeRun(waitingCursor::notifyEntriesAvailable));
+        }
+    }
+
+    void notifyCursorsByMaxReadPositionChanged() {
+        while (true) {
+            final ManagedCursorImpl waitingCursor = waitingCursorsByMaxReadPosition.poll();
+            if (waitingCursor == null) {
+                break;
+            }
+
+            executor.execute(safeRun(waitingCursor::notifyEntriesAvailableByMaxReadPosition));
         }
     }
 
@@ -3625,7 +3648,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public int getWaitingCursorsCount() {
-        return waitingCursors.size();
+        return waitingCursors.size() + waitingCursorsByMaxReadPosition.size();
     }
 
     public int getPendingAddEntriesCount() {
@@ -4094,4 +4117,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    @Override
+    public void updateMaxReadPosition(PositionImpl position) {
+        // only can update position is bigger than current maxReadPosition
+        if (position != null && position.compareTo(maxReadPosition) > 0) {
+            this.maxReadPosition = position;
+            // When maxReadPosition is updated, can notify the cursor
+            // waiting for maxReadPosition to update which can be read
+            this.notifyCursorsByMaxReadPositionChanged();
+        }
+    }
 }

@@ -352,7 +352,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                         this, consumer);
             } else {
                 cursor.asyncReadEntriesOrWait(messagesToRead,
-                        bytesToRead, this, consumer, topic.getMaxReadPosition());
+                        bytesToRead, this, consumer, maxReadPositionEnabled);
             }
         } else {
             if (log.isDebugEnabled()) {

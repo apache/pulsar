@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -541,7 +542,7 @@ public class TransactionTest extends TransactionTestBase {
             callback.readEntriesFailed(new ManagedLedgerException.NonRecoverableLedgerException("No ledger exist"),
                     null);
             return null;
-        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), anyBoolean());
         Class<ManagedLedgerImpl> managedLedgerClass = ManagedLedgerImpl.class;
         Field field = managedLedgerClass.getDeclaredField("cursors");
         field.setAccessible(true);
@@ -553,7 +554,7 @@ public class TransactionTest extends TransactionTestBase {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
             callback.readEntriesFailed(new ManagedLedgerException.ManagedLedgerFencedException(), null);
             return null;
-        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), anyBoolean());
 
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
@@ -589,7 +590,7 @@ public class TransactionTest extends TransactionTestBase {
             callback.readEntriesFailed(new ManagedLedgerException.NonRecoverableLedgerException("No ledger exist"),
                     null);
             return null;
-        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), anyBoolean());
 
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
@@ -610,7 +611,7 @@ public class TransactionTest extends TransactionTestBase {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
             callback.readEntriesFailed(new ManagedLedgerException.ManagedLedgerFencedException(), null);
             return null;
-        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), anyBoolean());
 
         PendingAckHandleImpl pendingAckHandle2 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
@@ -636,7 +637,7 @@ public class TransactionTest extends TransactionTestBase {
             callback.readEntriesFailed(new ManagedLedgerException.NonRecoverableLedgerException("No ledger exist"),
                     null);
             return null;
-        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), anyBoolean());
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         persistentTopic.getManagedLedger().getConfig().setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog =
@@ -667,7 +668,7 @@ public class TransactionTest extends TransactionTestBase {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
             callback.readEntriesFailed(new ManagedLedgerException.ManagedLedgerFencedException(), null);
             return null;
-        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), anyBoolean());
 
         MLTransactionMetadataStore metadataStore2 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),

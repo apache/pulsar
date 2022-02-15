@@ -242,7 +242,7 @@ public class PersistentReplicator extends AbstractReplicator
                             messagesToRead);
                 }
                 cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
-                        null, PositionImpl.LATEST);
+                        null, false);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,

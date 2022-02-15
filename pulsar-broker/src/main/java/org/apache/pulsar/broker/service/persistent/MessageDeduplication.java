@@ -184,7 +184,7 @@ public class MessageDeduplication {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 future.completeExceptionally(exception);
             }
-        }, null, PositionImpl.LATEST);
+        }, null, false);
     }
 
     public Status getStatus() {

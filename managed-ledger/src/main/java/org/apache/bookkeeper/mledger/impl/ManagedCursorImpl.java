@@ -131,6 +131,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile OpReadEntry waitingReadOp = null;
 
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, OpReadEntry>
+            WAITING_READ_OP_UPDATER_BY_MAX_READ_POSITION = AtomicReferenceFieldUpdater
+            .newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOpByMaxReadPosition");
+    @SuppressWarnings("unused")
+    private volatile OpReadEntry waitingReadOpByMaxReadPosition = null;
+
     public static final int FALSE = 0;
     public static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> RESET_CURSOR_IN_PROGRESS_UPDATER =
@@ -265,6 +271,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.set(this, 0);
         RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
         WAITING_READ_OP_UPDATER.set(this, null);
+        WAITING_READ_OP_UPDATER_BY_MAX_READ_POSITION.set(this, null);
         this.clock = config.getClock();
         this.lastActive = this.clock.millis();
         this.lastLedgerSwitchTimestamp = this.clock.millis();
@@ -592,7 +599,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 counter.countDown();
             }
 
-        }, null, PositionImpl.LATEST);
+        }, null, false);
 
         counter.await();
 
@@ -605,13 +612,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncReadEntries(final int numberOfEntriesToRead, final ReadEntriesCallback callback,
-            final Object ctx, PositionImpl maxPosition) {
-        asyncReadEntries(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition);
+            final Object ctx, boolean maxReadPositionEnabled) {
+        asyncReadEntries(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxReadPositionEnabled);
     }
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                                 Object ctx, PositionImpl maxPosition) {
+                                 Object ctx, boolean maxReadPositionEnabled) {
         checkArgument(numberOfEntriesToRead > 0);
         if (isClosed()) {
             callback.readEntriesFailed(new ManagedLedgerException
@@ -622,7 +629,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
 
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
+        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxReadPositionEnabled);
         ledger.asyncReadEntries(op);
     }
 
@@ -724,7 +731,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 counter.countDown();
             }
 
-        }, null, PositionImpl.LATEST);
+        }, null, false);
 
         counter.await();
 
@@ -737,13 +744,17 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                       PositionImpl maxPosition) {
-        asyncReadEntriesOrWait(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition);
+                                       boolean maxReadPositionEnabled) {
+        asyncReadEntriesOrWait(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxReadPositionEnabled);
+    }
+
+    private boolean hasMoreEntriesByMaxReadPosition() {
+        return readPosition.compareTo(ledger.getMaxReadPosition()) <= 0;
     }
 
     @Override
     public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
-                                       PositionImpl maxPosition) {
+                                       boolean maxReadPositionEnabled) {
         checkArgument(maxEntries > 0);
         if (isClosed()) {
             callback.readEntriesFailed(new CursorAlreadyClosedException("Cursor was already closed"), ctx);
@@ -752,35 +763,71 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         int numberOfEntriesToRead = applyMaxSizeCap(maxEntries, maxSizeBytes);
 
-        if (hasMoreEntries()) {
-            // If we have available entries, we can read them immediately
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Read entries immediately", ledger.getName(), name);
-            }
-            asyncReadEntries(numberOfEntriesToRead, callback, ctx, maxPosition);
-        } else {
-            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
-                    ctx, maxPosition);
-
-            if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
-                callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
-                        ctx);
-                return;
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Deferring retry of read at position {}", ledger.getName(), name, op.readPosition);
-            }
-
-            // Check again for new entries after the configured time, then if still no entries are available register
-            // to be notified
-            if (config.getNewEntriesCheckDelayInMillis() > 0) {
-                ledger.getScheduledExecutor()
-                        .schedule(() -> checkForNewEntries(op, callback, ctx),
-                                config.getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
+        if (!maxReadPositionEnabled) {
+            if (hasMoreEntries()) {
+                // If we have available entries, we can read them immediately
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Read entries immediately", ledger.getName(), name);
+                }
+                asyncReadEntries(numberOfEntriesToRead, callback, ctx, false);
             } else {
-                // If there's no delay, check directly from the same thread
-                checkForNewEntries(op, callback, ctx);
+                OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
+                        ctx, false);
+
+                if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
+                    callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
+                            ctx);
+                    return;
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Deferring retry of read at position {}",
+                            ledger.getName(), name, op.readPosition);
+                }
+
+                // Check again for new entries after the configured time, then if still no entries
+                // are available register to be notified
+                if (config.getNewEntriesCheckDelayInMillis() > 0) {
+                    ledger.getScheduledExecutor()
+                            .schedule(() -> checkForNewEntries(op, callback, ctx),
+                                    config.getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
+                } else {
+                    // If there's no delay, check directly from the same thread
+                    checkForNewEntries(op, callback, ctx);
+                }
+            }
+        } else {
+            if (hasMoreEntriesByMaxReadPosition()) {
+                // If we have available entries smaller or equals maxReadPosition, we can read them immediately
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Read entries immediately by maxReadPosition", ledger.getName(), name);
+                }
+                asyncReadEntries(numberOfEntriesToRead, callback, ctx, true);
+            } else {
+                OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
+                        ctx, true);
+
+                if (!WAITING_READ_OP_UPDATER_BY_MAX_READ_POSITION.compareAndSet(this, null, op)) {
+                    callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
+                            ctx);
+                    return;
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Deferring retry of read at position {}, maxReadPosition {}",
+                            ledger.getName(), name, op.readPosition, ledger.getMaxReadPosition());
+                }
+
+                // Check again for new entries after the configured time, then if still no entries
+                // are available register to be notified by maxReadPosition
+                if (config.getNewEntriesCheckDelayInMillis() > 0) {
+                    ledger.getScheduledExecutor()
+                            .schedule(() -> checkForNewEntriesByMaxReadPosition(op, callback, ctx),
+                                    config.getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
+                } else {
+                    // If there's no delay, check directly from the same thread
+                    checkForNewEntriesByMaxReadPosition(op, callback, ctx);
+                }
             }
         }
     }
@@ -835,6 +882,54 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private void checkForNewEntriesByMaxReadPosition(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Re-trying the read at position {} by maxReadPosition",
+                    ledger.getName(), name, op.readPosition);
+        }
+
+        if (!hasMoreEntriesByMaxReadPosition()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Still no entries available by maxReadPosition. "
+                        + "Register for notification", ledger.getName(), name);
+            }
+            // Let the managed ledger know we want to be notified whenever a new entry is published
+            ledger.waitingCursorsByMaxReadPosition.add(this);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Skip notification registering since we do have entries "
+                        + "available by maxReadPosition", ledger.getName(), name);
+            }
+        }
+
+        // Check again the entries count, since an entry could have been written between the time we
+        // checked and the time we've asked to be notified by managed ledger
+        if (hasMoreEntriesByMaxReadPosition()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Found more entries by maxReadPosition", ledger.getName(), name);
+            }
+            // Try to cancel the notification request
+            if (WAITING_READ_OP_UPDATER_BY_MAX_READ_POSITION.compareAndSet(this, op, null)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Cancelled notification and scheduled read at {} by maxReadPosition",
+                            ledger.getName(), name, op.readPosition);
+                }
+                PENDING_READ_OPS_UPDATER.incrementAndGet(this);
+                ledger.asyncReadEntries(op);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] notification was already cancelled by maxReadPosition",
+                            ledger.getName(), name);
+                }
+            }
+        } else if (ledger.isTerminated()) {
+            // At this point we registered for notification and still there were no more available
+            // entries.
+            // If the managed ledger was indeed terminated, we need to notify the cursor
+            callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+        }
+    }
+
     @Override
     public boolean isClosed() {
         return state == State.Closed || state == State.Closing;
@@ -845,11 +940,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Cancel pending read request", ledger.getName(), name);
         }
-        return WAITING_READ_OP_UPDATER.getAndSet(this, null) != null;
+        // cancel all read op
+        return WAITING_READ_OP_UPDATER.getAndSet(this, null) != null
+                | WAITING_READ_OP_UPDATER_BY_MAX_READ_POSITION.getAndSet(this, null) != null;
     }
 
     public boolean hasPendingReadRequest() {
-        return WAITING_READ_OP_UPDATER.get(this) != null;
+        return WAITING_READ_OP_UPDATER.get(this) != null
+                || WAITING_READ_OP_UPDATER_BY_MAX_READ_POSITION.get(this) != null;
     }
 
     @Override
@@ -2700,10 +2798,33 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(this, null);
 
+        notifyEntriesAvailable(opReadEntry);
+    }
+
+    /**
+     *
+     * @return Whether the cursor responded to the notification
+     */
+    void notifyEntriesAvailableByMaxReadPosition() {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Received ml notification by maxReadPosition", ledger.getName(), name);
+        }
+        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER_BY_MAX_READ_POSITION.getAndSet(this, null);
+
+        notifyEntriesAvailable(opReadEntry);
+    }
+
+    private void notifyEntriesAvailable(OpReadEntry opReadEntry) {
         if (opReadEntry != null) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received notification of new messages persisted, reading at {} -- last: {}",
-                        ledger.getName(), name, opReadEntry.readPosition, ledger.lastConfirmedEntry);
+                if (opReadEntry.maxReadPositionEnabled) {
+                    log.debug("[{}] [{}] Received notification of new messages persisted by maxReadPosition, "
+                            + "reading at {} -- last: {}", ledger.getName(), name, opReadEntry.readPosition,
+                            ledger.getMaxReadPosition());
+                } else {
+                    log.debug("[{}] [{}] Received notification of new messages persisted by LAC, reading at {} -- "
+                            + "last: {}", ledger.getName(), name, opReadEntry.readPosition, ledger.lastConfirmedEntry);
+                }
                 log.debug("[{}] Consumer {} cursor notification: other counters: consumed {} mdPos {} rdPos {}",
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
