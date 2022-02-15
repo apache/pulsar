@@ -1406,7 +1406,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             } else {
                 log.warn("[{}] Failed to add producer to topic {}: producerId={}, {}",
-                        remoteAddress, topicName, producerId, ex.getMessage());
+                        remoteAddress, topicName, producerId, ex.getCause().getMessage());
             }
 
             producer.closeNow(true);
