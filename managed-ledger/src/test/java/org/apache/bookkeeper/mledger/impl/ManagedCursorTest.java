@@ -3374,37 +3374,50 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         } catch (TimeoutException e) {
             // read op in wait state, so will throw timeout exception
         }
-        Position position = PositionImpl.EARLIEST;
-        Position maxCanReadPosition = PositionImpl.EARLIEST;
+        Position middlePosition = PositionImpl.EARLIEST;
+        Position lastPosition = PositionImpl.EARLIEST;
+        Position firstPosition = PositionImpl.EARLIEST;
         for (int i = 0; i < sendNumber; i++) {
             if (i == readMaxNumber - 1) {
-                position = ledger.addEntry(new byte[1024]);
+                middlePosition = ledger.addEntry(new byte[1024]);
             } else if (i == sendNumber - 1) {
-                maxCanReadPosition = ledger.addEntry(new byte[1024]);
+                lastPosition = ledger.addEntry(new byte[1024]);
+            } else if (i == 0) {
+                firstPosition = ledger.addEntry(new byte[1024]);
             } else {
                 ledger.addEntry(new byte[1024]);
             }
 
         }
-        // update readPosition notify wait cursor to read
-        ledger.updateMaxReadPosition((PositionImpl) position);
+        // update maxReadPosition to middle notify wait cursor to read
+        ledger.updateMaxReadPosition((PositionImpl) middlePosition);
         int number = completableFuture.get(2, TimeUnit.SECONDS);
+
+        // only can read from firstPosition to middlePosition
         assertEquals(number, readMaxNumber);
 
-        ledger.updateMaxReadPosition((PositionImpl) maxCanReadPosition);
+        // reset cursor to first middlePosition and read sendNumber again
+        c.resetCursor(firstPosition);
+
+        // update maxReadPosition to lastPosition
+        ledger.updateMaxReadPosition((PositionImpl) lastPosition);
+        CompletableFuture<Integer> completableFutureTwo = new CompletableFuture<>();
         c.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                completableFuture.complete(entries.size());
+                completableFutureTwo.complete(entries.size());
             }
 
             @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                completableFuture.completeExceptionally(exception);
+                completableFutureTwo.completeExceptionally(exception);
             }
-        }, null, false);
+        }, null, true);
 
-        assertEquals(number, sendNumber - readMaxNumber);
+        number = completableFutureTwo.get();
+
+        // can read from firstPosition to lastPosition
+        assertEquals(number, sendNumber);
 
     }
 

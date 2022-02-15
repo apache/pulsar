@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -360,5 +361,15 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public void checkInactiveLedgerAndRollOver() {
 
+    }
+
+    @Override
+    public void updateMaxReadPosition(PositionImpl position) {
+
+    }
+
+    @Override
+    public PositionImpl getMaxReadPosition() {
+        return null;
     }
 }
