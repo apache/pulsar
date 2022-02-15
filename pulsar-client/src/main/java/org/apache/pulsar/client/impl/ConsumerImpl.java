@@ -1034,7 +1034,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private List<CompletableFuture<Void>> closeDeadAndRetryProducer() {
-        final List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         if (this.deadLetterProducer != null) {
             try {
                 deadLetterProducer.whenComplete((r, t) -> {
