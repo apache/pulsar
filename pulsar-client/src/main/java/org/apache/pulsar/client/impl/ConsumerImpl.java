@@ -1008,6 +1008,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         closeConsumerTasks();
 
+        if (this.deadLetterProducer != null) {
+            try {
+                deadLetterProducer.get().closeAsync();
+            } catch (Exception e) {
+                log.warn("[{}] [{}] Closed deadLetterProducer,err=[{}]", topic, subscription, e);
+            }
+            this.deadLetterProducer = null;
+        }
+
+        if (this.retryLetterProducer != null) {
+            this.retryLetterProducer.closeAsync();
+            this.retryLetterProducer = null;
+        }
+
         long requestId = client.newRequestId();
 
         ClientCnx cnx = cnx();
