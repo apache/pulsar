@@ -119,6 +119,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             if (ongoingTxns.isEmpty()) {
                                 maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
                             }
+
                             if (!changeToReadyState()) {
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
