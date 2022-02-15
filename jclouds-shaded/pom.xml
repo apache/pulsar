@@ -44,19 +44,6 @@
       <groupId>javax.annotation</groupId>
       <artifactId>javax.annotation-api</artifactId>
     </dependency>
-    <!-- https://github.com/apache/jclouds/pull/123/files-->
-    <dependency>
-      <groupId>com.google.inject</groupId>
-      <artifactId>guice</artifactId>
-      <version>${guice.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.inject.extensions</groupId>
-      <artifactId>guice-assistedinject</artifactId>
-      <version>${guice.version}</version>
-      <scope>runtime</scope>
-    </dependency>
   </dependencies>
 
   <build>
