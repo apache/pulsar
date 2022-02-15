@@ -226,7 +226,6 @@ The Apache Software License, Version 2.0
     - failureaccess-1.0.1.jar
  * Google Guice
     - guice-5.1.0.jar
-    - guice-multibindings-5.1.0.jar
  * Apache Commons
     - commons-math3-3.6.1.jar
     - commons-compress-1.21.jar
