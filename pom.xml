@@ -1940,7 +1940,10 @@ flexible messaging model and an intuitive client API.</description>
                   <goal>report</goal>
                 </goals>
                 <configuration>
-                  <outputDirectory>target/report</outputDirectory>
+                  <outputDirectory>target/jacoco</outputDirectory>
+                  <excludes>
+                    <exclude>**/*.jar</exclude>
+                  </excludes>
                 </configuration>
               </execution>
             </executions>
