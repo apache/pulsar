@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_LOG;
+import static org.apache.pulsar.common.util.ThreadDumpUtil.getStackTraceString;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -34,6 +35,9 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.management.ThreadInfo;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -878,6 +882,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 && config.getZookeeperSessionExpiredPolicy() == MetadataSessionExpiredPolicy.shutdown) {
             LOG.warn("The session with metadata service was lost. Shutting down.\n{}\n",
                     ThreadDumpUtil.buildThreadDiagnosticString());
+            shutdownNow();
+        }
+        if (e == SessionEvent.SessionDeadlocked) {
+            LOG.warn("Metadata service deadlocked. Shutting down");
+            ThreadDumpUtil.getThreadDiagnostic(new ThreadDumpUtil.DiagnosticProcessor() {
+                @Override
+                public void processThreadStackTrace(Map.Entry<Thread, StackTraceElement[]> e) {
+                    LOG.warn("Thread stack trace: \n{}", getStackTraceString(e));
+                }
+
+                @Override
+                public void processThreadInfo(boolean firstThread, ThreadInfo ti) {
+                    StringWriter sw = new StringWriter();
+                    PrintWriter output = new PrintWriter(sw);
+                    ThreadDumpUtil.printThreadInfo(ti, output);
+                    ThreadDumpUtil.printLockInfo(ti.getLockedSynchronizers(), output);
+                    output.println();
+                    LOG.warn("Thread and lock info {}", output.toString());
+                }
+            });
             shutdownNow();
         }
     }

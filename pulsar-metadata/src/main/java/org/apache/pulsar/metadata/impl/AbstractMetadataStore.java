@@ -61,6 +61,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final ScheduledExecutorService executor;
+    private final ExecutorMonitor executorMonitor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
@@ -77,6 +78,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected AbstractMetadataStore() {
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store"));
+        this.executorMonitor = new ExecutorMonitor(this.executor, TimeUnit.MINUTES.toSeconds(5),
+                (elapsed -> receivedSessionEvent(SessionEvent.SessionDeadlocked)));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -303,6 +306,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void close() throws Exception {
+        log.info("Shutting down executor monitor");
+        executorMonitor.close();
+        log.info("Shutting down executor");
         executor.shutdownNow();
         executor.awaitTermination(10, TimeUnit.SECONDS);
     }

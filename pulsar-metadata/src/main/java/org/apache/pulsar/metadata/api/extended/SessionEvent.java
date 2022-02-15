@@ -42,7 +42,12 @@ public enum SessionEvent {
     /**
      * The session was established.
      */
-    SessionReestablished;
+    SessionReestablished,
+
+    /**
+     * The session dead locked.
+     */
+    SessionDeadlocked;
 
     /**
      * Check whether the state represents a connected or not-connected state.
