@@ -24,7 +24,6 @@ import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -985,7 +984,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        final List<CompletableFuture<Void>> closeFutures =new ArrayList<>();
+        final List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         CompletableFuture<Void> closeConsumerFuture = new CompletableFuture<>();
 
         if (getState() == State.Closing || getState() == State.Closed) {
