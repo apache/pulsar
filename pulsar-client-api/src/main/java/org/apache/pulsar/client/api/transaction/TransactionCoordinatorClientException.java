@@ -120,7 +120,7 @@ public class TransactionCoordinatorClientException extends IOException {
         } else if (t instanceof InterruptedException) {
             Thread.currentThread().interrupt();
             return new TransactionCoordinatorClientException(t);
-        }  else if (t instanceof CoordinatorNotFoundException) {
+        } else if (t instanceof CoordinatorNotFoundException) {
             return (CoordinatorNotFoundException) t;
         } else if (t instanceof InvalidTxnStatusException) {
             return (InvalidTxnStatusException) t;
