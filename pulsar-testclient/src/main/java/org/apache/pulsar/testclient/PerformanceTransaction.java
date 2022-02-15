@@ -120,9 +120,6 @@ public class PerformanceTransaction {
                 + "thereby increasing the intensity of the stress test.")
         public int numTestThreads = 1;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
-        public String deprecatedAuthPluginClassName;
-
         @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
@@ -220,10 +217,6 @@ public class PerformanceTransaction {
         if (arguments.help) {
             jc.usage();
             PerfClientUtils.exit(-1);
-        }
-
-        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
-            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
         }
 
         if (arguments.confFile != null) {
