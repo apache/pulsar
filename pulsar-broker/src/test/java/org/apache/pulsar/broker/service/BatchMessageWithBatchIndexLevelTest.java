@@ -24,6 +24,7 @@ import lombok.SneakyThrows;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -60,7 +61,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         final String topicName = "persistent://prop/ns-abc/batchMessageAck-" + UUID.randomUUID();
         final String subscriptionName = "sub-batch-1";
 
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
@@ -70,6 +72,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topicName)
@@ -171,6 +174,92 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             } else {
                 assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
             }
+        });
+    }
+
+    @Test
+    public void testBatchMessageMultiNegtiveAck() throws Exception{
+        final String topicName = "persistent://prop/ns-abc/batchMessageMultiNegtiveAck-" + UUID.randomUUID();
+        final String subscriptionName = "sub-negtive-1";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .enableBatchIndexAcknowledgment(true)
+                .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(topicName)
+                .batchingMaxMessages(20)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .enableBatching(true)
+                .create();
+
+        final int N = 20;
+        for (int i = 0; i < N; i++) {
+            String value = "test-" + i;
+            producer.sendAsync(value);
+        }
+        producer.flush();
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            if (i % 2 == 0) {
+                consumer.acknowledgeAsync(msg);
+            } else {
+                consumer.negativeAcknowledge(msg);
+            }
+        }
+        Awaitility.await().untilAsserted(() -> {
+            long unackedMessages = admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName)
+                    .getUnackedMessages();
+            assertEquals(unackedMessages, 10);
+        });
+
+        // Test negtive ack with sleep
+        final String topicName2 = "persistent://prop/ns-abc/batchMessageMultiNegtiveAck2-" + UUID.randomUUID();
+        final String subscriptionName2 = "sub-negtive-2";
+        @Cleanup
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName2)
+                .subscriptionName(subscriptionName2)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .enableBatchIndexAcknowledgment(true)
+                .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer2 = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(topicName2)
+                .batchingMaxMessages(20)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .enableBatching(true)
+                .create();
+
+        for (int i = 0; i < N; i++) {
+            String value = "test-" + i;
+            producer2.sendAsync(value);
+        }
+        producer2.flush();
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer2.receive();
+            if (i % 2 == 0) {
+                consumer.acknowledgeAsync(msg);
+            } else {
+                consumer.negativeAcknowledge(msg);
+                Thread.sleep(100);
+            }
+        }
+        Awaitility.await().untilAsserted(() -> {
+            long unackedMessages = admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName)
+                    .getUnackedMessages();
+            assertEquals(unackedMessages, 10);
         });
     }
 }
