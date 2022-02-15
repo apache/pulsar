@@ -445,7 +445,7 @@
 <tr><td><code>-bw</code>, <code>--busy-wait</code></td><td>Enable or disable Busy-Wait on the Pulsar client</td><td>false</td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>The file which contains the private key to decrypt payload</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
 <tr><td><code>-e</code>, <code>--expire_time_incomplete_chunked_messages</code></td><td>The expiration time for incomplete chunk messages (in milliseconds)</td><td>0</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
@@ -497,7 +497,7 @@
 <tr><td><code>-ch</code>, <code>--chunking</code></td><td>Split the message and publish in chunks if the message size is larger than allowed max size</td><td>false</td></tr>
 <tr><td><code>-d</code>, <code>--delay</code></td><td>Mark messages with a given delay in seconds</td><td>0s</td></tr>
 <tr><td><code>-z</code>, <code>--compression</code></td><td>Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.</td><td></td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>The public key name to encrypt payload</td><td></td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>The file which contains the public key to encrypt payload</td><td></td></tr>
 <tr><td><code>-ef</code>, <code>--exit-on-failure</code></td><td>Exit from the process on publish failure</td><td>false</td></tr>
@@ -546,7 +546,7 @@
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
 <tr><td><code>--auth-plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
 <tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
 <tr><td><code>-n</code>, <code>--num-messages</code></td><td>Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
@@ -577,7 +577,7 @@
 <tbody>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
 <tr><td><code>--auth-plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
@@ -672,7 +672,7 @@
 <pre><code class="hljs css language-bash">$ pulsar-perf transaction options
 </code></pre>
 <p><strong>オプション</strong></p>
-<p>|Flag|Description|Default| |---|---|---| <code>-au</code>, <code>--admin-url</code>|Pulsar admin URL.|N/A <code>--conf-file</code>|Configuration file.|N/A <code>-h</code>, <code>--help</code>|Help messages.|N/A <code>-c</code>, <code>--max-connections</code>|Maximum number of TCP connections to a single broker.|100 <code>-ioThreads</code>, <code>--num-io-threads</code>|Set the number of threads to be used for handling connections to brokers. |1 <code>-ns</code>, <code>--num-subscriptions</code>|Number of subscriptions per topic.|1 <code>-threads</code>, <code>--num-test-threads</code>|Number of test threads.</p>
+<p>|Flag|Description|Default| |---|---|---| <code>-au</code>, <code>--admin-url</code>|Pulsar admin URL.|N/A <code>-cf</code>, <code>--conf-file</code>|Configuration file.|N/A <code>-h</code>, <code>--help</code>|Help messages.|N/A <code>-c</code>, <code>--max-connections</code>|Maximum number of TCP connections to a single broker.|100 <code>-ioThreads</code>, <code>--num-io-threads</code>|Set the number of threads to be used for handling connections to brokers. |1 <code>-ns</code>, <code>--num-subscriptions</code>|Number of subscriptions per topic.|1 <code>-threads</code>, <code>--num-test-threads</code>|Number of test threads.</p>
 <p>This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction.</p>
 <p>Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1 <code>-nmc</code>, <code>--numMessage-perTransaction-consume</code>|Set the number of messages consumed in a transaction.</p>
 <p>If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1 <code>-nmp</code>, <code>--numMessage-perTransaction-produce</code>|Set the number of messages produced in a transaction.</p>

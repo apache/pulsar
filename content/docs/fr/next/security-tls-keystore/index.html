@@ -161,8 +161,8 @@ brokerClientTlsTrustStorePassword= // <span class="hljs-keyword">Set</span> this
 <li>tlsProtocols=[TLSv1.3,TLSv1.2] (list out the TLS protocols that you are going to accept from clients). By default, it is not set.</li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="configuring-clients"></a><a href="#configuring-clients" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring Clients</h3>
-<p>This is similar to [TLS encryption configuing for client with PEM type](/docs/fr/next/security-tls-transport#Client configuration). For a a minimal configuration, user need to provide the TrustStore information.</p>
-<p>e.g.</p>
+<p>This is similar to <a href="/docs/fr/next/security-tls-transport#client-configuration">TLS encryption configuing for client with PEM type</a>. For a minimal configuration, you need to provide the TrustStore information.</p>
+<p>For example:</p>
 <ol>
 <li><p>for <a href="/docs/fr/next/reference-cli-tools">Command-line tools</a> like <a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code></a>, <a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>, and <a href="reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> use the <code>conf/client.conf</code> config file in a Pulsar installation.</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">https://broker.example.com:8443/</span>
@@ -184,15 +184,18 @@ PulsarClient client = PulsarClient.builder()
     .allowTlsInsecureConnection(<span class="hljs-keyword">false</span>)
     .build();
 </code></pre></li>
-<li><p>for java admin client</p></li>
-</ol>
+<li><p>for java admin client</p>
 <pre><code class="hljs css language-java">    PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl(<span class="hljs-string">"https://broker.example.com:8443"</span>)
-                .useKeyStoreTls(<span class="hljs-keyword">true</span>)
-                .tlsTrustStorePath(<span class="hljs-string">"/var/private/tls/client.truststore.jks"</span>)
-                .tlsTrustStorePassword(<span class="hljs-string">"clientpw"</span>)
-                .allowTlsInsecureConnection(<span class="hljs-keyword">false</span>)
-                .build();
-</code></pre>
+        .useKeyStoreTls(<span class="hljs-keyword">true</span>)
+        .tlsTrustStorePath(<span class="hljs-string">"/var/private/tls/client.truststore.jks"</span>)
+        .tlsTrustStorePassword(<span class="hljs-string">"clientpw"</span>)
+        .allowTlsInsecureConnection(<span class="hljs-keyword">false</span>)
+        .build();
+</code></pre></li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> Please configure <code>tlsTrustStorePath</code> when you set <code>useKeyStoreTls</code> to <code>true</code>.</p>
+</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="tls-authentication-with-keystore-configure"></a><a href="#tls-authentication-with-keystore-configure" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS authentication with KeyStore configure</h2>
 <p>This similar to <a href="/docs/fr/next/security-tls-authentication">TLS authentication with PEM type</a></p>
 <h3><a class="anchor" aria-hidden="true" id="broker-authentication-config"></a><a href="#broker-authentication-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>broker authentication config</h3>
@@ -232,7 +235,7 @@ PulsarClient client = PulsarClient.builder()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="client-authentication-configuring"></a><a href="#client-authentication-configuring" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>client authentication configuring</h3>
 <p>Besides the TLS encryption configuring. The main work is configuring the KeyStore, which contains a valid CN as client role, for client.</p>
-<p>e.g.</p>
+<p>For example:</p>
 <ol>
 <li><p>for <a href="/docs/fr/next/reference-cli-tools">Command-line tools</a> like <a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code></a>, <a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>, and <a href="reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> use the <code>conf/client.conf</code> config file in a Pulsar installation.</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">https://broker.example.com:8443/</span>
@@ -271,6 +274,9 @@ PulsarClient client = PulsarClient.builder()
         .build();
 </code></pre></li>
 </ol>
+<blockquote>
+<p><strong>Note:</strong> Please configure <code>tlsTrustStorePath</code> when you set <code>useKeyStoreTls</code> to <code>true</code>.</p>
+</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="enabling-tls-logging"></a><a href="#enabling-tls-logging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enabling TLS Logging</h2>
 <p>You can enable TLS debug logging at the JVM level by starting the brokers and/or clients with <code>javax.net.debug</code> system property. For example:</p>
 <pre><code class="hljs css language-shell">-Djavax.net.debug=all

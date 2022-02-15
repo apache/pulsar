@@ -114,7 +114,7 @@
 <blockquote>
 <p>如果你没有 DNS 服务器，你能够使用多个域名组成的格式的服务的 URL。</p>
 </blockquote>
-<p>Each machine in your cluster needs to have <a href="https://adoptopenjdk.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptopenjdk.net/?variant=openjdk11">Java 11</a> installed.</p>
+<p>Each machine in your cluster needs to have <a href="https://adoptium.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptium.net/?variant=openjdk11">Java 11</a> installed.</p>
 <p>下面是一个显示部署架构的图：</p>
 <p><img src="/docs/assets/pulsar-basic-setup.png" alt="alt-text"></p>
 <p>在图中，客户端必须能够使用单个 URL 连接到 Pulsar 集群。 在这种情况下，<code>pulsar-cluster.acme.com</code> 包含了所有的broker 的地址。 Pulsar消息brokers与BookKeeper bookies一起运行；反过来，brokers 和 bookies 都依赖 ZooKeeper。</p>

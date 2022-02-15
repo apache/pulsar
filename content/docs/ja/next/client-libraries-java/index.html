@@ -256,7 +256,8 @@ Available options:</p></li>
 <li><p><a href="https://zlib.net/"><code>ZLIB</code></a></p>
 <ul>
 <li><a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a></li>
-<li><a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| No compression</p>
+<li><a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| No compression
+<code>initialSubscriptionName</code>|string|Use this configuration to automatically create an initial subscription when creating a topic. If this field is not set, the initial subscription is not created.|null</p>
 You can configure parameters if you do not want to use the default configuration.</li>
 </ul>
 <p>For a full list, see the Javadoc for the <a href="https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
@@ -926,13 +927,11 @@ The following figure illustrates the dynamic construction of a TableView updated
 
 The following is an example of how to configure a TableView.
 
-    try (TableView&lt;String&gt; tv = client.newTableViewBuilder(Schema.STRING)
-      .topic(&quot;tableview-test&quot;)
-      .create()) {
-        String value = tv.get(&quot;my-key&quot;);
-        System.out.println(&quot;Key's value: &quot; + value);
-    }
-    
+```java
+TableView&lt;String&gt; tv = client.newTableViewBuilder(Schema.STRING)
+  .topic(&quot;my-tableview&quot;)
+  .create()
+```
 
 You can use the available parameters in the `loadConf` configuration or related [API](https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
 
@@ -945,6 +944,20 @@ You can use the available parameters in the `loadConf` configuration or related 
 | ----------------------------------------------------------------------------------------------------------- |
 | `topic` | string | yes | The topic name of the TableView. | N/A                                             |
 | `autoUpdatePartitionInterval` | int | no | The interval to check for newly added partitions. | 60 (seconds) |
+
+### Register listeners
+
+You can register listeners for both existing messages on a topic and new messages coming into the topic by using `forEachAndListen`, and specify to perform operations for all existing messages by using `forEach`.
+
+The following is an example of how to register listeners with TableView.
+
+```java
+// Register listeners for all existing and incoming messages
+tv.forEachAndListen((key, value) -&gt; /*operations on all existing and incoming messages*/)
+
+// Register action for all existing messages
+tv.forEach((key, value) -&gt; /*operations on all existing messages*/)
+```
 
 ## Schema
 

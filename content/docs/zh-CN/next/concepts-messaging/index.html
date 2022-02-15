@@ -317,6 +317,19 @@ consumer.acknowledge(message);
                 .subscribe();
 
 </code></pre>
+<p>By default, there is no subscription during a DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create an initial subscription for the DLQ, you can specify the <code>initialSubscriptionName</code> parameter.</p>
+<pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+                .subscriptionType(SubscriptionType.Shared)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                      .maxRedeliverCount(maxRedeliveryCount)
+                      .deadLetterTopic(<span class="hljs-string">"your-topic-name"</span>)
+                      .initialSubscriptionName(<span class="hljs-string">"init-sub"</span>)
+                      .build())
+                .subscribe();
+
+</code></pre>
 <p>死信主题依赖消息重试 Messages are redelivered either due to <a href="#acknowledgement-timeout">acknowledgement timeout</a> or <a href="#negative-acknowledgement">negative acknowledgement</a>. If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout.</p>
 <blockquote>
 <p><strong>Note</strong>  <br>

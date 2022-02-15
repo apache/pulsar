@@ -447,7 +447,7 @@
 <tr><td><code>-bw</code>, <code>--busy-wait</code></td><td>在 Pulsar 客户端启用或禁用 Busy-Wait</td><td>false</td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>包含解密有效荷载的私钥的文件</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>要消费的消息总数。 如果该值等于或小于 0，则继续消费消息。</td><td>0</td></tr>
 <tr><td><code>-e</code>, <code>--expire_time_incomplete_chunked_messages</code></td><td>不完整区块消息的到期时间 (毫秒)</td><td>0</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
@@ -499,7 +499,7 @@
 <tr><td><code>-bm</code>, <code>--batch-max-messages</code></td><td>如果消息超过允许的最大大小，则将消息分割并分块发布。</td><td>false</td></tr>
 <tr><td><code>-d</code>, <code>--delay</code></td><td>给消息标记延迟时间（秒）</td><td>0s</td></tr>
 <tr><td><code>-z</code>, <code>--compression</code></td><td>压缩消息的 payload。值有：NONE, LZ4, ZLIB, ZSTD 或 SNAPPY。</td><td></td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>加密有效载荷的公钥名称</td><td></td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>包含用于加密有效载荷的公钥文件</td><td></td></tr>
 <tr><td><code>-ef</code>, <code>--exit-on-failure</code></td><td>发布失败后退出进程</td><td>false</td></tr>
@@ -548,7 +548,7 @@
 <tr><td><code>--auth-params</code></td><td>认证参数，其格式由认证插件类中<code>configure</code>方法的实现决定。 例如， <code>key1:val1,key2:val2</code> 或<code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code></td><td></td></tr>
 <tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--listener-name</code></td><td>broker 监听器名称</td><td></td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>-n</code>, <code>--num-messages</code></td><td>要消费的消息总数。 如果该值等于或小于 0，则继续消费消息。</td><td>0</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
@@ -579,7 +579,7 @@
 <tbody>
 <tr><td><code>--auth-params</code></td><td>认证参数，其格式由认证插件类中<code>configure</code>方法的实现决定。 例如， <code>key1:val1,key2:val2</code> 或<code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code></td><td></td></tr>
 <tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
-<tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
+<tr><td><code>-cf</code>, <code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>总共要发布的消息的数量。如果这个值小于或等于0，它就会继续发布消息。</td><td>0</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
@@ -674,7 +674,7 @@
 <pre><code class="hljs css language-bash">$ pulsar-perf transaction options
 </code></pre>
 <p><strong>选项</strong></p>
-<p>|Flag|Description|Default| |---|---|---| <code>-au</code>, <code>--admin-url</code>|Pulsar admin URL.|N/A <code>--conf-file</code>|Configuration file.|N/A <code>-h</code>, <code>--help</code>|Help messages.|N/A <code>-c</code>, <code>--max-connections</code>|Maximum number of TCP connections to a single broker.|100 <code>-ioThreads</code>, <code>--num-io-threads</code>|Set the number of threads to be used for handling connections to brokers. |1 <code>-ns</code>, <code>--num-subscriptions</code>|Number of subscriptions per topic.|1 <code>-threads</code>, <code>--num-test-threads</code>|Number of test threads.</p>
+<p>|Flag|Description|Default| |---|---|---| <code>-au</code>, <code>--admin-url</code>|Pulsar admin URL.|N/A <code>-cf</code>, <code>--conf-file</code>|Configuration file.|N/A <code>-h</code>, <code>--help</code>|Help messages.|N/A <code>-c</code>, <code>--max-connections</code>|Maximum number of TCP connections to a single broker.|100 <code>-ioThreads</code>, <code>--num-io-threads</code>|Set the number of threads to be used for handling connections to brokers. |1 <code>-ns</code>, <code>--num-subscriptions</code>|Number of subscriptions per topic.|1 <code>-threads</code>, <code>--num-test-threads</code>|Number of test threads.</p>
 <p>This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction.</p>
 <p>Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1 <code>-nmc</code>, <code>--numMessage-perTransaction-consume</code>|Set the number of messages consumed in a transaction.</p>
 <p>If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1 <code>-nmp</code>, <code>--numMessage-perTransaction-produce</code>|Set the number of messages produced in a transaction.</p>
