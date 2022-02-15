@@ -185,20 +185,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         data.getBackLogQuotaMap() == null ? null : data.getBackLogQuotaMap().get(type.toString())));
         topicPolicies.getTopicMaxMessageSize().updateTopicValue(data.getMaxMessageSize());
         topicPolicies.getMessageTTLInSeconds().updateTopicValue(data.getMessageTTLInSeconds());
-        topicPolicies.getPublishRate().updateTopicValue(normalize(data.getPublishRate()));
+        topicPolicies.getPublishRate().updateTopicValue(PublishRate.normalize(data.getPublishRate()));
         topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis());
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
-    }
-
-    private PublishRate normalize(PublishRate publishRate) {
-        if (publishRate != null
-            && (publishRate.publishThrottlingRateInMsg > 0
-            || publishRate.publishThrottlingRateInByte > 0)) {
-            return publishRate;
-        } else {
-            return null;
-        }
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
@@ -241,14 +231,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         updateSchemaCompatibilityStrategyNamespaceValue(namespacePolicies);
     }
 
-    private void updateNamespacePublishRate(Policies namespacePolicies, String cluster) {
-        topicPolicies.getPublishRate().updateNamespaceValue(
-            normalize(
-                namespacePolicies.publishMaxMessageRate != null
-                    ? namespacePolicies.publishMaxMessageRate.get(cluster)
-                    : null));
-    }
-
     private void updateSchemaCompatibilityStrategyNamespaceValue(Policies namespacePolicies){
         if (isSystemTopic()) {
             return;
@@ -261,6 +243,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
         topicPolicies.getSchemaCompatibilityStrategy()
                 .updateNamespaceValue(formatSchemaCompatibilityStrategy(strategy));
+    }
+
+    private void updateNamespacePublishRate(Policies namespacePolicies, String cluster) {
+        topicPolicies.getPublishRate().updateNamespaceValue(
+            PublishRate.normalize(
+                namespacePolicies.publishMaxMessageRate != null
+                    ? namespacePolicies.publishMaxMessageRate.get(cluster)
+                    : null));
     }
 
     private void updateTopicPolicyByBrokerConfig() {
@@ -1082,19 +1072,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-    @Override
-    public HierarchyTopicPolicies getHierarchyTopicPolicies() {
-        return topicPolicies;
-    }
-
     // subscriptionTypesEnabled is dynamic and can be updated online.
     public void updateBrokerSubscriptionTypesEnabled() {
         topicPolicies.getSubscriptionTypesEnabled().updateBrokerValue(
-                subTypeStringsToEnumSet(brokerService.pulsar().getConfiguration().getSubscriptionTypesEnabled()));
+            subTypeStringsToEnumSet(brokerService.pulsar().getConfiguration().getSubscriptionTypesEnabled()));
     }
 
-    public void updateBrokerPublishRate() {
-        topicPolicies.getPublishRate()
-            .updateBrokerValue(publishRateInBroker(brokerService.pulsar().getConfiguration()));
+    @Override
+    public HierarchyTopicPolicies getHierarchyTopicPolicies() {
+        return topicPolicies;
     }
 }
