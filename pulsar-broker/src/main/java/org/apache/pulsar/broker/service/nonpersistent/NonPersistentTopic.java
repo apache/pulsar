@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -302,9 +303,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                     name -> new NonPersistentSubscription(this, subscriptionName, isDurable));
+
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta,
-                    MessageId.latest);
+                    MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                 if (!cnx.isActive()) {
                     try {

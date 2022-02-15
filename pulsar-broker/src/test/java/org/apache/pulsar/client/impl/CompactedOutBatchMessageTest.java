@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -82,7 +81,7 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscriber-name").subscribe()) {
             // shove it in the sideways
             consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
-                    batchBuffer, new MessageIdData().setLedgerId(1234).setEntryId(567), consumer.cnx());
+                    batchBuffer, new MessageIdData().setLedgerId(1234).setEntryId(567), consumer.cnx(), DEFAULT_CONSUMER_EPOCH);
             Message<?> m = consumer.receive();
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getLedgerId(), 1234);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getEntryId(), 567);

@@ -88,7 +88,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--conf-file" }, description = "Configuration file")
+        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)

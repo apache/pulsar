@@ -52,6 +52,7 @@ import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.WindowFunction;
@@ -260,8 +261,10 @@ public class FunctionCommon {
                                                        String narExtractionDirectory) {
         if (packageFile != null) {
             try {
-                return NarClassLoader.getFromArchive(packageFile,
-                        Collections.emptySet(), narExtractionDirectory);
+                return NarClassLoaderBuilder.builder()
+                        .narFile(packageFile)
+                        .extractionDirectory(narExtractionDirectory)
+                        .build();
             } catch (IOException e) {
                 throw new IllegalArgumentException(e.getMessage());
             }
