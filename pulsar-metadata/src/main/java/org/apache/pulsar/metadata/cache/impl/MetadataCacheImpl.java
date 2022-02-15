@@ -266,10 +266,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @Override
     public void refresh(String path) {
         // Refresh object of path if only it is cached before.
-        if (objCache.getIfPresent(path) != null) {
-            objCache.synchronous().invalidate(path);
-            objCache.synchronous().refresh(path);
-        }
+        objCache.asMap().computeIfPresent(path, (oldKey, oldValue) -> readValueFromStore(path));
     }
 
     @VisibleForTesting
@@ -283,11 +280,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         switch (t.getType()) {
         case Created:
         case Modified:
-            if (objCache.synchronous().getIfPresent(path) != null) {
-                // Trigger background refresh of the cached item, but before make sure
-                // to invalidate the entry so that we won't serve a stale cached version
-                refresh(path);
-            }
+            refresh(path);
             break;
 
         case Deleted:
