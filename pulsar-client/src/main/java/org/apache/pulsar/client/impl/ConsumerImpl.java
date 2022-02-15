@@ -24,6 +24,7 @@ import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -984,12 +985,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        final List<CompletableFuture<Void>> closeFutures =new ArrayList<>();
+        CompletableFuture<Void> closeConsumerFuture = new CompletableFuture<>();
 
         if (getState() == State.Closing || getState() == State.Closed) {
             closeConsumerTasks();
-            failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
-            return closeFuture;
+            failPendingReceive().whenComplete((r, t) -> closeConsumerFuture.complete(null));
+            closeFutures.addAll(closeDeadAndRetryProducer());
+            return CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture[0]));
         }
 
         if (!isConnected()) {
@@ -998,8 +1001,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             closeConsumerTasks();
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
-            failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
-            return closeFuture;
+            failPendingReceive().whenComplete((r, t) -> closeConsumerFuture.complete(null));
+            closeFutures.addAll(closeDeadAndRetryProducer());
+            return CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture[0]));
         }
 
         stats.getStatTimeout().ifPresent(Timeout::cancel);
@@ -1008,25 +1012,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         closeConsumerTasks();
 
-        if (this.deadLetterProducer != null) {
-            try {
-                deadLetterProducer.get().closeAsync();
-            } catch (Exception e) {
-                log.warn("[{}] [{}] Closed deadLetterProducer,err=[{}]", topic, subscription, e);
-            }
-            this.deadLetterProducer = null;
-        }
-
-        if (this.retryLetterProducer != null) {
-            this.retryLetterProducer.closeAsync();
-            this.retryLetterProducer = null;
-        }
-
         long requestId = client.newRequestId();
 
         ClientCnx cnx = cnx();
         if (null == cnx) {
-            cleanupAtClose(closeFuture, null);
+            cleanupAtClose(closeConsumerFuture, null);
         } else {
             ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
             cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
@@ -1035,12 +1025,34 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (ignoreException && exception != null) {
                     log.debug("Exception ignored in closing consumer", exception);
                 }
-                cleanupAtClose(closeFuture, ignoreException ? null : exception);
+                cleanupAtClose(closeConsumerFuture, ignoreException ? null : exception);
                 return null;
             });
         }
+        closeFutures.add(closeConsumerFuture);
+        return CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture[0]));
+    }
 
-        return closeFuture;
+    private List<CompletableFuture<Void>> closeDeadAndRetryProducer() {
+        final List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
+        if (this.deadLetterProducer != null) {
+            try {
+                deadLetterProducer.whenComplete((r, t) -> {
+                    if (r != null) {
+                        closeFutures.add(r.closeAsync());
+                        this.deadLetterProducer = null;
+                    }
+                });
+            } catch (Exception e) {
+                log.warn("[{}] [{}] Closed deadLetterProducer,err=[{}]", topic, subscription, e);
+            }
+        }
+
+        if (this.retryLetterProducer != null) {
+            closeFutures.add(this.retryLetterProducer.closeAsync());
+            this.retryLetterProducer = null;
+        }
+        return closeFutures;
     }
 
     private void cleanupAtClose(CompletableFuture<Void> closeFuture, Throwable exception) {
