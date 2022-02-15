@@ -419,10 +419,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean authoritative = lookup.isAuthoritative();
 
         // use the connection-specific listener name by default.
-        final String advertisedListenerName = lookup.hasAdvertisedListenerName() ? lookup.getAdvertisedListenerName()
-                : this.listenerName;
+        final String advertisedListenerName =
+                lookup.hasAdvertisedListenerName() && StringUtils.isNotBlank(lookup.getAdvertisedListenerName()) ?
+                lookup.getAdvertisedListenerName() : this.listenerName;
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
+            log.debug("[{}] Received Lookup from {} with listener {} for {}", lookup.getTopic(), remoteAddress,
+                    StringUtils.isNotBlank(advertisedListenerName) ? advertisedListenerName : "(none)", requestId);
         }
 
         TopicName topicName = validateTopicName(lookup.getTopic(), requestId, lookup);
