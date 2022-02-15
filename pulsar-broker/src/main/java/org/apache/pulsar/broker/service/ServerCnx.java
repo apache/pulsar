@@ -420,11 +420,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // use the connection-specific listener name by default.
         final String advertisedListenerName =
-                lookup.hasAdvertisedListenerName() && StringUtils.isNotBlank(lookup.getAdvertisedListenerName()) ?
-                lookup.getAdvertisedListenerName() : this.listenerName;
+                lookup.hasAdvertisedListenerName() && StringUtils.isNotBlank(lookup.getAdvertisedListenerName())
+                        ? lookup.getAdvertisedListenerName() : this.listenerName;
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received Lookup from {} with listener {} for {}", lookup.getTopic(), remoteAddress,
-                    StringUtils.isNotBlank(advertisedListenerName) ? advertisedListenerName : "(none)", requestId);
+            log.debug("[{}] Received Lookup from {} for {} requesting listener {}", lookup.getTopic(), remoteAddress,
+                    requestId, StringUtils.isNotBlank(advertisedListenerName) ? advertisedListenerName : "(none)");
         }
 
         TopicName topicName = validateTopicName(lookup.getTopic(), requestId, lookup);
