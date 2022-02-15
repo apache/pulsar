@@ -33,10 +33,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -44,7 +43,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
-
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -56,6 +54,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
+import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.Constants;
@@ -552,44 +551,36 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName) {
-        return internalGetTopicPoliciesAsyncWithRetry(topicName,
-                new AtomicLong(DEFAULT_GET_TOPIC_POLICY_TIMEOUT), null, null);
+        try {
+            checkTopicLevelPolicyEnable();
+        }catch (RestException ex) {
+            log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, ex);
+            return FutureUtil.failedFuture(ex);
+        }
+        return internalGetTopicPoliciesAsyncWithRetry(topicName, null, pulsar().getExecutor());
     }
 
     protected CompletableFuture<Optional<TopicPolicies>> internalGetTopicPoliciesAsyncWithRetry(TopicName topicName,
-                                                                                                final AtomicLong remainingTime,
                                                                                                 final Backoff backoff,
-                                                                                                CompletableFuture<Optional<TopicPolicies>> future) {
-        CompletableFuture<Optional<TopicPolicies>> response = future == null ? new CompletableFuture<>() : future;
+                                                                                                ScheduledExecutorService scheduledExecutorService) {
+        CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
+        Backoff usedBackoff = backoff == null ? new BackoffBuilder()
+                .setInitialTime(500, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                .setMax(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                .create() : backoff;
         try {
-            checkTopicLevelPolicyEnable();
-            response.complete(Optional.ofNullable(pulsar()
-                    .getTopicPoliciesService().getTopicPolicies(topicName)));
-        } catch (RestException re) {
-            response.completeExceptionally(re);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            Backoff usedBackoff = backoff == null ? new BackoffBuilder()
-                    .setInitialTime(500, TimeUnit.MILLISECONDS)
-                    .setMandatoryStop(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
-                    .setMax(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
-                    .create() : backoff;
-            long nextDelay = Math.min(usedBackoff.next(), remainingTime.get());
-            if (nextDelay <= 0) {
-                response.completeExceptionally(new TimeoutException(
-                        String.format("Failed to get topic policy withing configured timeout %s ms",
-                                DEFAULT_GET_TOPIC_POLICY_TIMEOUT)));
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.error("Topic {} policies have not been initialized yet, retry after {}ms",
-                            topicName, nextDelay);
+            RetryUtil.retryAsynchronously(() -> {
+                CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
+                try {
+                    future.complete(Optional.ofNullable(pulsar().getTopicPoliciesService()
+                            .getTopicPolicies(topicName)));
+                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
+                    future.completeExceptionally(exception);
                 }
-                pulsar().getExecutor().schedule(() -> {
-                    remainingTime.addAndGet(-nextDelay);
-                    internalGetTopicPoliciesAsyncWithRetry(topicName, remainingTime, usedBackoff, response);
-                }, nextDelay, TimeUnit.MILLISECONDS);
-            }
+                return future;
+            }, usedBackoff, scheduledExecutorService, response);
         } catch (Exception e) {
-            log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
             response.completeExceptionally(e);
         }
         return response;
