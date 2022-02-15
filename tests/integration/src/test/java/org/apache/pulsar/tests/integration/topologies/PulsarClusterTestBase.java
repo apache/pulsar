@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -29,6 +31,8 @@ import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
+    protected final Map<String, String> brokerEnvs = new HashMap<>();
+
     @Override
     protected final void setup() throws Exception {
         setupCluster();
@@ -98,7 +102,8 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
                 .collect(joining("-"));
 
         PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder = PulsarClusterSpec.builder()
-                .clusterName(clusterName);
+                .clusterName(clusterName)
+                .brokerEnvs(brokerEnvs);
 
         setupCluster(beforeSetupCluster(clusterName, specBuilder).build());
     }
