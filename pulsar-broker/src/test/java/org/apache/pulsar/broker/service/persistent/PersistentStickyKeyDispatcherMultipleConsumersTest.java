@@ -414,7 +414,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             return null;
         }).when(cursorMock).asyncReadEntriesOrWait(anyInt(), anyLong(),
                 any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), anyBoolean());
 
         // (1) Run sendMessagesToConsumers
         // (2) Attempts to send message1 to consumer1 but skipped because availablePermits is 0
