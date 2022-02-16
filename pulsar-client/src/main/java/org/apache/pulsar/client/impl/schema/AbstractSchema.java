@@ -74,14 +74,13 @@ public abstract class AbstractSchema<T> implements Schema<T> {
      * @param schemaVersion the version
      * @return the schema at that specific version
      * @throws SchemaSerializationException in case of unknown schema version
-     * @throws NullPointerException in case of null schemaVersion
+     * @throws NullPointerException in case of null schemaVersion and supportSchemaVersioning is true
      */
     public Schema<?> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
-        Objects.requireNonNull(schemaVersion);
         if (!supportSchemaVersioning()) {
             return this;
-        } else {
-            throw new SchemaSerializationException("Not implemented for " + this.getClass());
         }
+        Objects.requireNonNull(schemaVersion);
+        throw new SchemaSerializationException("Not implemented for " + this.getClass());
     }
 }
