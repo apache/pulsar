@@ -320,7 +320,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         private SSLSession sslSession;
         private long expiration;
         private HttpServletRequest request;
-        private boolean authHttpState;
 
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
@@ -330,8 +329,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             this.provider = provider;
             this.remoteAddress = remoteAddress;
             this.sslSession = sslSession;
-            this.authHttpState = false;
-            this.authenticate(authData);
+            String token = new String(authData.getBytes(), UTF_8);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
+            this.checkExpiration(token);
         }
 
         TokenAuthenticationState(
@@ -339,7 +339,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 HttpServletRequest request) throws AuthenticationException {
             this.provider = provider;
             this.request = request;
-            this.authHttpState = true;
             String httpHeaderValue = this.request.getHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
                 throw new AuthenticationException("Invalid HTTP Authorization header");
@@ -347,8 +346,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
             // Remove prefix
             String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-            AuthData authData = AuthData.of(token.getBytes());
-            this.authenticate(authData);
+            this.authenticationDataSource = new AuthenticationDataHttps(this.request);
+            this.checkExpiration(token);
         }
 
         @Override
@@ -362,23 +361,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
          */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            String token = new String(authData.getBytes(), UTF_8);
+            // There's no additional auth stage required
+            return null;
+        }
 
+        private void checkExpiration(String token) throws AuthenticationException {
             this.jwt = provider.authenticateToken(token);
-            if (authHttpState) {
-                this.authenticationDataSource = new AuthenticationDataHttps(this.request);
-            } else {
-                this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
-            }
             if (jwt.getBody().getExpiration() != null) {
                 this.expiration = jwt.getBody().getExpiration().getTime();
             } else {
                 // Disable expiration
                 this.expiration = Long.MAX_VALUE;
             }
-
-            // There's no additional auth stage required
-            return null;
         }
 
         @Override

@@ -98,7 +98,7 @@ public class AuthenticationService implements Closeable {
             }
             try {
                 if (authData == null) {
-                    // In the default implementation clas OneStageAuthenticationStates, the authentication has been
+                    // In the default implementation class OneStageAuthenticationStates, the authentication has been
                     // done, in order to avoid secondary authentication here directly return the role, if the user
                     // custom implementation, should consider adding authentication in their own implementation class.
                     AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
