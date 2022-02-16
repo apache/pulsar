@@ -721,6 +721,8 @@ $ pulsar-perf transaction options
 
 |Flag|Description|Default|
 |---|---|---|
+`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.|N/A
+`--auth-plugin`|Authentication plugin class name.|N/A
 `-au`, `--admin-url`|Pulsar admin URL.|N/A
 `-cf`, `--conf-file`|Configuration file.|N/A
 `-h`, `--help`|Help messages.|N/A
