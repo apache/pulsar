@@ -77,6 +77,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
@@ -637,7 +638,7 @@ public abstract class TestPulsarConnector {
 
                         return null;
                     }
-                }).when(readOnlyCursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
+                }).when(readOnlyCursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), anyBoolean());
 
                 when(readOnlyCursor.hasMoreEntries()).thenAnswer(new Answer<Boolean>() {
                     @Override
