@@ -708,15 +708,15 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 </tr>
 <tr id="i71" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateMaxPublishRate(org.apache.pulsar.common.policies.data.Policies)">updateMaxPublishRate</a></span>&#8203;(org.apache.pulsar.common.policies.data.Policies&nbsp;policies)</code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr id="i72" class="altColor">
-<td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updatePublishDispatcher(org.apache.pulsar.common.policies.data.PublishRate)">updatePublishDispatcher</a></span>&#8203;(org.apache.pulsar.common.policies.data.PublishRate&nbsp;publishRate)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updatePublishDispatcher()">updatePublishDispatcher</a></span>()</code></th>
 <td class="colLast">
 <div class="block">update topic publish dispatcher for this topic.</div>
 </td>
+</tr>
+<tr id="i72" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateResourceGroupLimiter(java.util.Optional)">updateResourceGroupLimiter</a></span>&#8203;(java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;optPolicies)</code></th>
+<td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i73" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
@@ -1643,13 +1643,13 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 <pre class="methodSignature">public&nbsp;<a href="PublishRateLimiter.html" title="interface in org.apache.pulsar.broker.service">PublishRateLimiter</a>&nbsp;getBrokerPublishRateLimiter()</pre>
 </li>
 </ul>
-<a id="updateMaxPublishRate(org.apache.pulsar.common.policies.data.Policies)">
+<a id="updateResourceGroupLimiter(java.util.Optional)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>updateMaxPublishRate</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;updateMaxPublishRate&#8203;(org.apache.pulsar.common.policies.data.Policies&nbsp;policies)</pre>
+<h4>updateResourceGroupLimiter</h4>
+<pre class="methodSignature">public&nbsp;void&nbsp;updateResourceGroupLimiter&#8203;(java.util.Optional&lt;org.apache.pulsar.common.policies.data.Policies&gt;&nbsp;optPolicies)</pre>
 </li>
 </ul>
 <a id="getMsgInCounter()">
@@ -1766,14 +1766,23 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
                                              <a href="Topic.PublishContext.html" title="interface in org.apache.pulsar.broker.service">Topic.PublishContext</a>&nbsp;publishContext)</pre>
 </li>
 </ul>
-<a id="updatePublishDispatcher(org.apache.pulsar.common.policies.data.PublishRate)">
+<a id="updatePublishDispatcher()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>updatePublishDispatcher</h4>
-<pre class="methodSignature">protected&nbsp;void&nbsp;updatePublishDispatcher&#8203;(org.apache.pulsar.common.policies.data.PublishRate&nbsp;publishRate)</pre>
+<pre class="methodSignature">public&nbsp;void&nbsp;updatePublishDispatcher()</pre>
 <div class="block">update topic publish dispatcher for this topic.</div>
+</li>
+</ul>
+<a id="updateBrokerSubscriptionTypesEnabled()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>updateBrokerSubscriptionTypesEnabled</h4>
+<pre class="methodSignature">public&nbsp;void&nbsp;updateBrokerSubscriptionTypesEnabled()</pre>
 </li>
 </ul>
 <a id="getHierarchyTopicPolicies()">
@@ -1790,15 +1799,6 @@ implements <a href="Topic.html" title="interface in org.apache.pulsar.broker.ser
 <dd><code><a href="Topic.html#getHierarchyTopicPolicies()">getHierarchyTopicPolicies</a></code>&nbsp;in interface&nbsp;<code><a href="Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></code></dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
-</li>
-</ul>
-<a id="updateBrokerSubscriptionTypesEnabled()">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>updateBrokerSubscriptionTypesEnabled</h4>
-<pre class="methodSignature">public&nbsp;void&nbsp;updateBrokerSubscriptionTypesEnabled()</pre>
 </li>
 </ul>
 <a id="updateBrokerSubscriptionDispatchRate()">

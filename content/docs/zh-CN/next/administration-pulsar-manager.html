@@ -77,9 +77,13 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Manager</h1></header><article><div><span><p>Pulsar Manager 是一个网页式可视化管理与监测工具，支持多环境下的动态配置。可用于管理和监测租户、命名空间、topic、订阅、broker、集群等。</p>
 <blockquote>
-<p><strong>备注</strong> 如果你在用 <a href="administration-dashboard.md">Pulsar dashboard</a> 监控相关指标，可尝试改用 Pulsar Manager。 Pulsar dashboard 已弃用。</p>
+<p><strong>Note</strong> If you are monitoring your current stats with <a href="administration-dashboard.md">Pulsar dashboard</a>, we recommend you use Pulsar Manager instead. Pulsar dashboard 已弃用。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
+<p>To install Pulsar manager, you can choose one of the following methods.</p>
+<ul>
+<li>Method 1: use Docker tool</li>
+</ul>
 <p>在 <a href="https://www.docker.com/products/docker">Docker</a> 容器中运行是使用 Pulsar Manager 最简单的方法。</p>
 <pre><code class="hljs css language-shell">docker pull apachepulsar/pulsar-manager:v0.2.0
 docker run -it \
@@ -90,15 +94,6 @@ docker run -it \
 <ul>
 <li><code>SPRING_CONFIGURATION_FILE</code>: Spring 默认使用的配置文件</li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="设置管理员账户和密码"></a><a href="#设置管理员账户和密码" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置管理员账户和密码</h3>
-<pre><code class="hljs css language-shell">CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
-curl \
-   -H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
-   -H 'Cookie: XSRF-TOKEN=$CSRF_TOKEN;' \
-   -H "Content-Type: application/json" \
-   -X PUT http://localhost:7750/pulsar-manager/users/superuser \
-   -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
-</code></pre>
 <p>你能在<a href="https://github.com/apache/pulsar-manager/tree/master/docker"> Docker Hub </a>找到这个 docker 镜像，这个镜像是基于下面的源码构建的：</p>
 <pre><code class="hljs">git clone https:<span class="hljs-string">//github.com/apache/pulsar-manager</span>
 <span class="hljs-keyword">cd</span> pulsar-manager/front-end
@@ -109,8 +104,18 @@ npm run build<span class="hljs-function">:prod</span>
 <span class="hljs-keyword">cd</span> <span class="hljs-string">..</span>
 docker build -f docker/Dockerfile <span class="hljs-params">--build-arg</span> BUILD_DATE=`date -u +<span class="hljs-string">"%Y-%m-%dT%H:%M:%SZ"</span>` <span class="hljs-params">--build-arg</span> VCS_REF=`latest` <span class="hljs-params">--build-arg</span> VERSION=`latest` -t apachepulsar/pulsar-manager .
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="使用自定义数据库"></a><a href="#使用自定义数据库" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用自定义数据库</h3>
-<p>如有大量数据，则可以使用自定义数据库。 使用 PostgreSQL 的示例如下：</p>
+<ul>
+<li>Method 2: use command-line tool</li>
+</ul>
+<pre><code class="hljs"><span class="hljs-attr">wget</span> <span class="hljs-string">https://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz</span>
+<span class="hljs-attr">tar</span> <span class="hljs-string">-zxvf apache-pulsar-manager-0.2.0-bin.tar.gz</span>
+<span class="hljs-attr">cd</span> <span class="hljs-string">pulsar-manager</span>
+<span class="hljs-attr">tar</span> <span class="hljs-string">-zxvf pulsar-manager.tar</span>
+<span class="hljs-attr">cd</span> <span class="hljs-string">pulsar-manager</span>
+<span class="hljs-attr">cp</span> <span class="hljs-string">-r ../dist ui</span>
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="use-custom-databasesoptional"></a><a href="#use-custom-databasesoptional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use custom databases(optional)</h3>
+<p>If you have a large amount of data, you can use a custom database, otherwise, some display errors may occur, such as the topic information cannot be displayed when the topic exceeds 10000. 使用 PostgreSQL 的示例如下：</p>
 <ol>
 <li><p>使用 <a href="https://github.com/apache/pulsar-manager/tree/master/src/main/resources/META-INF/sql/postgresql-schema.sql">file</a> 初始化数据库和表结构。</p></li>
 <li><p>修改 <a href="https://github.com/apache/pulsar-manager/blob/master/src/main/resources/application.properties">配置文件</a> 并配置 PostgreSQL。</p></li>
@@ -125,7 +130,7 @@ docker build -f docker/Dockerfile <span class="hljs-params">--build-arg</span> B
 </ol>
 <pre><code class="hljs">./gradlew <span class="hljs-keyword">build </span>-x test
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="启用-jwt-认证"></a><a href="#启用-jwt-认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用 JWT 认证</h3>
+<h3><a class="anchor" aria-hidden="true" id="enable-jwt-authenticationoptional"></a><a href="#enable-jwt-authenticationoptional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable JWT authentication(optional)</h3>
 <p>启用 JWT 认证，需配置以下参数：</p>
 <ul>
 <li><code>backend.jwt.token</code>：超级用户令牌（token）。 需要在集群初始化时配置此参数。</li>
@@ -169,7 +174,7 @@ jwt<span class="hljs-selector-class">.broker</span><span class="hljs-selector-cl
 docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -p 7750:7750 -e <span class="hljs-attribute">REDIRECT_HOST</span>=http://localhost -e <span class="hljs-attribute">REDIRECT_PORT</span>=9527 -e <span class="hljs-attribute">DRIVER_CLASS_NAME</span>=org.postgresql.Driver -e <span class="hljs-attribute">URL</span>=<span class="hljs-string">'jdbc:postgresql://127.0.0.1:5432/pulsar_manager'</span> -e <span class="hljs-attribute">USERNAME</span>=pulsar -e <span class="hljs-attribute">PASSWORD</span>=pulsar -e <span class="hljs-attribute">LOG_LEVEL</span>=DEBUG -e <span class="hljs-attribute">JWT_TOKEN</span>=<span class="hljs-variable">$JWT_TOKEN</span> -v <span class="hljs-variable">$PWD</span>:/data apachepulsar/pulsar-manager:v0.2.0 /bin/sh
 </code></pre>
 <ul>
-<li><p><code>JWT_TOKEN</code>: 超级用户对 broker 配置的 token。 它由<code>bin/pulsar tokens create --secret-key</code>或者<code>bin/pulsar tokens create --private-key</code>命令创建。</p></li>
+<li><p><code>JWT_TOKEN</code>: 超级用户对 broker 配置的 token。 It is generated by the <code>bin/pulsar tokens create --secret-key</code> or <code>bin/pulsar tokens create --private-key</code> command.</p></li>
 <li><p><code>REDIRECT_HOST</code>: 前端服务器的 IP 地址。</p></li>
 <li><p><code>REDIRECT_PORT</code>: 前端服务器的端口。</p></li>
 <li><p><code>DRIVER_CLASS_NAME</code>: PostgreSQL 数据库的驱动类名称。</p></li>
@@ -216,10 +221,19 @@ docker <span class="hljs-builtin-name">run</span> -it -p 9527:9527 -p 7750:7750 
 <li><p>了解更多后台配置信息，<a href="https://github.com/apache/pulsar-manager/blob/master/src/README.md">点击这里</a>。</p></li>
 <li><p>了解更多前台配置信息，<a href="https://github.com/apache/pulsar-manager/tree/master/front-end">点击这里</a></p></li>
 </ul>
+<h3><a class="anchor" aria-hidden="true" id="设置管理员账户和密码"></a><a href="#设置管理员账户和密码" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置管理员账户和密码</h3>
+<pre><code class="hljs css language-shell">CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
+curl \
+-H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
+-H 'Cookie: XSRF-TOKEN=$CSRF_TOKEN;' \
+-H "Content-Type: application/json" \
+-X PUT http://localhost:7750/pulsar-manager/users/superuser \
+-d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
+</code></pre>
 <h2><a class="anchor" aria-hidden="true" id="登录"></a><a href="#登录" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>登录</h2>
 <p><a href="#set-administrator-account-and-password">设置管理员账号和密码</a>。</p>
 <p>访问 <a href="http://localhost:9527">http://localhost:9527</a> 进行登录。</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/administration-geo"><span class="arrow-prev">← </span><span>跨地域复制</span></a><a class="docs-next button" href="/docs/zh-CN/next/administration-stats"><span>Pulsar 统计数据</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#设置管理员账户和密码">设置管理员账户和密码</a></li><li><a href="#使用自定义数据库">使用自定义数据库</a></li><li><a href="#启用-jwt-认证">启用 JWT 认证</a></li></ul></li><li><a href="#登录">登录</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/administration-geo"><span class="arrow-prev">← </span><span>跨地域复制</span></a><a class="docs-next button" href="/docs/zh-CN/next/administration-stats"><span>Pulsar 统计数据</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#use-custom-databasesoptional">Use custom databases(optional)</a></li><li><a href="#enable-jwt-authenticationoptional">Enable JWT authentication(optional)</a></li><li><a href="#设置管理员账户和密码">设置管理员账户和密码</a></li></ul></li><li><a href="#登录">登录</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -520,16 +520,6 @@
 <td>false</td>
 </tr>
 <tr>
-<td><code>-ns, --num-subscriptions</code></td>
-<td>Number of subscriptions (per topic)</td>
-<td>1</td>
-</tr>
-<tr>
-<td><code>-ntxn, --number-txn</code></td>
-<td>Set the number of transaction. 0 means keeping open.If transaction disabled, it means the number of tasks. The task or transaction produces or consumes a specified number of messages.</td>
-<td>0</td>
-</tr>
-<tr>
 <td><code>-ioThreads, --num-io-threads</code></td>
 <td>Set the number of threads to be used for handling connections to brokers. The default value is 1.</td>
 <td>1</td>
@@ -540,34 +530,9 @@
 <td>1</td>
 </tr>
 <tr>
-<td><code>-c, --max-connections</code></td>
-<td>Max number of TCP connections to a single broker</td>
-<td>100</td>
-</tr>
-<tr>
-<td><code>-txnRate</code></td>
-<td>Set the rate of opened transaction or task. 0 means no limit</td>
-<td>0</td>
-</tr>
-<tr>
-<td><code>-ss, --subscriptions</code></td>
-<td>A list of subscriptions to consume (for example, sub1,sub2)</td>
-<td>[sub]</td>
-</tr>
-<tr>
 <td><code>-h, --help</code></td>
 <td>Help message</td>
 <td>false</td>
-</tr>
-<tr>
-<td><code>--topics-c</code></td>
-<td>All topics that need ack for a transaction</td>
-<td>[test-consume]</td>
-</tr>
-<tr>
-<td><code>-st, --subscription-type</code></td>
-<td>Subscription type</td>
-<td>Shared</td>
 </tr>
 <tr>
 <td><code>-nmp, --numMessage-perTransaction-produce</code></td>
@@ -590,13 +555,13 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>-abort</code></td>
-<td>Abort the transaction. (After --txn-disEnable setting to false, -abort takes effect)</td>
-<td>false</td>
+<td><code>--auth-params</code></td>
+<td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td>
+<td>null</td>
 </tr>
 <tr>
-<td><code>-u, --service-url</code></td>
-<td>Pulsar Service URL</td>
+<td><code>--auth-plugin</code></td>
+<td>Authentication plugin class name</td>
 <td>null</td>
 </tr>
 <tr>
@@ -615,14 +580,59 @@
 <td>[test-produce]</td>
 </tr>
 <tr>
-<td><code>-au, --admin-url</code></td>
-<td>Pulsar Admin URL</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>-tto, --txn-timeout</code></td>
 <td>Set the time value of transaction timeout, and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)</td>
 <td>5</td>
+</tr>
+<tr>
+<td><code>-ns, --num-subscriptions</code></td>
+<td>Number of subscriptions (per topic)</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-ntxn, --number-txn</code></td>
+<td>Set the number of transaction. 0 means keeping open.If transaction disabled, it means the number of tasks. The task or transaction produces or consumes a specified number of messages.</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-c, --max-connections</code></td>
+<td>Max number of TCP connections to a single broker</td>
+<td>100</td>
+</tr>
+<tr>
+<td><code>-txnRate</code></td>
+<td>Set the rate of opened transaction or task. 0 means no limit</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>-ss, --subscriptions</code></td>
+<td>A list of subscriptions to consume (for example, sub1,sub2)</td>
+<td>[sub]</td>
+</tr>
+<tr>
+<td><code>--topics-c</code></td>
+<td>All topics that need ack for a transaction</td>
+<td>[test-consume]</td>
+</tr>
+<tr>
+<td><code>-st, --subscription-type</code></td>
+<td>Subscription type</td>
+<td>Shared</td>
+</tr>
+<tr>
+<td><code>-abort</code></td>
+<td>Abort the transaction. (After --txn-disEnable setting to false, -abort takes effect)</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-u, --service-url</code></td>
+<td>Pulsar Service URL</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-au, --admin-url</code></td>
+<td>Pulsar Admin URL</td>
+<td>null</td>
 </tr>
 </tbody>
 </table>
