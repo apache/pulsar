@@ -149,7 +149,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
-        updatePublishDispatcher(Optional.empty());
     }
 
     public DispatchRateImpl getSubscriptionDispatchRate() {
@@ -191,6 +190,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         data.getBackLogQuotaMap() == null ? null : data.getBackLogQuotaMap().get(type.toString())));
         topicPolicies.getTopicMaxMessageSize().updateTopicValue(data.getMaxMessageSize());
         topicPolicies.getMessageTTLInSeconds().updateTopicValue(data.getMessageTTLInSeconds());
+        topicPolicies.getPublishRate().updateTopicValue(PublishRate.normalize(data.getPublishRate()));
         topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis());
         topicPolicies.getSubscriptionDispatchRate().updateTopicValue(normalize(data.getSubscriptionDispatchRate()));
@@ -222,6 +222,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getDeduplicationEnabled().updateNamespaceValue(namespacePolicies.deduplicationEnabled);
         topicPolicies.getDeduplicationSnapshotIntervalSeconds().updateNamespaceValue(
                 namespacePolicies.deduplicationSnapshotIntervalSeconds);
+        updateNamespacePublishRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
         topicPolicies.getDelayedDeliveryEnabled().updateNamespaceValue(
                 Optional.ofNullable(namespacePolicies.delayed_delivery_policies)
                         .map(DelayedDeliveryPolicies::isActive).orElse(null));
@@ -267,6 +268,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 .updateNamespaceValue(formatSchemaCompatibilityStrategy(strategy));
     }
 
+    private void updateNamespacePublishRate(Policies namespacePolicies, String cluster) {
+        topicPolicies.getPublishRate().updateNamespaceValue(
+            PublishRate.normalize(
+                namespacePolicies.publishMaxMessageRate != null
+                    ? namespacePolicies.publishMaxMessageRate.get(cluster)
+                    : null));
+    }
+
     private void updateTopicPolicyByBrokerConfig() {
         ServiceConfiguration config = brokerService.pulsar().getConfiguration();
         topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
@@ -298,6 +307,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         topicPolicies.getTopicMaxMessageSize().updateBrokerValue(config.getMaxMessageSize());
         topicPolicies.getMessageTTLInSeconds().updateBrokerValue(config.getTtlDurationDefaultInSeconds());
+        topicPolicies.getPublishRate().updateBrokerValue(publishRateInBroker(config));
         topicPolicies.getDelayedDeliveryEnabled().updateBrokerValue(config.isDelayedDeliveryEnabled());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateBrokerValue(config.getDelayedDeliveryTickTimeMillis());
         topicPolicies.getCompactionThreshold().updateBrokerValue(config.getBrokerServiceCompactionThresholdInBytes());
@@ -334,6 +344,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         } else {
             return subTypes;
         }
+    }
+
+    private PublishRate publishRateInBroker(ServiceConfiguration config) {
+        return new PublishRate(config.getMaxPublishRatePerTopicInMessages(), config.getMaxPublishRatePerTopicInBytes());
     }
 
     protected boolean isProducersExceeded() {
@@ -954,49 +968,18 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return brokerService.getBrokerPublishRateLimiter();
     }
 
-    public void updateMaxPublishRate(Policies policies) {
-        updatePublishDispatcher(Optional.of(policies));
-    }
-
-    private void updatePublishDispatcher(Optional<Policies> optPolicies) {
-        //if topic-level policy exists, try to use topic-level publish rate policy
-        Optional<PublishRate> topicPublishRate = getTopicPolicies().map(TopicPolicies::getPublishRate);
-        if (topicPublishRate.isPresent()) {
-            log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}",
-                    this.topic);
-            updatePublishDispatcher(topicPublishRate.get());
-            return;
-        }
-
+    public void updateResourceGroupLimiter(Optional<Policies> optPolicies) {
         Policies policies;
         try {
-            if (optPolicies.isPresent()) {
-                policies = optPolicies.get();
-            } else {
-                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
-                                TopicName.get(topic).getNamespaceObject())
-                        .orElseGet(() -> new Policies());
-            }
+            policies = optPolicies.orElseGet(() ->
+                brokerService.pulsar()
+                    .getPulsarResources()
+                    .getNamespaceResources()
+                    .getPoliciesIfCached(TopicName.get(topic).getNamespaceObject())
+                    .orElseGet(Policies::new));
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
             policies = new Policies();
-        }
-
-        //topic-level policy is not set, try to use namespace-level rate policy
-        final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
-        final PublishRate publishRate = policies.publishMaxMessageRate != null
-                ? policies.publishMaxMessageRate.get(clusterName)
-                : null;
-
-        //both namespace-level and topic-level policy are not set, try to use broker-level policy
-        ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
-        if (publishRate != null) {
-            //publishRate is not null, use namespace-level policy
-            updatePublishDispatcher(publishRate);
-        } else {
-            PublishRate brokerPublishRate = new PublishRate(serviceConfiguration.getMaxPublishRatePerTopicInMessages()
-              , serviceConfiguration.getMaxPublishRatePerTopicInBytes());
-            updatePublishDispatcher(brokerPublishRate);
         }
 
         // attach the resource-group level rate limiters, if set
@@ -1093,9 +1076,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     /**
      * update topic publish dispatcher for this topic.
      */
-    protected void updatePublishDispatcher(PublishRate publishRate) {
-        if (publishRate != null && (publishRate.publishThrottlingRateInByte > 0
-                || publishRate.publishThrottlingRateInMsg > 0)) {
+    public void updatePublishDispatcher() {
+        PublishRate publishRate = topicPolicies.getPublishRate().get();
+        if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
             log.info("Enabling publish rate limiting {} ", publishRate);
             if (!preciseTopicPublishRateLimitingEnable) {
                 this.brokerService.setupTopicPublishRateLimiterMonitor();
@@ -1120,15 +1103,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
-    @Override
-    public HierarchyTopicPolicies getHierarchyTopicPolicies() {
-        return topicPolicies;
-    }
-
     // subscriptionTypesEnabled is dynamic and can be updated online.
     public void updateBrokerSubscriptionTypesEnabled() {
         topicPolicies.getSubscriptionTypesEnabled().updateBrokerValue(
-                subTypeStringsToEnumSet(brokerService.pulsar().getConfiguration().getSubscriptionTypesEnabled()));
+            subTypeStringsToEnumSet(brokerService.pulsar().getConfiguration().getSubscriptionTypesEnabled()));
+    }
+
+    @Override
+    public HierarchyTopicPolicies getHierarchyTopicPolicies() {
+        return topicPolicies;
     }
 
     public void updateBrokerSubscriptionDispatchRate() {
