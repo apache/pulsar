@@ -1084,6 +1084,9 @@ public class PersistentSubscription implements Subscription {
         return subscriptionProperties;
     }
 
+    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+        return pendingAckHandle.getPositionInPendingAck(position);
+    }
     /**
      * Return a merged map that contains the cursor properties specified by used
      * (eg. when using compaction subscription) and the subscription properties.

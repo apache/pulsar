@@ -33,10 +33,8 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -102,6 +100,63 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @DataProvider(name = "enableBatch")
     public Object[][] enableBatch() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
+    @Test
+    private void testIndividualAckAbortFilterAckSetInPendingAckState() throws Exception {
+        final String topicName = NAMESPACE1 + "/testIndividualAckAbortFilterAckSetInPendingAckState";
+        final int count = 9;
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxMessages(count).create();
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int i = 0; i < count; i++) {
+            producer.sendAsync(i);
+        }
+
+        Transaction firstTransaction = getTxn();
+
+        Transaction secondTransaction = getTxn();
+
+        // firstTransaction ack the first three messages and don't end the firstTransaction
+        for (int i = 0; i < count / 3; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), firstTransaction).get();
+        }
+
+        // if secondTransaction abort we only can receive the middle three messages
+        for (int i = 0; i < count / 3; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), secondTransaction).get();
+        }
+
+        // consumer normal ack the last three messages
+        for (int i = 0; i < count / 3; i++) {
+            consumer.acknowledgeAsync(consumer.receive()).get();
+        }
+
+        // if secondTransaction abort we only can receive the middle three messages
+        secondTransaction.abort().get();
+
+        // can receive 3 4 5 bit sit message
+        for (int i = 0; i < count / 3; i++) {
+            assertEquals(consumer.receive().getValue().intValue(), i + 3);
+        }
+
+        // can't receive message anymore
+        assertNull(consumer.receive(2, TimeUnit.SECONDS));
+
     }
 
     @Test(dataProvider="enableBatch")
@@ -630,7 +685,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
     }
 
-    private Transaction getTxn() throws Exception {
+    public Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
                 .withTransactionTimeout(10, TimeUnit.SECONDS)
