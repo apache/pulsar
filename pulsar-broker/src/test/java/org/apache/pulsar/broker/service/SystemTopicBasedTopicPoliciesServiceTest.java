@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -33,8 +34,13 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
+import java.lang.reflect.Field;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
@@ -192,5 +198,34 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.lookups().lookupTopic(TOPIC6.toString());
         systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+    }
+
+    @Test
+    public void testGetTopicPoliciesWithRetry() throws Exception {
+        Field initMapField = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("policyCacheInitMap");
+        initMapField.setAccessible(true);
+        Map<NamespaceName, Boolean> initMap = (Map)initMapField.get(systemTopicBasedTopicPoliciesService);
+        initMap.remove(NamespaceName.get(NAMESPACE1));
+        Field readerCaches = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("readerCaches");
+        readerCaches.setAccessible(true);
+        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader>> readers = (Map)readerCaches.get(systemTopicBasedTopicPoliciesService);
+        readers.remove(NamespaceName.get(NAMESPACE1));
+        TopicPolicies initPolicy = TopicPolicies.builder()
+                .maxConsumerPerTopic(10)
+                .build();
+        ScheduledExecutorService executors = Executors.newScheduledThreadPool(1);
+        executors.schedule(() -> {
+            try {
+                systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
+            } catch (Exception ignore) {}
+        }, 2000, TimeUnit.MILLISECONDS);
+        Awaitility.await().untilAsserted(() -> {
+            try {
+                TopicPolicies topicPolicies = systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1);
+                Assert.assertNotNull(topicPolicies);
+            } catch (Exception ex) {
+                Assert.fail();
+            }
+        });
     }
 }
