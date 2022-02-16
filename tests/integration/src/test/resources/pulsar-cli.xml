@@ -30,6 +30,7 @@
             <class name="org.apache.pulsar.tests.integration.cli.FunctionsCLITest"/>
             <class name="org.apache.pulsar.tests.integration.cli.PackagesCliTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.PulsarVersionTest"/>
+            <class name="org.apache.pulsar.tests.integration.cli.topicpolicies.SchemaCompatibilityStrategyTest"/>
         </classes>
     </test>
 </suite>

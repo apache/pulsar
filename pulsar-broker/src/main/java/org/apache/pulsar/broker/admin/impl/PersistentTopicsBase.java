@@ -1796,7 +1796,10 @@ public class PersistentTopicsBase extends AdminResource {
                                  String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                                  PersistentReplicator repl =
                                          (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                                 checkNotNull(repl);
+                                 if (repl == null) {
+                                     return FutureUtil.failedFuture(
+                                             new RestException(Status.NOT_FOUND, "Replicator not found"));
+                                 }
                                  return repl.skipMessages(numMessages).thenAccept(unused -> {
                                      log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages,
                                              topicName, subName);
@@ -1805,7 +1808,10 @@ public class PersistentTopicsBase extends AdminResource {
                                  );
                              } else {
                                  PersistentSubscription sub = topic.getSubscription(subName);
-                                 checkNotNull(sub);
+                                 if (sub == null) {
+                                     return FutureUtil.failedFuture(
+                                             new RestException(Status.NOT_FOUND, "Subscription not found"));
+                                 }
                                  return sub.skipMessages(numMessages).thenAccept(unused -> {
                                      log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages,
                                              topicName, subName);
@@ -3643,10 +3649,13 @@ public class PersistentTopicsBase extends AdminResource {
                             String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                             PersistentReplicator repl = (PersistentReplicator)
                                     topic.getPersistentReplicator(remoteCluster);
-                            checkNotNull(repl);
+                            if (repl == null) {
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                        "Replicator not found"));
+                                return;
+                            }
                             issued = repl.expireMessages(position);
                         } else {
-                            checkNotNull(sub);
                             issued = sub.expireMessages(position);
                         }
                         if (issued) {
