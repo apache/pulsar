@@ -101,6 +101,38 @@ func main() {
 ```
 For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
 
+Function initialize and close interface are available in **Pulsar Function SDK for Java 2.10.0 or later**.
+You can use these interface to process any resource initialize and release logic.
+
+The following example uses initialize and close interface.
+
+```Java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+public class InitializableFunction implements Function<String, String> {
+    private RedisClient client;
+
+    @Override
+    public void initialize(Context context) {
+        Map<String, Object> connectInfo = context.getUserConfigMap();
+        client=init(connectInfo);
+    }
+    
+    @Override
+    public String process(String input, Context context) {
+        String value = client.get(key);
+        return String.format("%s-%s", input, value);
+    }
+
+    @Override
+    public void close() {
+        client.close();
+    }
+}
+```
+Notice that to use initialize interface, you should set up Pulsar Functions worker 2.10.0 or later.
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry
