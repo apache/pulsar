@@ -569,7 +569,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. | |
 | systemTopicEnabled | Enable/Disable system topics. | false |
 | topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
-| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it will be closed forcefully. If set to 0 or a negative number, the fenced topic will not be closed. | 0 |
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 | proxyRoles | Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
