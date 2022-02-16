@@ -168,7 +168,7 @@ Options
 |`-c` , `--cluster`|Cluster name||
 |`-cms` , `--configuration-metadata-store`|The configuration metadata store quorum connection string||
 |`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster that you want to use||
-|`-h` , `--help`|Cluster name|false|
+|`-h` , `--help`|Help message|false|
 |`--initial-num-stream-storage-containers`|The number of storage containers of BookKeeper stream storage|16|
 |`--initial-num-transaction-coordinators`|The number of transaction coordinators assigned in a cluster|16|
 |`-uw` , `--web-service-url`|The web service URL for the new cluster||
