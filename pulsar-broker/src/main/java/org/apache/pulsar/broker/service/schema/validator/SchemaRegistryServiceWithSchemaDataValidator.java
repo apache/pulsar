@@ -107,18 +107,18 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
-        return service.deleteSchema(schemaId, user, force);
+    public CompletableFuture<SchemaVersion> putEmptySchema(String schemaId, String user, boolean force) {
+        return service.putEmptySchema(schemaId, user, force);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
-        return deleteSchemaStorage(schemaId, false);
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId) {
+        return deleteSchemaFromStorage(schemaId, false);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
-        return service.deleteSchemaStorage(schemaId, forcefully);
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId, boolean forcefully) {
+        return service.deleteSchemaFromStorage(schemaId, forcefully);
     }
 
     @Override
@@ -130,18 +130,6 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
             return FutureUtil.failedFuture(e);
         }
         return service.isCompatible(schemaId, schema, strategy);
-    }
-
-    @Override
-    public CompletableFuture<Void> checkCompatible(String schemaId,
-                                                   SchemaData schema,
-                                                   SchemaCompatibilityStrategy strategy) {
-        try {
-            SchemaDataValidator.validateSchemaData(schema);
-        } catch (InvalidSchemaDataException e) {
-            return FutureUtil.failedFuture(e);
-        }
-        return service.checkCompatible(schemaId, schema, strategy);
     }
 
     @Override

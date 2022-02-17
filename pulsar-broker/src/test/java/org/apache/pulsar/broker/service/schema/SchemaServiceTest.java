@@ -309,7 +309,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private void deleteSchema(String schemaId, SchemaVersion expectedVersion) throws Exception {
-        SchemaVersion version = schemaRegistryService.deleteSchema(schemaId, userId, false).get();
+        SchemaVersion version = schemaRegistryService.putEmptySchema(schemaId, userId, false).get();
         assertEquals(expectedVersion, version);
     }
 

@@ -75,17 +75,17 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
+    public CompletableFuture<SchemaVersion> putEmptySchema(String schemaId, String user, boolean force) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId, boolean forcefully) {
         return completedFuture(null);
     }
 
@@ -93,12 +93,6 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
                                                    SchemaCompatibilityStrategy strategy) {
         return completedFuture(false);
-    }
-
-    @Override
-    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
-                                                   SchemaCompatibilityStrategy strategy) {
-        return completedFuture(null);
     }
 
     @Override

@@ -627,7 +627,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         // history is meaningless. But when we delete a schema of a topic, a new schema could be
                         // registered in the future.
                         log.info("Delete schema storage of id: {}", id);
-                        return schemaRegistryService.deleteSchemaStorage(id);
+                        return schemaRegistryService.deleteSchemaFromStorage(id);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }

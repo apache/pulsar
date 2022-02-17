@@ -80,10 +80,10 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         String schemaId = "test-schema-id";
         String user = "test-user";
         CompletableFuture<SchemaVersion> deleteFuture = new CompletableFuture<>();
-        when(underlyingService.deleteSchema(eq(schemaId), eq(user), eq(false)))
+        when(underlyingService.putEmptySchema(eq(schemaId), eq(user), eq(false)))
                 .thenReturn(deleteFuture);
-        assertSame(deleteFuture, service.deleteSchema(schemaId, user, false));
-        verify(underlyingService, times(1)).deleteSchema(eq(schemaId), eq(user), eq(false));
+        assertSame(deleteFuture, service.putEmptySchema(schemaId, user, false));
+        verify(underlyingService, times(1)).putEmptySchema(eq(schemaId), eq(user), eq(false));
     }
 
     @Test

@@ -117,7 +117,7 @@ public class SchemasResourceBase extends AdminResource {
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
-        pulsar().getSchemaRegistryService().deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force)
+        pulsar().getSchemaRegistryService().putEmptySchema(schemaId, defaultIfEmpty(clientAppId(), ""), force)
                 .handle((version, error) -> {
                     if (isNull(error)) {
                         response.resume(Response.ok()

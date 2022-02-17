@@ -163,7 +163,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
+    public CompletableFuture<SchemaVersion> putEmptySchema(String schemaId, String user, boolean force) {
         if (force) {
             return deleteSchemaStorage(schemaId, true);
         }
@@ -172,12 +172,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
-        return deleteSchemaStorage(schemaId, false);
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId) {
+        return deleteSchemaFromStorage(schemaId, false);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId, boolean forcefully) {
         return schemaStorage.delete(schemaId, forcefully);
     }
 
@@ -196,8 +196,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return false;
     }
 
-    @Override
-    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
+    private CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
         switch (strategy) {
             case FORWARD_TRANSITIVE:
@@ -451,7 +450,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 });
                 trimDeletedSchemaAndGetList(list);
                 // clean up the broken schema from zk
-                deleteSchemaStorage(schemaId, true).handle((sv, th) -> {
+                deleteSchemaFromStorage(schemaId, true).handle((sv, th) -> {
                     log.info("Clean up non-recoverable schema {}. Deletion of schema {} {}", ex.getCause().getMessage(),
                             schemaId, (th == null ? "successful" : "failed, " + th.getCause().getMessage()));
                     schemaResult.complete(list);
