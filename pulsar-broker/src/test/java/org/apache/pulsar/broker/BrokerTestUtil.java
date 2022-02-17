@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import java.util.UUID;
+import org.mockito.Mockito;
 
 /**
  * Holds util methods used in test.
@@ -29,4 +30,18 @@ public class BrokerTestUtil {
         return prefix + "-" + UUID.randomUUID();
     }
 
+    /**
+     * Creates a Mockito spy directly without an intermediate instance to spy.
+     * This is to address flaky test issue where a spy created with a given instance fails with
+     * {@link org.mockito.exceptions.misusing.WrongTypeOfReturnValue} exception.
+     *
+     * @param classToSpy the class to spy
+     * @param args the constructor arguments to use when creating the spy instance
+     * @return a spy of the provided class created with given constructor arguments
+     */
+    public static <T> T spyWithClassAndConstructorArgs(Class<T> classToSpy, Object... args) {
+        return Mockito.mock(classToSpy, Mockito.withSettings()
+                .useConstructor(args)
+                .defaultAnswer(Mockito.CALLS_REAL_METHODS));
+    }
 }

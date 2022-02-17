@@ -52,8 +52,9 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
 
@@ -99,7 +100,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             // Ignore
         }
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 5.0d);
+        Assert.assertEquals(LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get(), 5.0d);
         proxyService.getLookupRequestSemaphore().release();
         try {
             @Cleanup
@@ -109,6 +110,6 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
         }
 
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 5.0d);
+        Assert.assertEquals(LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get(), 5.0d);
     }
 }

@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 import java.time.Clock;
@@ -27,7 +27,7 @@ import java.time.Clock;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.Hash;
-import org.apache.pulsar.client.impl.Murmur3_32Hash;
+import org.apache.pulsar.client.impl.Murmur3Hash32;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -40,7 +40,7 @@ public class FunctionResultRouterTest {
 
     @BeforeMethod
     public void setup() {
-        this.hash = Murmur3_32Hash.getInstance();
+        this.hash = Murmur3Hash32.getInstance();
     }
 
     @Test

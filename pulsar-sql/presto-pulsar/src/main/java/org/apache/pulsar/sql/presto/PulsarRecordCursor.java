@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
 import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -364,8 +363,8 @@ public class PulsarRecordCursor implements RecordCursor {
         public void run() {
 
             if (outstandingReadsRequests.get() > 0) {
-                if (!cursor.hasMoreEntries() ||
-                        (((PositionImpl) cursor.getReadPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0
+                if (!cursor.hasMoreEntries()
+                        || (((PositionImpl) cursor.getReadPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0
                                 && chunkedMessagesMap.isEmpty())) {
                     isDone = true;
 
@@ -395,7 +394,7 @@ public class PulsarRecordCursor implements RecordCursor {
                             // if the available size is invalid and the entry queue size is 0, read one entry
                             outstandingReadsRequests.decrementAndGet();
                             cursor.asyncReadEntries(batchSize, entryQueueCacheSizeAllocator.getAvailableCacheSize(),
-                                    this, System.nanoTime(), PositionImpl.latest);
+                                    this, System.nanoTime(), PositionImpl.LATEST);
                         }
 
                         // stats for successful read request
@@ -437,7 +436,9 @@ public class PulsarRecordCursor implements RecordCursor {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            log.debug(exception, "Failed to read entries from topic %s", topicName.toString());
+            if (log.isDebugEnabled()) {
+                log.debug(exception, "Failed to read entries from topic %s", topicName.toString());
+            }
             outstandingReadsRequests.incrementAndGet();
 
             //set read latency stats for failed
@@ -578,7 +579,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
                 } else if (PulsarInternalColumn.EVENT_TIME.getName().equals(columnHandle.getName())) {
                     currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
-                            this.currentMessage.getEventTime(), this.currentMessage.getPublishTime() == 0));
+                            this.currentMessage.getEventTime(), this.currentMessage.getEventTime() == 0));
                 } else if (PulsarInternalColumn.PUBLISH_TIME.getName().equals(columnHandle.getName())) {
                     currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
                             this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));

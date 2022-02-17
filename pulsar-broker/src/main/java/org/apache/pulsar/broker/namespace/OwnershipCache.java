@@ -76,7 +76,7 @@ public class OwnershipCache {
 
     private final LockManager<NamespaceEphemeralData> lockManager;
 
-    private final Map<NamespaceBundle, ResourceLock> locallyAcquiredLocks;
+    private final Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> locallyAcquiredLocks;
 
     /**
      * The loading cache of locally owned <code>NamespaceBundle</code> objects.
@@ -266,7 +266,8 @@ public class OwnershipCache {
 
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             try {
-                return future.get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                return future.get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(),
+                        TimeUnit.SECONDS);
             } catch (InterruptedException | TimeoutException e) {
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {

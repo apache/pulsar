@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -189,6 +190,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private AtomicReference<List<Metrics>> bundleUnloadMetrics = new AtomicReference<>();
     // record bundle split metrics
     private AtomicReference<List<Metrics>> bundleSplitMetrics = new AtomicReference<>();
+    // record bundle metrics
+    private AtomicReference<List<Metrics>> bundleMetrics = new AtomicReference<>();
 
     private long bundleSplitCount = 0;
     private long unloadBrokerCount = 0;
@@ -352,6 +355,22 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             log.warn("Error when trying to get active brokers", e);
             return loadData.getBrokerData().keySet();
         }
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        CompletableFuture<Set<String>> future = new CompletableFuture<>();
+        brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                .whenComplete((listLocks, ex) -> {
+                    if (ex != null){
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn("Error when trying to get active brokers", realCause);
+                        future.complete(loadData.getBrokerData().keySet());
+                    } else {
+                        future.complete(Sets.newHashSet(listLocks));
+                    }
+                });
+        return future;
     }
 
     // Attempt to local the data for the given bundle in metadata store
@@ -608,7 +627,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         return;
                     }
 
-                    log.info("[Overload shedder] Unloading bundle: {} from broker {}", bundle, broker);
+                    log.info("[{}] Unloading bundle: {} from broker {}",
+                            strategy.getClass().getSimpleName(), bundle, broker);
                     try {
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange);
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
@@ -916,7 +936,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
-            if (conf.isExposeBunlesMetricsInPrometheus()) {
+            if (conf.isExposeBundlesMetricsInPrometheus()) {
                 updateLoadBalancingBundlesMetrics(getBundleStats());
             }
         } catch (Exception e) {
@@ -943,7 +963,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             Map<String, String> dimensions = new HashMap<>();
             dimensions.put("broker", pulsar.getAdvertisedAddress());
             dimensions.put("bundle", bundle);
-            dimensions.put("metric", "loadBalancing");
+            dimensions.put("metric", "bundle");
             Metrics m = Metrics.create(dimensions);
             m.put("brk_bundle_msg_rate_in", stats.msgRateIn);
             m.put("brk_bundle_msg_rate_out", stats.msgRateOut);
@@ -954,7 +974,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             m.put("brk_bundle_msg_throughput_out", stats.msgThroughputOut);
             metrics.add(m);
         }
-        this.loadBalancingMetrics.set(metrics);
+        this.bundleMetrics.set(metrics);
     }
 
     /**
@@ -1114,6 +1134,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         if (this.bundleSplitMetrics.get() != null) {
             metricsCollection.addAll(this.bundleSplitMetrics.get());
+        }
+
+        if (this.bundleMetrics.get() != null) {
+            metricsCollection.addAll(this.bundleMetrics.get());
         }
 
         return metricsCollection;

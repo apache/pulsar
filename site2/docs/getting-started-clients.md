@@ -15,7 +15,7 @@ Pulsar supports the following client libraries:
 - [C# client](client-libraries-dotnet.md)
 
 ## Feature matrix
-Pulsar client feature matrix for different languages is listed on [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
+Pulsar client feature matrix for different languages is listed on [Pulsar Feature Matrix (Client and Function)](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914) page.
 
 ## Third-party clients
 

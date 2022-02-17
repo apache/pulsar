@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.io.IOException;
 import java.io.Serializable;
-
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -84,7 +83,8 @@ public interface MessageId extends Comparable<MessageId>, Serializable {
     /**
      * MessageId that represents the next message published in the topic.
      */
-    MessageId latest = DefaultImplementation.getDefaultImplementation().newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
+    MessageId latest = DefaultImplementation.getDefaultImplementation()
+            .newMessageId(Long.MAX_VALUE, Long.MAX_VALUE, -1);
 
     // CHECKSTYLE.ON: ConstantName
 }

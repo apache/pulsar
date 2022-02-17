@@ -155,8 +155,22 @@ public class JavaInstance implements AutoCloseable {
 
     }
 
+    public void initialize() throws Exception {
+        if (function != null) {
+            function.initialize(context);
+        }
+    }
+
     @Override
     public void close() {
+        if (function != null) {
+            try {
+                function.close();
+            } catch (Exception e) {
+                log.error("function closeResource occurred exception", e);
+            }
+        }
+
         context.close();
         executor.shutdown();
     }

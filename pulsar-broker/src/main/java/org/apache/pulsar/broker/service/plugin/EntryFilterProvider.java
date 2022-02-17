@@ -26,11 +26,11 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
@@ -104,8 +104,10 @@ public class EntryFilterProvider {
     private static EntryFilterDefinition getEntryFilterDefinition(String narPath,
                                                                               String narExtractionDirectory)
             throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
-                narExtractionDirectory)) {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .extractionDirectory(narExtractionDirectory)
+                .build()) {
             return getEntryFilterDefinition(ncl);
         }
     }
@@ -121,11 +123,12 @@ public class EntryFilterProvider {
     private static EntryFilterWithClassLoader load(EntryFilterMetaData metadata,
                                                                String narExtractionDirectory)
             throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
-                metadata.getArchivePath().toAbsolutePath().toFile(),
-                Collections.emptySet(),
-                EntryFilter.class.getClassLoader(), narExtractionDirectory);
-
+        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(narFile)
+                .parentClassLoader(EntryFilter.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build();
         EntryFilterDefinition def = getEntryFilterDefinition(ncl);
         if (StringUtils.isBlank(def.getEntryFilterClass())) {
             throw new IOException("Entry filters `" + def.getName() + "` does NOT provide a entry"

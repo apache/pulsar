@@ -25,20 +25,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
-import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -49,15 +44,12 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 
 @Slf4j
-public class TransactionBufferHandlerImpl implements TransactionBufferHandler, TimerTask {
+public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     private final ConcurrentSkipListMap<Long, OpRequestSend> pendingRequests;
     private final AtomicLong requestIdGenerator = new AtomicLong();
     private final long operationTimeoutInMills;
-    private Timeout requestTimeout;
     private final HashedWheelTimer timer;
-    private final Semaphore semaphore;
-    private final boolean blockIfReachMaxPendingOps;
     private final PulsarClient pulsarClient;
 
     private final LoadingCache<String, CompletableFuture<ClientCnx>> cache = CacheBuilder.newBuilder()
@@ -81,23 +73,17 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         this.pulsarClient = pulsarClient;
         this.pendingRequests = new ConcurrentSkipListMap<>();
         this.operationTimeoutInMills = 3000L;
-        this.semaphore = new Semaphore(10000);
-        this.blockIfReachMaxPendingOps = true;
         this.timer = timer;
-        this.requestTimeout = timer.newTimeout(this, operationTimeoutInMills, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public synchronized CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                   TxnAction action, long lowWaterMark) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] endTxnOnTopic txnId: [{}], txnAction: [{}]",
                     topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
         }
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
-        if (!canSendRequest(cb)) {
-            return cb;
-        }
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, lowWaterMark);
@@ -105,7 +91,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public synchronized CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
+    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
                                                                       long txnIdMostBits, long txnIdLeastBits,
                                                                       TxnAction action, long lowWaterMark) {
         if (log.isDebugEnabled()) {
@@ -113,9 +99,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                     topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
         }
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
-        if (!canSendRequest(cb)) {
-            return cb;
-        }
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, subscription, action, lowWaterMark);
@@ -129,10 +112,16 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 if (throwable == null) {
                     if (clientCnx.ctx().channel().isActive()) {
                         clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
-                        synchronized (TransactionBufferHandlerImpl.this) {
-                            pendingRequests.put(requestId, op);
-                            cmd.retain();
-                        }
+                        pendingRequests.put(requestId, op);
+                        timer.newTimeout(timeout -> {
+                            OpRequestSend peek = pendingRequests.remove(requestId);
+                            if (peek != null && !peek.cb.isDone() && !peek.cb.isCompletedExceptionally()) {
+                                peek.cb.completeExceptionally(new TransactionBufferClientException
+                                        .RequestTimeoutException());
+                                onResponse(peek);
+                            }
+                        }, operationTimeoutInMills, TimeUnit.MILLISECONDS);
+                        cmd.retain();
                         clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
                     } else {
                         cache.invalidate(topic);
@@ -158,7 +147,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public synchronized void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
+    public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -183,7 +172,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public synchronized void handleEndTxnOnSubscriptionResponse(long requestId,
+    public void handleEndTxnOnSubscriptionResponse(long requestId,
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
@@ -209,55 +198,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         onResponse(op);
     }
 
-    private boolean canSendRequest(CompletableFuture<?> callback) {
-        try {
-            if (blockIfReachMaxPendingOps) {
-                semaphore.acquire();
-            } else {
-                if (!semaphore.tryAcquire()) {
-                    callback.completeExceptionally(new ReachMaxPendingOpsException("Reach max pending ops."));
-                    return false;
-                }
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            callback.completeExceptionally(TransactionBufferClientException.unwrap(e));
-            return false;
-        }
-        return true;
-    }
-
-    public synchronized void run(Timeout timeout) throws Exception {
-        if (timeout.isCancelled()) {
-            return;
-        }
-        long timeToWaitMs;
-        OpRequestSend peeked;
-        Map.Entry<Long, OpRequestSend> firstEntry = pendingRequests.firstEntry();
-        peeked = firstEntry == null ? null : firstEntry.getValue();
-        while (peeked != null && peeked.createdAt + operationTimeoutInMills - System.currentTimeMillis() <= 0) {
-            if (!peeked.cb.isDone()) {
-                peeked.cb.completeExceptionally(new TransactionBufferClientException.RequestTimeoutException());
-                onResponse(peeked);
-            } else {
-                break;
-            }
-            firstEntry = pendingRequests.firstEntry();
-            pendingRequests.remove(pendingRequests.firstKey());
-            peeked = firstEntry == null ? null : firstEntry.getValue();
-        }
-        if (peeked == null) {
-            timeToWaitMs = operationTimeoutInMills;
-        } else {
-            timeToWaitMs = (peeked.createdAt + operationTimeoutInMills) - System.currentTimeMillis();
-        }
-        requestTimeout = timer.newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
-    }
-
     void onResponse(OpRequestSend op) {
         ReferenceCountUtil.safeRelease(op.byteBuf);
         op.recycle();
-        semaphore.release();
     }
 
     private static final class OpRequestSend {

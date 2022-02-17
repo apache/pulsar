@@ -1,13 +1,9 @@
 ---
 id: develop-binary-protocol
 title: Pulsar binary protocol specification
-sidebar_label: Binary protocol
+sidebar_label: "Binary protocol"
 original_id: develop-binary-protocol
 ---
-
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
 
 Pulsar uses a custom binary protocol for communications between producers/consumers and brokers. This protocol is designed to support required features, such as acknowledgements and flow control, while ensuring maximum transport and implementation efficiency.
 
@@ -347,7 +343,7 @@ message CommandFlow {
 Parameters:
 * `consumer_id` → Id of an already established consumer
 * `messagePermits` → Number of additional permits to grant to the broker for
-    pushing more messages
+  pushing more messages
 
 ##### Command Message
 

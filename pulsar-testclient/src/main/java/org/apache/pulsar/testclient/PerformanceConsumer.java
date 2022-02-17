@@ -20,17 +20,19 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -40,7 +42,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
-
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
@@ -57,11 +58,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
 
 public class PerformanceConsumer {
     private static final LongAdder messagesReceived = new LongAdder();
@@ -92,25 +88,30 @@ public class PerformanceConsumer {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--conf-file" }, description = "Configuration file")
+        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics",
+                validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive", validateWith = PositiveNumberParameterValidator.class)
+        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
+                + "one consumer is allowed when subscriptionType is Exclusive",
+                validateWith = PositiveNumberParameterValidator.class)
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)", validateWith = PositiveNumberParameterValidator.class)
+        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
+                validateWith = PositiveNumberParameterValidator.class)
         public int numSubscriptions = 1;
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
         public String subscriberName;
 
-        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume (for example, sub1,sub2)")
+        @Parameter(names = { "-ss", "--subscriptions" },
+                description = "A list of subscriptions to consume (for example, sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
         @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
@@ -125,7 +126,8 @@ public class PerformanceConsumer {
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" }, description = "Max total size of the receiver queue across partitions")
+        @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" },
+                description = "Max total size of the receiver queue across partitions")
         public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
         @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
@@ -135,7 +137,8 @@ public class PerformanceConsumer {
         public int acknowledgmentsGroupingDelayMillis = 100;
 
         @Parameter(names = {"-m",
-                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, it will keep consuming")
+                "--num-messages"},
+                description = "Number of messages to consume in total. If <= 0, it will keep consuming")
         public long numMessages = 0;
 
         @Parameter(names = { "-c",
@@ -143,7 +146,8 @@ public class PerformanceConsumer {
         public int maxConnections = 100;
 
         @Parameter(names = { "-i",
-                "--stats-interval-seconds" }, description = "Statistics Interval Seconds. If 0, statistics will be disabled")
+                "--stats-interval-seconds" },
+                description = "Statistics Interval Seconds. If 0, statistics will be disabled")
         public long statsIntervalSeconds = 0;
 
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
@@ -166,14 +170,15 @@ public class PerformanceConsumer {
         private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
         @Parameter(names = { "-e",
-                "--expire_time_incomplete_chunked_messages" }, description = "Expire time in ms for incomplete chunk messages")
+                "--expire_time_incomplete_chunked_messages" },
+                description = "Expire time in ms for incomplete chunk messages")
         private long expireTimeOfIncompleteChunkedMessageMs = 0;
 
         @Parameter(
             names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation " +
-                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+            description = "Authentication parameters, whose format is determined by the implementation "
+                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
 
         @Parameter(names = {
@@ -185,15 +190,16 @@ public class PerformanceConsumer {
         public Boolean tlsAllowInsecureConnection = null;
 
         @Parameter(names = { "-v",
-                "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
+                "--encryption-key-value-file" },
+                description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers. The default value is 1.")
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
+                + "used for handling connections to brokers. The default value is 1.")
         public int ioThreads = 1;
 
         @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
@@ -259,7 +265,7 @@ public class PerformanceConsumer {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
                 String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
-                List<String> defaultTopics = Lists.newArrayList();
+                List<String> defaultTopics = new ArrayList<>();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
                 }
@@ -283,7 +289,7 @@ public class PerformanceConsumer {
                 if (arguments.subscriberName == null) {
                     arguments.subscriberName = arguments.subscriptions.get(0);
                 }
-                List<String> defaultSubscriptions = Lists.newArrayList();
+                List<String> defaultSubscriptions = new ArrayList<>();
                 for (int i = 0; i < arguments.numSubscriptions; i++) {
                     defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
                 }
@@ -362,8 +368,13 @@ public class PerformanceConsumer {
         }
         PulsarClient pulsarClient = clientBuilder.build();
 
-        AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments.isEnableTransaction,
-                arguments.transactionTimeout);
+        AtomicReference<Transaction> atomicReference;
+        if (arguments.isEnableTransaction) {
+            atomicReference = new AtomicReference<>(pulsarClient.newTransaction()
+                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+        } else {
+            atomicReference = new AtomicReference<>(null);
+        }
 
         AtomicLong messageAckedCount = new AtomicLong();
         Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
@@ -401,7 +412,7 @@ public class PerformanceConsumer {
                 if (arguments.isEnableTransaction) {
                     try {
                         messageReceiveLimiter.acquire();
-                    }catch (InterruptedException e){
+                    } catch (InterruptedException e){
                         log.error("Got error: ", e);
                     }
                     consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
@@ -473,7 +484,7 @@ public class PerformanceConsumer {
 
         };
 
-        List<Future<Consumer<ByteBuffer>>> futures = Lists.newArrayList();
+        List<Future<Consumer<ByteBuffer>>> futures = new ArrayList<>();
         ConsumerBuilder<ByteBuffer> consumerBuilder = pulsarClient.newConsumer(Schema.BYTEBUFFER) //
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
@@ -632,7 +643,8 @@ public class PerformanceConsumer {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
+                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
                 dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
                 reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
                 reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),

@@ -53,8 +53,9 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
@@ -91,7 +92,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
-        Assert.assertEquals(ProxyService.rejectedConnections.get(), 0.0d);
+        Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 0.0d);
         try {
             @Cleanup
             Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
@@ -101,7 +102,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
             // OK
         }
         // should add retry count since retry every 100ms and operation timeout is set to 1000ms
-        Assert.assertEquals(ProxyService.rejectedConnections.get(), 5.0d);
+        Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 5.0d);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);

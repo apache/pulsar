@@ -94,6 +94,7 @@
     ],
     "Security": [
       "security-overview",
+      "security-policy-and-supported-versions",
       "security-tls-transport",
       "security-tls-authentication",
       "security-tls-keystore",
@@ -149,7 +150,8 @@
       "develop-tools",
       "develop-binary-protocol",
       "develop-schema",
-      "develop-load-manager"
+      "develop-load-manager",
+      "develop-plugin"
     ],
     "Reference": [
       "reference-terminology",

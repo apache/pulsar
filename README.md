@@ -86,7 +86,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 ## Build Pulsar
 
 Requirements:
- * Java [JDK 11](https://adoptopenjdk.net/?variant=openjdk11) or [JDK 8](https://adoptopenjdk.net/?variant=openjdk8)
+ * Java [JDK 11](https://adoptium.net/?variant=openjdk11) or [JDK 8](https://adoptium.net/?variant=openjdk8)
  * Maven 3.6.1+
  * zip
 
@@ -103,7 +103,7 @@ $ mvn -pl module-name (e.g: pulsar-broker) install -DskipTests
 
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
 ```
-mvn install -Pcore-modules,-main
+mvn install -Pcore-modules,-main -DskipTests
 ```
 
 Run Unit Tests:
@@ -178,7 +178,7 @@ required plugins.
     
     From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 11 JDK version.
 
-3. In the download dialog, select version **11**. You can pick a version from many vendors. Unless you have a specific preference, choose **AdoptOpenJDK (Hotspot)**.
+3. In the download dialog, select version **11**. You can pick a version from many vendors. Unless you have a specific preference, choose **Eclipse Temurin (AdoptOpenJDK (Hotspot))**.
  
 
 #### Configure Java version for Maven in IntelliJ
@@ -262,6 +262,16 @@ required plugins.
   * Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
   * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right-clicking the project name and select **Ignore Projects** from the menu.
   * Currently, it is not always possible to run unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
+    
+* The above steps have all been performed, but a test still won't run.
+  * In this case, try the following steps:
+    1. Close IntelliJ.
+    2. Run `mvn clean install -DskipTests` on the command line.
+    3. Reopen IntelliJ.
+  * If that still doesn't work:
+    1. Verify Maven is using a supported version. Currently, the supported version of Maven is specified in the 
+       <requireMavenVersion> section of the main pom.xml file.
+    2. Try "restart and clear caches" in IntelliJ and repeat the above steps to reload projects and generate sources.
 
 ### Eclipse
 

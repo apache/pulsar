@@ -166,14 +166,14 @@ Options
 |`-ub` , `--broker-service-url`|The broker service URL for the new cluster||
 |`-tb` , `--broker-service-url-tls`|The broker service URL for the new cluster with TLS encryption||
 |`-c` , `--cluster`|Cluster name||
-|`-cs` , `--configuration-store`|The configuration store quorum connection string||
+|`-cms` , `--configuration-metadata-store`|The configuration metadata store quorum connection string||
 |`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster that you want to use||
-|`-h` , `--help`|Cluster name|false|
+|`-h` , `--help`|Help message|false|
 |`--initial-num-stream-storage-containers`|The number of storage containers of BookKeeper stream storage|16|
 |`--initial-num-transaction-coordinators`|The number of transaction coordinators assigned in a cluster|16|
 |`-uw` , `--web-service-url`|The web service URL for the new cluster||
 |`-tw` , `--web-service-url-tls`|The web service URL for the new cluster with TLS encryption||
-|`-zk` , `--zookeeper`|The local ZooKeeper quorum connection string||
+|`-md` , `--metadata-store`|The metadata store service url||
 |`--zookeeper-session-timeout-ms`|The local ZooKeeper session timeout. The time unit is in millisecond(ms)|30000|
 
 
@@ -190,14 +190,14 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`--configuration-store`|Configuration store connection string||
-|`-zk` , `--zookeeper-servers`|Local ZooKeeper connection string||
+|`-cms`, `--configuration-metadata-store`|Configuration meta store connection string||
+|`-md` , `--metadata-store`|Metadata Store service url||
 
 Example
 ```bash
 $ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
-  --zookeeper-servers zk-0,zk-1,zk2 \
-  --configuration-store zk-0,zk-1,zk-2
+  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 ### `standalone`
@@ -430,6 +430,7 @@ Commands
 * `monitor-brokers`
 * `simulation-client`
 * `simulation-controller`
+* `transaction`
 * `help`
 
 Environment variables
@@ -466,7 +467,7 @@ Options
 |`-bw`, `--busy-wait`|Enable or disable Busy-Wait on the Pulsar client|false|
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-m`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-e`, `--expire_time_incomplete_chunked_messages`|The expiration time for incomplete chunk messages (in milliseconds)|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
@@ -491,6 +492,17 @@ Options
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, `-nmt`, `-ntxn`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |10
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|false
+`-ntxn`|The number of opened transactions. 0 means the number of transactions is unlimited. |0
+`-abort`|Abort a transaction. |true
 
 ### `produce`
 Run a producer
@@ -516,7 +528,7 @@ Options
 |`-ch`, `--chunking`|Split the message and publish in chunks if the message size is larger than allowed max size|false|
 |`-d`, `--delay`|Mark messages with a given delay in seconds|0s|
 |`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.||
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-k`, `--encryption-key-name`|The public key name to encrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the public key to encrypt payload||
 |`-ef`, `--exit-on-failure`|Exit from the process on publish failure|false|
@@ -547,6 +559,16 @@ Options
 |`--warmup-time`|Warm-up time in seconds|1|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
+Below are **transaction** related options.
+
+If you want `--txn-timeout`, `--numMessage-perTransaction`, or `-abort` take effect, set `--txn-enable` to true.
+
+|Flag|Description|Default|
+|---|---|---|
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). |5
+`-nmt`, `--numMessage-perTransaction`|The number of messages acknowledged by a transaction. |50
+`-txn`, `--txn-enable`|Enable or disable a transaction.|true
+`-abort`|Abort a transaction. |true
 
 ### `read`
 Run a topic reader
@@ -563,7 +585,7 @@ Options
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
@@ -594,7 +616,7 @@ Options
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth-plugin`|Authentication plugin class name||
-|`--conf-file`|Configuration file||
+|`-cf`, `--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-t`, `--num-topic`|The number of topics|1|
@@ -633,7 +655,7 @@ Options
 |`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`--threads`|Number of threads writing|1|
 |`-w`, `--write-quorum`|Ledger write quorum|1|
-|`-zk`, `--zookeeperServers`|ZooKeeper connection string||
+|`-md`, `--metadata-store`|Metadata store service URL. For example: zk:my-zk:2181||
 
 
 ### `monitor-brokers`
@@ -685,6 +707,45 @@ Options
 |`--cluster`|The cluster to test on||
 |`-h`, `--help`|Help message|false|
 
+### `transaction`
+
+Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
+
+**Usage**
+
+```bash
+$ pulsar-perf transaction options
+```
+
+**Options**
+
+|Flag|Description|Default|
+|---|---|---|
+`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.|N/A
+`--auth-plugin`|Authentication plugin class name.|N/A
+`-au`, `--admin-url`|Pulsar admin URL.|N/A
+`-cf`, `--conf-file`|Configuration file.|N/A
+`-h`, `--help`|Help messages.|N/A
+`-c`, `--max-connections`|Maximum number of TCP connections to a single broker.|100
+`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers. |1
+`-ns`, `--num-subscriptions`|Number of subscriptions per topic.|1
+`-threads`, `--num-test-threads`|Number of test threads. <br /><br />This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction. <br /><br /> Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1
+`-nmc`, `--numMessage-perTransaction-consume`|Set the number of messages consumed in a transaction. <br /><br /> If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1
+`-nmp`, `--numMessage-perTransaction-produce`|Set the number of messages produced in a transaction. <br /><br />If transaction is disabled, it means the number of messages produced in a task instead of in a transaction.|1
+`-ntxn`, `--number-txn`|Set the number of transactions. <br /><br /> 0 means the number of transactions is unlimited. <br /><br /> If transaction is disabled, it means the number of tasks instead of transactions. |0
+`-np`, `--partitions`|Create partitioned topics with a given number of partitions. <br /><br /> 0 means not trying to create a topic.
+`-q`, `--receiver-queue-size`|Size of the receiver queue.|1000
+`-u`, `--service-url`|Pulsar service URL.|N/A
+`-sp`, `--subscription-position`|Subscription position.|Earliest
+`-st`, `--subscription-type`|Subscription type.|Shared
+`-ss`, `--subscriptions`|A list of subscriptions to consume. <br /><br /> For example, sub1,sub2.|[sub]
+`-time`, `--test-duration`|Test duration (in second). <br /><br /> 0 means keeping publishing messages.|0
+`--topics-c`|All topics assigned to consumers.|[test-consume]
+`--topics-p`|All topics assigned to producers . |[test-produce]
+`--txn-disEnable`|Disable transaction.|true
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). <br /><br /> If you want `--txn-timeout` takes effect, set `--txn-enable` to true.|5
+`-abort`|Abort the transaction. <br /><br /> If you want `-abort` takes effect, set `--txn-disEnable` to false.|true
+`-txnRate`|Set the rate of opened transactions or tasks. <br /><br /> 0 means no limit.|0
 
 ### `help`
 This help message

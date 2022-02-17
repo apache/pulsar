@@ -22,6 +22,7 @@ import static org.apache.pulsar.tests.integration.topologies.PulsarTestBase.rand
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -105,7 +106,7 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
     public void validateSinkResult(Map<String, String> kvs) {
         Iterator<Map.Entry<String, String>> kvIter = kvs.entrySet().iterator();
         while (kvIter.hasNext()) {
-            ConsumerRecords<String, String> records = kafkaConsumer.poll(1000);
+            ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofSeconds(1L));
             log.info("Received {} records from kafka topic {}",
                 records.count(), kafkaTopicName);
             if (records.isEmpty()) {

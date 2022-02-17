@@ -165,6 +165,7 @@
               <noCache>true</noCache>
               <buildArgs>
                 <PULSAR_TARBALL>target/pulsar-server-distribution-bin.tar.gz</PULSAR_TARBALL>
+                <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
               </buildArgs>
             </configuration>
           </plugin>

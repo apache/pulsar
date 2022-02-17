@@ -161,10 +161,16 @@ public class SinkConfigUtils {
             sourceSpecBuilder.setSubscriptionName(sinkConfig.getSourceSubscriptionName());
         }
 
-        Function.SubscriptionType subType = ((sinkConfig.getRetainOrdering() != null && sinkConfig.getRetainOrdering())
-                || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees()))
-                ? Function.SubscriptionType.FAILOVER
-                : Function.SubscriptionType.SHARED;
+        // Set subscription type
+        Function.SubscriptionType subType;
+        if ((sinkConfig.getRetainOrdering() != null && sinkConfig.getRetainOrdering())
+                || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(sinkConfig.getProcessingGuarantees())) {
+            subType = Function.SubscriptionType.FAILOVER;
+        } else if (sinkConfig.getRetainKeyOrdering() != null && sinkConfig.getRetainKeyOrdering()) {
+            subType = Function.SubscriptionType.KEY_SHARED;
+        } else {
+            subType = Function.SubscriptionType.SHARED;
+        }
         sourceSpecBuilder.setSubscriptionType(subType);
 
         if (sinkConfig.getAutoAck() != null) {
@@ -285,13 +291,15 @@ public class SinkConfigUtils {
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             sinkConfig.setSourceSubscriptionName(functionDetails.getSource().getSubscriptionName());
         }
-
-        switch (functionDetails.getSource().getSubscriptionType()) {
-            case FAILOVER:
-                sinkConfig.setRetainOrdering(true);
-                break;
-            default:
-                sinkConfig.setRetainOrdering(false);
+        if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
+            sinkConfig.setRetainOrdering(true);
+            sinkConfig.setRetainKeyOrdering(false);
+        } else if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.KEY_SHARED) {
+            sinkConfig.setRetainOrdering(false);
+            sinkConfig.setRetainKeyOrdering(true);
+        } else {
+            sinkConfig.setRetainOrdering(false);
+            sinkConfig.setRetainKeyOrdering(false);
         }
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
@@ -568,6 +576,9 @@ public class SinkConfigUtils {
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
             throw new IllegalArgumentException("Retain Ordering cannot be altered");
         }
+        if (newConfig.getRetainKeyOrdering() != null && !newConfig.getRetainKeyOrdering().equals(existingConfig.getRetainKeyOrdering())) {
+            throw new IllegalArgumentException("Retain Key Ordering cannot be altered");
+        }
         if (newConfig.getAutoAck() != null && !newConfig.getAutoAck().equals(existingConfig.getAutoAck())) {
             throw new IllegalArgumentException("AutoAck cannot be altered");
         }
@@ -597,20 +608,39 @@ public class SinkConfigUtils {
     }
 
     public static void validateSinkConfig(SinkConfig sinkConfig, NarClassLoader narClassLoader) {
+
+        if (sinkConfig.getRetainKeyOrdering() != null
+                && sinkConfig.getRetainKeyOrdering()
+                && sinkConfig.getProcessingGuarantees() != null
+                && sinkConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            throw new IllegalArgumentException("When effectively once processing guarantee is specified, retain Key ordering cannot be set");
+        }
+
+        if (sinkConfig.getRetainKeyOrdering() != null && sinkConfig.getRetainKeyOrdering()
+                && sinkConfig.getRetainOrdering() != null && sinkConfig.getRetainOrdering()) {
+            throw new IllegalArgumentException("Only one of retain ordering or retain key ordering can be set");
+        }
+
         try {
             ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(narClassLoader);
             if (defn.getSinkConfigClass() != null) {
                 Class configClass = Class.forName(defn.getSinkConfigClass(),  true, narClassLoader);
-                Object configObject =
-                        ObjectMapperFactory.getThreadLocal().convertValue(sinkConfig.getConfigs(), configClass);
-                if (configObject != null) {
-                    ConfigValidation.validateConfig(configObject);
-                }
+                validateSinkConfig(sinkConfig, configClass);
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("Error validating sink config", e);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException("Could not find sink config class", e);
+        }
+    }
+
+    public static void validateSinkConfig(SinkConfig sinkConfig, Class configClass) {
+        try {
+            Object configObject =
+                    ObjectMapperFactory.getThreadLocal().convertValue(sinkConfig.getConfigs(), configClass);
+            if (configObject != null) {
+                ConfigValidation.validateConfig(configObject);
+            }
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Could not validate sink config: " + e.getMessage());
         }

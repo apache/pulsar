@@ -30,6 +30,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 
 /**
@@ -1578,6 +1579,20 @@ public interface TopicPolicies {
     CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic);
 
     /**
+     * Remove subscription types enabled for a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove subscription types enabled for a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String topic);
+
+    /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).
      *
      * @param topic
@@ -1657,5 +1672,50 @@ public interface TopicPolicies {
      */
     CompletableFuture<Void> removeSubscribeRateAsync(String topic) throws PulsarAdminException;
 
+    /**
+     * Get schema compatibility strategy on a topic.
+     *
+     * @param topic   The topic in whose policy we are interested
+     * @param applied Get the current applied schema compatibility strategy
+     */
+    SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String topic, boolean applied)
+            throws PulsarAdminException;
 
+    /**
+     * Get schema compatibility strategy on a topic asynchronously.
+     *
+     * @param topic   The topic in whose policy we are interested
+     * @param applied Get the current applied schema compatibility strategy
+     */
+    CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String topic, boolean applied);
+
+    /**
+     * Set schema compatibility strategy on a topic.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param strategy The schema compatibility strategy
+     */
+    void setSchemaCompatibilityStrategy(String topic, SchemaCompatibilityStrategy strategy) throws PulsarAdminException;
+
+    /**
+     * Set schema compatibility strategy on a topic asynchronously.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param strategy The schema compatibility strategy
+     */
+    CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String topic, SchemaCompatibilityStrategy strategy);
+
+    /**
+     * Remove schema compatibility strategy on a topic.
+     *
+     * @param topic The topic in whose policy should be removed
+     */
+    void removeSchemaCompatibilityStrategy(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove schema compatibility strategy on a topic asynchronously.
+     *
+     * @param topic The topic in whose policy should be removed
+     */
+    CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic);
 }

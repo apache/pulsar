@@ -66,16 +66,20 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onConnectionCreated(ServerCnx cnx){
-        log.info("Connection created {}", cnx);
+    public void onConnectionCreated(ServerCnx cnx) {
+        if (log.isDebugEnabled()) {
+            log.debug("Connection created {}", cnx);
+        }
         connectionCreationCount++;
     }
 
     @Override
     public void producerCreated(ServerCnx cnx, Producer producer,
-                                Map<String, String> metadata){
-        log.info("Producer created with name={}, id={}",
-            producer.getProducerName(), producer.getProducerId());
+                                Map<String, String> metadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Producer created with name={}, id={}",
+                    producer.getProducerName(), producer.getProducerId());
+        }
         producerCount++;
     }
 
@@ -83,8 +87,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,
                                  Map<String, String> metadata) {
-        log.info("Consumer created with name={}, id={}",
-            consumer.consumerName(), consumer.consumerId());
+        if (log.isDebugEnabled()) {
+            log.debug("Consumer created with name={}, id={}",
+                    consumer.consumerName(), consumer.consumerId());
+        }
         consumerCount++;
     }
 
@@ -92,16 +98,20 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
                                  long entryId,
                                  Topic.PublishContext publishContext) {
-        log.info("Message published topic={}, producer={}",
-            producer.getTopic().getName(), producer.getProducerName());
+        if (log.isDebugEnabled()) {
+            log.debug("Message published topic={}, producer={}",
+                    producer.getTopic().getName(), producer.getProducerName());
+        }
         messageCount++;
     }
 
     @Override
     public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
                                    long entryId, ByteBuf headersAndPayload) {
-        log.info("Message dispatched topic={}, consumer={}",
-            consumer.getSubscription().getTopic().getName(), consumer.consumerName());
+        if (log.isDebugEnabled()) {
+            log.debug("Message dispatched topic={}, consumer={}",
+                    consumer.getSubscription().getTopic().getName(), consumer.consumerName());
+        }
         messageDispatchCount++;
     }
 
@@ -116,14 +126,18 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        log.debug("Send message to topic {}, subscription {}",
-            subscription.getTopic(), subscription.getName());
+        if (log.isDebugEnabled()) {
+            log.debug("Send message to topic {}, subscription {}",
+                    subscription.getTopic(), subscription.getName());
+        }
         beforeSendCount++;
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
-        log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
+        }
         count ++;
     }
 
@@ -135,13 +149,17 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void onWebserviceRequest(ServletRequest request) {
         count ++;
-        log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest) request).getRequestURL().toString());
+        }
     }
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count ++;
-        log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest) request).getRequestURL().toString(), response);
+        }
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));

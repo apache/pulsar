@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -40,14 +39,24 @@ public class DynamicConfigurationResources extends BaseResources<Map<String, Str
         return getAsync(BROKER_SERVICE_CONFIGURATION_PATH);
     }
 
-    public Map<String, String> getDynamicConfiguration() throws MetadataStoreException {
-        return get(BROKER_SERVICE_CONFIGURATION_PATH).orElse(Collections.emptyMap());
+    public Optional<Map<String, String>> getDynamicConfiguration() throws MetadataStoreException {
+        return get(BROKER_SERVICE_CONFIGURATION_PATH);
     }
 
     public void setDynamicConfigurationWithCreate(
                                  Function<Optional<Map<String, String>>, Map<String, String>> createFunction)
             throws MetadataStoreException {
         super.setWithCreate(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
+    }
+
+    public CompletableFuture<Void> setDynamicConfigurationWithCreateAsync(
+            Function<Optional<Map<String, String>>, Map<String, String>> createFunction) {
+        return super.setWithCreateAsync(BROKER_SERVICE_CONFIGURATION_PATH, createFunction);
+    }
+
+    public CompletableFuture<Void> setDynamicConfigurationAsync(
+            Function<Map<String, String>, Map<String, String>> updateFunction){
+        return super.setAsync(BROKER_SERVICE_CONFIGURATION_PATH, updateFunction);
     }
 
     public void setDynamicConfiguration(

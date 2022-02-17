@@ -25,9 +25,10 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -36,6 +37,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 @Slf4j
 public class BacklogQuotaManager {
@@ -59,12 +61,19 @@ public class BacklogQuotaManager {
 
     public BacklogQuotaImpl getBacklogQuota(NamespaceName namespace, BacklogQuotaType backlogQuotaType) {
         try {
-            return namespaceResources.getPolicies(namespace)
-                    .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
-                            .getOrDefault(backlogQuotaType, defaultQuota))
-                    .orElse(defaultQuota);
-        } catch (Exception e) {
-            log.warn("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
+            if (namespaceResources == null) {
+                log.warn("Failed to read policies data from metadata store because namespaceResources is null."
+                        + "default backlog quota will be applied: namespace={}", namespace);
+                return this.defaultQuota;
+            } else {
+                return namespaceResources.getPolicies(namespace)
+                        .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
+                                .getOrDefault(backlogQuotaType, defaultQuota))
+                        .orElse(defaultQuota);
+            }
+        } catch (MetadataStoreException e) {
+            log.warn("Failed to read policies data from metadata store,"
+                    + " will apply the default backlog quota: namespace={}", namespace, e);
             return this.defaultQuota;
         }
     }
@@ -201,17 +210,22 @@ public class BacklogQuotaManager {
             Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
             ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
             try {
-                Long ledgerId =  mLedger.getCursors().getSlowestReaderPosition().getLedgerId();
-                MLDataFormats.ManagedLedgerInfo.LedgerInfo  ledgerInfo = mLedger.getLedgerInfo(ledgerId).get();
-                // Timestamp only > 0 if ledger has been closed
-                while (ledgerInfo.getTimestamp() > 0
-                        && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {
+                for (;;) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
-                    // skip whole ledger for the slowest cursor
-                    slowestConsumer.resetCursor(mLedger.getNextValidPosition(
-                            PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1)));
-                    ledgerId =  mLedger.getCursors().getSlowestReaderPosition().getLedgerId();
-                    ledgerInfo = mLedger.getLedgerInfo(ledgerId).get();
+                    Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
+                    ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
+                    // Timestamp only > 0 if ledger has been closed
+                    if (ledgerInfo.getTimestamp() > 0
+                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {
+                        // skip whole ledger for the slowest cursor
+                        PositionImpl nextPosition = mLedger.getNextValidPosition(
+                                PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1));
+                        if (!nextPosition.equals(oldestPosition)) {
+                            slowestConsumer.resetCursor(nextPosition);
+                            continue;
+                        }
+                    }
+                    break;
                 }
             } catch (Exception e) {
                 log.error("[{}] Error resetting cursor for slowest consumer [{}]", persistentTopic.getName(),

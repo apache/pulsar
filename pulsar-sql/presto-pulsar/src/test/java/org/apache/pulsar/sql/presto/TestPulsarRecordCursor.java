@@ -66,11 +66,11 @@ import java.util.Map;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -445,7 +445,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         PulsarAdmin pulsarAdmin = Mockito.mock(PulsarAdmin.class);
         Schemas schemas = Mockito.mock(Schemas.class);
         Mockito.when(pulsarAdmin.schemas()).thenReturn(schemas);
-        PulsarConnectorConfig connectorConfig = spy(new PulsarConnectorConfig());
+        PulsarConnectorConfig connectorConfig = spy(PulsarConnectorConfig.class);
         Mockito.when(connectorConfig.getPulsarAdmin()).thenReturn(pulsarAdmin);
         PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
                 new ArrayList<>(), pulsarSplit, connectorConfig, Mockito.mock(ManagedLedgerFactory.class),

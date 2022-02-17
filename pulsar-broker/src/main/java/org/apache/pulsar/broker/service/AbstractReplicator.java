@@ -182,8 +182,10 @@ public abstract class AbstractReplicator {
         if (failIfHasBacklog && getNumberOfEntriesInBacklog() > 0) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
-            log.debug("[{}][{} -> {}] Replicator disconnect failed since topic has backlog", topicName, localCluster,
-                    remoteCluster);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{} -> {}] Replicator disconnect failed since topic has backlog", topicName, localCluster
+                        , remoteCluster);
+            }
             return disconnectFuture;
         }
 
@@ -194,15 +196,13 @@ public abstract class AbstractReplicator {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (producer != null && (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)
-                || STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping))) {
+        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)
+                || STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping)) {
             log.info("[{}][{} -> {}] Disconnect replicator at position {} with backlog {}", topicName, localCluster,
                     remoteCluster, getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
-            return closeProducerAsync();
         }
 
-        STATE_UPDATER.set(this, State.Stopped);
-        return CompletableFuture.completedFuture(null);
+        return closeProducerAsync();
     }
 
     public CompletableFuture<Void> remove() {
@@ -259,4 +259,8 @@ public abstract class AbstractReplicator {
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);
+
+    public State getState() {
+        return state;
+    }
 }

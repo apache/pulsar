@@ -324,7 +324,7 @@ public class ProducerBuilderImplTest {
                 .create();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void testProducerBuilderImplWhenPropertiesIsEmpty() throws PulsarClientException {
         Map<String, String> properties = new HashMap<>();
 
@@ -346,12 +346,12 @@ public class ProducerBuilderImplTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalid() {
-        producerBuilderImpl.maxPendingMessagesAcrossPartitions(999);
+        producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
-        producerBuilderImpl.maxPendingMessagesAcrossPartitions(999);
+        producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
     @Test

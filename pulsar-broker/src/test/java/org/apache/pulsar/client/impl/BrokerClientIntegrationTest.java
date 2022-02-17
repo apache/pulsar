@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -68,6 +69,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.resources.BaseResources;
+import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -812,8 +815,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ObjectMapper mapper = new ObjectMapper();
-        SchemaReader<TestMessageObject> reader = Mockito.spy(new JacksonJsonReader<>(mapper, TestMessageObject.class));
-        SchemaWriter<TestMessageObject> writer = Mockito.spy(new JacksonJsonWriter<>(mapper));
+        SchemaReader<TestMessageObject> reader =
+                spyWithClassAndConstructorArgs(JacksonJsonReader.class, mapper, TestMessageObject.class);
+        SchemaWriter<TestMessageObject> writer = spyWithClassAndConstructorArgs(JacksonJsonWriter.class, mapper);
 
         SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
                 .withPojo(TestMessageObject.class)
@@ -848,10 +852,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final class TestMessageObject{
         private String value;
     }
-    
+
     /**
      * It validates pooled message consumption for batch and non-batch messages.
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "booleanFlagProvider")
@@ -902,10 +906,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
     }
-    
+
     /**
      * It verifies that expiry/redelivery of messages relesaes the messages without leak.
-     * 
+     *
      * @param isBatchingEnabled
      * @throws Exception
      */
@@ -945,7 +949,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
     /**
      * It validates pooled message consumption for batch and non-batch messages.
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "booleanFlagProvider")
@@ -997,4 +1001,56 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         reader.close();
         producer.close();
     }
+
+    @Test
+    public void testActiveConsumerCleanup() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numMessages = 100;
+        final CountDownLatch latch = new CountDownLatch(numMessages);
+        String topic = "persistent://my-property/my-ns/closed-cnx-topic";
+        String sub = "my-subscriber-name";
+
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        pulsarClient.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
+            Assert.assertNotNull(msg, "Message cannot be null");
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message [{}] in the listener", receivedMessage);
+            c1.acknowledgeAsync(msg);
+            latch.countDown();
+        }).subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+
+        AbstractDispatcherSingleActiveConsumer dispatcher = (AbstractDispatcherSingleActiveConsumer) topicRef
+                .getSubscription(sub).getDispatcher();
+        ServerCnx cnx = (ServerCnx) dispatcher.getActiveConsumer().cnx();
+        Field field = ServerCnx.class.getDeclaredField("isActive");
+        field.setAccessible(true);
+        field.set(cnx, false);
+
+        assertNotNull(dispatcher.getActiveConsumer());
+
+        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        Consumer<byte[]> consumer = null;
+        for (int i = 0; i < 2; i++) {
+            try {
+                consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    c1.acknowledgeAsync(msg);
+                    latch.countDown();
+                }).subscribe();
+                if (i == 0) {
+                    fail("Should failed with ConsumerBusyException!");
+                }
+            } catch (PulsarClientException.ConsumerBusyException ignore) {
+               // It's ok.
+            }
+        }
+        assertNotNull(consumer);
+        log.info("-- Exiting {} test --", methodName);
+    }
+
 }

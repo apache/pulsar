@@ -24,7 +24,7 @@ FROM apachepulsar/pulsar:latest as pulsar-function-go
 USER root
 
 RUN rm -rf /var/lib/apt/lists/* && apt-get update
-RUN apt-get install -y procps curl git
+RUN apt-get install -y procps curl git build-essential
 
 ENV GOLANG_VERSION 1.13.3
 

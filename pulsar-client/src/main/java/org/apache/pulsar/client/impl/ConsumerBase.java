@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
@@ -34,10 +35,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -54,6 +56,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -85,7 +88,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
-    private final AtomicInteger executorQueueSize = new AtomicInteger(0);
+    private volatile boolean isListenerHandlingMessage = false;
+
+    protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
+            AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
+
+    @Setter
+    @Getter
+    protected volatile long consumerEpoch;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
@@ -117,19 +127,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         .maxNumBytes(userBatchReceivePolicy.getMaxNumBytes())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
-                log.warn("BatchReceivePolicy maxNumMessages: {} is greater than maxReceiverQueueSize: {}, " +
-                        "reset to maxReceiverQueueSize. batchReceivePolicy: {}",
+                log.warn("BatchReceivePolicy maxNumMessages: {} is greater than maxReceiverQueueSize: {}, "
+                                + "reset to maxReceiverQueueSize. batchReceivePolicy: {}",
                         userBatchReceivePolicy.getMaxNumMessages(), this.maxReceiverQueueSize,
                         this.batchReceivePolicy.toString());
-            } else if (userBatchReceivePolicy.getMaxNumMessages() <= 0 && userBatchReceivePolicy.getMaxNumBytes() <= 0) {
+            } else if (userBatchReceivePolicy.getMaxNumMessages() <= 0
+                    && userBatchReceivePolicy.getMaxNumBytes() <= 0) {
                 this.batchReceivePolicy = BatchReceivePolicy.builder()
                         .maxNumMessages(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumMessages())
                         .maxNumBytes(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumBytes())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
-                log.warn("BatchReceivePolicy maxNumMessages: {} or maxNumBytes: {} is less than 0. " +
-                        "Reset to DEFAULT_POLICY. batchReceivePolicy: {}", userBatchReceivePolicy.getMaxNumMessages(),
-                        userBatchReceivePolicy.getMaxNumBytes(), this.batchReceivePolicy.toString());
+                log.warn("BatchReceivePolicy maxNumMessages: {} or maxNumBytes: {} is less than 0. "
+                                + "Reset to DEFAULT_POLICY. batchReceivePolicy: {}",
+                        userBatchReceivePolicy.getMaxNumMessages(), userBatchReceivePolicy.getMaxNumBytes(),
+                        this.batchReceivePolicy.toString());
             } else {
                 this.batchReceivePolicy = conf.getBatchReceivePolicy();
             }
@@ -138,7 +150,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
 
         if (batchReceivePolicy.getTimeoutMs() > 0) {
-            batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
+            batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,
+                    batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
     }
 
@@ -221,7 +234,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
         getInternalExecutor(message).execute(() -> {
             if (!receivedFuture.complete(message)) {
-                log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was dropped. message={}",
+                log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was "
+                                + "dropped. message={}",
                         receivedFuture.isCancelled(), message);
             }
         });
@@ -257,8 +271,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             if (!receiveFuture.isDone()) {
                 receiveFuture.completeExceptionally(
                         new PulsarClientException.AlreadyClosedException(
-                                String.format("The consumer which subscribes the topic %s with subscription name %s " +
-                                "was already closed when cleaning and closing the consumers", topic, subscription)));
+                                String.format("The consumer which subscribes the topic %s with subscription name %s "
+                                        + "was already closed when cleaning and closing the consumers",
+                                        topic, subscription)));
             }
         }
     }
@@ -272,15 +287,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             if (!opBatchReceive.future.isDone()) {
                 opBatchReceive.future.completeExceptionally(
                         new PulsarClientException.AlreadyClosedException(
-                                String.format("The consumer which subscribes the topic %s with subscription name %s " +
-                                "was already closed when cleaning and closing the consumers", topic, subscription)));
+                                String.format("The consumer which subscribes the topic %s with subscription name %s was"
+                                                + " already closed when cleaning and closing the consumers",
+                                        topic, subscription)));
             }
         }
     }
 
-    abstract protected Messages<T> internalBatchReceive() throws PulsarClientException;
+    protected abstract Messages<T> internalBatchReceive() throws PulsarClientException;
 
-    abstract protected CompletableFuture<Messages<T>> internalBatchReceiveAsync();
+    protected abstract CompletableFuture<Messages<T>> internalBatchReceiveAsync();
 
     private static void validateMessageId(Message<?> message) throws PulsarClientException {
         if (message == null) {
@@ -342,11 +358,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+        reconsumeLater(message, null, delayTime, unit);
+    }
+
+    @Override
+    public void reconsumeLater(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit)
+            throws PulsarClientException {
         if (!conf.isRetryEnable()) {
             throw new PulsarClientException("reconsumeLater method not support!");
         }
         try {
-            reconsumeLaterAsync(message, delayTime, unit).get();
+            reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
@@ -387,7 +409,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    public void reconsumeLaterCumulative(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+    public void reconsumeLaterCumulative(Message<?> message, long delayTime, TimeUnit unit)
+            throws PulsarClientException {
         try {
             reconsumeLaterCumulativeAsync(message, delayTime, unit).get();
         } catch (InterruptedException e) {
@@ -429,6 +452,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
+        return reconsumeLaterAsync(message, null, delayTime, unit);
+    }
+
+    @Override
+    public CompletableFuture<Void> reconsumeLaterAsync(
+            Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
@@ -437,7 +466,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } catch (PulsarClientException e) {
             return FutureUtil.failedFuture(e);
         }
-        return doReconsumeLater(message, AckType.Individual, Collections.emptyMap(), delayTime, unit);
+        return doReconsumeLater(message, AckType.Individual, customProperties, delayTime, unit);
     }
 
     @Override
@@ -449,7 +478,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 return FutureUtil.failedFuture(e);
             }
         }
-        messages.forEach(message -> reconsumeLaterAsync(message,delayTime, unit));
+        messages.forEach(message -> reconsumeLaterAsync(message, delayTime, unit));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -465,6 +494,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit) {
+        return reconsumeLaterCumulativeAsync(message, null, delayTime, unit);
+    }
+
+    @Override
+    public CompletableFuture<Void> reconsumeLaterCumulativeAsync(
+            Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
@@ -472,7 +507,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive subscription"));
         }
-        return doReconsumeLater(message, AckType.Cumulative, Collections.emptyMap(), delayTime, unit);
+        return doReconsumeLater(message, AckType.Cumulative, customProperties, delayTime, unit);
     }
 
     @Override
@@ -487,6 +522,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
             txnImpl = (TransactionImpl) txn;
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+           if (!txnImpl.checkIfOpen(completableFuture)) {
+               return completableFuture;
+           }
         }
         return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);
     }
@@ -517,7 +556,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
-                                                           Map<String,Long> properties,
+                                                           Map<String, Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture;
         if (txn != null) {
@@ -531,7 +570,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
-                                                           Map<String,Long> properties,
+                                                           Map<String, Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture;
         if (txn != null && (this instanceof ConsumerImpl)) {
@@ -554,7 +593,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
-                                                             Map<String,Long> properties,
+                                                             Map<String, Long> properties,
                                                              TransactionImpl txn);
 
     protected abstract CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
@@ -562,7 +601,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                     TransactionImpl txn);
 
     protected abstract CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
-                                                                Map<String,Long> properties,
+                                                                Map<String, String> customProperties,
                                                                 long delayTime,
                                                                 TimeUnit unit);
 
@@ -675,11 +714,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public String toString() {
-        return "ConsumerBase{" +
-                "subscription='" + subscription + '\'' +
-                ", consumerName='" + consumerName + '\'' +
-                ", topic='" + topic + '\'' +
-                '}';
+        return "ConsumerBase{"
+                + "subscription='" + subscription + '\''
+                + ", consumerName='" + consumerName + '\''
+                + ", topic='" + topic + '\''
+                + '}';
     }
 
     protected void setMaxReceiverQueueSize(int newSize) {
@@ -743,8 +782,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumBytes() <= 0) {
             return false;
         }
-        return (batchReceivePolicy.getMaxNumMessages() > 0 && incomingMessages.size() >= batchReceivePolicy.getMaxNumMessages())
-                || (batchReceivePolicy.getMaxNumBytes() > 0 && getIncomingMessageSize() >= batchReceivePolicy.getMaxNumBytes());
+        return (batchReceivePolicy.getMaxNumMessages() > 0
+                && incomingMessages.size() >= batchReceivePolicy.getMaxNumMessages())
+                || (batchReceivePolicy.getMaxNumBytes() > 0
+                && getIncomingMessageSize() >= batchReceivePolicy.getMaxNumBytes());
     }
 
     private void verifyConsumerState() throws PulsarClientException {
@@ -845,7 +886,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
         if (!future.complete(messages)) {
-            log.warn("Race condition detected. batch receive future was already completed (cancelled={}) and messages were dropped. messages={}",
+            log.warn("Race condition detected. batch receive future was already completed (cancelled={}) and messages"
+                            + " were dropped. messages={}",
                     future.isCancelled(), messages);
         }
     }
@@ -911,15 +953,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void triggerListener() {
-        // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
-        // thread while the message processing happens
+        // Use internalPinnedExecutor to maintain message ordering
         internalPinnedExecutor.execute(() -> {
             try {
-                // Control executor to call MessageListener one by one.
-                if (executorQueueSize.get() < 1) {
+                // Listener should only have one pending/running executable to process a message
+                // See https://github.com/apache/pulsar/issues/11008 for context.
+                if (!isListenerHandlingMessage) {
                     final Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
                     if (msg != null) {
-                        executorQueueSize.incrementAndGet();
+                        isListenerHandlingMessage = true;
+                        // Trigger the notification on the message listener in a separate thread to avoid blocking the
+                        // internal pinned executor thread while the message processing happens
                         if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
                             executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
                                     callMessageListener(msg));
@@ -952,7 +996,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
                     msg.getMessageId(), t);
         } finally {
-            executorQueueSize.decrementAndGet();
+            isListenerHandlingMessage = false;
             triggerListener();
         }
     }
@@ -1019,6 +1063,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 ? receivedConsumer.internalPinnedExecutor
                 : internalPinnedExecutor;
         return executor;
+    }
+
+    // If message consumer epoch is smaller than consumer epoch present that
+    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
+    // so we should release this message and receive again
+    protected boolean isValidConsumerEpoch(MessageImpl<T> message) {
+        if ((getSubType() == CommandSubscribe.SubType.Failover
+                || getSubType() == CommandSubscribe.SubType.Exclusive)
+                && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
+                && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
+            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], consumerEpoch : [{}]",
+                    topic, message.getMessageId(), consumerEpoch);
+            message.release();
+            message.recycle();
+            return false;
+        }
+        return true;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);

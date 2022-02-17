@@ -19,20 +19,19 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
-
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -54,6 +53,7 @@ import org.apache.curator.shaded.com.google.common.util.concurrent.RateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -101,7 +101,7 @@ public class PerformanceTransaction {
         @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = {"--conf-file"}, description = "Configuration file")
+        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
         @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
@@ -118,6 +118,16 @@ public class PerformanceTransaction {
                 + "Increasing the number of threads increases the parallelism of the performance test, "
                 + "thereby increasing the intensity of the stress test.")
         public int numTestThreads = 1;
+
+        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
+        public String authPluginClassName;
+
+        @Parameter(
+                names = { "--auth-params" },
+                description = "Authentication parameters, whose format is determined by the implementation "
+                        + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+        public String authParams;
 
         @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
@@ -138,8 +148,8 @@ public class PerformanceTransaction {
                 "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
         public long testTime = 0;
 
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers. The default value is 1.")
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
+                + "used for handling connections to brokers. The default value is 1.")
         public int ioThreads = 1;
 
         @Parameter(names = {"-ss",
@@ -208,7 +218,6 @@ public class PerformanceTransaction {
             PerfClientUtils.exit(-1);
         }
 
-
         if (arguments.confFile != null) {
             Properties prop = new Properties(System.getProperties());
             prop.load(new FileInputStream(arguments.confFile));
@@ -232,6 +241,14 @@ public class PerformanceTransaction {
             if (arguments.adminURL == null) {
                 arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
             }
+
+            if (arguments.authPluginClassName == null) {
+                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
+            }
+
+            if (arguments.authParams == null) {
+                arguments.authParams = prop.getProperty("authParams", null);
+            }
         }
 
 
@@ -250,6 +267,11 @@ public class PerformanceTransaction {
         if (arguments.partitions != null) {
             PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
                     .serviceHttpUrl(arguments.adminURL);
+
+            if (isNotBlank(arguments.authPluginClassName)) {
+                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+            }
+
             try (PulsarAdmin client = clientBuilder.build()) {
                 for (String topic : arguments.producerTopic) {
                     log.info("Creating  produce partitioned topic {} with {} partitions", topic, arguments.partitions);
@@ -272,18 +294,23 @@ public class PerformanceTransaction {
             }
         }
 
-        PulsarClient client =
+        ClientBuilder clientBuilder =
                 PulsarClient.builder().enableTransaction(!arguments.isDisableTransaction)
                         .serviceUrl(arguments.serviceURL)
                         .connectionsPerBroker(arguments.maxConnections)
                         .statsInterval(0, TimeUnit.SECONDS)
-                        .ioThreads(arguments.ioThreads)
-                        .build();
+                        .ioThreads(arguments.ioThreads);
+
+        if (isNotBlank(arguments.authPluginClassName)) {
+            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        PulsarClient client = clientBuilder.build();
 
         ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
                 arguments.numTestThreads,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>());
+                new LinkedBlockingQueue<>());
 
 
         long startTime = System.nanoTime();
@@ -303,23 +330,30 @@ public class PerformanceTransaction {
             RateLimiter rateLimiter = arguments.openTxnRate > 0
                     ? RateLimiter.create(arguments.openTxnRate)
                     : null;
-            for(int i = 0; i < arguments.numTestThreads; i++) {
+            for (int i = 0; i < arguments.numTestThreads; i++) {
                 executorService.submit(() -> {
                     //The producer and consumer clients are built in advance, and then this thread is
                     //responsible for the production and consumption tasks of the transaction through the loop.
                     //A thread may perform tasks of multiple transactions in a traversing manner.
                     List<Producer<byte[]>> producers = null;
                     List<List<Consumer<byte[]>>> consumers = null;
+                    AtomicReference<Transaction> atomicReference = null;
                     try {
                         producers = buildProducers(client, arguments);
                         consumers = buildConsumer(client, arguments);
+                        if (!arguments.isDisableTransaction) {
+                            atomicReference = new AtomicReference<>(client.newTransaction()
+                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                    .build()
+                                    .get());
+                        } else {
+                            atomicReference = new AtomicReference<>(null);
+                        }
                     } catch (Exception e) {
                         log.error("Failed to build Producer/Consumer with exception : ", e);
                         executorService.shutdownNow();
                         PerfClientUtils.exit(-1);
                     }
-                    AtomicReference<Transaction> atomicReference = buildTransaction(client,
-                            !arguments.isDisableTransaction, arguments.transactionTimeout);
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //the executorService
                     while (true) {
@@ -327,7 +361,7 @@ public class PerformanceTransaction {
                             if (totalNumTxnOpenTxnFail.sum()
                                     + totalNumTxnOpenTxnSuccess.sum() >= arguments.numTransactions) {
                                 if (totalNumEndTxnOpFailed.sum()
-                                        + totalNumEndTxnOpSuccess.sum() < arguments.numTransactions ) {
+                                        + totalNumEndTxnOpSuccess.sum() < arguments.numTransactions) {
                                     continue;
                                 }
                                 log.info("------------------- DONE -----------------------");
@@ -350,7 +384,7 @@ public class PerformanceTransaction {
                         for (List<Consumer<byte[]>> subscriptions : consumers) {
                                 for (Consumer<byte[]> consumer : subscriptions) {
                                     for (int j = 0; j < arguments.numMessagesReceivedPerTransaction; j++) {
-                                        Message message = null;
+                                        Message<byte[]> message = null;
                                         try {
                                             message = consumer.receive();
                                         } catch (PulsarClientException e) {
@@ -399,7 +433,7 @@ public class PerformanceTransaction {
                             }
                         }
 
-                        for(Producer<byte[]> producer : producers){
+                        for (Producer<byte[]> producer : producers){
                             for (int j = 0; j < arguments.numMessagesProducedPerTransaction; j++) {
                                 long sendTime = System.nanoTime();
                                 if (!arguments.isDisableTransaction) {
@@ -411,7 +445,7 @@ public class PerformanceTransaction {
                                         messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                         numMessagesSendSuccess.increment();
                                     }).exceptionally(exception -> {
-                                        if (exception instanceof InterruptedException && ! executing.get()) {
+                                        if (exception instanceof InterruptedException && !executing.get()) {
                                             return null;
                                         }
                                         log.error("Send transaction message failed with exception : ", exception);
@@ -427,7 +461,7 @@ public class PerformanceTransaction {
                                         messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                         numMessagesSendSuccess.increment();
                                     }).exceptionally(exception -> {
-                                        if (exception instanceof InterruptedException && ! executing.get()) {
+                                        if (exception instanceof InterruptedException && !executing.get()) {
                                             return null;
                                         }
                                         log.error("Send message failed with exception : ", exception);
@@ -448,7 +482,7 @@ public class PerformanceTransaction {
                                             numTxnOpSuccess.increment();
                                             totalNumEndTxnOpSuccess.increment();
                                         }).exceptionally(exception -> {
-                                            if (exception instanceof InterruptedException && ! executing.get()) {
+                                            if (exception instanceof InterruptedException && !executing.get()) {
                                                 return null;
                                             }
                                             log.error("Commit transaction {} failed with exception",
@@ -462,7 +496,7 @@ public class PerformanceTransaction {
                                     numTxnOpSuccess.increment();
                                     totalNumEndTxnOpSuccess.increment();
                                 }).exceptionally(exception -> {
-                                    if (exception instanceof InterruptedException && ! executing.get()) {
+                                    if (exception instanceof InterruptedException && !executing.get()) {
                                         return null;
                                     }
                                     log.error("Commit transaction {} failed with exception",
@@ -473,7 +507,7 @@ public class PerformanceTransaction {
                                 });
                             }
                             while (true) {
-                                try{
+                                try {
                                     Transaction newTransaction = client.newTransaction()
                                             .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
                                             .build()
@@ -481,7 +515,7 @@ public class PerformanceTransaction {
                                     atomicReference.compareAndSet(transaction, newTransaction);
                                     totalNumTxnOpenTxnSuccess.increment();
                                     break;
-                                    }catch (Exception throwable){
+                                    } catch (Exception throwable){
                                         if (throwable instanceof InterruptedException && !executing.get()) {
                                             break;
                                         }
@@ -535,22 +569,22 @@ public class PerformanceTransaction {
                     txnOrTaskLog + "  --- send Latency: mean: {} ms - med: {} "
                             + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}" + " --- ack Latency: "
                             + "mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    intFormat.format(total),
-                    dec.format(rate),
-                    dec.format(reportSendHistogram.getMean() / 1000.0),
-                    dec.format(reportSendHistogram.getValueAtPercentile(50) / 1000.0),
-                    dec.format(reportSendHistogram.getValueAtPercentile(95) / 1000.0),
-                    dec.format(reportSendHistogram.getValueAtPercentile(99) / 1000.0),
-                    dec.format(reportSendHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    dec.format(reportSendHistogram.getValueAtPercentile(99.99) / 1000.0),
-                    dec.format(reportSendHistogram.getMaxValue() / 1000.0),
-                    dec.format(reportAckHistogram.getMean() / 1000.0),
-                    dec.format(reportAckHistogram.getValueAtPercentile(50) / 1000.0),
-                    dec.format(reportAckHistogram.getValueAtPercentile(95) / 1000.0),
-                    dec.format(reportAckHistogram.getValueAtPercentile(99) / 1000.0),
-                    dec.format(reportAckHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    dec.format(reportAckHistogram.getValueAtPercentile(99.99) / 1000.0),
-                    dec.format(reportAckHistogram.getMaxValue() / 1000.0));
+                    INTFORMAT.format(total),
+                    DEC.format(rate),
+                    DEC.format(reportSendHistogram.getMean() / 1000.0),
+                    DEC.format(reportSendHistogram.getValueAtPercentile(50) / 1000.0),
+                    DEC.format(reportSendHistogram.getValueAtPercentile(95) / 1000.0),
+                    DEC.format(reportSendHistogram.getValueAtPercentile(99) / 1000.0),
+                    DEC.format(reportSendHistogram.getValueAtPercentile(99.9) / 1000.0),
+                    DEC.format(reportSendHistogram.getValueAtPercentile(99.99) / 1000.0),
+                    DEC.format(reportSendHistogram.getMaxValue() / 1000.0),
+                    DEC.format(reportAckHistogram.getMean() / 1000.0),
+                    DEC.format(reportAckHistogram.getValueAtPercentile(50) / 1000.0),
+                    DEC.format(reportAckHistogram.getValueAtPercentile(95) / 1000.0),
+                    DEC.format(reportAckHistogram.getValueAtPercentile(99) / 1000.0),
+                    DEC.format(reportAckHistogram.getValueAtPercentile(99.9) / 1000.0),
+                    DEC.format(reportAckHistogram.getValueAtPercentile(99.99) / 1000.0),
+                    DEC.format(reportAckHistogram.getMaxValue() / 1000.0));
 
             histogramLogWriter.outputIntervalHistogram(reportSendHistogram);
             histogramLogWriter.outputIntervalHistogram(reportAckHistogram);
@@ -584,7 +618,7 @@ public class PerformanceTransaction {
                         + " --- {} message ack failed --- {} message send failed"
                         + " --- {} message ack success --- {} message send success ",
                 total,
-                dec.format(rate),
+                DEC.format(rate),
                 numTransactionOpenSuccess,
                 numTransactionOpenFailed,
                 numTransactionEndSuccess,
@@ -609,7 +643,7 @@ public class PerformanceTransaction {
                         + " --- {} message ack failed --- {} message send failed"
                         + " --- {} message ack success --- {} message send success",
                 total,
-                totalFormat.format(rate),
+                TOTALFORMAT.format(rate),
                 numMessageAckFailed,
                 numMessageSendFailed,
                 numMessageAckSuccess,
@@ -623,33 +657,33 @@ public class PerformanceTransaction {
                 "Messages ack aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - "
                         + "99.9pct: {} - "
                         + "99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportAckHistogram.getMean() / 1000.0),
-                dec.format(reportAckHistogram.getValueAtPercentile(50) / 1000.0),
-                dec.format(reportAckHistogram.getValueAtPercentile(95) / 1000.0),
-                dec.format(reportAckHistogram.getValueAtPercentile(99) / 1000.0),
-                dec.format(reportAckHistogram.getValueAtPercentile(99.9) / 1000.0),
-                dec.format(reportAckHistogram.getValueAtPercentile(99.99) / 1000.0),
-                dec.format(reportAckHistogram.getValueAtPercentile(99.999) / 1000.0),
-                dec.format(reportAckHistogram.getMaxValue() / 1000.0));
+                DEC.format(reportAckHistogram.getMean() / 1000.0),
+                DEC.format(reportAckHistogram.getValueAtPercentile(50) / 1000.0),
+                DEC.format(reportAckHistogram.getValueAtPercentile(95) / 1000.0),
+                DEC.format(reportAckHistogram.getValueAtPercentile(99) / 1000.0),
+                DEC.format(reportAckHistogram.getValueAtPercentile(99.9) / 1000.0),
+                DEC.format(reportAckHistogram.getValueAtPercentile(99.99) / 1000.0),
+                DEC.format(reportAckHistogram.getValueAtPercentile(99.999) / 1000.0),
+                DEC.format(reportAckHistogram.getMaxValue() / 1000.0));
         log.info(
                 "Messages send aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - "
                         + "99.9pct: {} - "
                         + "99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportSendHistogram.getMean() / 1000.0),
-                dec.format(reportSendHistogram.getValueAtPercentile(50) / 1000.0),
-                dec.format(reportSendHistogram.getValueAtPercentile(95) / 1000.0),
-                dec.format(reportSendHistogram.getValueAtPercentile(99) / 1000.0),
-                dec.format(reportSendHistogram.getValueAtPercentile(99.9) / 1000.0),
-                dec.format(reportSendHistogram.getValueAtPercentile(99.99) / 1000.0),
-                dec.format(reportSendHistogram.getValueAtPercentile(99.999) / 1000.0),
-                dec.format(reportSendHistogram.getMaxValue() / 1000.0));
+                DEC.format(reportSendHistogram.getMean() / 1000.0),
+                DEC.format(reportSendHistogram.getValueAtPercentile(50) / 1000.0),
+                DEC.format(reportSendHistogram.getValueAtPercentile(95) / 1000.0),
+                DEC.format(reportSendHistogram.getValueAtPercentile(99) / 1000.0),
+                DEC.format(reportSendHistogram.getValueAtPercentile(99.9) / 1000.0),
+                DEC.format(reportSendHistogram.getValueAtPercentile(99.99) / 1000.0),
+                DEC.format(reportSendHistogram.getValueAtPercentile(99.999) / 1000.0),
+                DEC.format(reportSendHistogram.getMaxValue() / 1000.0));
     }
 
 
 
-    static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
-    static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
-    static final DecimalFormat totalFormat = new DecimalFormat("0.000");
+    static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
+    static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
+    static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
 
 
@@ -661,12 +695,12 @@ public class PerformanceTransaction {
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition);
 
         Iterator<String> consumerTopicsIterator = arguments.consumerTopic.iterator();
-        List<List<Consumer<byte[]>>> consumers = Lists.newArrayListWithCapacity(arguments.consumerTopic.size());
-        while(consumerTopicsIterator.hasNext()){
+        List<List<Consumer<byte[]>>> consumers = new ArrayList<>(arguments.consumerTopic.size());
+        while (consumerTopicsIterator.hasNext()){
             String topic = consumerTopicsIterator.next();
-            final List<Consumer<byte[]>> subscriptions = Lists.newArrayListWithCapacity(arguments.numSubscriptions);
+            final List<Consumer<byte[]>> subscriptions = new ArrayList<>(arguments.numSubscriptions);
             final List<Future<Consumer<byte[]>>> subscriptionFutures =
-                    Lists.newArrayListWithCapacity(arguments.numSubscriptions);
+                    new ArrayList<>(arguments.numSubscriptions);
             log.info("Create subscriptions for topic {}", topic);
             for (int j = 0; j < arguments.numSubscriptions; j++) {
                 String subscriberName = arguments.subscriptions.get(j);
@@ -688,14 +722,12 @@ public class PerformanceTransaction {
         ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.BYTES)
                 .sendTimeout(0, TimeUnit.SECONDS);
 
-        final List<Future<Producer<byte[]>>> producerFutures = Lists.newArrayList();
-        Iterator<String> produceTopicsIterator = arguments.producerTopic.iterator();
-        while(produceTopicsIterator.hasNext()){
-            String topic = produceTopicsIterator.next();
+        final List<Future<Producer<byte[]>>> producerFutures = new ArrayList<>();
+        for (String topic : arguments.producerTopic) {
             log.info("Create producer for topic {}", topic);
             producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
         }
-        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(producerFutures.size());
+        final List<Producer<byte[]>> producers = new ArrayList<>(producerFutures.size());
 
         for (Future<Producer<byte[]>> future : producerFutures) {
             producers.add(future.get());

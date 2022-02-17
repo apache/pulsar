@@ -19,6 +19,12 @@
 
 set(CMAKE_CXX_FLAGS "-O3 -g ${CMAKE_CXX_FLAGS}")
 
+MESSAGE(STATUS "Use WIRESHARK_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions("-DDEBUG")
+endif()
+
 # Wireshark dependency's
 find_library(WIRESHARK_LIB wireshark)
 find_library(WIRESHARK_UTIL_LIB wsutil)

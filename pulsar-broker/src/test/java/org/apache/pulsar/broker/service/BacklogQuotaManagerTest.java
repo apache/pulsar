@@ -35,8 +35,10 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -475,10 +477,61 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         stats = admin.topics().getStats(topic1);
+        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
-        // message in current ledger which should be 4.
-        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 4);
-        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 4);
+        // message in current ledger.
+        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        client.close();
+    }
+
+    @Test
+    public void testConsumerBacklogEvictionTimeQuotaWithEmptyLedger() throws Exception {
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
+                Maps.newHashMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String topic = "persistent://prop/ns-quota/topic4";
+        final String subName = "c1";
+
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subName).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client, topic);
+        producer.send(new byte[1024]);
+        consumer.receive();
+
+        admin.topics().unload(topic);
+        Awaitility.await().until(consumer::isConnected);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+        assertEquals(internalStats.ledgers.size(), 2);
+        assertEquals(internalStats.ledgers.get(1).entries, 0);
+
+        TopicStats stats = admin.topics().getStats(topic);
+        assertEquals(stats.getSubscriptions().get(subName).getMsgBacklog(), 1);
+
+        TimeUnit.SECONDS.sleep(TIME_TO_CHECK_BACKLOG_QUOTA);
+
+        Awaitility.await()
+                .pollInterval(Duration.ofSeconds(1))
+                .atMost(Duration.ofSeconds(TIME_TO_CHECK_BACKLOG_QUOTA))
+                .untilAsserted(() -> {
+                    rolloverStats();
+
+                    // Cause the last ledger is empty, it is not possible to skip first ledger,
+                    // so the number of ledgers will keep unchanged, and backlog is clear
+                    PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
+                    assertEquals(latestInternalStats.ledgers.size(), 2);
+                    assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
+                    TopicStats latestStats = admin.topics().getStats(topic);
+                    assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
+                });
+
         client.close();
     }
 
@@ -1073,6 +1126,8 @@ public class BacklogQuotaManagerTest {
         }
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         // publish should work now
+        producer.close();
+        producer = createProducer(client, topic1);
         Exception sendException = null;
         gotException = false;
         try {
