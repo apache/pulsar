@@ -26,10 +26,13 @@ import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import java.lang.reflect.InvocationTargetException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +40,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
@@ -44,10 +48,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
+import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
@@ -61,23 +67,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Slf4j
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private static HashFunction hashFunction = Hashing.sha256();
-    private final Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
-    private final SchemaStorage schemaStorage;
-    private final Clock clock;
-
-    @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
-                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock) {
-        this.schemaStorage = schemaStorage;
-        this.compatibilityChecks = compatibilityChecks;
-        this.clock = clock;
-    }
-
-    @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, Map<SchemaType, SchemaCompatibilityCheck>
-            compatibilityChecks) {
-        this(schemaStorage, compatibilityChecks, Clock.systemUTC());
-    }
+    private Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
+    private SchemaStorage schemaStorage;
+    private Clock clock;
 
     @Override
     @NotNull
@@ -225,7 +217,30 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public void initialize(ServiceConfiguration configuration) {}
+    public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage) throws PulsarServerException {
+        try {
+            Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
+            checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
+            this.schemaStorage = schemaStorage;
+            this.compatibilityChecks = checkers;
+            this.clock = Clock.systemUTC();
+        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
+            throw new PulsarServerException("cannot initialize schema compatibility checkers", e);
+        }
+    }
+
+    private Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses)
+          throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException,
+          InstantiationException {
+        Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
+        for (String className : checkerClasses) {
+            final Class<?> checkerClass = Class.forName(className);
+            SchemaCompatibilityCheck instance = (SchemaCompatibilityCheck) checkerClass
+                  .getDeclaredConstructor().newInstance();
+            checkers.put(instance.getSchemaType(), instance);
+        }
+        return checkers;
+    }
 
     @Override
     public void close() throws Exception {

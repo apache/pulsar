@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import com.google.common.collect.Maps;
-import java.util.Map;
-import java.util.Set;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,27 +29,12 @@ public interface SchemaRegistryService extends SchemaRegistry {
     Logger LOG = LoggerFactory.getLogger(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
 
-    static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
-        Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
-        for (String className : checkerClasses) {
-            final Class<?> checkerClass = Class.forName(className);
-            SchemaCompatibilityCheck instance = (SchemaCompatibilityCheck) checkerClass
-                    .getDeclaredConstructor().newInstance();
-            checkers.put(instance.getSchemaType(), instance);
-        }
-        return checkers;
-    }
-
-    static SchemaRegistryService create(String schemaRegistryClassName, SchemaStorage schemaStorage,
-          Set<String> schemaRegistryCompatibilityCheckers) {
+    static SchemaRegistryService create(SchemaStorage schemaStorage, String schemaRegistryClassName) {
         if (schemaStorage != null) {
             try {
-                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
-                checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
-
                 SchemaRegistryService schemaRegistryService = (SchemaRegistryService) Class
-                      .forName(schemaRegistryClassName).getDeclaredConstructor(SchemaStorage.class, Map.class)
-                      .newInstance(schemaStorage, checkers);
+                      .forName(schemaRegistryClassName).getDeclaredConstructor()
+                      .newInstance();
 
                 return SchemaRegistryServiceWithSchemaDataValidator.of(schemaRegistryService);
             } catch (Exception e) {
@@ -62,7 +44,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
         return new DefaultSchemaRegistryService();
     }
 
-    void initialize(ServiceConfiguration configuration);
+    void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage) throws PulsarServerException;
 
     void close() throws Exception;
 }

@@ -20,11 +20,14 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -44,7 +47,10 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public void initialize(ServiceConfiguration configuration) {}
+    public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
+          throws PulsarServerException {
+        this.service.initialize(configuration, schemaStorage);
+    }
 
     @Override
     public void close() throws Exception {
