@@ -100,11 +100,14 @@ func main() {
 }
 ```
 For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
+<!--END_DOCUSAURUS_CODE_TABS-->
 
-Function initialize and close interface are available in **Pulsar Function SDK for Java 2.10.0 or later**.
-You can use these interface to process any resource initialize and release logic.
+### Extended Pulsar Function SDK for Java
+> **Note** 
+> The extended Function SDK for java is available in Pulsar 2.10.0 or later versions. Before using it, you need to set up Pulsar Functions worker 2.10.0 or later versions.
+This extended Function SDK provides an interface to initialize and release external resources, which is easy and efficient to use and expand. Before starting a Function, you don't have to make various judgments in the Function interface for those resources which only need one-time initialization. After closing a Function, you don't need to manually close the referenced external resources. The order of releasing external resources is controlled by the Function itself.
 
-The following example uses initialize and close interface.
+The following example uses the extended Function SDK to initialize and release the external resource RedisClient.
 
 ```Java
 import org.apache.pulsar.functions.api.Context;
