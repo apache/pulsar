@@ -169,6 +169,12 @@ public class DispatchRateLimiter {
      * broker-level
      */
     public void updateDispatchRate() {
+        switch (type) {
+            case SUBSCRIPTION:
+                updateDispatchRate(topic.getSubscriptionDispatchRate());
+                return;
+        }
+
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
         if (!dispatchRate.isPresent()) {
             getPoliciesDispatchRateAsync(brokerService).thenAccept(dispatchRateOp -> {
@@ -457,7 +463,7 @@ public class DispatchRateLimiter {
     }
 
 
-    private static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
+    public static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
         return dispatchRate != null && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
                 || dispatchRate.getDispatchThrottlingRateInByte() > 0);
     }

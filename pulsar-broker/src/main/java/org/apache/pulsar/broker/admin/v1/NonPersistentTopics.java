@@ -42,6 +42,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -192,7 +193,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
     public void getList(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
-                        @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+                        @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                        @QueryParam("bundle") String nsBundle) {
         log.info("[{}] list of topics on namespace {}/{}/{}", clientAppId(), property, cluster, namespace);
 
         Policies policies = null;
@@ -221,6 +223,9 @@ public class NonPersistentTopics extends PersistentTopics {
         final List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+            if (StringUtils.isNotBlank(nsBundle) && !nsBundle.equals(bundle)) {
+                continue;
+            }
             try {
                 futures.add(pulsar().getAdminClient().nonPersistentTopics().getListInBundleAsync(nsName.toString(),
                         bundle));
@@ -276,7 +281,7 @@ public class NonPersistentTopics extends PersistentTopics {
         NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         try {
             if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
-                .get(pulsar().getConfig().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
+                .get(pulsar().getConfig().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property,
                     cluster, namespace, bundleRange);
                 return null;
@@ -302,7 +307,7 @@ public class NonPersistentTopics extends PersistentTopics {
     private Topic getTopicReference(TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
         } catch (ExecutionException e) {
             throw new RuntimeException(e.getCause());

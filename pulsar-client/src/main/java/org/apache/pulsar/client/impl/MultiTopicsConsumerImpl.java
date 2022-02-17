@@ -106,7 +106,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private volatile BatchMessageIdImpl startMessageId = null;
     private final long startMessageRollbackDurationInSec;
-
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -334,6 +333,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    // If message consumer epoch is smaller than consumer epoch present that
+    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
+    // so we should release this message and receive again
+    private boolean isValidConsumerEpoch(Message<T> message) {
+        return isValidConsumerEpoch(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
+                .getMessage()));
+    }
+
     @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         Message<T> message;
@@ -341,6 +348,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
+            if (!isValidConsumerEpoch(message)) {
+                resumeReceivingFromPausedConsumersIfNeeded();
+                message.release();
+                return internalReceive();
+            }
             unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -352,11 +364,22 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
+
+        long callTime = System.nanoTime();
         try {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
+                if (!isValidConsumerEpoch(message)) {
+                    long executionTime = System.nanoTime() - callTime;
+                    if (executionTime >= unit.toNanos(timeout)) {
+                        return null;
+                    } else {
+                        resumeReceivingFromPausedConsumersIfNeeded();
+                        return internalReceive((int) (timeout - executionTime), TimeUnit.NANOSECONDS);
+                    }
+                }
                 unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
@@ -394,6 +417,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     Message<T> msg = incomingMessages.poll();
                     if (msg != null) {
                         decreaseIncomingMessageSize(msg);
+                        if (!isValidConsumerEpoch(msg)) {
+                            msgPeeked = incomingMessages.peek();
+                            continue;
+                        }
                         Message<T> interceptMsg = beforeConsume(msg);
                         messages.add(interceptMsg);
                     }
@@ -653,6 +680,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     public void redeliverUnacknowledgedMessages() {
         lock.writeLock().lock();
         try {
+            CONSUMER_EPOCH.incrementAndGet(this);
             consumers.values().stream().forEach(consumer -> {
                 consumer.redeliverUnacknowledgedMessages();
                 consumer.unAckedChunkedMessageIdSequenceMap.clear();

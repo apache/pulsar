@@ -32,12 +32,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
@@ -91,14 +91,15 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    if (realCause instanceof WebApplicationException) {
-                        asyncResponse.resume(realCause);
-                    } else {
-                        asyncResponse.resume(new RestException(realCause));
+                .thenAccept(activeBrokers -> {
+                    LOG.info("[{}] Successfully to get active brokers, cluster={}", clientAppId(), cluster);
+                    asyncResponse.resume(activeBrokers);
+                }).exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        LOG.error("[{}] Fail to get active brokers, cluster={}", clientAppId(), cluster, ex);
                     }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
@@ -118,16 +119,12 @@ public class BrokersBase extends AdminResource {
                     LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
                     BrokerInfo brokerInfo = BrokerInfo.builder().serviceUrl(leaderBroker.getServiceUrl()).build();
+                    LOG.info("[{}] Successfully to get the information of the leader broker.", clientAppId());
                     asyncResponse.resume(brokerInfo);
                 })
                 .exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), realCause);
-                    if (realCause instanceof WebApplicationException) {
-                        asyncResponse.resume(realCause);
-                    } else {
-                        asyncResponse.resume(new RestException(realCause));
-                    }
+                    LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
@@ -184,14 +181,25 @@ public class BrokersBase extends AdminResource {
     @DELETE
     @Path("/configuration/{configName}")
     @ApiOperation(value =
-            "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+            "Delete dynamic ServiceConfiguration into metadata only."
+                    + " This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
             @ApiResponse(code = 500, message = "Internal server error") })
-    public void deleteDynamicConfiguration(@PathParam("configName") String configName) throws Exception {
-        validateSuperUserAccess();
-        deleteDynamicConfigurationOnZk(configName);
+    public void deleteDynamicConfiguration(
+            @Suspended AsyncResponse asyncResponse,
+            @PathParam("configName") String configName) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> internalDeleteDynamicConfigurationOnMetadataAsync(configName))
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully to delete dynamic configuration {}", clientAppId(), configName);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Failed to delete dynamic configuration {}", clientAppId(), configName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -256,7 +264,7 @@ public class BrokersBase extends AdminResource {
             });
         } else {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Cannot update non-dynamic configuration"));
+                    "Can't update non-dynamic configuration"));
         }
     }
 
@@ -321,7 +329,8 @@ public class BrokersBase extends AdminResource {
                     asyncResponse.resume("ok");
                 }).exceptionally(ex -> {
                     LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
-                    return handleCommonRestAsyncException(asyncResponse, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
                 });
     }
 
@@ -379,27 +388,16 @@ public class BrokersBase extends AdminResource {
                 });
     }
 
-    private synchronized void deleteDynamicConfigurationOnZk(String configName) {
-        try {
-            if (BrokerService.isDynamicConfiguration(configName)) {
-                dynamicConfigurationResources().setDynamicConfiguration(old -> {
-                    if (old != null) {
-                        old.remove(configName);
-                    }
-                    return old;
-                });
-                LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
-            } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Can't update non-dynamic configuration {}", clientAppId(), configName);
+    private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
+        if (!BrokerService.isDynamicConfiguration(configName)) {
+            throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
+        } else {
+            return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
+                if (old != null) {
+                    old.remove(configName);
                 }
-                throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
-            }
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception ie) {
-            LOG.error("[{}] Failed to update configuration {}, {}", clientAppId(), configName, ie.getMessage(), ie);
-            throw new RestException(ie);
+                return old;
+            });
         }
     }
 
@@ -411,6 +409,30 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 500, message = "Internal server error")})
     public String version() throws Exception {
         return PulsarVersion.getVersion();
+    }
+
+    @POST
+    @Path("/shutdown")
+    @ApiOperation(value =
+            "Shutdown broker gracefully.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Execute shutdown command successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void shutDownBrokerGracefully(
+            @ApiParam(name = "maxConcurrentUnloadPerSec",
+                    value = "if the value absent(value=0) means no concurrent limitation.")
+            @QueryParam("maxConcurrentUnloadPerSec") int maxConcurrentUnloadPerSec,
+            @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic
+    ) {
+        validateSuperUserAccess();
+        doShutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+    }
+
+    private void doShutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
+                                            boolean forcedTerminateTopic) {
+        pulsar().getBrokerService().unloadNamespaceBundlesGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+        pulsar().closeAsync();
     }
 }
 

@@ -329,6 +329,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -336,39 +337,73 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable cluster's failure-domain which can distribute brokers into logical region"
     )
     private boolean failureDomainsEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store session timeout in milliseconds."
+    )
+    private long metadataStoreSessionTimeoutMillis = 30_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store operation timeout in seconds."
+    )
+    private int metadataStoreOperationTimeoutSeconds = 30;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "ZooKeeper session timeout in milliseconds"
+        deprecated = true,
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
     )
-    private long zooKeeperSessionTimeoutMillis = 30000;
+    private long zooKeeperSessionTimeoutMillis = -1;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "ZooKeeper operation timeout in seconds"
+            deprecated = true,
+            doc = "ZooKeeper operation timeout in seconds. "
+                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
         )
-    private int zooKeeperOperationTimeoutSeconds = 30;
+    private int zooKeeperOperationTimeoutSeconds = -1;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "ZooKeeper cache expiry time in seconds"
+            deprecated = true,
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
         )
-    private int zooKeeperCacheExpirySeconds = 300;
+    private int zooKeeperCacheExpirySeconds = -1;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Time to wait for broker graceful shutdown. After this time elapses, the process will be killed"
     )
     private long brokerShutdownTimeoutMs = 60000;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Flag to skip broker shutdown when broker handles Out of memory error"
     )
     private boolean skipBrokerShutdownOnOOM = false;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
@@ -2367,6 +2402,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int managedLedgerOffloadPrefetchRounds = 1;
 
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "Time to rollover ledger for inactive topic (duration without any publish on that topic). "
+                + "Disable rollover with value 0 (Default value 0)"
+        )
+    private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
+
     /**** --- Transaction config variables. --- ****/
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -2631,5 +2674,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return SchemaCompatibilityStrategy.FULL;
         }
         return schemaCompatibilityStrategy;
+    }
+
+    public long getMetadataStoreSessionTimeoutMillis() {
+        return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreOperationTimeoutSeconds() {
+        return zooKeeperOperationTimeoutSeconds > 0 ? zooKeeperOperationTimeoutSeconds
+                : metadataStoreOperationTimeoutSeconds;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
     }
 }

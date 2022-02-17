@@ -625,16 +625,22 @@ public class SinkConfigUtils {
             ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(narClassLoader);
             if (defn.getSinkConfigClass() != null) {
                 Class configClass = Class.forName(defn.getSinkConfigClass(),  true, narClassLoader);
-                Object configObject =
-                        ObjectMapperFactory.getThreadLocal().convertValue(sinkConfig.getConfigs(), configClass);
-                if (configObject != null) {
-                    ConfigValidation.validateConfig(configObject);
-                }
+                validateSinkConfig(sinkConfig, configClass);
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("Error validating sink config", e);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException("Could not find sink config class", e);
+        }
+    }
+
+    public static void validateSinkConfig(SinkConfig sinkConfig, Class configClass) {
+        try {
+            Object configObject =
+                    ObjectMapperFactory.getThreadLocal().convertValue(sinkConfig.getConfigs(), configClass);
+            if (configObject != null) {
+                ConfigValidation.validateConfig(configObject);
+            }
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Could not validate sink config: " + e.getMessage());
         }

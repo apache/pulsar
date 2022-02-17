@@ -157,6 +157,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -859,6 +860,10 @@ public class BrokerService implements Closeable {
      * </ul>
      */
     public void unloadNamespaceBundlesGracefully() {
+        unloadNamespaceBundlesGracefully(0, true);
+    }
+
+    public void unloadNamespaceBundlesGracefully(int maxConcurrentUnload, boolean closeWithoutWaitingClientDisconnect) {
         try {
             log.info("Unloading namespace-bundles...");
             // make broker-node unavailable from the cluster
@@ -875,16 +880,25 @@ public class BrokerService implements Closeable {
             long closeTopicsStartTime = System.nanoTime();
             Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
             if (serviceUnits != null) {
-                serviceUnits.forEach(su -> {
-                    if (su instanceof NamespaceBundle) {
-                        try {
-                            pulsar.getNamespaceService().unloadNamespaceBundle(su, pulsar.getConfiguration()
-                                    .getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS).get();
-                        } catch (Exception e) {
-                            log.warn("Failed to unload namespace bundle {}", su, e);
+                try (RateLimiter rateLimiter = maxConcurrentUnload > 0 ? RateLimiter.builder()
+                        .scheduledExecutorService(pulsar.getExecutor())
+                        .rateTime(1).timeUnit(TimeUnit.SECONDS)
+                        .permits(maxConcurrentUnload).build() : null) {
+                    serviceUnits.forEach(su -> {
+                        if (su != null) {
+                            try {
+                                if (rateLimiter != null) {
+                                    rateLimiter.acquire(1);
+                                }
+                                pulsar.getNamespaceService().unloadNamespaceBundle(su, pulsar.getConfiguration()
+                                                .getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS,
+                                        closeWithoutWaitingClientDisconnect).get();
+                            } catch (Exception e) {
+                                log.warn("Failed to unload namespace bundle {}", su, e);
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
 
             double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
@@ -1264,7 +1278,7 @@ public class BrokerService implements Closeable {
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
                 // zk-operation timeout
-                builder.readTimeout(conf.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 PulsarAdmin adminClient = builder.build();
                 log.info("created admin with url {} ", adminApiUrl);
@@ -1539,6 +1553,8 @@ public class BrokerService implements Closeable {
                     managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
                     managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
                     managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
+                    managedLedgerConfig.setInactiveLedgerRollOverTime(
+                            serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
 
                     OffloadPoliciesImpl nsLevelOffloadPolicies =
                             (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
@@ -2243,6 +2259,9 @@ public class BrokerService implements Closeable {
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic subscription
             forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    ((AbstractTopic) topic).updateBrokerSubscriptionDispatchRate();
+                }
                 topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
                     Dispatcher dispatcher = persistentSubscription.getDispatcher();
                     if (dispatcher != null) {

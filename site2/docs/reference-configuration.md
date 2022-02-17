@@ -145,8 +145,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |exposePublisherStats|Whether to enable topic level metrics.|true|
 |statsUpdateFrequencyInSecs||60|
 |statsUpdateInitialDelayInSecs||60|
-|metadataStoreUrl|  Zookeeper quorum connection string  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
+|metadataStoreUrl| Metadata store quorum connection string  ||
+|metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| Broker data port  |6650|
 |brokerServicePortTls|  Broker data port for TLS  |6651|
@@ -179,7 +179,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |dispatchThrottlingRatePerSubscriptionInByte|Dispatch throttling-limit of bytes for a subscription. 0 means the dispatch throttling-limit is disabled.|0|
 |dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message dispatch-throttling| 0 |
 |dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message-byte dispatch-throttling| 0 | 
-|zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds |30000|
+|metadataStoreSessionTimeoutMillis| Metadata store session timeout in milliseconds |30000|
 |brokerShutdownTimeoutMs| Time to wait for broker graceful shutdown. After this time elapses, the process will be killed  |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
@@ -294,6 +294,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |managedLedgerMaxEntriesPerLedger| The max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered after the min rollover time has passed and one of the following conditions is true: <ul><li>The max rollover time has been reached</li><li>The max entries have been written to the ledger</li><li>The max ledger size has been written to the ledger</li></ul>|50000|
 |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10|
 |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240|
+|managedLedgerInactiveLedgerRolloverTimeSeconds| Time to rollover ledger for inactive topic |0|
 |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000|
 |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400|
 |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
@@ -371,8 +372,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
 
 
-### Deprecated Parameters
-The following parameters have been deprecated.
+#### Deprecated parameters of Broker
+The following parameters have been deprecated in the `conf/broker.conf` file.
 
 |Name|Description|Default|
 |---|---|---|
@@ -383,7 +384,8 @@ The following parameters have been deprecated.
 |subscriptionKeySharedEnable|  Whether to enable the Key_Shared subscription. Use `subscriptionTypesEnabled` instead. |true|
 |zookeeperServers|  Zookeeper quorum connection string. Use `metadataStoreUrl` instead.  |N/A|
 |configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
-
+|zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
 
 
 ## Client
@@ -459,8 +461,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |Name|Description|Default|
 |---|---|---|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
-|metadataStoreUrl|  The quorum connection string for local ZooKeeper  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
+|metadataStoreUrl|  The quorum connection string for local metadata store  ||
+|metadataStoreCacheExpirySeconds| Metadata store cache expiry time in seconds|300|
 |configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
@@ -473,8 +475,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |isRunningStandalone|This flag controls features that are meant to be used when running in standalone mode.|N/A|
 |clusterName| The name of the cluster that this broker belongs to. |standalone|
 | failureDomainsEnabled | Enable cluster's failure-domain which can distribute brokers into logical region. | false |
-|zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. |30000|
-|zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds.|30|
+|metadataStoreSessionTimeoutMillis| Metadata store session timeout, in milliseconds. |30000|
+|metadataStoreOperationTimeoutSeconds|Metadata store operation timeout in seconds.|30|
 |brokerShutdownTimeoutMs| The time to wait for graceful broker shutdown. After this time elapses, the process will be killed. |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
@@ -505,7 +507,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | maxUnackedMessagesPerSubscriptionOnBrokerBlocked | Once the broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which have higher unacknowledged messages than this percentage limit and subscription does not receive any new messages until that subscription acknowledges messages back. | 0.16 |
 | unblockStuckSubscriptionEnabled|Broker periodically checks if subscription is stuck and unblock if flag is enabled.|false|
 |maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
-|zookeeperSessionExpiredPolicy|There are two policies when ZooKeeper session expired happens, "shutdown" and "reconnect". If it is set to "shutdown" policy, when ZooKeeper session expired happens, the broker is shutdown. If it is set to "reconnect" policy, the broker tries to reconnect to ZooKeeper server and re-register metadata to ZooKeeper. Note: the "reconnect" policy is an experiment feature.|shutdown|
 | topicPublisherThrottlingTickTimeMillis | Tick time to schedule task that checks topic publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. (Disable publish throttling with value 0) | 10|
 | brokerPublisherThrottlingTickTimeMillis | Tick time to schedule task that checks broker publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. When the value is set to 0, publish throttling is disabled. |50 |
 | brokerPublisherThrottlingMaxMessageRate | Maximum rate (in 1 second) of messages allowed to publish for a broker if the message rate limiting is enabled. When the value is set to 0, message rate limiting is disabled. | 0|
@@ -701,13 +702,22 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
 |systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
 
+#### Deprecated parameters of standalone Pulsar
+The following parameters have been deprecated in the `conf/standalone.conf` file.
+
+|Name|Description|Default|
+|---|---|---|
+|zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds. Use `metadataStoreOperationTimeoutSeconds` instead. |30|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead. |300|
+|zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+
 ## WebSocket
 
 |Name|Description|Default|
 |---|---|---|
 |configurationMetadataStoreUrl    |||
-|zooKeeperSessionTimeoutMillis|   |30000|
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
+|metadataStoreSessionTimeoutMillis|Metadata store session timeout in milliseconds.  |30000|
+|metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |serviceUrl|||
 |serviceUrlTls|||
 |brokerServiceUrl|||
@@ -728,6 +738,14 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
 
+#### Deprecated parameters of WebSocket
+The following parameters have been deprecated in the `conf/websocket.conf` file.
+
+|Name|Description|Default|
+|---|---|---|
+|zooKeeperSessionTimeoutMillis|The ZooKeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
+
 ## Pulsar proxy
 
 The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
@@ -736,7 +754,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |Name|Description|Default|
 |---|---|---|
 |forwardAuthorizationCredentials| Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect. |false|
-|metadataStoreUrl|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
+|metadataStoreUrl| Metadata store quorum connection string (as a comma-separated list)  ||
 |configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 | brokerServiceURL | The service URL pointing to the broker cluster. | |
 | brokerServiceURLTLS | The TLS service URL pointing to the broker cluster | |
@@ -744,8 +762,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 | brokerWebServiceURLTLS | The TLS Web service URL pointing to the broker cluster | |
 | functionWorkerWebServiceURL | The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
 | functionWorkerWebServiceURLTLS | The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
-|zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
+|metadataStoreSessionTimeoutMillis| Metadata store session timeout (in milliseconds) |30000|
+|metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |advertisedAddress|Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostname()` is used.|N/A|
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
@@ -763,7 +781,6 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
 |maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |50000|
-|tlsEnabledInProxy| Deprecated - use `servicePortTls` and `webServicePortTls` instead. |false|
 |tlsEnabledWithBroker|  Whether TLS is enabled when communicating with Pulsar brokers. |false|
 | tlsCertRefreshCheckDurationSec | TLS certificate refresh duration in seconds. If the value is set 0, check TLS certificate every new connection. | 300 |
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
@@ -783,6 +800,15 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+
+#### Deprecated parameters of Pulsar proxy
+The following parameters have been deprecated in the `conf/proxy.conf` file.
+
+|Name|Description|Default|
+|---|---|---|
+|tlsEnabledInProxy| Deprecated - use `servicePortTls` and `webServicePortTls` instead. |false|
+|zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds). Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
 
 ## ZooKeeper
 

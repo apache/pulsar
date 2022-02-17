@@ -51,18 +51,21 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -455,6 +458,93 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testSchemaCompatibilityStrategyPermission() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setAnonymousUserRole("superUser");
+        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        setup();
+
+        final String tenantRole = "tenant-role";
+        final String generalRole = "general-role";
+        final String namespace = "my-property/my-ns-sub-auth";
+        final String topicName = "persistent://" + namespace + "/my-topic";
+
+        Authentication adminAuthentication = new ClientAuthentication("superUser");
+        @Cleanup
+        PulsarAdmin superAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(adminAuthentication).build());
+
+        Authentication tenantAdminAuthentication = new ClientAuthentication(tenantRole);
+        @Cleanup
+        PulsarAdmin tenantAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(tenantAdminAuthentication).build());
+
+        Authentication generalAdminAuthentication = new ClientAuthentication(generalRole);
+        @Cleanup
+        PulsarAdmin generalAdmin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(generalAdminAuthentication).build());
+
+        superAdmin.clusters().createCluster("test",
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        superAdmin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
+        superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        superAdmin.topics().createPartitionedTopic(topicName, 1);
+
+        // grant topic produce authorization to the generalRole
+        superAdmin.topics().grantPermission(topicName, generalRole,
+                Collections.singleton(AuthAction.produce));
+        replacePulsarClient(PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(generalAdminAuthentication));
+
+        @Cleanup
+        Producer<byte[]> batchProducer = pulsarClient.newProducer().topic(topicName).create();
+        batchProducer.close();
+
+        // generalRole doesn't have permission to access topic policy, so it will fail to write/read topic policy
+        try {
+            generalAdmin.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith("Unauthorized to validateTopicPolicyOperation " +
+                    "for operation [WRITE] on topic [" + topicName + "] on policy [SCHEMA_COMPATIBILITY_STRATEGY]"));
+        }
+        try {
+            generalAdmin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith("Unauthorized to validateTopicPolicyOperation " +
+                    "for operation [READ] on topic [" + topicName + "] on policy [SCHEMA_COMPATIBILITY_STRATEGY]"));
+        }
+        try {
+            generalAdmin.topicPolicies().getSchemaCompatibilityStrategy(topicName, false);
+            fail("should have failed with authorization exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().startsWith("Unauthorized to validateTopicPolicyOperation " +
+                    "for operation [READ] on topic [" + topicName + "] on policy [SCHEMA_COMPATIBILITY_STRATEGY]"));
+        }
+
+        // The superUser or tenantAdministrator can access topic policy, so it can successfully write/read topic policy
+        superAdmin.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                superAdmin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        tenantAdmin.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                tenantAdmin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -534,6 +624,67 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 authorizationService.canConsume(topicName, role, new AuthenticationDataCommand("cons-auth"), "sub1"));
         Assert.assertEquals(TestAuthorizationProviderWithGrantPermission.authenticationData.getCommandData(),
                 "cons-auth");
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testPermissionForProducerCreateInitialSubscription() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
+        setup();
+
+        String lookupUrl = pulsar.getBrokerServiceUrl();
+
+        final String invalidRole = "invalid-role";
+        final String producerRole = "producer-role";
+        final String topic = "persistent://my-property/my-ns/my-topic";
+        final String initialSubscriptionName = "init-sub";
+        TopicName tn = TopicName.get(topic);
+        Authentication adminAuthentication = new ClientAuthentication("superUser");
+        Authentication authenticationInvalidRole = new ClientAuthentication(invalidRole);
+        Authentication authenticationProducerRole = new ClientAuthentication(producerRole);
+        @Cleanup
+        PulsarAdmin admin =
+                PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build();
+
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+        admin.topics().grantPermission(topic, invalidRole, Collections.singleton(AuthAction.produce));
+        admin.topics().grantPermission(topic, producerRole, Sets.newHashSet(AuthAction.produce, AuthAction.consume));
+
+        @Cleanup
+        PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .authentication(authenticationInvalidRole).build();
+
+        try {
+            Producer<byte[]> invalidRoleProducer = ((ProducerBuilderImpl<byte[]>) pulsarClientInvalidRole.newProducer())
+                    .initialSubscriptionName(initialSubscriptionName)
+                    .topic(topic)
+                    .create();
+            invalidRoleProducer.close();
+            fail("Should not pass");
+        } catch (PulsarClientException.AuthorizationException ex) {
+            // ok
+        }
+
+        // If the producer doesn't have permission to create the init sub, we should also avoid creating the topic.
+        Assert.assertFalse(admin.namespaces().getTopics(tn.getNamespace()).contains(tn.getLocalName()));
+
+        @Cleanup
+        PulsarClient pulsarClientProducerRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .authentication(authenticationProducerRole).build();
+
+        Producer<byte[]> producer = ((ProducerBuilderImpl<byte[]>) pulsarClientProducerRole.newProducer())
+                .initialSubscriptionName(initialSubscriptionName)
+                .topic(topic)
+                .create();
+        producer.close();
+
+        Assert.assertTrue(admin.topics().getSubscriptions(topic).contains(initialSubscriptionName));
 
         log.info("-- Exiting {} test --", methodName);
     }

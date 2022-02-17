@@ -35,8 +35,10 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -475,10 +477,12 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         stats = admin.topics().getStats(topic1);
+        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
-        // message in current ledger which should be 4.
-        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 4);
-        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 4);
+        // message in current ledger.
+        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
         client.close();
     }
 
@@ -1122,6 +1126,8 @@ public class BacklogQuotaManagerTest {
         }
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         // publish should work now
+        producer.close();
+        producer = createProducer(client, topic1);
         Exception sendException = null;
         gotException = false;
         try {

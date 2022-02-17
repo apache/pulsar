@@ -105,7 +105,7 @@ public class ManagedLedgerWriter {
         public String zookeeperServers;
 
         @Parameter(names = {"-md",
-                "--metadata-store"}, description = "Metadata store service url. eg: zk:my-zk:2181")
+                "--metadata-store"}, description = "Metadata store service URL. For example: zk:my-zk:2181")
         private String metadataStoreUrl;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")

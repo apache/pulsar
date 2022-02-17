@@ -46,7 +46,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 
 :::
 
-Each machine in your cluster needs to have [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11) installed.
+Each machine in your cluster needs to have [Java 8](https://adoptium.net/?variant=openjdk8) or [Java 11](https://adoptium.net/?variant=openjdk11) installed.
 
 The following is a diagram showing the basic setup:
 

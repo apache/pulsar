@@ -39,7 +39,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 public class JavaInstanceRunnableTest {
 
@@ -133,7 +133,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testSinkConfigParsingPreservesOriginalType() throws Exception {
         SinkSpecOrBuilder sinkSpec = mock(SinkSpecOrBuilder.class);
-        Mockito.when(sinkSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
+        when(sinkSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
         Map<String, Object> parsedConfig =
                 new ObjectMapper().readValue(sinkSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
         Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
@@ -143,7 +143,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testSourceConfigParsingPreservesOriginalType() throws Exception {
         SourceSpecOrBuilder sourceSpec = mock(SourceSpecOrBuilder.class);
-        Mockito.when(sourceSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
+        when(sourceSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
         Map<String, Object> parsedConfig =
                 new ObjectMapper().readValue(sourceSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
         Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);

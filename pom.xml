@@ -94,6 +94,7 @@ flexible messaging model and an intuitive client API.</description>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+    <testJacocoAgentArgument></testJacocoAgentArgument>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
@@ -109,8 +110,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.73.Final</netty.version>
-    <netty-tc-native.version>2.0.46.Final</netty-tc-native.version>
+    <netty.version>4.1.74.Final</netty.version>
+    <netty-tc-native.version>2.0.48.Final</netty-tc-native.version>
     <jetty.version>9.4.44.v20210927</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -249,7 +250,7 @@ flexible messaging model and an intuitive client API.</description>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
-    <jacoco-maven-plugin.version>0.8.6</jacoco-maven-plugin.version>
+    <jacoco-maven-plugin.version>0.8.7</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.2.2</spotbugs-maven-plugin.version>
     <spotbugs.version>4.2.2</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
@@ -317,14 +318,14 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito2</artifactId>
-        <version>${powermock.version}</version>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-inline</artifactId>
+        <version>${mockito.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-testng</artifactId>
+        <artifactId>powermock-reflect</artifactId>
         <version>${powermock.version}</version>
       </dependency>
 
@@ -1299,14 +1300,14 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito2</artifactId>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-testng</artifactId>
+      <artifactId>powermock-reflect</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -1405,7 +1406,7 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine> -Xmx1G -XX:+UseG1GC
+          <argLine>${testJacocoAgentArgument} -Xmx1G -XX:+UseG1GC
             -Dpulsar.allocator.pooled=true
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
@@ -1889,6 +1890,7 @@ flexible messaging model and an intuitive client API.</description>
         <test.additional.args>
           --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
           --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+          --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
         </test.additional.args>
       </properties>
       <build>
@@ -1908,12 +1910,18 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
     <profile>
       <id>coverage</id>
+      <properties>
+        <testJacocoAgentArgument>@{jacoco.agent.argument}</testJacocoAgentArgument>
+      </properties>
       <build>
         <plugins>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
             <version>${jacoco-maven-plugin.version}</version>
+            <configuration>
+              <propertyName>jacoco.agent.argument</propertyName>
+            </configuration>
             <executions>
               <execution>
                 <id>pre-unit-test</id>

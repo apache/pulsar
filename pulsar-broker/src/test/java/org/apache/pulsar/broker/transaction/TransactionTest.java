@@ -34,6 +34,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import io.netty.buffer.Unpooled;
+import io.netty.util.Timeout;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -557,6 +558,7 @@ public class TransactionTest extends TransactionTestBase {
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer2.getStats().state, "Ready"));
+        managedCursors.removeCursor("transaction-buffer-sub");
     }
 
     @Test
@@ -769,5 +771,29 @@ public class TransactionTest extends TransactionTestBase {
                     }
                 }));
         completableFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testCancelTxnTimeout() throws Exception{
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("timeout");
+        field.setAccessible(true);
+        Timeout timeout = (Timeout) field.get(transaction);
+        Assert.assertTrue(timeout.isCancelled());
+
+        transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.abort().get();
+        timeout = (Timeout) field.get(transaction);
+        Assert.assertTrue(timeout.isCancelled());
     }
 }

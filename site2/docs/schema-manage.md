@@ -828,10 +828,10 @@ To set a schema compatibility check strategy at the topic level, use one of the 
 
 <!--Admin CLI-->
 
-Use the [`pulsar-admin topics set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicsPolicies set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
 ```shell
-pulsar-admin topics set-schema-compatibility-strategy <strategy> <topicName>
+pulsar-admin topicsPolicies set-schema-compatibility-strategy <strategy> <topicName>
 ```
 <!--REST API-->
 
@@ -859,10 +859,10 @@ To get the topic-level schema compatibility check strategy, use one of the follo
 
 <!--Admin CLI-->
 
-Use the [`pulsar-admin topics get-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicsPolicies get-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
 ```shell
-pulsar-admin topics get-schema-compatibility-strategy <topicName>
+pulsar-admin topicsPolicies get-schema-compatibility-strategy <topicName>
 ```
 <!--REST API-->
 
@@ -894,10 +894,10 @@ To remove the topic-level schema compatibility check strategy, use one of the fo
 
 <!--Admin CLI-->
 
-Use the [`pulsar-admin topics remove-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicsPolicies remove-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
 
 ```shell
-pulsar-admin topics remove-schema-compatibility-strategy <topicName>
+pulsar-admin topicsPolicies remove-schema-compatibility-strategy <topicName>
 ```
 <!--REST API-->
 
