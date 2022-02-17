@@ -106,16 +106,16 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Extended Pulsar Function SDK for Java
-This extended Pulsar Function SDK provides two addition interface to initialize and release external resources.
-By using initialize interface, you could do things like initialize external resources which only need one-time initialization when function instance starting.
-By using close interface, you could close the referenced external resources when function instance closing. 
+This extended Pulsar Function SDK provides two additional interfaces to initialize and release external resources.
+- By using the `initialize` interface, you can initialize external resources which only need one-time initialization when the function instance starts.
+- By using the `close` interface, you can close the referenced external resources when the function instance closes. 
 
 > **Note**
 >
 > The extended Pulsar Function SDK for Java is available in Pulsar 2.10.0 and later versions.
 > Before using it, you need to set up Pulsar Function worker 2.10.0 or later versions.
 
-The following example uses the extended interface of Pulsar Function SDK for Java to initialize RedisClient when function instance starting and release it when function instance closing.
+The following example uses the extended interface of Pulsar Function SDK for Java to initialize RedisClient when the function instance starts and release it when the function instance closes.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
