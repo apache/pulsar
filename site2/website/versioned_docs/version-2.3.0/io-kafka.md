@@ -1,7 +1,7 @@
 ---
-id: version-2.3.0-io-kafka
+id: io-kafka
 title: Kafka Connector
-sidebar_label: Kafka Connector
+sidebar_label: "Kafka Connector"
 original_id: io-kafka
 ---
 

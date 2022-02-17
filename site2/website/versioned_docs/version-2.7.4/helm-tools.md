@@ -1,7 +1,7 @@
 ---
-id: version-2.7.4-helm-tools
+id: helm-tools
 title: Required tools for deploying Pulsar Helm Chart
-sidebar_label: Required Tools
+sidebar_label: "Required Tools"
 original_id: helm-tools
 ---
 
@@ -25,7 +25,7 @@ You can get Helm from the project's [releases page](https://github.com/helm/helm
 
 ### Next steps
 
-Once kubectl and Helm are configured, you can configure your [Kubernetes cluster](helm-prepare.md).
+Once kubectl and Helm are configured, you can configure your [Kubernetes cluster](helm-prepare).
 
 ## Additional information
 

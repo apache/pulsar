@@ -1,7 +1,7 @@
 ---
-id: version-2.7.2-cookbooks-message-queue
+id: cookbooks-message-queue
 title: Using Pulsar as a message queue
-sidebar_label: Message queue
+sidebar_label: "Message queue"
 original_id: cookbooks-message-queue
 ---
 
@@ -29,6 +29,7 @@ To use a Pulsar [topic](reference-terminology.md#topic) as a message queue, you 
 Here's an example Java consumer configuration that uses a shared subscription:
 
 ```java
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -48,6 +49,7 @@ Consumer consumer = client.newConsumer()
         // If you'd like to restrict the receiver queue size
         .receiverQueueSize(10)
         .subscribe();
+
 ```
 
 ## Python clients
@@ -55,6 +57,7 @@ Consumer consumer = client.newConsumer()
 Here's an example Python consumer configuration that uses a shared subscription:
 
 ```python
+
 from pulsar import Client, ConsumerType
 
 SERVICE_URL = "pulsar://localhost:6650"
@@ -68,6 +71,7 @@ consumer = client.subscribe(
     # If you'd like to restrict the receiver queue size
     receiver_queue_size=10,
     consumer_type=ConsumerType.Shared)
+
 ```
 
 ## C++ clients
@@ -75,6 +79,7 @@ consumer = client.subscribe(
 Here's an example C++ consumer configuration that uses a shared subscription:
 
 ```cpp
+
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
@@ -91,6 +96,7 @@ consumerConfig.setReceiverQueueSize(10);
 Consumer consumer;
 
 Result result = client.subscribe(topic, subscription, consumerConfig, consumer);
+
 ```
 
 ## Go clients
@@ -98,6 +104,7 @@ Result result = client.subscribe(topic, subscription, consumerConfig, consumer);
 Here is an example of a Go consumer configuration that uses the shared subscription.
 
 ```go
+
 import "github.com/apache/pulsar-client-go/pulsar"
 client, err := pulsar.NewClient(pulsar.ClientOptions{
     URL: "pulsar://localhost:6650",
@@ -114,4 +121,6 @@ consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 if err != nil {
     log.Fatal(err)
 }
+
 ```
+

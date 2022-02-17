@@ -1,7 +1,7 @@
 ---
-id: version-2.3.1-io-solr
+id: io-solr
 title: solr Connector
-sidebar_label: solr Connector
+sidebar_label: "solr Connector"
 original_id: io-solr
 ---
 

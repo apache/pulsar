@@ -1,7 +1,7 @@
 ---
-id: version-2.5.2-security-bouncy-castle
+id: security-bouncy-castle
 title: Bouncy Castle Providers
-sidebar_label: Bouncy Castle Providers
+sidebar_label: "Bouncy Castle Providers"
 original_id: security-bouncy-castle
 ---
 
@@ -16,7 +16,7 @@ In Pulsar, security and crypto have dependencies on BouncyCastle Jars. For the d
 
 `Bouncy Castle` provides both [FIPS](https://www.bouncycastle.org/fips_faq.html) and non-FIPS version. But in a JVM, you can not include both of the 2 versions, and you need to exclude the current version before include the other.
 
-In Pulsar, the security and crypto methods also depends on `Bouncy Castle`, especially in [TLS Authentication](security-tls-authentication.md) and [Transport Encryption](security-encryption.md). This document contains the configuration between BouncyCastle FIPS(BC-FIPS) and non-FIPS(BC-non-FIPS) version while using Pulsar.
+In Pulsar, the security and crypto methods also depends on `Bouncy Castle`, especially in [TLS Authentication](security-tls-authentication.md) and [Transport Encryption](security-encryption). This document contains the configuration between BouncyCastle FIPS(BC-FIPS) and non-FIPS(BC-non-FIPS) version while using Pulsar.
 
 ## Include dependencies of BC-non-FIPS
 
@@ -25,6 +25,7 @@ By default, BouncyCastle non-FIPS version is build along with Pulsar's Broker an
 Pulsar module `bouncy-castle-bc`, which defined by `bouncy-castle/bc/pom.xml` contains the needed non-FIPS jars for Pulsar.
 
 ```xml
+
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
@@ -36,6 +37,7 @@ Pulsar module `bouncy-castle-bc`, which defined by `bouncy-castle/bc/pom.xml` co
       <artifactId>bcprov-ext-jdk15on</artifactId>
       <version>${bouncycastle.version}</version>
     </dependency>
+
 ```
 
 By using this `bouncy-castle-bc` module, user can easily include and exclude BouncyCastle non-FIPS jars.
@@ -45,21 +47,26 @@ By using this `bouncy-castle-bc` module, user can easily include and exclude Bou
 Pulsar Client(`pulsar-client-original`) module include BouncyCastle non-FIPS jars by add dependency like this:
 
 ```xml
+
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
       <classifier>pkg</classifier>
     </dependency>
+
 ```
 
 And Pulsar Broker (`pulsar-broker`) module include BouncyCastle non-FIPS jars by indirectly include Pulsar Client(`pulsar-client-original`) module.
+
 ```xml
+
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
     </dependency>
+
 ```
 
 ## Exclude BC-non-FIPS and include BC-FIPS
@@ -71,6 +78,7 @@ After understanding the above dependencies, user can easily exclude non-FIPS ver
 Pulsar module `bouncy-castle-bcfips`, which defined by `bouncy-castle/bcfips/pom.xml` contains the needed FIPS jars for Pulsar.
 
 ```xml
+
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bc-fips</artifactId>
@@ -82,6 +90,7 @@ Pulsar module `bouncy-castle-bcfips`, which defined by `bouncy-castle/bcfips/pom
       <artifactId>bcpkix-fips</artifactId>
       <version>${bouncycastlefips.version}</version>
     </dependency>
+
 ```
 
 User can choose include module `bouncy-castle-bcfips` module directly, or include original BC-FIPS jars. 
@@ -89,6 +98,7 @@ User can choose include module `bouncy-castle-bcfips` module directly, or includ
 For example:
 
 ```xml
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
@@ -113,8 +123,9 @@ For example:
       <artifactId>bcpkix-fips</artifactId>
       <version>${bouncycastlefips.version}</version>
     </dependency>
-``` 
- 
+
+```
+
 Besides this, module `bouncy-castle-bcfips` builds contain an output with format NAR, you can set java environment by `-DBcPath='nar/file/path'`, Pulsar will auto load it.
 
 For more example, you can reference module `bcfips-include-test` and `bcfips-nar-test`.

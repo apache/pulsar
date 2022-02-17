@@ -1,7 +1,7 @@
 ---
-id: version-2.9.1-transactions
+id: transactions
 title: Transactions
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: transactions
 ---
 

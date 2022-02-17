@@ -1,7 +1,7 @@
 ---
-id: version-2.7.4-helm-prepare
+id: helm-prepare
 title: Prepare Kubernetes resources
-sidebar_label: Prepare
+sidebar_label: "Prepare"
 original_id: helm-prepare
 ---
 
@@ -10,7 +10,7 @@ For a fully functional Pulsar cluster, you need a few resources before deploying
 - [Google Kubernetes Engine](#google-kubernetes-engine)
   - [Manual cluster creation](#manual-cluster-creation)
   - [Scripted cluster creation](#scripted-cluster-creation)
-    - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
+  - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
 - [Next Steps](#next-steps)
 
 ## Google Kubernetes Engine
@@ -20,7 +20,7 @@ To get started easier, a script is provided to create the cluster automatically.
 - [Google Kubernetes Engine](#google-kubernetes-engine)
   - [Manual cluster creation](#manual-cluster-creation)
   - [Scripted cluster creation](#scripted-cluster-creation)
-    - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
+  - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
 - [Next Steps](#next-steps)
 
 ### Manual cluster creation
@@ -64,13 +64,17 @@ The following table describes all variables.
 Run the script, by passing in your desired parameters. It can work with the default parameters except for `PROJECT` which is required:
 
 ```bash
+
 PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh up
+
 ```
 
 The script can also be used to clean up the created GKE resources.
 
 ```bash
+
 PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh down
+
 ```
 
 #### Create cluster with local SSDs
@@ -78,8 +82,11 @@ PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh down
 To install a Pulsar Helm chart using local persistent volumes, you need to create a GKE cluster with local SSDs. You can do so Specifying the `USE_LOCAL_SSD` to be `true` in the following command to create a Pulsar cluster with local SSDs.
 
 ```
+
 PROJECT=<gcloud project id> USE_LOCAL_SSD=true LOCAL_SSD_COUNT=<local-ssd-count> scripts/pulsar/gke_bootstrap_script.sh up
+
 ```
+
 ## Next Steps
 
-Continue with the [installation of the chart](helm-deploy.md) once you have the cluster up and running.
+Continue with the [installation of the chart](helm-deploy) once you have the cluster up and running.

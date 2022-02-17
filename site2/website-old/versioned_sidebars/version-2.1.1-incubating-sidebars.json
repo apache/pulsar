@@ -1,0 +1,116 @@
+{
+  "version-2.1.1-incubating-docs": {
+    "Getting Started": [
+      "version-2.1.1-incubating-pulsar-2.0",
+      "version-2.1.1-incubating-standalone",
+      "version-2.1.1-incubating-standalone-docker",
+      "version-2.1.1-incubating-client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "version-2.1.1-incubating-concepts-overview",
+      "version-2.1.1-incubating-concepts-messaging",
+      "version-2.1.1-incubating-concepts-architecture-overview",
+      "version-2.1.1-incubating-concepts-clients",
+      "version-2.1.1-incubating-concepts-replication",
+      "version-2.1.1-incubating-concepts-multi-tenancy",
+      "version-2.1.1-incubating-concepts-authentication",
+      "version-2.1.1-incubating-concepts-topic-compaction",
+      "version-2.1.1-incubating-concepts-tiered-storage",
+      "version-2.1.1-incubating-concepts-schema-registry"
+    ],
+    "Pulsar Functions": [
+      "version-2.1.1-incubating-functions-overview",
+      "version-2.1.1-incubating-functions-quickstart",
+      "version-2.1.1-incubating-functions-api",
+      "version-2.1.1-incubating-functions-deploying",
+      "version-2.1.1-incubating-functions-guarantees",
+      "version-2.1.1-incubating-functions-state",
+      "version-2.1.1-incubating-functions-metrics"
+    ],
+    "Pulsar IO": [
+      "version-2.1.1-incubating-io-overview",
+      "version-2.1.1-incubating-io-quickstart",
+      "version-2.1.1-incubating-io-managing",
+      "version-2.1.1-incubating-io-connectors",
+      "version-2.1.1-incubating-io-develop"
+    ],
+    "Deployment": [
+      "version-2.1.1-incubating-deploy-aws",
+      "version-2.1.1-incubating-deploy-kubernetes",
+      "version-2.1.1-incubating-deploy-bare-metal",
+      "version-2.1.1-incubating-deploy-bare-metal-multi-cluster",
+      "version-2.1.1-incubating-deploy-dcos",
+      "version-2.1.1-incubating-deploy-monitoring"
+    ],
+    "Administration": [
+      "version-2.1.1-incubating-administration-zk-bk",
+      "version-2.1.1-incubating-administration-geo",
+      "version-2.1.1-incubating-administration-dashboard",
+      "version-2.1.1-incubating-administration-stats",
+      "version-2.1.1-incubating-administration-load-distribution",
+      "version-2.1.1-incubating-administration-proxy"
+    ],
+    "Security": [
+      "version-2.1.1-incubating-security-overview",
+      "version-2.1.1-incubating-security-tls-transport",
+      "version-2.1.1-incubating-security-tls-authentication",
+      "version-2.1.1-incubating-security-athenz",
+      "version-2.1.1-incubating-security-authorization",
+      "version-2.1.1-incubating-security-encryption",
+      "version-2.1.1-incubating-security-extending"
+    ],
+    "Client Libraries": [
+      "version-2.1.1-incubating-client-libraries-java",
+      "version-2.1.1-incubating-client-libraries-go",
+      "version-2.1.1-incubating-client-libraries-python",
+      "version-2.1.1-incubating-client-libraries-cpp",
+      "version-2.1.1-incubating-client-libraries-websocket"
+    ],
+    "Admin API": [
+      "version-2.1.1-incubating-admin-api-overview",
+      "version-2.1.1-incubating-admin-api-clusters",
+      "version-2.1.1-incubating-admin-api-tenants",
+      "version-2.1.1-incubating-admin-api-brokers",
+      "version-2.1.1-incubating-admin-api-namespaces",
+      "version-2.1.1-incubating-admin-api-permissions",
+      "version-2.1.1-incubating-admin-api-persistent-topics",
+      "version-2.1.1-incubating-admin-api-non-persistent-topics",
+      "version-2.1.1-incubating-admin-api-partitioned-topics",
+      "version-2.1.1-incubating-admin-api-schemas"
+    ],
+    "Adaptors": [
+      "version-2.1.1-incubating-adaptors-kafka",
+      "version-2.1.1-incubating-adaptors-spark",
+      "version-2.1.1-incubating-adaptors-storm"
+    ],
+    "Cookbooks": [
+      "version-2.1.1-incubating-cookbooks-tiered-storage",
+      "version-2.1.1-incubating-cookbooks-compaction",
+      "version-2.1.1-incubating-cookbooks-deduplication",
+      "version-2.1.1-incubating-cookbooks-non-persistent",
+      "version-2.1.1-incubating-cookbooks-partitioned",
+      "version-2.1.1-incubating-cookbooks-retention-expiry",
+      "version-2.1.1-incubating-cookbooks-encryption",
+      "version-2.1.1-incubating-cookbooks-message-queue"
+    ],
+    "Development": [
+      "version-2.1.1-incubating-develop-tools",
+      "version-2.1.1-incubating-develop-binary-protocol",
+      "version-2.1.1-incubating-develop-schema",
+      "version-2.1.1-incubating-develop-load-manager",
+      "version-2.1.1-incubating-develop-cpp"
+    ],
+    "Reference": [
+      "version-2.1.1-incubating-reference-terminology",
+      "version-2.1.1-incubating-reference-cli-tools",
+      "version-2.1.1-incubating-pulsar-admin",
+      "version-2.1.1-incubating-reference-configuration"
+    ]
+  },
+  "version-2.1.1-incubating-docs-other": {
+    "First Category": [
+      "version-2.1.1-incubating-doc4",
+      "version-2.1.1-incubating-doc5"
+    ]
+  }
+}

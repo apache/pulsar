@@ -1,7 +1,7 @@
 ---
-id: version-2.3.0-io-netty
+id: io-netty
 title: Netty Tcp or Udp Connector
-sidebar_label: Netty Tcp or Udp Connector
+sidebar_label: "Netty Tcp or Udp Connector"
 original_id: io-netty
 ---
 

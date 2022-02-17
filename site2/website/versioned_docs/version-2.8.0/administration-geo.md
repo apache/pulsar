@@ -1,7 +1,7 @@
 ---
-id: version-2.8.0-administration-geo
+id: administration-geo
 title: Pulsar geo-replication
-sidebar_label: Geo-replication
+sidebar_label: "Geo-replication"
 original_id: administration-geo
 ---
 
@@ -11,7 +11,7 @@ original_id: administration-geo
 
 The diagram below illustrates the process of geo-replication across Pulsar clusters:
 
-![Replication Diagram](assets/geo-replication.png)
+![Replication Diagram](/assets/geo-replication.png)
 
 In this diagram, whenever **P1**, **P2**, and **P3** producers publish messages to the **T1** topic on **Cluster-A**, **Cluster-B**, and **Cluster-C** clusters respectively, those messages are instantly replicated across clusters. Once the messages are replicated, **C1** and **C2** consumers can consume those messages from their respective clusters.
 
@@ -61,26 +61,32 @@ Suppose that you have 3 replication clusters: `us-west`, `us-cent`, and `us-east
    Run the following command on `us-west`.
 
    ```shell
+   
    $ bin/pulsar-admin clusters create \
-     --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
-     --url http://<DNS-OF-US-EAST>:<PORT> \
-     us-east
+    --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
+    --url http://<DNS-OF-US-EAST>:<PORT> \
+    us-east
+   
    ```
 
-   > #### Tip
-   >
-   > - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](https://pulsar.apache.org/tools/pulsar-admin/).
-   > - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication.md).
+   :::tip
+
+   - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](https://pulsar.apache.org/tools/pulsar-admin/).
+   - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication).
+
+   :::
 
 2. Configure the connection from `us-west` to `us-cent`.
 
    Run the following command on `us-west`.
 
    ```shell
+   
    $ bin/pulsar-admin clusters create \
-     --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
-     --url http://<DNS-OF-US-CENT>:<PORT> \
-     us-cent
+    --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
+    --url http://<DNS-OF-US-CENT>:<PORT> \
+    us-cent
+   
    ```
 
 3. Run similar commands on `us-east` and `us-cent` to create connections among clusters.
@@ -92,9 +98,11 @@ To replicate to a cluster, the tenant needs permission to use that cluster. You 
 Specify all the intended clusters when you create a tenant:
 
 ```shell
+
 $ bin/pulsar-admin tenants create my-tenant \
   --admin-roles my-admin-role \
   --allowed-clusters us-west,us-east,us-cent
+
 ```
 
 To update permissions of an existing tenant, use `update` instead of `create`.
@@ -104,14 +112,18 @@ To update permissions of an existing tenant, use `update` instead of `create`.
 You can create a namespace with the following command sample.
 
 ```shell
+
 $ bin/pulsar-admin namespaces create my-tenant/my-namespace
+
 ```
 
 Initially, the namespace is not assigned to any cluster. You can assign the namespace to clusters using the `set-clusters` subcommand:
 
 ```shell
+
 $ bin/pulsar-admin namespaces set-clusters my-tenant/my-namespace \
   --clusters us-west,us-east,us-cent
+
 ```
 
 You can change the replication clusters for a namespace at any time, without disruption to ongoing traffic. Replication channels are immediately set up or stopped in all clusters as soon as the configuration changes.
@@ -124,9 +136,10 @@ Once you create a geo-replication namespace, any topics that producers or consum
 
 By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message, and then that message is replicated only to the subset in the replication list.
 
-The following is an example for the [Java API](client-libraries-java.md). Note the use of the `setReplicationClusters` method when you construct the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
+The following is an example for the [Java API](client-libraries-java). Note the use of the `setReplicationClusters` method when you construct the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
 
 ```java
+
 List<String> restrictReplicationTo = Arrays.asList(
         "us-west",
         "us-east"
@@ -140,14 +153,17 @@ producer.newMessage()
         .value("my-payload".getBytes())
         .setReplicationClusters(restrictReplicationTo)
         .send();
+
 ```
 
 #### Topic stats
 
-Topic-specific statistics for geo-replication topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and {@inject: rest:REST:/} API:
+Topic-specific statistics for geo-replication topics are available via the [`pulsar-admin`](reference-pulsar-admin) tool and {@inject: rest:REST:/} API:
 
 ```shell
+
 $ bin/pulsar-admin persistent stats persistent://my-tenant/my-namespace/my-topic
+
 ```
 
 Each cluster reports its own local stats, including the incoming and outgoing replication rates and backlogs.
@@ -177,11 +193,13 @@ In case of failover, a consumer can restart consuming from the failure point in 
 Replicated subscription is disabled by default. You can enable replicated subscription when creating a consumer. 
 
 ```java
+
 Consumer<String> consumer = client.newConsumer(Schema.STRING)
             .topic("my-topic")
             .subscriptionName("my-subscription")
             .replicateSubscriptionState(true)
             .subscribe();
+
 ```
 
 ### Advantages

@@ -1,0 +1,156 @@
+{
+  "version-2.6.3-docs": {
+    "Get Started": [
+      "version-2.6.3-pulsar-2.0",
+      "version-2.6.3-standalone",
+      "version-2.6.3-standalone-docker",
+      "version-2.6.3-kubernetes-helm",
+      "version-2.6.3-client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "version-2.6.3-concepts-overview",
+      "version-2.6.3-concepts-messaging",
+      "version-2.6.3-concepts-architecture-overview",
+      "version-2.6.3-concepts-clients",
+      "version-2.6.3-concepts-replication",
+      "version-2.6.3-concepts-multi-tenancy",
+      "version-2.6.3-concepts-authentication",
+      "version-2.6.3-concepts-topic-compaction",
+      "version-2.6.3-concepts-tiered-storage",
+      "version-2.6.3-concepts-proxy-sni-routing",
+      "version-2.6.3-concepts-multiple-advertised-listeners"
+    ],
+    "Pulsar Schema": [
+      "version-2.6.3-schema-get-started",
+      "version-2.6.3-schema-understand",
+      "version-2.6.3-schema-evolution-compatibility",
+      "version-2.6.3-schema-manage"
+    ],
+    "Pulsar Functions": [
+      "version-2.6.3-functions-overview",
+      "version-2.6.3-functions-worker",
+      "version-2.6.3-functions-runtime",
+      "version-2.6.3-functions-develop",
+      "version-2.6.3-functions-debug",
+      "version-2.6.3-functions-deploy",
+      "version-2.6.3-functions-cli",
+      "version-2.6.3-window-functions-context"
+    ],
+    "Pulsar IO": [
+      "version-2.6.3-io-overview",
+      "version-2.6.3-io-quickstart",
+      "version-2.6.3-io-use",
+      "version-2.6.3-io-debug",
+      "version-2.6.3-io-connectors",
+      "version-2.6.3-io-cdc",
+      "version-2.6.3-io-develop",
+      "version-2.6.3-io-cli"
+    ],
+    "Pulsar SQL": [
+      "version-2.6.3-sql-overview",
+      "version-2.6.3-sql-getting-started",
+      "version-2.6.3-sql-deployment-configurations",
+      "version-2.6.3-sql-rest-api"
+    ],
+    "Kubernetes (Helm)": [
+      "version-2.6.3-helm-overview",
+      "version-2.6.3-helm-prepare",
+      "version-2.6.3-helm-install",
+      "version-2.6.3-helm-deploy",
+      "version-2.6.3-helm-upgrade",
+      "version-2.6.3-helm-tools"
+    ],
+    "Deployment": [
+      "version-2.6.3-deploy-aws",
+      "version-2.6.3-deploy-kubernetes",
+      "version-2.6.3-deploy-bare-metal",
+      "version-2.6.3-deploy-bare-metal-multi-cluster",
+      "version-2.6.3-deploy-dcos",
+      "version-2.6.3-deploy-monitoring"
+    ],
+    "Administration": [
+      "version-2.6.3-administration-zk-bk",
+      "version-2.6.3-administration-geo",
+      "version-2.6.3-administration-pulsar-manager",
+      "version-2.6.3-administration-stats",
+      "version-2.6.3-administration-load-balance",
+      "version-2.6.3-administration-proxy",
+      "version-2.6.3-administration-upgrade"
+    ],
+    "Security": [
+      "version-2.6.3-security-overview",
+      "version-2.6.3-security-tls-transport",
+      "version-2.6.3-security-tls-authentication",
+      "version-2.6.3-security-tls-keystore",
+      "version-2.6.3-security-jwt",
+      "version-2.6.3-security-athenz",
+      "version-2.6.3-security-kerberos",
+      "version-2.6.3-security-oauth2",
+      "version-2.6.3-security-authorization",
+      "version-2.6.3-security-encryption",
+      "version-2.6.3-security-extending",
+      "version-2.6.3-security-bouncy-castle"
+    ],
+    "Performance": [
+      "version-2.6.3-performance-pulsar-perf"
+    ],
+    "Client Libraries": [
+      "version-2.6.3-client-libraries-java",
+      "version-2.6.3-client-libraries-go",
+      "version-2.6.3-client-libraries-python",
+      "version-2.6.3-client-libraries-cpp",
+      "version-2.6.3-client-libraries-node",
+      "version-2.6.3-client-libraries-websocket",
+      "version-2.6.3-client-libraries-dotnet"
+    ],
+    "Admin API": [
+      "version-2.6.3-admin-api-overview",
+      "version-2.6.3-admin-api-clusters",
+      "version-2.6.3-admin-api-tenants",
+      "version-2.6.3-admin-api-brokers",
+      "version-2.6.3-admin-api-namespaces",
+      "version-2.6.3-admin-api-permissions",
+      "version-2.6.3-admin-api-persistent-topics",
+      "version-2.6.3-admin-api-non-persistent-topics",
+      "version-2.6.3-admin-api-partitioned-topics",
+      "version-2.6.3-admin-api-non-partitioned-topics",
+      "version-2.6.3-admin-api-functions"
+    ],
+    "Adaptors": [
+      "version-2.6.3-adaptors-kafka",
+      "version-2.6.3-adaptors-spark",
+      "version-2.6.3-adaptors-storm"
+    ],
+    "Cookbooks": [
+      "version-2.6.3-cookbooks-tiered-storage",
+      "version-2.6.3-cookbooks-compaction",
+      "version-2.6.3-cookbooks-deduplication",
+      "version-2.6.3-cookbooks-non-persistent",
+      "version-2.6.3-cookbooks-partitioned",
+      "version-2.6.3-cookbooks-retention-expiry",
+      "version-2.6.3-cookbooks-encryption",
+      "version-2.6.3-cookbooks-message-queue",
+      "version-2.6.3-cookbooks-bookkeepermetadata"
+    ],
+    "Development": [
+      "version-2.6.3-develop-tools",
+      "version-2.6.3-develop-binary-protocol",
+      "version-2.6.3-develop-schema",
+      "version-2.6.3-develop-load-manager",
+      "version-2.6.3-develop-cpp"
+    ],
+    "Reference": [
+      "version-2.6.3-reference-terminology",
+      "version-2.6.3-reference-cli-tools",
+      "version-2.6.3-pulsar-admin",
+      "version-2.6.3-reference-configuration",
+      "version-2.6.3-reference-metrics"
+    ]
+  },
+  "docs-other": {
+    "First Category": [
+      "version-2.6.3-doc4",
+      "version-2.6.3-doc5"
+    ]
+  }
+}

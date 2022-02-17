@@ -1,7 +1,7 @@
 ---
-id: version-2.7.0-deploy-monitoring
+id: deploy-monitoring
 title: Monitor
-sidebar_label: Monitor
+sidebar_label: "Monitor"
 original_id: deploy-monitoring
 ---
 
@@ -18,13 +18,17 @@ You can collect Pulsar broker metrics from brokers and export the metrics in JSO
 * *Destination dumps*, which contain stats for each individual topic. You can fetch the destination dumps using the command below:
 
   ```shell
+  
   bin/pulsar-admin broker-stats destinations
+  
   ```
 
 * Broker metrics, which contain the broker information and topics stats aggregated at namespace level. You can fetch the broker metrics by using the following command:
 
   ```shell
+  
   bin/pulsar-admin broker-stats monitoring-metrics
+  
   ```
 
 All the message rates are updated every minute.
@@ -32,7 +36,9 @@ All the message rates are updated every minute.
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
 ```shell
+
 http://$BROKER_ADDRESS:8080/metrics/
+
 ```
 
 ### ZooKeeper stats
@@ -40,8 +46,10 @@ http://$BROKER_ADDRESS:8080/metrics/
 The local ZooKeeper, configuration store server and clients that are shipped with Pulsar can expose detailed stats through Prometheus.
 
 ```shell
+
 http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
+
 ```
 
 The default port of local ZooKeeper is `8000` and the default port of configuration store is `8001`. You can change the default port of local ZooKeeper and configuration store by specifying system property `stats_server_port`.
@@ -53,7 +61,9 @@ You can configure the stats frameworks for BookKeeper by modifying the `statsPro
 The default BookKeeper configuration enables the Prometheus exporter. The configuration is included with Pulsar distribution.
 
 ```shell
+
 http://$BOOKIE_ADDRESS:8000/metrics
+
 ```
 
 The default port for bookie is `8000`. You can change the port by configuring `prometheusStatsHttpPort` in the `conf/bookkeeper.conf` file.
@@ -62,7 +72,7 @@ The default port for bookie is `8000`. You can change the port by configuring `p
 
 You can use Prometheus to collect all the metrics exposed for Pulsar components and set up [Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster. For details, refer to [Prometheus guide](https://prometheus.io/docs/introduction/getting_started/).
 
-When you run Pulsar on bare metal, you can provide the list of nodes to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is setup automatically. For details, refer to [Kubernetes instructions](helm-deploy.md). 
+When you run Pulsar on bare metal, you can provide the list of nodes to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is setup automatically. For details, refer to [Kubernetes instructions](helm-deploy). 
 
 ## Dashboards
 
@@ -70,7 +80,7 @@ When you collect time series statistics, the major problem is to make sure the n
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Pulsar manager](administration-pulsar-manager.md).
+The per-topic dashboard instructions are available at [Pulsar manager](administration-pulsar-manager).
 
 ### Grafana
 
@@ -81,9 +91,11 @@ When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled
 Enter the command below to use the dashboard manually:
 
 ```shell
+
 docker run -p3000:3000 \
         -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
         apachepulsar/pulsar-grafana:latest
+
 ```
 
 The following are some Grafana dashboards examples:

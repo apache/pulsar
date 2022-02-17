@@ -40,7 +40,7 @@ processing-guarantees | The processing guarantees (delivery semantics) applied t
 py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. | |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
+schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | |
 sliding-interval-count | The number of messages after which the window slides. |  |
 sliding-interval-duration-ms | The time duration after which the window slides. |  |
 subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |
@@ -85,7 +85,7 @@ processing-guarantees | The processing guarantees (delivery semantics) applied t
 py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. |  |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
+schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | |
 sliding-interval-count | The number of messages after which the window slides. |  |
 sliding-interval-duration-ms | The time duration after which the window slides. |  |
 subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |
@@ -137,7 +137,7 @@ processing-guarantees | The processing guarantees (delivery semantics) applied t
 py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. |  |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
+schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | |
 sliding-interval-count | The number of messages after which the window slides. |  |
 sliding-interval-duration-ms | The time duration after which the window slides. |  |
 subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |

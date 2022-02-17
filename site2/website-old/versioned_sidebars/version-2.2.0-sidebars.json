@@ -1,0 +1,121 @@
+{
+  "version-2.2.0-docs": {
+    "Getting Started": [
+      "version-2.2.0-pulsar-2.0",
+      "version-2.2.0-standalone",
+      "version-2.2.0-standalone-docker",
+      "version-2.2.0-client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "version-2.2.0-concepts-overview",
+      "version-2.2.0-concepts-messaging",
+      "version-2.2.0-concepts-architecture-overview",
+      "version-2.2.0-concepts-clients",
+      "version-2.2.0-concepts-replication",
+      "version-2.2.0-concepts-multi-tenancy",
+      "version-2.2.0-concepts-authentication",
+      "version-2.2.0-concepts-topic-compaction",
+      "version-2.2.0-concepts-tiered-storage",
+      "version-2.2.0-concepts-schema-registry"
+    ],
+    "Pulsar Functions": [
+      "version-2.2.0-functions-overview",
+      "version-2.2.0-functions-quickstart",
+      "version-2.2.0-functions-api",
+      "version-2.2.0-functions-deploying",
+      "version-2.2.0-functions-guarantees",
+      "version-2.2.0-functions-state",
+      "version-2.2.0-functions-metrics"
+    ],
+    "Pulsar IO": [
+      "version-2.2.0-io-overview",
+      "version-2.2.0-io-quickstart",
+      "version-2.2.0-io-managing",
+      "version-2.2.0-io-connectors",
+      "version-2.2.0-io-develop"
+    ],
+    "Pulsar SQL": [
+      "version-2.2.0-sql-overview",
+      "version-2.2.0-sql-getting-started",
+      "version-2.2.0-sql-deployment-configurations"
+    ],
+    "Deployment": [
+      "version-2.2.0-deploy-aws",
+      "version-2.2.0-deploy-kubernetes",
+      "version-2.2.0-deploy-bare-metal",
+      "version-2.2.0-deploy-bare-metal-multi-cluster",
+      "version-2.2.0-deploy-dcos",
+      "version-2.2.0-deploy-monitoring"
+    ],
+    "Administration": [
+      "version-2.2.0-administration-zk-bk",
+      "version-2.2.0-administration-geo",
+      "version-2.2.0-administration-dashboard",
+      "version-2.2.0-administration-stats",
+      "version-2.2.0-administration-load-distribution",
+      "version-2.2.0-administration-proxy"
+    ],
+    "Security": [
+      "version-2.2.0-security-overview",
+      "version-2.2.0-security-tls-transport",
+      "version-2.2.0-security-tls-authentication",
+      "version-2.2.0-security-athenz",
+      "version-2.2.0-security-authorization",
+      "version-2.2.0-security-encryption",
+      "version-2.2.0-security-extending"
+    ],
+    "Client Libraries": [
+      "version-2.2.0-client-libraries-java",
+      "version-2.2.0-client-libraries-go",
+      "version-2.2.0-client-libraries-python",
+      "version-2.2.0-client-libraries-cpp",
+      "version-2.2.0-client-libraries-websocket"
+    ],
+    "Admin API": [
+      "version-2.2.0-admin-api-overview",
+      "version-2.2.0-admin-api-clusters",
+      "version-2.2.0-admin-api-tenants",
+      "version-2.2.0-admin-api-brokers",
+      "version-2.2.0-admin-api-namespaces",
+      "version-2.2.0-admin-api-permissions",
+      "version-2.2.0-admin-api-persistent-topics",
+      "version-2.2.0-admin-api-non-persistent-topics",
+      "version-2.2.0-admin-api-partitioned-topics",
+      "version-2.2.0-admin-api-schemas"
+    ],
+    "Adaptors": [
+      "version-2.2.0-adaptors-kafka",
+      "version-2.2.0-adaptors-spark",
+      "version-2.2.0-adaptors-storm"
+    ],
+    "Cookbooks": [
+      "version-2.2.0-cookbooks-tiered-storage",
+      "version-2.2.0-cookbooks-compaction",
+      "version-2.2.0-cookbooks-deduplication",
+      "version-2.2.0-cookbooks-non-persistent",
+      "version-2.2.0-cookbooks-partitioned",
+      "version-2.2.0-cookbooks-retention-expiry",
+      "version-2.2.0-cookbooks-encryption",
+      "version-2.2.0-cookbooks-message-queue"
+    ],
+    "Development": [
+      "version-2.2.0-develop-tools",
+      "version-2.2.0-develop-binary-protocol",
+      "version-2.2.0-develop-schema",
+      "version-2.2.0-develop-load-manager",
+      "version-2.2.0-develop-cpp"
+    ],
+    "Reference": [
+      "version-2.2.0-reference-terminology",
+      "version-2.2.0-reference-cli-tools",
+      "version-2.2.0-pulsar-admin",
+      "version-2.2.0-reference-configuration"
+    ]
+  },
+  "version-2.2.0-docs-other": {
+    "First Category": [
+      "version-2.2.0-doc4",
+      "version-2.2.0-doc5"
+    ]
+  }
+}

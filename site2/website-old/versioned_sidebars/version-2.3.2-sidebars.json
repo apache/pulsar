@@ -1,0 +1,128 @@
+{
+  "version-2.3.2-docs": {
+    "Getting Started": [
+      "version-2.3.2-pulsar-2.0",
+      "version-2.3.2-standalone",
+      "version-2.3.2-standalone-docker",
+      "version-2.3.2-client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "version-2.3.2-concepts-overview",
+      "version-2.3.2-concepts-messaging",
+      "version-2.3.2-concepts-architecture-overview",
+      "version-2.3.2-concepts-clients",
+      "version-2.3.2-concepts-replication",
+      "version-2.3.2-concepts-multi-tenancy",
+      "version-2.3.2-concepts-authentication",
+      "version-2.3.2-concepts-topic-compaction",
+      "version-2.3.2-concepts-tiered-storage",
+      "version-2.3.2-concepts-schema-registry"
+    ],
+    "Pulsar Functions": [
+      "version-2.3.2-functions-overview",
+      "version-2.3.2-functions-quickstart",
+      "version-2.3.2-functions-api",
+      "version-2.3.2-functions-deploying",
+      "version-2.3.2-functions-guarantees",
+      "version-2.3.2-functions-state",
+      "version-2.3.2-functions-metrics",
+      "version-2.3.2-functions-worker",
+      "version-2.3.2-window-functions-context"
+    ],
+    "Pulsar IO": [
+      "version-2.3.2-io-overview",
+      "version-2.3.2-io-quickstart",
+      "version-2.3.2-io-managing",
+      "version-2.3.2-io-connectors",
+      "version-2.3.2-io-develop",
+      "version-2.3.2-io-cdc"
+    ],
+    "Pulsar SQL": [
+      "version-2.3.2-sql-overview",
+      "version-2.3.2-sql-getting-started",
+      "version-2.3.2-sql-deployment-configurations"
+    ],
+    "Deployment": [
+      "version-2.3.2-deploy-aws",
+      "version-2.3.2-deploy-kubernetes",
+      "version-2.3.2-deploy-bare-metal",
+      "version-2.3.2-deploy-bare-metal-multi-cluster",
+      "version-2.3.2-deploy-dcos",
+      "version-2.3.2-deploy-monitoring"
+    ],
+    "Administration": [
+      "version-2.3.2-administration-zk-bk",
+      "version-2.3.2-administration-geo",
+      "version-2.3.2-administration-dashboard",
+      "version-2.3.2-administration-stats",
+      "version-2.3.2-administration-load-balance",
+      "version-2.3.2-administration-proxy"
+    ],
+    "Security": [
+      "version-2.3.2-security-overview",
+      "version-2.3.2-security-tls-transport",
+      "version-2.3.2-security-tls-authentication",
+      "version-2.3.2-security-token-client",
+      "version-2.3.2-security-token-admin",
+      "version-2.3.2-security-athenz",
+      "version-2.3.2-security-kerberos",
+      "version-2.3.2-security-authorization",
+      "version-2.3.2-security-encryption",
+      "version-2.3.2-security-extending"
+    ],
+    "Client Libraries": [
+      "version-2.3.2-client-libraries-java",
+      "version-2.3.2-client-libraries-go",
+      "version-2.3.2-client-libraries-python",
+      "version-2.3.2-client-libraries-cpp",
+      "version-2.3.2-client-libraries-websocket"
+    ],
+    "Admin API": [
+      "version-2.3.2-admin-api-overview",
+      "version-2.3.2-admin-api-clusters",
+      "version-2.3.2-admin-api-tenants",
+      "version-2.3.2-admin-api-brokers",
+      "version-2.3.2-admin-api-namespaces",
+      "version-2.3.2-admin-api-permissions",
+      "version-2.3.2-admin-api-persistent-topics",
+      "version-2.3.2-admin-api-non-persistent-topics",
+      "version-2.3.2-admin-api-partitioned-topics",
+      "version-2.3.2-admin-api-schemas"
+    ],
+    "Adaptors": [
+      "version-2.3.2-adaptors-kafka",
+      "version-2.3.2-adaptors-spark",
+      "version-2.3.2-adaptors-storm"
+    ],
+    "Cookbooks": [
+      "version-2.3.2-cookbooks-tiered-storage",
+      "version-2.3.2-cookbooks-compaction",
+      "version-2.3.2-cookbooks-deduplication",
+      "version-2.3.2-cookbooks-non-persistent",
+      "version-2.3.2-cookbooks-partitioned",
+      "version-2.3.2-cookbooks-retention-expiry",
+      "version-2.3.2-cookbooks-encryption",
+      "version-2.3.2-cookbooks-message-queue",
+      "version-2.3.2-cookbooks-bookkeepermetadata"
+    ],
+    "Development": [
+      "version-2.3.2-develop-tools",
+      "version-2.3.2-develop-binary-protocol",
+      "version-2.3.2-develop-schema",
+      "version-2.3.2-develop-load-manager",
+      "version-2.3.2-develop-cpp"
+    ],
+    "Reference": [
+      "version-2.3.2-reference-terminology",
+      "version-2.3.2-reference-cli-tools",
+      "version-2.3.2-pulsar-admin",
+      "version-2.3.2-reference-configuration"
+    ]
+  },
+  "version-2.3.2-docs-other": {
+    "First Category": [
+      "version-2.3.2-doc4",
+      "version-2.3.2-doc5"
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 ---
-id: version-2.5.0-io-connectors
+id: io-connectors
 title: Built-in connector
-sidebar_label: Built-in connector
+sidebar_label: "Built-in connector"
 original_id: io-connectors
 ---
 
@@ -121,7 +121,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 ### HBase
 
-* [Configuration](io-hbase.md)
+* [Configuration](io-hbase)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hbase/src/main/java/org/apache/pulsar/io/hbase/HbaseAbstractConfig.java)
   
