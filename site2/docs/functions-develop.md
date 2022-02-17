@@ -13,7 +13,7 @@ Interface | Description | Use cases
 :---------|:------------|:---------
 Language-native interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python). | Functions that do not require access to the function [context](#context).
 Pulsar Function SDK for Java/Python/Go | Pulsar-specific libraries that provide a range of functionality not provided by "native" interfaces. | Functions that require access to the function [context](#context).
-Extended Pulsar Function SDK for Java | An extension to Pulsar-specific libraries, providing the initialization and close interfaces in java. | Functions that require initializing and releasing external resources.
+Extended Pulsar Function SDK for Java | An extension to Pulsar-specific libraries, providing the initialization and close interfaces in Java. | Functions that require initializing and releasing external resources.
 
 ### Language-native interface
 The language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, has no external dependencies. The following example is language-native function.
