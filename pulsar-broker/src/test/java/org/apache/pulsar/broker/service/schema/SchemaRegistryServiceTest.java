@@ -43,13 +43,13 @@ public class SchemaRegistryServiceTest {
    @Test
    void createCustomRegistry() {
       SchemaRegistryService actual = SchemaRegistryService
-            .create(mockSchemaStorage, "org.apache.pulsar.broker.service.schema.TestSchemaRegistryService");
+            .create("org.apache.pulsar.broker.service.schema.TestSchemaRegistryService");
       Assert.assertSame(actual.getClass(), SchemaRegistryServiceWithSchemaDataValidator.class);
    }
 
    @Test
    void createEmptyRegistry() {
-      SchemaRegistryService actual = SchemaRegistryService.create(null, null);
+      SchemaRegistryService actual = SchemaRegistryService.create(null);
       Assert.assertSame(actual.getClass(), DefaultSchemaRegistryService.class);
    }
 

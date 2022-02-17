@@ -29,17 +29,14 @@ public interface SchemaRegistryService extends SchemaRegistry {
     Logger LOG = LoggerFactory.getLogger(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
 
-    static SchemaRegistryService create(SchemaStorage schemaStorage, String schemaRegistryClassName) {
-        if (schemaStorage != null) {
-            try {
-                SchemaRegistryService schemaRegistryService = (SchemaRegistryService) Class
-                      .forName(schemaRegistryClassName).getDeclaredConstructor()
-                      .newInstance();
+    static SchemaRegistryService create(String schemaRegistryClassName) {
+        try {
+            SchemaRegistryService schemaRegistryService = (SchemaRegistryService) Class.forName(schemaRegistryClassName)
+                  .getDeclaredConstructor().newInstance();
 
-                return SchemaRegistryServiceWithSchemaDataValidator.of(schemaRegistryService);
-            } catch (Exception e) {
-                LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
-            }
+            return SchemaRegistryServiceWithSchemaDataValidator.of(schemaRegistryService);
+        } catch (Exception e) {
+            LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
         }
         return new DefaultSchemaRegistryService();
     }
