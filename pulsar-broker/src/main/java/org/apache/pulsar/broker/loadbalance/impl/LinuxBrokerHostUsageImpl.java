@@ -227,27 +227,26 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private boolean isPhysicalNic(Path path) {
-        if (!path.toString().contains("/virtual/")) {
-            try {
-                // Check the type to make sure it's ethernet (type "1")
-                String type = new String(Files.readAllBytes(path.resolve("type")), StandardCharsets.UTF_8).trim();
-                if (Integer.parseInt(type) == 1) {
-                    try {
-                        Files.readAllBytes(path.resolve("speed"));
-                    } catch (IOException ioe) {
-                        // In some cases, VMs in EC2 won't have the speed reported on the NIC and will
-                        // give a read-error.
-                    }
-                    return true;
-                } else {
-                    // wireless NICs don't report speed, ignore them.
-                    return false;
+        if (path.toString().contains("/virtual/")) {
+            return false;
+        }
+        try {
+            // Check the type to make sure it's ethernet (type "1")
+            String type = new String(Files.readAllBytes(path.resolve("type")), StandardCharsets.UTF_8).trim();
+            if (Integer.parseInt(type) == 1) {
+                try {
+                    Files.readAllBytes(path.resolve("speed"));
+                } catch (IOException ioe) {
+                    // In some cases, VMs in EC2 won't have the speed reported on the NIC and will
+                    // give a read-error.
                 }
-            } catch (Exception e) {
-                // Read type got error.
+                return true;
+            } else {
+                // wireless NICs don't report speed, ignore them.
                 return false;
             }
-        } else {
+        } catch (Exception e) {
+            // Read type got error.
             return false;
         }
     }
