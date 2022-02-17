@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.utils.functioncache;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.functions.utils.Exceptions;
 
 import java.io.File;
@@ -74,9 +76,9 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
         }
 
         synchronized (cacheFunctions) {
-            FunctionCacheEntry entry = cacheFunctions.get(fid);
-
-            if (null == entry) {
+            final AtomicBoolean computed = new AtomicBoolean(false);
+            final AtomicReference<Throwable> throwable = new AtomicReference<>();
+            FunctionCacheEntry entry = cacheFunctions.computeIfAbsent(fid, __ -> {
                 URL[] urls = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
                 int count = 0;
                 try {
@@ -89,46 +91,55 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                     for (URL url : requiredClasspaths) {
                         urls[count++] = url;
                     }
-
-                    cacheFunctions.put(
-                        fid,
-                        new FunctionCacheEntry(
-                            requiredJarFiles,
-                            requiredClasspaths,
-                            urls,
-                            eid, rootClassLoader));
+                    final FunctionCacheEntry cacheEntry = new FunctionCacheEntry(
+                            requiredJarFiles, requiredClasspaths, urls, eid, rootClassLoader);
+                    computed.set(true);
+                    return cacheEntry;
                 } catch (Throwable cause) {
-                    Exceptions.rethrowIOException(cause);
+                    throwable.set(cause);
+                    return null;
                 }
-            } else {
+            });
+            if (throwable.get() != null) {
+                Exceptions.rethrowIOException(throwable.get());
+            }
+            if (!computed.get() && entry != null) { // the key already exists
                 entry.register(
-                    eid,
-                    requiredJarFiles,
-                    requiredClasspaths);
+                        eid,
+                        requiredJarFiles,
+                        requiredClasspaths);
             }
         }
     }
 
     @Override
     public void registerFunctionInstanceWithArchive(String fid, String eid,
-                                                    String narArchive, String narExtractionDirectory) throws IOException {
+                                                    String narArchive,
+                                                    String narExtractionDirectory) throws IOException {
         if (fid == null) {
             throw new NullPointerException("FunctionID not set");
         }
 
         synchronized (cacheFunctions) {
-            FunctionCacheEntry entry = cacheFunctions.get(fid);
-
-            if (null != entry) {
-                entry.register(eid, Collections.singleton(narArchive), Collections.emptyList());
-                return;
+            // Create new cache entry.
+            final AtomicBoolean computed = new AtomicBoolean(false);
+            final AtomicReference<Throwable> throwable = new AtomicReference<>();
+            FunctionCacheEntry entry = cacheFunctions.computeIfAbsent(fid, __ -> {
+                try {
+                    final FunctionCacheEntry cacheEntry =
+                            new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory);
+                    computed.set(true);
+                    return cacheEntry;
+                } catch (Throwable cause) {
+                    throwable.set(cause);
+                    return null;
+                }
+            });
+            if (throwable.get() != null) {
+                Exceptions.rethrowIOException(throwable.get());
             }
-
-            // Create new cache entry
-            try {
-                cacheFunctions.put(fid, new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory));
-            } catch (Throwable cause) {
-                Exceptions.rethrowIOException(cause);
+            if (null != entry && computed.get()) {
+                entry.register(eid, Collections.singleton(narArchive), Collections.emptyList());
             }
         }
     }
