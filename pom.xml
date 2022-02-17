@@ -147,7 +147,7 @@ flexible messaging model and an intuitive client API.</description>
     <avro.version>1.10.2</avro.version>
     <joda.version>2.10.5</joda.version>
     <jclouds.version>2.4.0</jclouds.version>
-    <guice.version>5.0.1</guice.version>
+    <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.2.25</postgresql-jdbc.version>
@@ -622,6 +622,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>${guava.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.inject</groupId>
+        <artifactId>guice</artifactId>
+        <version>${guice.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.inject.extensions</groupId>
+        <artifactId>guice-assistedinject</artifactId>
+        <version>${guice.version}</version>
       </dependency>
 
       <dependency>
