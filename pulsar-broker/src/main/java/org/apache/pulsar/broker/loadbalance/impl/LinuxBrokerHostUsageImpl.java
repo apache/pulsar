@@ -264,8 +264,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                     try {
                         return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(nicPath))));
                     } catch (IOException e) {
-                        log.error(String.format("Failed to read speed for nic %s, maybe you can set broker" +
-                                " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
+                        log.error(String.format("Failed to read speed for nic %s, maybe you can set broker"
+                                + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
                         return 0d;
                     }
                 }).sum() * 1024);
