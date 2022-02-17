@@ -3,6 +3,22 @@ entries:
   pulsar:
   - apiVersion: v2
     appVersion: 2.7.4
+    created: "2022-02-17T05:48:38.719970649Z"
+    description: Apache Pulsar Helm chart for Kubernetes
+    digest: 7add302ee84d71a1a11433266f4904f6740f04bec1fad7fe067ba61bc5727fc5
+    home: https://pulsar.apache.org
+    icon: http://pulsar.apache.org/img/pulsar.svg
+    maintainers:
+    - email: dev@pulsar.apache.org
+      name: The Apache Pulsar Team
+    name: pulsar
+    sources:
+    - https://github.com/apache/pulsar
+    urls:
+    - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.7.12/pulsar-2.7.12.tgz
+    version: 2.7.12
+  - apiVersion: v2
+    appVersion: 2.7.4
     created: "2022-02-04T08:41:30.466780686Z"
     description: Apache Pulsar Helm chart for Kubernetes
     digest: fb2e3c9b0758b191085c77474eeec1cd3792977e9fc6e478feeb7fff759311ad
@@ -481,4 +497,4 @@ entries:
     urls:
     - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.6.0-1/pulsar-2.6.0-1.tgz
     version: 2.6.0-1
-generated: "2022-02-04T08:41:30.467063846Z"
+generated: "2022-02-17T05:55:00.000000000Z"
