@@ -1,7 +1,7 @@
 ---
-id: version-2.3.1-io-elasticsearch
+id: io-elasticsearch
 title: ElasticSearch Connector
-sidebar_label: ElasticSearch Connector
+sidebar_label: "ElasticSearch Connector"
 original_id: io-elasticsearch
 ---
 

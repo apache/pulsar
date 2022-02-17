@@ -1,13 +1,13 @@
 ---
-id: version-2.6.4-cookbooks-partitioned
+id: cookbooks-partitioned
 title: Partitioned topics
-sidebar_label: Partitioned Topics
+sidebar_label: "Partitioned Topics"
 original_id: cookbooks-partitioned
 ---
 
 By default, Pulsar topics are served by a single broker. Using only a single broker limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Partitioned Topics](concepts-messaging.md#partitioned-topics) concepts.
 
-You can publish to partitioned topics using Pulsar client libraries and you can [create and manage](#managing-partitioned-topics) partitioned topics using Pulsar [admin API](admin-api-overview.md).
+You can publish to partitioned topics using Pulsar client libraries and you can [create and manage](#managing-partitioned-topics) partitioned topics using Pulsar [admin API](admin-api-overview).
 
 ## Publish to partitioned topics
 
@@ -26,6 +26,7 @@ You can specify the routing mode in the ProducerConfiguration object that you us
 The following is an example:
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
@@ -35,6 +36,7 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRoutingMode(MessageRoutingMode.SinglePartition)
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 ### Custom message router
@@ -42,24 +44,29 @@ producer.send("Partitioned topic message".getBytes());
 To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
+
 public interface MessageRouter extends Serializable {
     int choosePartition(Message msg);
 }
+
 ```
 
 The following router routes every message to partition 10:
 
 ```java
+
 public class AlwaysTenRouter implements MessageRouter {
     public int choosePartition(Message msg) {
         return 10;
     }
 }
+
 ```
 
 With that implementation in hand, you can send
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
@@ -69,12 +76,14 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRouter(new AlwaysTenRouter())
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 ### How to choose partitions when using a key
 If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose partition when you use a key.
 
 ```java
+
 // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
             return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
@@ -86,8 +95,9 @@ If a message has a key, it supersedes the round robin routing policy. The follow
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
-```        
+
+```
 
 ## Manage partitioned topics
 
-You can use Pulsar [admin API](admin-api-overview.md) to create and manage [partitioned topics](admin-api-partitioned-topics.md).
+You can use Pulsar [admin API](admin-api-overview.md) to create and manage [partitioned topics](admin-api-partitioned-topics).

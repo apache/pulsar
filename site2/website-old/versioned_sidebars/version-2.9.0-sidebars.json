@@ -1,0 +1,166 @@
+{
+  "version-2.9.0-docs": {
+    "Get Started": [
+      "version-2.9.0-standalone",
+      "version-2.9.0-standalone-docker",
+      "version-2.9.0-kubernetes-helm"
+    ],
+    "Concepts and Architecture": [
+      "version-2.9.0-concepts-overview",
+      "version-2.9.0-concepts-messaging",
+      "version-2.9.0-concepts-architecture-overview",
+      "version-2.9.0-concepts-clients",
+      "version-2.9.0-concepts-replication",
+      "version-2.9.0-concepts-multi-tenancy",
+      "version-2.9.0-concepts-authentication",
+      "version-2.9.0-concepts-topic-compaction",
+      "version-2.9.0-concepts-proxy-sni-routing",
+      "version-2.9.0-concepts-multiple-advertised-listeners"
+    ],
+    "Pulsar Schema": [
+      "version-2.9.0-schema-get-started",
+      "version-2.9.0-schema-understand",
+      "version-2.9.0-schema-evolution-compatibility",
+      "version-2.9.0-schema-manage"
+    ],
+    "Pulsar Functions": [
+      "version-2.9.0-functions-overview",
+      "version-2.9.0-functions-runtime",
+      "version-2.9.0-functions-worker",
+      "version-2.9.0-functions-develop",
+      "version-2.9.0-functions-package",
+      "version-2.9.0-functions-debug",
+      "version-2.9.0-functions-deploy",
+      "version-2.9.0-functions-cli",
+      "version-2.9.0-window-functions-context"
+    ],
+    "Pulsar IO": [
+      "version-2.9.0-io-overview",
+      "version-2.9.0-io-quickstart",
+      "version-2.9.0-io-use",
+      "version-2.9.0-io-debug",
+      "version-2.9.0-io-connectors",
+      "version-2.9.0-io-cdc",
+      "version-2.9.0-io-develop",
+      "version-2.9.0-io-cli"
+    ],
+    "Pulsar SQL": [
+      "version-2.9.0-sql-overview",
+      "version-2.9.0-sql-getting-started",
+      "version-2.9.0-sql-deployment-configurations",
+      "version-2.9.0-sql-rest-api"
+    ],
+    "Tiered Storage": [
+      "version-2.9.0-tiered-storage-overview",
+      "version-2.9.0-tiered-storage-aws",
+      "version-2.9.0-tiered-storage-gcs",
+      "version-2.9.0-tiered-storage-filesystem",
+      "version-2.9.0-tiered-storage-azure",
+      "version-2.9.0-tiered-storage-aliyun"
+    ],
+    "Transactions": [
+      "version-2.9.0-txn-why",
+      "version-2.9.0-txn-what",
+      "version-2.9.0-txn-how",
+      "version-2.9.0-txn-use",
+      "version-2.9.0-txn-monitor"
+    ],
+    "Kubernetes (Helm)": [
+      "version-2.9.0-helm-overview",
+      "version-2.9.0-helm-prepare",
+      "version-2.9.0-helm-install",
+      "version-2.9.0-helm-deploy",
+      "version-2.9.0-helm-upgrade",
+      "version-2.9.0-helm-tools"
+    ],
+    "Deployment": [
+      "version-2.9.0-deploy-aws",
+      "version-2.9.0-deploy-kubernetes",
+      "version-2.9.0-deploy-bare-metal",
+      "version-2.9.0-deploy-bare-metal-multi-cluster",
+      "version-2.9.0-deploy-dcos",
+      "version-2.9.0-deploy-docker",
+      "version-2.9.0-deploy-monitoring"
+    ],
+    "Administration": [
+      "version-2.9.0-administration-zk-bk",
+      "version-2.9.0-administration-geo",
+      "version-2.9.0-administration-pulsar-manager",
+      "version-2.9.0-administration-stats",
+      "version-2.9.0-administration-load-balance",
+      "version-2.9.0-administration-proxy",
+      "version-2.9.0-administration-upgrade",
+      "version-2.9.0-administration-isolation"
+    ],
+    "Security": [
+      "version-2.9.0-security-overview",
+      "version-2.9.0-security-tls-transport",
+      "version-2.9.0-security-tls-authentication",
+      "version-2.9.0-security-tls-keystore",
+      "version-2.9.0-security-jwt",
+      "version-2.9.0-security-athenz",
+      "version-2.9.0-security-kerberos",
+      "version-2.9.0-security-oauth2",
+      "version-2.9.0-security-authorization",
+      "version-2.9.0-security-encryption",
+      "version-2.9.0-security-extending",
+      "version-2.9.0-security-bouncy-castle"
+    ],
+    "Performance": [
+      "version-2.9.0-performance-pulsar-perf"
+    ],
+    "Client Libraries": [
+      "version-2.9.0-client-libraries",
+      "version-2.9.0-client-libraries-java",
+      "version-2.9.0-client-libraries-go",
+      "version-2.9.0-client-libraries-python",
+      "version-2.9.0-client-libraries-cpp",
+      "version-2.9.0-client-libraries-node",
+      "version-2.9.0-client-libraries-websocket",
+      "version-2.9.0-client-libraries-dotnet"
+    ],
+    "Admin API": [
+      "version-2.9.0-admin-api-overview",
+      "version-2.9.0-admin-api-clusters",
+      "version-2.9.0-admin-api-tenants",
+      "version-2.9.0-admin-api-brokers",
+      "version-2.9.0-admin-api-namespaces",
+      "version-2.9.0-admin-api-permissions",
+      "version-2.9.0-admin-api-topics",
+      "version-2.9.0-admin-api-functions",
+      "version-2.9.0-admin-api-packages"
+    ],
+    "Adaptors": [
+      "version-2.9.0-adaptors-kafka",
+      "version-2.9.0-adaptors-spark",
+      "version-2.9.0-adaptors-storm"
+    ],
+    "Cookbooks": [
+      "version-2.9.0-cookbooks-compaction",
+      "version-2.9.0-cookbooks-deduplication",
+      "version-2.9.0-cookbooks-non-persistent",
+      "version-2.9.0-cookbooks-retention-expiry",
+      "version-2.9.0-cookbooks-encryption",
+      "version-2.9.0-cookbooks-message-queue",
+      "version-2.9.0-cookbooks-bookkeepermetadata"
+    ],
+    "Development": [
+      "version-2.9.0-develop-tools",
+      "version-2.9.0-develop-binary-protocol",
+      "version-2.9.0-develop-schema",
+      "version-2.9.0-develop-load-manager"
+    ],
+    "Reference": [
+      "version-2.9.0-reference-terminology",
+      "version-2.9.0-reference-cli-tools",
+      "version-2.9.0-reference-configuration",
+      "version-2.9.0-reference-metrics"
+    ]
+  },
+  "version-2.9.0-docs-other": {
+    "First Category": [
+      "version-2.9.0-doc4",
+      "version-2.9.0-doc5"
+    ]
+  }
+}

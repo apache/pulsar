@@ -1,5 +1,5 @@
 ---
-id: version-2.9.1-cookbooks-bookkeepermetadata
+id: cookbooks-bookkeepermetadata
 title: BookKeeper Ledger Metadata
 original_id: cookbooks-bookkeepermetadata
 ---

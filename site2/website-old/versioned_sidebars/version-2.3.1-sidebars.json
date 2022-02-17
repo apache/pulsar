@@ -1,0 +1,126 @@
+{
+  "version-2.3.1-docs": {
+    "Getting Started": [
+      "version-2.3.1-pulsar-2.0",
+      "version-2.3.1-standalone",
+      "version-2.3.1-standalone-docker",
+      "version-2.3.1-client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "version-2.3.1-concepts-overview",
+      "version-2.3.1-concepts-messaging",
+      "version-2.3.1-concepts-architecture-overview",
+      "version-2.3.1-concepts-clients",
+      "version-2.3.1-concepts-replication",
+      "version-2.3.1-concepts-multi-tenancy",
+      "version-2.3.1-concepts-authentication",
+      "version-2.3.1-concepts-topic-compaction",
+      "version-2.3.1-concepts-tiered-storage",
+      "version-2.3.1-concepts-schema-registry"
+    ],
+    "Pulsar Functions": [
+      "version-2.3.1-functions-overview",
+      "version-2.3.1-functions-quickstart",
+      "version-2.3.1-functions-api",
+      "version-2.3.1-functions-deploying",
+      "version-2.3.1-functions-guarantees",
+      "version-2.3.1-functions-state",
+      "version-2.3.1-functions-metrics",
+      "version-2.3.1-window-functions-context"
+    ],
+    "Pulsar IO": [
+      "version-2.3.1-io-overview",
+      "version-2.3.1-io-quickstart",
+      "version-2.3.1-io-managing",
+      "version-2.3.1-io-connectors",
+      "version-2.3.1-io-develop",
+      "version-2.3.1-io-cdc"
+    ],
+    "Pulsar SQL": [
+      "version-2.3.1-sql-overview",
+      "version-2.3.1-sql-getting-started",
+      "version-2.3.1-sql-deployment-configurations"
+    ],
+    "Deployment": [
+      "version-2.3.1-deploy-aws",
+      "version-2.3.1-deploy-kubernetes",
+      "version-2.3.1-deploy-bare-metal",
+      "version-2.3.1-deploy-bare-metal-multi-cluster",
+      "version-2.3.1-deploy-dcos",
+      "version-2.3.1-deploy-monitoring"
+    ],
+    "Administration": [
+      "version-2.3.1-administration-zk-bk",
+      "version-2.3.1-administration-geo",
+      "version-2.3.1-administration-dashboard",
+      "version-2.3.1-administration-stats",
+      "version-2.3.1-administration-load-balance",
+      "version-2.3.1-administration-proxy"
+    ],
+    "Security": [
+      "version-2.3.1-security-overview",
+      "version-2.3.1-security-tls-transport",
+      "version-2.3.1-security-tls-authentication",
+      "version-2.3.1-security-token-client",
+      "version-2.3.1-security-token-admin",
+      "version-2.3.1-security-athenz",
+      "version-2.3.1-security-authorization",
+      "version-2.3.1-security-encryption",
+      "version-2.3.1-security-extending"
+    ],
+    "Client Libraries": [
+      "version-2.3.1-client-libraries-java",
+      "version-2.3.1-client-libraries-go",
+      "version-2.3.1-client-libraries-python",
+      "version-2.3.1-client-libraries-cpp",
+      "version-2.3.1-client-libraries-websocket"
+    ],
+    "Admin API": [
+      "version-2.3.1-admin-api-overview",
+      "version-2.3.1-admin-api-clusters",
+      "version-2.3.1-admin-api-tenants",
+      "version-2.3.1-admin-api-brokers",
+      "version-2.3.1-admin-api-namespaces",
+      "version-2.3.1-admin-api-permissions",
+      "version-2.3.1-admin-api-persistent-topics",
+      "version-2.3.1-admin-api-non-persistent-topics",
+      "version-2.3.1-admin-api-partitioned-topics",
+      "version-2.3.1-admin-api-schemas"
+    ],
+    "Adaptors": [
+      "version-2.3.1-adaptors-kafka",
+      "version-2.3.1-adaptors-spark",
+      "version-2.3.1-adaptors-storm"
+    ],
+    "Cookbooks": [
+      "version-2.3.1-cookbooks-tiered-storage",
+      "version-2.3.1-cookbooks-compaction",
+      "version-2.3.1-cookbooks-deduplication",
+      "version-2.3.1-cookbooks-non-persistent",
+      "version-2.3.1-cookbooks-partitioned",
+      "version-2.3.1-cookbooks-retention-expiry",
+      "version-2.3.1-cookbooks-encryption",
+      "version-2.3.1-cookbooks-message-queue",
+      "version-2.3.1-cookbooks-bookkeepermetadata"
+    ],
+    "Development": [
+      "version-2.3.1-develop-tools",
+      "version-2.3.1-develop-binary-protocol",
+      "version-2.3.1-develop-schema",
+      "version-2.3.1-develop-load-manager",
+      "version-2.3.1-develop-cpp"
+    ],
+    "Reference": [
+      "version-2.3.1-reference-terminology",
+      "version-2.3.1-reference-cli-tools",
+      "version-2.3.1-pulsar-admin",
+      "version-2.3.1-reference-configuration"
+    ]
+  },
+  "version-2.3.1-docs-other": {
+    "First Category": [
+      "version-2.3.1-doc4",
+      "version-2.3.1-doc5"
+    ]
+  }
+}

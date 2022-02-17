@@ -1,7 +1,7 @@
 ---
-id: version-2.3.1-io-hdfs
+id: io-hdfs
 title: Hdfs Connector
-sidebar_label: Hdfs Connector
+sidebar_label: "Hdfs Connector"
 original_id: io-hdfs
 ---
 

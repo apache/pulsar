@@ -1,7 +1,7 @@
 ---
-id: version-2.6.2-administration-proxy
+id: administration-proxy
 title: The Pulsar proxy
-sidebar_label: Pulsar proxy
+sidebar_label: "Pulsar proxy"
 original_id: administration-proxy
 ---
 
@@ -14,9 +14,12 @@ The proxy must have some way to find the addresses of the brokers of the cluster
 ### Option 1: Use service discovery
 
 Pulsar uses [ZooKeeper](https://zookeeper.apache.org) for service discovery. To connect the proxy to ZooKeeper, specify the following in `conf/proxy.conf`.
+
 ```properties
+
 zookeeperServers=zk-0,zk-1,zk-2
 configurationStoreServers=zk-0:2184,zk-remote:2184
+
 ```
 
 > If you use service discovery, the network ACL must allow the proxy to talk to the ZooKeeper nodes on the zookeeper client port, which is usually 2181, and on the configuration store client port, which is 2184 by default. Opening the network ACLs means that if someone compromises a proxy, they have full access to ZooKeeper. For this reason, using broker URLs to configure the proxy is more secure.
@@ -30,16 +33,21 @@ The more secure method of configuring the proxy is to specify a URL to connect t
 You can configure the broker URLs in `conf/proxy.conf` as follows.
 
 ```properties
+
 brokerServiceURL=pulsar://brokers.example.com:6650
 brokerWebServiceURL=http://brokers.example.com:8080
 functionWorkerWebServiceURL=http://function-workers.example.com:8080
+
 ```
 
 Or if you use TLS:
+
 ```properties
+
 brokerServiceURLTLS=pulsar+ssl://brokers.example.com:6651
 brokerWebServiceURLTLS=https://brokers.example.com:8443
 functionWorkerWebServiceURL=https://function-workers.example.com:8443
+
 ```
 
 The hostname in the URLs provided should be a DNS entry which points to multiple brokers or a Virtual IP which is backed by multiple broker IP addresses so that the proxy does not lose connectivity to the pulsar cluster if a single broker becomes unavailable.
@@ -53,8 +61,10 @@ Note that if you do not use functions, then you do not need to configure `functi
 To start the proxy:
 
 ```bash
+
 $ cd /path/to/pulsar/directory
 $ bin/pulsar proxy
+
 ```
 
 > You can run as many instances of the Pulsar proxy in a cluster as you want.

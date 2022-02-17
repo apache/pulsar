@@ -1,7 +1,7 @@
 ---
-id: version-2.9.1-transactions-guarantee
+id: transactions-guarantee
 title: Transactions Guarantee
-sidebar_label: Transactions Guarantee
+sidebar_label: "Transactions Guarantee"
 original_id: transactions-guarantee
 ---
 

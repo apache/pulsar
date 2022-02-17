@@ -1,7 +1,7 @@
 ---
-id: version-2.7.2-develop-cpp
+id: develop-cpp
 title: Building Pulsar C++ client
-sidebar_label: Building Pulsar C++ client
+sidebar_label: "Building Pulsar C++ client"
 original_id: develop-cpp
 ---
 
@@ -26,7 +26,9 @@ You need to have the following installed to use the C++ client:
 There are separate compilation instructions for [MacOS](#macos) and [Linux](#linux). For both systems, start by cloning the Pulsar repository:
 
 ```shell
+
 $ git clone https://github.com/apache/pulsar
+
 ```
 
 ### Linux
@@ -34,13 +36,16 @@ $ git clone https://github.com/apache/pulsar
 First, install all of the necessary dependencies:
 
 ```shell
+
 $ apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
   libprotobuf-dev protobuf-compiler libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
+
 ```
 
 Then compile and install [Google Test](https://github.com/google/googletest):
 
 ```shell
+
 # libgtest-dev version is 1.18.0 or above
 $ cd /usr/src/googletest
 $ sudo cmake .
@@ -57,14 +62,17 @@ $ cd /usr/src/gmock
 $ sudo cmake .
 $ sudo make
 $ sudo cp libgmock.a /usr/lib
+
 ```
 
 Finally, compile the Pulsar client library for C++ inside the Pulsar repo:
 
 ```shell
+
 $ cd pulsar-client-cpp
 $ cmake .
 $ make
+
 ```
 
 The resulting files, `libpulsar.so` and `libpulsar.a`, will be placed in the `lib` folder of the repo while two tools, `perfProducer` and `perfConsumer`, will be placed in the `perf` directory.
@@ -74,6 +82,7 @@ The resulting files, `libpulsar.so` and `libpulsar.a`, will be placed in the `li
 First, install all of the necessary dependencies:
 
 ```shell
+
 # OpenSSL installation
 $ brew install openssl
 $ export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
@@ -90,12 +99,16 @@ $ git clone https://github.com/google/googletest.git
 $ cd googletest
 $ cmake .
 $ make install
+
 ```
 
 Then compile the Pulsar client library in the repo that you cloned:
 
 ```shell
+
 $ cd pulsar-client-cpp
 $ cmake .
 $ make
+
 ```
+

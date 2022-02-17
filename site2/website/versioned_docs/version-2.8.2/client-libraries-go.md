@@ -1,11 +1,11 @@
 ---
-id: version-2.8.2-client-libraries-go
+id: client-libraries-go
 title: Pulsar Go client
-sidebar_label: Go
+sidebar_label: "Go"
 original_id: client-libraries-go
 ---
 
-> Tips: Currently, the CGo client will be deprecated, if you want to know more about the CGo client, please refer to [CGo client docs](client-libraries-cgo.md)
+> Tips: Currently, the CGo client will be deprecated, if you want to know more about the CGo client, please refer to [CGo client docs](client-libraries-cgo)
 
 You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
@@ -20,49 +20,61 @@ You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to cr
 You can install the `pulsar` library locally using `go get`.  
 
 ```bash
+
 $ go get -u "github.com/apache/pulsar-client-go/pulsar"
+
 ```
 
 Once installed locally, you can import it into your project:
 
 ```go
+
 import "github.com/apache/pulsar-client-go/pulsar"
+
 ```
 
 ## Connection URLs
 
-To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol) URL.
 
 Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here's an example for `localhost`:
 
 ```http
+
 pulsar://localhost:6650
+
 ```
 
 If you have multiple brokers, you can set the URL as below.
 
 ```
+
 pulsar://localhost:6550,localhost:6651,localhost:6652
+
 ```
 
 A URL for a production Pulsar cluster may look something like this:
 
 ```http
+
 pulsar://pulsar.us-west.example.com:6650
+
 ```
 
-If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
+If you're using [TLS](security-tls-authentication) authentication, the URL will look like something like this:
 
 ```http
+
 pulsar+ssl://pulsar.us-west.example.com:6651
+
 ```
 
 ## Create a client
 
 In order to interact with Pulsar, you'll first need a `Client` object. You can create a client object using the `NewClient` function, passing in a `ClientOptions` object (more on configuration [below](#client-configuration)). Here's an example:
 
-
 ```go
+
 import (
 	"log"
 	"time"
@@ -82,11 +94,13 @@ func main() {
 
 	defer client.Close()
 }
+
 ```
 
 If you have multiple brokers, you can initiate a client object as below.
 
 ```
+
 import (
     "log"
     "time"
@@ -105,13 +119,14 @@ func main() {
 
     defer client.Close()
 }
+
 ```
 
 The following configurable parameters are available for Pulsar clients:
 
  Name | Description | Default
 | :-------- | :---------- |:---------- |
-| URL | Configure the service URL for the Pulsar service.<br><br>If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br><br>This parameter is **required**. |None |
+| URL | Configure the service URL for the Pulsar service.<br /><br />If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br /><br />This parameter is **required**. |None |
 | ConnectionTimeout | Timeout for the establishment of a TCP connection | 30s |
 | OperationTimeout| Set the operation timeout. Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the operation will be marked as failed| 30s|
 | Authentication | Configure the authentication provider. Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")` | no authentication |
@@ -128,6 +143,7 @@ The following configurable parameters are available for Pulsar clients:
 Pulsar producers publish messages to Pulsar topics. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
 
 ```go
+
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic: "my-topic",
 })
@@ -146,6 +162,7 @@ if err != nil {
 	fmt.Println("Failed to publish message", err)
 }
 fmt.Println("Published message")
+
 ```
 
 ### Producer operations
@@ -167,6 +184,7 @@ Method | Description | Return type
 #### How to use message router in producer
 
 ```go
+
 client, err := NewClient(pulsar.ClientOptions{
 	URL: serviceURL,
 })
@@ -199,25 +217,31 @@ if err != nil {
 	log.Fatal(err)
 }
 defer producer.Close()
+
 ```
 
 #### How to use schema interface in producer
 
 ```go
+
 type testJSON struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
+
 ```
 
 ```go
+
 var (
 	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
 		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
 )
+
 ```
 
 ```go
+
 client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
@@ -245,11 +269,13 @@ if err != nil {
 	log.Fatal(err)
 }
 producer.Close()
+
 ```
 
 #### How to use delay relative in producer
 
 ```go
+
 client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
@@ -302,8 +328,8 @@ if err != nil {
 }
 fmt.Println(msg.Payload())
 canc()
-```
 
+```
 
 ### Producer configuration
 
@@ -333,6 +359,7 @@ canc()
 Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can [configure](#consumer-configuration) Go consumers using a `ConsumerOptions` object. Here's a basic example that uses channels:
 
 ```go
+
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            "topic-1",
 	SubscriptionName: "my-sub",
@@ -358,6 +385,7 @@ for i := 0; i < 10; i++ {
 if err := consumer.Unsubscribe(); err != nil {
 	log.Fatal(err)
 }
+
 ```
 
 ### Consumer operations
@@ -385,6 +413,7 @@ Method | Description | Return type
 #### How to use regex consumer
 
 ```go
+
 client, err := pulsar.NewClient(pulsar.ClientOptions{
     URL: "pulsar://localhost:6650",
 })
@@ -410,11 +439,13 @@ if err != nil {
 	log.Fatal(err)
 }
 defer consumer.Close()
+
 ```
 
 #### How to use multi topics Consumer
 
 ```go
+
 func newTopicName() string {
 	return fmt.Sprintf("my-topic-%v", time.Now().Nanosecond())
 }
@@ -438,11 +469,13 @@ if err != nil {
 	log.Fatal(err)
 }
 defer consumer.Close()
+
 ```
 
 #### How to use consumer listener
 
 ```go
+
 import (
 	"fmt"
 	"log"
@@ -486,11 +519,13 @@ func main() {
 		consumer.Ack(msg)
 	}
 }
+
 ```
 
 #### How to use consumer receive timeout
 
 ```go
+
 client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
@@ -519,25 +554,31 @@ fmt.Println(msg.Payload())
 if err != nil {
 	log.Fatal(err)
 }
+
 ```
 
 #### How to use schema in consumer
 
 ```go
+
 type testJSON struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
+
 ```
 
 ```go
+
 var (
 	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
 		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
 )
+
 ```
 
 ```go
+
 client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
@@ -564,8 +605,8 @@ if err != nil {
 }
 
 defer consumer.Close()
-```
 
+```
 
 ### Consumer configuration
 
@@ -597,6 +638,7 @@ defer consumer.Close()
 Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can [configure](#reader-configuration) Go readers using a `ReaderOptions` object. Here's an example:
 
 ```go
+
 reader, err := client.CreateReader(pulsar.ReaderOptions{
 	Topic:          "topic-1",
 	StartMessageID: pulsar.EarliestMessageID(),
@@ -605,6 +647,7 @@ if err != nil {
 	log.Fatal(err)
 }
 defer reader.Close()
+
 ```
 
 ### Reader operations
@@ -627,6 +670,7 @@ Method | Description | Return type
 Here's an example usage of a Go reader that uses the `Next()` method to process incoming messages:
 
 ```go
+
 import (
 	"context"
 	"fmt"
@@ -662,22 +706,26 @@ func main() {
 			msg.ID(), string(msg.Payload()))
 	}
 }
+
 ```
 
 In the example above, the reader begins reading from the earliest available message (specified by `pulsar.EarliestMessage`). The reader can also begin reading from the latest message (`pulsar.LatestMessage`) or some other message ID specified by bytes using the `DeserializeMessageID` function, which takes a byte array and returns a `MessageID` object. Here's an example:
 
 ```go
+
 lastSavedId := // Read last saved message id from external store as byte[]
 
 reader, err := client.CreateReader(pulsar.ReaderOptions{
     Topic:          "my-golang-topic",
     StartMessageID: pulsar.DeserializeMessageID(lastSavedId),
 })
+
 ```
 
 #### How to use reader to read specific message
 
 ```go
+
 client, err := NewClient(pulsar.ClientOptions{
 	URL: lookupURL,
 })
@@ -740,6 +788,7 @@ if err != nil {
 	log.Fatal(err)
 }
 defer readerInclusive.Close()
+
 ```
 
 ### Reader configuration
@@ -761,6 +810,7 @@ defer readerInclusive.Close()
 The Pulsar Go client provides a `ProducerMessage` interface that you can use to construct messages to producer on Pulsar topics. Here's an example message:
 
 ```go
+
 msg := pulsar.ProducerMessage{
     Payload: []byte("Here is some message data"),
     Key: "message-key",
@@ -774,6 +824,7 @@ msg := pulsar.ProducerMessage{
 if _, err := producer.send(msg); err != nil {
     log.Fatalf("Could not publish message due to: %v", err)
 }
+
 ```
 
 The following methods parameters are available for `ProducerMessage` objects:
@@ -793,7 +844,7 @@ Parameter | Description
 
 ## TLS encryption and authentication
 
-In order to use [TLS encryption](security-tls-transport.md), you'll need to configure your client to do so:
+In order to use [TLS encryption](security-tls-transport), you'll need to configure your client to do so:
 
  * Use `pulsar+ssl` URL type
  * Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar broker
@@ -802,19 +853,22 @@ In order to use [TLS encryption](security-tls-transport.md), you'll need to conf
 Here's an example:
 
 ```go
+
 opts := pulsar.ClientOptions{
     URL: "pulsar+ssl://my-cluster.com:6651",
     TLSTrustCertsFilePath: "/path/to/certs/my-cert.csr",
     Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem"),
 }
+
 ```
 
 ## OAuth2 authentication
 
-To use [OAuth2 authentication](security-oauth2.md), you'll need to configure your client to perform the following operations.
+To use [OAuth2 authentication](security-oauth2), you'll need to configure your client to perform the following operations.
 This example shows how to configure OAuth2 authentication.
 
 ```go
+
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
 		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
@@ -826,4 +880,6 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:              "pulsar://my-cluster:6650",
 		Authentication:   oauth,
 })
+
 ```
+
