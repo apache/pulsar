@@ -233,18 +233,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         try {
             // Check the type to make sure it's ethernet (type "1")
             String type = new String(Files.readAllBytes(path.resolve("type")), StandardCharsets.UTF_8).trim();
-            if (Integer.parseInt(type) == 1) {
-                try {
-                    Files.readAllBytes(path.resolve("speed"));
-                } catch (IOException ioe) {
-                    // In some cases, VMs in EC2 won't have the speed reported on the NIC and will
-                    // give a read-error.
-                }
-                return true;
-            } else {
-                // wireless NICs don't report speed, ignore them.
-                return false;
-            }
+            // wireless NICs don't report speed, ignore them.
+            return Integer.parseInt(type) == 1;
         } catch (Exception e) {
             // Read type got error.
             return false;
