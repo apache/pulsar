@@ -25,7 +25,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 import static org.mockito.Mockito.mock;
