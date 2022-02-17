@@ -687,7 +687,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.startNamespaceService();
 
             schemaStorage = createAndStartSchemaStorage();
-            schemaRegistryService = SchemaRegistryService.create(schemaStorage, config.getSchemaRegistryClassName());
+            setSchemaRegistryName(schemaStorage);
+            schemaRegistryService = SchemaRegistryService.create(config.getSchemaRegistryClassName());
             schemaRegistryService.initialize(config, schemaStorage);
 
             this.defaultOffloader = createManagedLedgerOffloader(
@@ -1281,6 +1282,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
         schemaStorage.start();
         return schemaStorage;
+    }
+
+    private void setSchemaRegistryName(SchemaStorage schemaStorage) {
+        if (schemaStorage == null) {
+            this.config.setSchemaRegistryClassName("org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService");
+        }
     }
 
     public ScheduledExecutorService getExecutor() {

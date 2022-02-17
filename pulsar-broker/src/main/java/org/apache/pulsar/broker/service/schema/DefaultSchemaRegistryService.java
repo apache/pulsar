@@ -108,9 +108,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
 
     @Override
     public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
-          throws PulsarServerException {
-
-    }
+          throws PulsarServerException {}
 
     @Override
     public void close() throws Exception {

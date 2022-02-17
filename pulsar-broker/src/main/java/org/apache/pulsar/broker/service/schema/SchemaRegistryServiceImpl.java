@@ -25,7 +25,6 @@ import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -53,7 +52,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
-import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
@@ -220,7 +218,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage) throws PulsarServerException {
         try {
             Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
-            checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
             this.schemaStorage = schemaStorage;
             this.compatibilityChecks = checkers;
             this.clock = Clock.systemUTC();
@@ -239,6 +236,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                   .getDeclaredConstructor().newInstance();
             checkers.put(instance.getSchemaType(), instance);
         }
+        checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
         return checkers;
     }
 

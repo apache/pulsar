@@ -248,6 +248,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
+|schemaRegistryClassName|Specify the schema registry to be used in Pulsar. If it is not set, the default schema registry is used.|org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl|
 |isSchemaValidationEnforced|Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.|false|
 | topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 |offloadersDirectory|The directory for all the offloader implementations.|./offloaders|
