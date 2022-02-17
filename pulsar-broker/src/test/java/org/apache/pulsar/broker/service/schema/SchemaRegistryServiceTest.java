@@ -23,7 +23,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.junit.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.util.HashSet;
 import java.util.Set;
 
