@@ -57,6 +57,10 @@ for conf_filename in conf_files:
             if PF_ENV_DEBUG:
                 print("[%s] skip Processing %s" % (conf_filename, line))
 
+    # add a newline to last line if the input file didn't end with a newline
+    if lines[-1][-1] != '\n':
+        lines[-1] += '\n'
+
     # Update values from Env
     for k in sorted(os.environ.keys()):
         v = os.environ[k].strip()
