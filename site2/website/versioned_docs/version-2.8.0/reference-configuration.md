@@ -242,6 +242,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
 |isSchemaValidationEnforced|Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.|false|
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 |offloadersDirectory|The directory for all the offloader implementations.|./offloaders|
 |bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: zk+hierarchical://localhost:2181/ledgers. The metadata service uri list can also be semicolon separated values like below: zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
@@ -543,8 +544,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. | |
 | systemTopicEnabled | Enable/Disable system topics. | false |
 | topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 | proxyRoles | Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
-| authenticateOriginalAuthData | If this flag is set, the broker authenticates the original Auth data. Otherwise, it just accepts the originalPrincipal and authorizes it (if required). | false |
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
 |authorizationEnabled|  Enforce authorization in brokers. |false|
