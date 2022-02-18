@@ -129,9 +129,8 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
                 });
             }
-        } else {
-            return completableFuture;
         }
+        return completableFuture;
     }
 
     public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
@@ -154,9 +153,8 @@ public class TransactionImpl implements Transaction , TimerTask {
                     }
                 });
             }
-        } else {
-            return completableFuture;
         }
+        return completableFuture;
     }
 
     public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
@@ -185,15 +183,21 @@ public class TransactionImpl implements Transaction , TimerTask {
                     tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                             .whenComplete((vx, ex) -> {
                                 if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException
-                                            || ex instanceof InvalidTxnStatusException) {
+                                    if (ex instanceof TransactionNotFoundException) {
+                                        // if throw TransactionNotFoundException,
+                                        // this transaction has timed out on the server side,
+                                        // so need to redeliver the message witch has been cumulative ack
+                                        // only TransactionNotFoundException can redeliver,
+                                        //  because only this mean transaction have been finished
+                                        if (cumulativeAckConsumers != null) {
+                                            cumulativeAckConsumers
+                                                    .forEach(ConsumerImpl::redeliverUnacknowledgedMessages);
+                                        }
                                         this.state = State.ERROR;
                                     }
-                                    // if throw TransactionNotFoundException,
-                                    // this transaction has timed out on the server side,
-                                    // so need to redeliver the message witch has been cumulative ack
-                                    if (cumulativeAckConsumers != null) {
-                                        cumulativeAckConsumers.forEach(ConsumerImpl::redeliverUnacknowledgedMessages);
+
+                                    if (ex instanceof InvalidTxnStatusException) {
+                                        this.state = State.ERROR;
                                     }
                                     commitFuture.completeExceptionally(ex);
                                 } else {
