@@ -63,7 +63,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
-    private Set<ConsumerImpl<?>> cumulativeAckConsumers;
+    private volatile Set<ConsumerImpl<?>> cumulativeAckConsumers;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
