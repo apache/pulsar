@@ -1892,6 +1892,37 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerConnectError) {
     client.shutdown();
 }
 
+TEST(BasicEndToEndTest, testMultiTopicsConsumerAcknowledgeCumulative) {
+    Client client(lookupUrl);
+    std::vector<std::string> topicNames;
+    std::string topicName1 = "testMultiTopicsConsumerAcknowledgeCumulative-1";
+    std::string topicName2 = "testMultiTopicsConsumerAcknowledgeCumulative-2";
+    topicNames.push_back(topicName1);
+    topicNames.push_back(topicName2);
+
+    Producer producer1;
+    Result result = client.createProducer(topicName1, producer1);
+    ASSERT_EQ(ResultOk, result);
+    
+    Consumer consumer;
+    result = client.subscribe(topicNames, "my-sub-name", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    std::string msgContent = "msg-content";
+    Message msg = MessageBuilder().setContent(msgContent).build();
+    ASSERT_EQ(ResultOk, producer1.send(msg));
+    
+    Message msgReceived;
+    consumer.receive(msgReceived);
+    ASSERT_EQ(msgContent, msgReceived.getDataAsString());
+    ASSERT_EQ(ResultOk, consumer.acknowledgeCumulative(msgReceived));
+
+    ASSERT_EQ(ResultOk, producer1.close());
+    ASSERT_EQ(ResultOk, consumer.close());
+
+    client.shutdown();
+}
+
 TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     Client client(lookupUrl);
     std::vector<std::string> topicNames;
