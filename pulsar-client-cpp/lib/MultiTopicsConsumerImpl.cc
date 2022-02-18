@@ -234,8 +234,10 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
 
     std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
     auto self = shared_from_this();
-    auto numConsumers =
-        consumers_.forEachValue([&consumerUnsubed, &self, callback](const ConsumerImplPtr& consumer) {
+    int numConsumers = 0;
+    consumers_.forEachValue(
+        [&numConsumers, &consumerUnsubed, &self, callback](const ConsumerImplPtr& consumer) {
+            numConsumers++;
             consumer->unsubscribeAsync([self, consumerUnsubed, callback](Result result) {
                 self->handleUnsubscribedAsync(result, consumerUnsubed, callback);
             });
@@ -360,8 +362,10 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
     setState(Closing);
 
     auto self = shared_from_this();
-    auto numConsumers =
-        consumers_.forEach([&self, callback](const std::string& name, const ConsumerImplPtr& consumer) {
+    int numConsumers = 0;
+    consumers_.forEach(
+        [&numConsumers, &self, callback](const std::string& name, const ConsumerImplPtr& consumer) {
+            numConsumers++;
             consumer->closeAsync([self, name, callback](Result result) {
                 self->handleSingleConsumerClose(result, name, callback);
             });

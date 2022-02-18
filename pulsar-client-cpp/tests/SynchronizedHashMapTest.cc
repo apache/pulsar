@@ -73,12 +73,12 @@ TEST(SynchronizedHashMap, testRemoveAndFind) {
 TEST(SynchronizedHashMapTest, testForEach) {
     SyncMapType m({{1, 100}, {2, 200}, {3, 300}});
     std::vector<int> values;
-    ASSERT_EQ(3, m.forEachValue([&values](const int& value) { values.emplace_back(value); }));
+    m.forEachValue([&values](const int& value) { values.emplace_back(value); });
     std::sort(values.begin(), values.end());
     ASSERT_EQ(values, std::vector<int>({100, 200, 300}));
 
     PairVector pairs;
-    ASSERT_EQ(3, m.forEach([&pairs](const int& key, const int& value) { pairs.emplace_back(key, value); }));
+    m.forEach([&pairs](const int& key, const int& value) { pairs.emplace_back(key, value); });
     PairVector expectedPairs({{1, 100}, {2, 200}, {3, 300}});
     ASSERT_EQ(sort(pairs), expectedPairs);
 }
@@ -86,9 +86,9 @@ TEST(SynchronizedHashMapTest, testForEach) {
 TEST(SynchronizedHashMap, testRecursiveMutex) {
     SyncMapType m({{1, 100}});
     OptValue optValue;
-    ASSERT_EQ(1, m.forEach([&m, &optValue](const int& key, const int& value) {
+    m.forEach([&m, &optValue](const int& key, const int& value) {
         optValue = m.find(key);  // the internal mutex was locked again
-    }));
+    });
     ASSERT_TRUE(optValue.is_present());
     ASSERT_EQ(optValue.value(), 100);
 }
@@ -104,14 +104,14 @@ TEST(SynchronizedHashMapTest, testThreadSafeForEach) {
 
     std::atomic_bool firstElementDone{false};
     PairVector pairs;
-    ASSERT_EQ(3, m.forEach([&latch, &firstElementDone, &pairs](const int& key, const int& value) {
+    m.forEach([&latch, &firstElementDone, &pairs](const int& key, const int& value) {
         pairs.emplace_back(key, value);
         if (!firstElementDone) {
             latch.countdown();
             firstElementDone = true;
         }
         sleepMs(200);
-    }));
+    });
     {
         PairVector expectedPairs({{1, 100}, {2, 200}, {3, 300}});
         ASSERT_EQ(sort(pairs), expectedPairs);

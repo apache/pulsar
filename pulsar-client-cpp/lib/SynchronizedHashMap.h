@@ -51,24 +51,18 @@ class SynchronizedHashMap {
         data_.emplace(std::forward<Args>(args)...);
     }
 
-    size_t forEach(std::function<void(const K&, const V&)> f) const {
+    void forEach(std::function<void(const K&, const V&)> f) const {
         Lock lock(mutex_);
-        size_t n = 0;
         for (const auto& kv : data_) {
-            n++;
             f(kv.first, kv.second);
         }
-        return n;
     }
 
-    size_t forEachValue(std::function<void(const V&)> f) const {
+    void forEachValue(std::function<void(const V&)> f) const {
         Lock lock(mutex_);
-        size_t n = 0;
         for (const auto& kv : data_) {
-            n++;
             f(kv.second);
         }
-        return n;
     }
 
     void clear() {
