@@ -636,7 +636,7 @@ void MultiTopicsConsumerImpl::redeliverUnacknowledgedMessages(const std::set<Mes
         return;
     }
     LOG_DEBUG("Sending RedeliverUnacknowledgedMessages command for partitioned consumer.");
-    consumers_.forEachValue([messageIds](const ConsumerImplPtr& consumer) {
+    consumers_.forEachValue([&messageIds](const ConsumerImplPtr& consumer) {
         consumer->redeliverUnacknowledgedMessages(messageIds);
     });
 }
@@ -656,11 +656,12 @@ void MultiTopicsConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
     lock.unlock();
 
     auto self = shared_from_this();
-    std::atomic<size_t> index{0};
-    consumers_.forEachValue([&self, &latchPtr, &statsPtr, &index, callback](const ConsumerImplPtr& consumer) {
+    size_t i = 0;
+    consumers_.forEachValue([&self, &latchPtr, &statsPtr, &i, callback](const ConsumerImplPtr& consumer) {
+        size_t index = i++;
         consumer->getBrokerConsumerStatsAsync(
-            [self, latchPtr, statsPtr, &index, callback](Result result, BrokerConsumerStats stats) {
-                self->handleGetConsumerStats(result, stats, latchPtr, statsPtr, index++, callback);
+            [self, latchPtr, statsPtr, index, callback](Result result, BrokerConsumerStats stats) {
+                self->handleGetConsumerStats(result, stats, latchPtr, statsPtr, index, callback);
             });
     });
 }
