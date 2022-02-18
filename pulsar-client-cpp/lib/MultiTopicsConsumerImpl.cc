@@ -171,7 +171,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
         consumer->getConsumerCreatedFuture().addListener(std::bind(
             &MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), std::placeholders::_1,
             std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
-        consumers_.insert(std::make_pair(topicName->toString(), consumer));
+        consumers_.emplace(topicName->toString(), consumer);
         LOG_DEBUG("Creating Consumer for - " << topicName << " - " << consumerStr_);
         consumer->start();
 
@@ -184,7 +184,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
                 &MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(),
                 std::placeholders::_1, std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
             consumer->setPartitionIndex(i);
-            consumers_.insert(std::make_pair(topicPartitionName, consumer));
+            consumers_.emplace(topicPartitionName, consumer);
             LOG_DEBUG("Creating Consumer for - " << topicPartitionName << " - " << consumerStr_);
             consumer->start();
         }
@@ -232,20 +232,17 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     state_ = Closing;
     lock.unlock();
 
-    if (consumers_.empty()) {
+    std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
+    auto self = shared_from_this();
+    auto numConsumers =
+        consumers_.forEachValue([&consumerUnsubed, &self, callback](const ConsumerImplPtr& consumer) {
+            consumer->unsubscribeAsync([self, consumerUnsubed, callback](Result result) {
+                self->handleUnsubscribedAsync(result, consumerUnsubed, callback);
+            });
+        });
+    if (numConsumers == 0) {
         // No need to unsubscribe, since the list matching the regex was empty
         callback(ResultOk);
-        return;
-    }
-
-    std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
-
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-         consumer++) {
-        (consumer->second)
-            ->unsubscribeAsync(std::bind(&MultiTopicsConsumerImpl::handleUnsubscribedAsync,
-                                         shared_from_this(), std::placeholders::_1, consumerUnsubed,
-                                         callback));
     }
 }
 
@@ -299,17 +296,17 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
 
     for (int i = 0; i < numberPartitions; i++) {
         std::string topicPartitionName = topicName->getTopicPartitionName(i);
-        std::map<std::string, ConsumerImplPtr>::iterator iterator = consumers_.find(topicPartitionName);
-
-        if (consumers_.end() == iterator) {
+        auto optConsumer = consumers_.find(topicPartitionName);
+        if (optConsumer.is_empty()) {
             LOG_ERROR("TopicsConsumer not subscribed on topicPartitionName: " << topicPartitionName);
             callback(ResultUnknownError);
+            continue;
         }
 
-        (iterator->second)
-            ->unsubscribeAsync(std::bind(&MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync,
-                                         shared_from_this(), std::placeholders::_1, consumerUnsubed,
-                                         numberPartitions, topicName, topicPartitionName, callback));
+        optConsumer.value()->unsubscribeAsync(
+            std::bind(&MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync, shared_from_this(),
+                      std::placeholders::_1, consumerUnsubed, numberPartitions, topicName, topicPartitionName,
+                      callback));
     }
 }
 
@@ -326,10 +323,9 @@ void MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync(
 
     LOG_DEBUG("Successfully Unsubscribed one Consumer. topicPartitionName - " << topicPartitionName);
 
-    std::map<std::string, ConsumerImplPtr>::iterator iterator = consumers_.find(topicPartitionName);
-    if (consumers_.end() != iterator) {
-        iterator->second->pauseMessageListener();
-        consumers_.erase(iterator);
+    auto optConsumer = consumers_.remove(topicPartitionName);
+    if (optConsumer.is_present()) {
+        optConsumer.value()->pauseMessageListener();
     }
 
     if (consumerUnsubed->load() == numberPartitions) {
@@ -363,7 +359,14 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
 
     setState(Closing);
 
-    if (consumers_.empty()) {
+    auto self = shared_from_this();
+    auto numConsumers =
+        consumers_.forEach([&self, callback](const std::string& name, const ConsumerImplPtr& consumer) {
+            consumer->closeAsync([self, name, callback](Result result) {
+                self->handleSingleConsumerClose(result, name, callback);
+            });
+        });
+    if (numConsumers == 0) {
         LOG_DEBUG("TopicsConsumer have no consumers to close "
                   << " topic" << topic_ << " subscription - " << subscriptionName_);
         setState(Closed);
@@ -373,27 +376,13 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
-    // close successfully subscribed consumers
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-         consumer++) {
-        std::string topicPartitionName = consumer->first;
-        ConsumerImplPtr consumerPtr = consumer->second;
-
-        consumerPtr->closeAsync(std::bind(&MultiTopicsConsumerImpl::handleSingleConsumerClose,
-                                          shared_from_this(), std::placeholders::_1, topicPartitionName,
-                                          callback));
-    }
-
     // fail pending recieve
     failPendingReceiveCallback();
 }
 
-void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::string& topicPartitionName,
+void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::string topicPartitionName,
                                                         CloseCallback callback) {
-    std::map<std::string, ConsumerImplPtr>::iterator iterator = consumers_.find(topicPartitionName);
-    if (consumers_.end() != iterator) {
-        consumers_.erase(iterator);
-    }
+    consumers_.remove(topicPartitionName);
 
     LOG_DEBUG("Closing the consumer for partition - " << topicPartitionName << " numberTopicPartitions_ - "
                                                       << numberTopicPartitions_->load());
@@ -543,15 +532,14 @@ void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCal
     }
 
     const std::string& topicPartitionName = msgId.getTopicName();
-    std::map<std::string, ConsumerImplPtr>::iterator iterator = consumers_.find(topicPartitionName);
+    auto optConsumer = consumers_.find(topicPartitionName);
 
-    if (consumers_.end() != iterator) {
+    if (optConsumer.is_present()) {
         unAckedMessageTrackerPtr_->remove(msgId);
-        iterator->second->acknowledgeAsync(msgId, callback);
+        optConsumer.value()->acknowledgeAsync(msgId, callback);
     } else {
         LOG_ERROR("Message of topic: " << topicPartitionName << " not in unAckedMessageTracker");
         callback(ResultUnknownError);
-        return;
     }
 }
 
@@ -560,11 +548,11 @@ void MultiTopicsConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId,
 }
 
 void MultiTopicsConsumerImpl::negativeAcknowledge(const MessageId& msgId) {
-    auto iterator = consumers_.find(msgId.getTopicName());
+    auto optConsumer = consumers_.find(msgId.getTopicName());
 
-    if (consumers_.end() != iterator) {
+    if (optConsumer.is_present()) {
         unAckedMessageTrackerPtr_->remove(msgId);
-        iterator->second->negativeAcknowledge(msgId);
+        optConsumer.value()->negativeAcknowledge(msgId);
     }
 }
 
@@ -605,22 +593,18 @@ bool MultiTopicsConsumerImpl::isOpen() {
 }
 
 void MultiTopicsConsumerImpl::receiveMessages() {
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-         consumer++) {
-        ConsumerImplPtr consumerPtr = consumer->second;
-        consumerPtr->sendFlowPermitsToBroker(consumerPtr->getCnx().lock(), conf_.getReceiverQueueSize());
-        LOG_DEBUG("Sending FLOW command for consumer - " << consumerPtr->getConsumerId());
-    }
+    const auto receiverQueueSize = conf_.getReceiverQueueSize();
+    consumers_.forEachValue([receiverQueueSize](const ConsumerImplPtr& consumer) {
+        consumer->sendFlowPermitsToBroker(consumer->getCnx().lock(), receiverQueueSize);
+        LOG_DEBUG("Sending FLOW command for consumer - " << consumer->getConsumerId());
+    });
 }
 
 Result MultiTopicsConsumerImpl::pauseMessageListener() {
     if (!messageListener_) {
         return ResultInvalidConfiguration;
     }
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-         consumer++) {
-        (consumer->second)->pauseMessageListener();
-    }
+    consumers_.forEachValue([](const ConsumerImplPtr& consumer) { consumer->pauseMessageListener(); });
     return ResultOk;
 }
 
@@ -628,19 +612,14 @@ Result MultiTopicsConsumerImpl::resumeMessageListener() {
     if (!messageListener_) {
         return ResultInvalidConfiguration;
     }
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-         consumer++) {
-        (consumer->second)->resumeMessageListener();
-    }
+    consumers_.forEachValue([](const ConsumerImplPtr& consumer) { consumer->resumeMessageListener(); });
     return ResultOk;
 }
 
 void MultiTopicsConsumerImpl::redeliverUnacknowledgedMessages() {
     LOG_DEBUG("Sending RedeliverUnacknowledgedMessages command for partitioned consumer.");
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-         consumer++) {
-        (consumer->second)->redeliverUnacknowledgedMessages();
-    }
+    consumers_.forEachValue(
+        [](const ConsumerImplPtr& consumer) { consumer->redeliverUnacknowledgedMessages(); });
     unAckedMessageTrackerPtr_->clear();
 }
 
@@ -653,10 +632,9 @@ void MultiTopicsConsumerImpl::redeliverUnacknowledgedMessages(const std::set<Mes
         return;
     }
     LOG_DEBUG("Sending RedeliverUnacknowledgedMessages command for partitioned consumer.");
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-         consumer++) {
-        (consumer->second)->redeliverUnacknowledgedMessages(messageIds);
-    }
+    consumers_.forEachValue([messageIds](const ConsumerImplPtr& consumer) {
+        consumer->redeliverUnacknowledgedMessages(messageIds);
+    });
 }
 
 int MultiTopicsConsumerImpl::getNumOfPrefetchedMessages() const { return messages_.size(); }
@@ -671,15 +649,16 @@ void MultiTopicsConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
     MultiTopicsBrokerConsumerStatsPtr statsPtr =
         std::make_shared<MultiTopicsBrokerConsumerStatsImpl>(numberTopicPartitions_->load());
     LatchPtr latchPtr = std::make_shared<Latch>(numberTopicPartitions_->load());
-    int size = consumers_.size();
     lock.unlock();
 
-    ConsumerMap::const_iterator consumer = consumers_.begin();
-    for (int i = 0; i < size; i++, consumer++) {
-        consumer->second->getBrokerConsumerStatsAsync(
-            std::bind(&MultiTopicsConsumerImpl::handleGetConsumerStats, shared_from_this(),
-                      std::placeholders::_1, std::placeholders::_2, latchPtr, statsPtr, i, callback));
-    }
+    auto self = shared_from_this();
+    std::atomic<size_t> index{0};
+    consumers_.forEachValue([&self, &latchPtr, &statsPtr, &index, callback](const ConsumerImplPtr& consumer) {
+        consumer->getBrokerConsumerStatsAsync(
+            [self, latchPtr, statsPtr, &index, callback](Result result, BrokerConsumerStats stats) {
+                self->handleGetConsumerStats(result, stats, latchPtr, statsPtr, index++, callback);
+            });
+    });
 }
 
 void MultiTopicsConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerStats brokerConsumerStats,
@@ -725,10 +704,9 @@ void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callb
 }
 
 void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
-    Lock lock(mutex_);
-    for (auto&& c : consumers_) {
-        c.second->setNegativeAcknowledgeEnabledForTesting(enabled);
-    }
+    consumers_.forEach([enabled](const std::string& name, const ConsumerImplPtr& consumer) {
+        consumer->setNegativeAcknowledgeEnabledForTesting(enabled);
+    });
 }
 
 bool MultiTopicsConsumerImpl::isConnected() const {
@@ -737,23 +715,22 @@ bool MultiTopicsConsumerImpl::isConnected() const {
         return false;
     }
 
-    for (const auto& topicAndConsumer : consumers_) {
-        if (!topicAndConsumer.second->isConnected()) {
-            return false;
+    std::atomic_bool result{true};
+    consumers_.forEach([&result](const std::string& name, const ConsumerImplPtr& consumer) {
+        if (consumer->isConnected()) {
+            result = false;
         }
-    }
+    });
     return true;
 }
 
 uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
-    Lock lock(mutex_);
-    uint64_t numberOfConnectedConsumer = 0;
-    const auto consumers = consumers_;
-    lock.unlock();
-    for (const auto& topicAndConsumer : consumers) {
-        if (topicAndConsumer.second->isConnected()) {
-            numberOfConnectedConsumer++;
-        }
-    }
+    std::atomic<uint64_t> numberOfConnectedConsumer{0};
+    consumers_.forEach(
+        [&numberOfConnectedConsumer](const std::string& name, const ConsumerImplPtr& consumer) {
+            if (consumer->isConnected()) {
+                numberOfConnectedConsumer++;
+            }
+        });
     return numberOfConnectedConsumer;
 }
