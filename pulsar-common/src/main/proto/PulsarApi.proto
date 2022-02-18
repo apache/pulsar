@@ -607,13 +607,13 @@ message CommandReachedEndOfTopic {
 message CommandCloseProducer {
     required uint64 producer_id = 1;
     required uint64 request_id = 2;
-    optional bool allow_reconnect = 3 [default = true];
+    optional bool reconnect = 3 [default = true];
 }
 
 message CommandCloseConsumer {
     required uint64 consumer_id = 1;
     required uint64 request_id = 2;
-    optional bool allow_reconnect = 3 [default = true];
+    optional bool reconnect = 3 [default = true];
 }
 
 message CommandRedeliverUnacknowledgedMessages {

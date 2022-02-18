@@ -731,7 +731,7 @@ public class ClientCnx extends PulsarHandler {
         final long producerId = closeProducer.getProducerId();
         ProducerImpl<?> producer = producers.get(producerId);
         if (producer != null) {
-            if (closeProducer.isAllowReconnect()) {
+            if (closeProducer.isReconnect()) {
                 producer.connectionClosed(this);
             } else {
                 producer.closeAsync();
@@ -747,7 +747,7 @@ public class ClientCnx extends PulsarHandler {
         final long consumerId = closeConsumer.getConsumerId();
         ConsumerImpl<?> consumer = consumers.get(consumerId);
         if (consumer != null) {
-            if (closeConsumer.isAllowReconnect()) {
+            if (closeConsumer.isReconnect()) {
                 consumer.connectionClosed(this);
             } else {
                 consumer.closeAsync();
