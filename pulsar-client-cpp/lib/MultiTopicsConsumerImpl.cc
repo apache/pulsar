@@ -383,6 +383,7 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
                                           shared_from_this(), std::placeholders::_1, topicPartitionName,
                                           callback));
     }
+    consumers_.clear();
 
     // fail pending recieve
     failPendingReceiveCallback();
@@ -390,11 +391,6 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
 
 void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::string& topicPartitionName,
                                                         CloseCallback callback) {
-    std::map<std::string, ConsumerImplPtr>::iterator iterator = consumers_.find(topicPartitionName);
-    if (consumers_.end() != iterator) {
-        consumers_.erase(iterator);
-    }
-
     LOG_DEBUG("Closing the consumer for partition - " << topicPartitionName << " numberTopicPartitions_ - "
                                                       << numberTopicPartitions_->load());
 
