@@ -122,14 +122,19 @@ The following example uses the extended interface of Pulsar Function SDK for Jav
 ```Java
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import io.lettuce.core.RedisClient;
 
 public class InitializableFunction implements Function<String, String> {
-    private RedisClient client;
+    private RedisClient redisClient;
+    
+    private void initRedisClient(Map<String, Object> connectInfo) {
+        redisClient = RedisClient.create(connectInfo.get("redisURI"));
+    }
 
     @Override
     public void initialize(Context context) {
         Map<String, Object> connectInfo = context.getUserConfigMap();
-        client=init(connectInfo);
+        redisClient = initRedisClient(connectInfo);
     }
     
     @Override
@@ -140,7 +145,7 @@ public class InitializableFunction implements Function<String, String> {
 
     @Override
     public void close() {
-        client.close();
+        redisClient.close();
     }
 }
 ```
