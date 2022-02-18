@@ -351,16 +351,28 @@ public class BrokersBase extends AdminResource {
                         PulsarClient client = pulsar().getClient();
                         return client.newProducer(Schema.STRING).topic(topicName).createAsync()
                                         .thenCombine(client.newReader(Schema.STRING).topic(topicName)
-                                        .startMessageId(MessageId.latest).createAsync(), (producer, reader) ->
-                                                        producer.sendAsync(messageStr).thenCompose(__ ->
-                                                                healthCheckRecursiveReadNext(reader, messageStr))
-                                                        .thenCompose(__ -> {
-                                                            List<CompletableFuture<Void>> closeFutures =
-                                                                    new ArrayList<>();
-                                                            closeFutures.add(producer.closeAsync());
-                                                            closeFutures.add(reader.closeAsync());
-                                                            return FutureUtil.waitForAll(closeFutures);
-                                                        })
+                                        .startMessageId(MessageId.latest).createAsync(), (producer, reader) -> {
+                                            CompletableFuture<Object> future = new CompletableFuture<>();
+                                            producer.sendAsync(messageStr)
+                                                    .thenCompose(__ -> healthCheckRecursiveReadNext(reader, messageStr))
+                                                            .whenComplete((__, ex) -> {
+                                                                // we need to close reader and producer,
+                                                                // no matter success or fail
+                                                                List<CompletableFuture<Void>> closeFutures =
+                                                                        new ArrayList<>();
+                                                                closeFutures.add(reader.closeAsync());
+                                                                closeFutures.add(producer.closeAsync());
+                                                                FutureUtil.waitForAll(closeFutures)
+                                                                        .thenAccept(unused -> {
+                                                                    if (ex != null) {
+                                                                        future.completeExceptionally(ex);
+                                                                    } else {
+                                                                        future.complete(null);
+                                                                    }
+                                                                });
+                                                            });
+                                                return future;
+                                            }
                                         ).thenAccept(ignore -> {});
                     } catch (PulsarServerException e) {
                         LOG.error("[{}] Fail to run health check while get client.", clientAppId());
