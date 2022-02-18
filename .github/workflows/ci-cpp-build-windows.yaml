@@ -46,18 +46,18 @@ jobs:
       matrix:
         include:
           - name: 'Windows x64'
-            os: windows-latest
+            os: windows-2022
             triplet: x64-windows
             vcpkg_dir: 'C:\vcpkg'
             suffix: 'windows-win64'
-            generator: 'Visual Studio 16 2019'
+            generator: 'Visual Studio 17 2022'
             arch: '-A x64'
           - name: 'Windows x86'
-            os: windows-latest
+            os: windows-2022
             triplet: x86-windows
             vcpkg_dir: 'C:\vcpkg'
             suffix: 'windows-win32'
-            generator: 'Visual Studio 16 2019'
+            generator: 'Visual Studio 17 2022'
             arch: '-A Win32'
 
     steps:
@@ -65,7 +65,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Detect changed files
-        id:   changes
+        id: changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
