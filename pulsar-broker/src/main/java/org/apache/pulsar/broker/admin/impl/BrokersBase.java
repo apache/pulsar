@@ -350,12 +350,6 @@ public class BrokersBase extends AdminResource {
                                 clientAppId(), topicName);
                         throw new RestException(Status.NOT_FOUND, "Topic [{}] not found after create.");
                     }
-                    Topic topic = topicOptional.get();
-                    // clean all subscriptions
-                    return FutureUtil.waitForAll(topic.getSubscriptions().values()
-                            .stream().map(Subscription::deleteForcefully).collect(Collectors.toList()))
-                            .thenApply(__ -> topic);
-                }).thenCompose(topic -> {
                     try {
                         PulsarClient client = pulsar().getClient();
                         return client.newProducer(Schema.STRING).topic(topicName).createAsync()

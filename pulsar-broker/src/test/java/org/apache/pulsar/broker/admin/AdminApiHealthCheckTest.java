@@ -21,12 +21,18 @@ package org.apache.pulsar.broker.admin;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.compaction.Compactor;
+import org.awaitility.Awaitility;
+import org.junit.Assert;
+import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import java.util.stream.Collectors;
 
 @Test(groups = "broker-admin")
 @Slf4j
@@ -55,16 +61,91 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testHealthCheckup() throws Exception {
-        admin.brokers().healthcheck();
+        final int times = 30;
+        new Thread(() -> {
+            for (int i = 0; i < times; i++) {
+                try {
+                    admin.brokers().healthcheck();
+                    Thread.sleep(20);
+                } catch (PulsarAdminException | InterruptedException e) {
+                    Assert.fail();
+                }
+            }
+        }).start();
+        for (int i = 0; i < times; i++) {
+            admin.brokers().healthcheck();
+            Thread.sleep(20);
+        }
+        // To ensure we don't have any subscription
+        final String testHealthCheckTopic = String.format("persistent://pulsar/test/localhost:%s/healthcheck",
+                pulsar.getConfig().getWebServicePort().get());
+        Awaitility.await().untilAsserted(()->
+                Assert.assertTrue(CollectionUtils.isEmpty(admin.topics()
+                        .getSubscriptions(testHealthCheckTopic).stream()
+                        // All system topics are using compaction, even though is not explicitly set in the policies.
+                        .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
+                        .collect(Collectors.toList())
+                ))
+        );
     }
 
     @Test
     public void testHealthCheckupV1() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V1);
+        final int times = 30;
+        new Thread(() -> {
+            for (int i = 0; i < times; i++) {
+                try {
+                    admin.brokers().healthcheck(TopicVersion.V1);
+                    Thread.sleep(20);
+                } catch (PulsarAdminException | InterruptedException e) {
+                    Assert.fail();
+                }
+            }
+        }).start();
+        for (int i = 0; i < times; i++) {
+            admin.brokers().healthcheck(TopicVersion.V1);
+            Thread.sleep(20);
+        }
+        final String testHealthCheckTopic = String.format("persistent://pulsar/test/localhost:%s/healthcheck",
+                pulsar.getConfig().getWebServicePort().get());
+        // To ensure we don't have any subscription
+        Awaitility.await().untilAsserted(()->
+                Assert.assertTrue(CollectionUtils.isEmpty(admin.topics()
+                        .getSubscriptions(testHealthCheckTopic).stream()
+                        // All system topics are using compaction, even though is not explicitly set in the policies.
+                        .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
+                        .collect(Collectors.toList())
+                ))
+        );
     }
 
     @Test
     public void testHealthCheckupV2() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
+        final int times = 30;
+        new Thread(() -> {
+            for (int i = 0; i < times; i++) {
+                try {
+                    admin.brokers().healthcheck(TopicVersion.V2);
+                    Thread.sleep(20);
+                } catch (PulsarAdminException | InterruptedException e) {
+                    Assert.fail();
+                }
+            }
+        }).start();
+        for (int i = 0; i < times; i++) {
+            admin.brokers().healthcheck(TopicVersion.V2);
+            Thread.sleep(20);
+        }
+        final String testHealthCheckTopic = String.format("persistent://pulsar/localhost:%s/healthcheck",
+                pulsar.getConfig().getWebServicePort().get());
+        // To ensure we don't have any subscription
+        Awaitility.await().untilAsserted(()->
+                Assert.assertTrue(CollectionUtils.isEmpty(admin.topics()
+                        .getSubscriptions(testHealthCheckTopic).stream()
+                        // All system topics are using compaction, even though is not explicitly set in the policies.
+                        .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
+                        .collect(Collectors.toList())
+                ))
+        );
     }
 }
