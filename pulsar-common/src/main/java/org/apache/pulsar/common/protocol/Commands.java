@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -1508,7 +1509,7 @@ public class Commands {
 
         // Write metadata
         headers.writeInt(msgMetadataSize);
-        msgMetadata.writeTo(headers);
+        checkArgument(msgMetadata.writeTo(headers) == msgMetadataSize);
 
         ByteBufPair command = ByteBufPair.get(headers, payload);
 
@@ -1617,7 +1618,7 @@ public class Commands {
 
         // Write metadata
         metadataAndPayload.writeInt(msgMetadataSize);
-        msgMetadata.writeTo(metadataAndPayload);
+        checkArgument(msgMetadata.writeTo(metadataAndPayload) == msgMetadataSize);
 
         // write checksum at created checksum-placeholder
         if (includeChecksum) {
