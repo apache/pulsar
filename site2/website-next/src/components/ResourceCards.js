@@ -5,7 +5,7 @@ export default function ResourceCards(props) {
   const resList = props.resources;
   // we only want to return cards who's title includes the search string.
   const filteredRes = resList.filter((r)=>{
-    return r.title.toLowerCase().includes(searchString.toLowerCase()) || r.tags.toLowerCase().includes(searchString.toLowerCase()) || r.forum.toLowerCase().includes(searchString.toLowerCase()) || (r.presenter && r.presenter.toLowerCase().includes(searchString.toLowerCase()));
+    return r.title.toLowerCase().includes(searchString.toLowerCase()) || (r.tags && r.tags.toLowerCase().includes(searchString.toLowerCase())) || (r.forum && r.forum.toLowerCase().includes(searchString.toLowerCase())) || (r.presenter && r.presenter.toLowerCase().includes(searchString.toLowerCase()));
   });
   const type = props.type;
   function ResCard({ forum, forum_link, presenter, date, title, link, tags }) {

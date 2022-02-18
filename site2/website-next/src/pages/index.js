@@ -10,10 +10,7 @@ import SubHeroBlock from "../components/SubHeroBlock";
 import PromoCallout from "../components/promoCallout";
 import PillButton from "../components/PillButton";
 import GitHubIcon from '@mui/icons-material/GitHub';
-import Svg from "../components/Svg";
 import { docUrl, githubUrl } from "../utils/index";
-import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
 var startWaves = function(){
   var waves = new SineWaves({
     el: document.getElementById('waves'),
@@ -91,15 +88,40 @@ export default function Home() {
       content: "Pulsar is unique in that it supports both streaming and queueing use cases, while also supporting a wide feature set that makes it a viable alternative to many other distributed messaging technologies currently being used in our architecture. Pulsar covers all of our use cases for Kafka, RabbitMQ, and SQS. This lets us focus on building expertise and tooling around a single unified system",
     },
     {
-      name: 'Paul Au',
-      company: 'Travers + Todd',
-      content: "Pulsar covers all of our use cases for Kafka, RabbitMQ, and SQS. This lets us focus on building expertise and tooling around a single unified system. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt",
+      name: 'Weisheng Xie',
+      company: 'Orange Financial',
+      content: "Pulsar is a perfect choice for building our unified data processing stack. Together with a unified computing engine like Spark, Apache Pulsar is able to boost the efficiency of our risk-control decision deployment. Thus, we are able to provide merchants and consumers with safe, convenient, and efficient services.",
     },
     {
-      name: 'Mike Lee',
-      company: 'Travers + Todd',
-      content: "Enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Pulsar covers all of our use cases for Kafka, RabbitMQ, and SQS. This lets us focus on building expertise and tooling around a single unified system",
-    }
+      name: 'Kirill Merkushev',
+      company: 'Vivy',
+      content: "Among the features we considered were tiered storage, as we planned to have unlimited retention (for event sourcing that matters a lot), flexible subscription model (we use exclusive at the moment, however we want to try per-key subscription), authorization via different methods including certificates and JWT (JSON Web Token), and an easy way to get it up and running.",
+    },
+    {
+      name: 'Kirill Merkushev',
+      company: 'Jowanza Joseph, One Click Retail',
+      content: "Because of Pulsar’s unique combination of messaging and stream processing, we’ve been able to replace multiple systems with one solution that works seamlessly in our Kubernetes environment.",
+    },
+    {
+      name: 'Dongliang Jiang',
+      company: 'Appen China',
+      content: "Apache Pulsar plays a key role in our AI data platform as the data lake to connect all the business features and make each component decoupled.",
+    },
+    {
+      name: 'Hang Chen',
+      company: 'BIGO',
+      content: "The Apache Pulsar's layered architecture and new features, such as low latency with durability, horizontally scalable, multi-tenancy etc, help us solve a lot of problems in production. We have adopted Apache Pulsar to build our Message Processing System, especially in Real-Time ETL, short-form video recommendation and Real-Time Data report. ",
+    },
+    {
+      name: 'Rocky Jin',
+      company: 'EMQ',
+      content: "Apache Pulsar provides native support for serverless functions where data is processed as soon as it arrives in a streaming fashion and gives flexible deployment options (thread, process, container). We need only focus on computation logic rather than dealing with complicated configuration or management, which helps us build a streaming platform faster and conveniently.",
+    },
+    {
+      name: 'Bin Liu',
+      company: 'Ksyun',
+      content: "With Pulsar, we can scale up partitions and merge partitions easily, and process millions of topics"
+    },
   ];
   useEffect((d) => {
     startWaves();
@@ -188,7 +210,7 @@ export default function Home() {
                 <PillButton
                   variant=""
                   target=""
-                  href="/quickstart"> 
+                  href={docUrl("")}> 
                     Quickstart Guide
                 </PillButton>
               </p>

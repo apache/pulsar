@@ -23,7 +23,7 @@ export default function Resources() {
             <div className="row">
               <div className="col col--8">
                 <h1>Resources</h1>
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                <p>Find Apache Pulsar tutorials, how-tos and other technical content by searching with keywords.</p>
 
               </div>
             </div>
@@ -36,7 +36,7 @@ export default function Resources() {
               <TabUnstyled className="mx-2">Articles</TabUnstyled>
               <TabUnstyled className="mx-2">Presentations</TabUnstyled>
             </TabsListUnstyled>
-            <form className="relative z10 text--center">
+            <form className="search-form relative z10 text--center">
               <label className="block mb-4">Search by keyword, presenter, forum, or tag: </label>
               <input type="text" className="ml-2 px-2" name="search" value={searchString} onChange={e => setSearch(e.target.value)} />
               <div className="inline-block px-4 cursor-pointer ml-4 underline underline-offset-1 text-sm font-light" onClick={e => setSearch('')} >Clear Search</div>

@@ -12,7 +12,7 @@ export default function CommunityList(props) {
   }
   return (
     <section className="resource-cards pb-12 mx-auto">
-      <div className="grid grid-cols-2grid-cols-3 gap-x-2 gap-b-3">
+      <div className=" md:grid md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-b-3">
         {teamList.map((props, idx) => (
           <TeamMember key={idx} {...props} />
         ))}

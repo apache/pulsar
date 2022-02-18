@@ -1,6 +1,10 @@
 {
   "version-2.9.1/docsSidebar": [
     {
+      "type": "doc",
+      "id": "version-2.9.1/about"
+    },
+    {
       "type": "category",
       "label": "Get Started",
       "items": [

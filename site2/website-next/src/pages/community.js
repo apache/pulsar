@@ -30,7 +30,11 @@ export default function Community() {
         });
       }
     }
-    
+    const headers = { 'Content-Type': 'text/html'}
+    fetch("https://nightlies.apache.org/cassandra/devbranch/misc/contribulyze/html/last_1_month/", { headers })
+      .then((res) => 
+        console.log(res)
+      );  
   });
 
   return (
@@ -77,7 +81,7 @@ export default function Community() {
             </div>
           </section>
           <WavySeparatorFive></WavySeparatorFive>
-          <section id="discusssions" className="">
+          <section id="discussions" className="">
             <div className="inner pt-12">
               
               <h2 className="text--center">Discussions</h2>

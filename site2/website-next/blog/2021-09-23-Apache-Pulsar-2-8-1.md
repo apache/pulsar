@@ -7,6 +7,8 @@ title: Apache Pulsar 2.8.1
 
 The Apache Pulsar community releases version 2.8.1! 49 contributors provided improvements and bug fixes that delivered 213 commits.
 
+<!--truncate-->
+
 Highlights of this release are as below:
 
 - Key-shared subscriptions no longer stop dispatching to consumers when repeatedly opening and closing consumers. [PR-10920](https://github.com/apache/pulsar/pull/10920)

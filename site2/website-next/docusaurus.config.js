@@ -101,10 +101,10 @@ module.exports = {
   customFields: {
     githubUrl,
   },
-  // i18n: {
-  //   defaultLocale: "en",
-  //   locales: ["en", "zh"],
-  // },
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "zh"],
+  },
   themeConfig: {
     navbar: {
       title: "",
@@ -119,12 +119,14 @@ module.exports = {
           position: 'right',
           items: [
             {
-              label: 'Pulsar Basics',
-              to: 'pulsar-basics',
+              type: "doc",
+              docId: "concepts-overview",
+              label: 'Pulsar Concepts'
             },
             {
+              type: "doc",
               label: 'Quickstart',
-              to: 'quickstart'
+              docId: "about",
             },
             {
               label: 'Ecosystem',
@@ -144,14 +146,34 @@ module.exports = {
           label: 'Community',
           position: 'right',
           items: [
-            { to: "community#welcome", label: "Welcome" },
-            { to: "community#discussions", label: "Dicussions"},
-            { to: "community#governance", label: "Governance"},
-            { to: "community#community", label: "Meet the Community"},
-            { to: "community#contribute", label: "Contribute"},
-            { to: "community#coding-guide", label: "Coding Guide"},
-            { to: "community#wiki", label: "Wiki"},
-            { to: "community#issue-tracking", label: "Issue Tracking"},
+            { 
+              to: "community#welcome", 
+              label: "Welcome" 
+            },
+            { 
+              to: "community#discussions", 
+              label: "Discussions"
+            },
+            { 
+              to: "community#governance", 
+              label: "Governance"
+            },
+            { 
+              to: "community#community", 
+              label: "Meet the Community"
+            },
+            { 
+              to: "community#how-to-contribute", 
+              label: "Contribute"
+            },
+            { 
+              to: "https://github.com/apache/pulsar/wiki", 
+              label: "Wiki"
+            },
+            { 
+              to: "https://github.com/apache/pulsar/issues", 
+              label: "Issue Tracking"
+            },
 
           ]
         },
@@ -160,10 +182,22 @@ module.exports = {
           label: 'Learn',
           position: 'right',
           items: [
-            { to: "blog", label: "Blog" },
-            { to: "case-studies", label: "Case Studies"},
-            { to: "resources", label: "Resources"},
-            { to: "events", label: "Events"},
+            { 
+              to: "blog", 
+              label: "Blog" 
+            },
+            { 
+              to: "case-studies", 
+              label: "Case Studies"
+            },
+            { 
+              to: "resources", 
+              label: "Resources"
+            },
+            { 
+              to: "events", 
+              label: "Events"
+            },
 
           ]
         },
@@ -177,8 +211,24 @@ module.exports = {
           position: "right",
           items: [
             {
-              label: "2.8.0",
+              label: "2.9.1",
               to: "docs/",
+            },
+            {
+              label: "2.9.0",
+              to: "docs/2.9.0/",
+            },
+            {
+              label: "2.8.2",
+              to: "docs/2.8.2/",
+            },
+            {
+              label: "2.8.1",
+              to: "docs/2.8.1/",
+            },
+            {
+              label: "2.8.0",
+              to: "docs/2.8.0/",
             },
             {
               label: "2.7.3",
@@ -230,7 +280,6 @@ module.exports = {
         src: 'img/pulsar-white.svg',
         href: '/',
       },
-      style: "dark",
       links: [
         {
           title: 'Apache Foundation.', //Column title
@@ -271,7 +320,8 @@ module.exports = {
 	          items: [
 	            { //Embedded HTML
 	              html: `
-	              <p>Apache Pulsar is available under the <a href="/">Apache License, version 2.0.</a></p>
+	              <div><small><strong>Apache Pulsar is available under the <a href="/">Apache License, version 2.0.</a></strong></small></div>
+                <div>Apache Pulsar is a distributed, open source pub-sub messaging and streaming platform for real-time workloads, managing hundreds of billions of events per day.</div>
 	              `,
 	            },
 	          ],

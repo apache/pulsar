@@ -5,6 +5,8 @@ title: What’s New in Apache Pulsar 2.7.4
 
 The Apache Pulsar community releases version 2.7.4! 32 contributors provided improvements and bug fixes that delivered 98 commits.
 
+<!--truncate-->
+
 Highlights of this release are as below:
 
 - Upgrade Log4j to 2.17.0 - [CVE-2021-45105](https://pulsar.apache.org/blog/2021/12/11/Log4j-CVE/). [PR-13392](https://github.com/apache/pulsar/pull/13392)

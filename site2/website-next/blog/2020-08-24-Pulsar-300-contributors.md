@@ -9,6 +9,8 @@ Dear Pulsar community,
 
 Over the last few years, the shift to real-time streaming technologies has bolstered the adoption of Pulsar and there has been a major increase in both the interest and adoption of Pulsar in 2020 alone. With Pulsar being sought out by companies developing messaging and event-streaming applications — from Fortune 100 companies to forward-thinking start-ups — the community is growing quickly. 
 
+<!--truncate-->
+
 This community growth has contributed to a new milestone for Pulsar - our [300th contributor](https://github.com/apache/pulsar/graphs/contributors) to the Pulsar repository. This milestone is even more exciting given that we added 100 contributors in the last 8 months alone!
 
 As many of you know, Apache Pulsar is a cloud-native messaging and event streaming platform that has experienced rapid growth since it was committed to open source in 2016. Pulsar graduated as a Top-Level Project (TLP) in September 2018, has launched 92 releases, attracted 5100+ commits from 300 contributors, received 6.5k+ stars, 1.6k+ forks, and 2.2k+ Slack users. 
