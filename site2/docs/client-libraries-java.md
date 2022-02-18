@@ -148,6 +148,295 @@ You can set the client memory allocator configurations through Java properties.<
 -Dpulsar.allocator.out_of_memory_policy=ThrowException
 ```
 
+### Cluster-level failover
+
+This chapter describes the concept, benefits, use cases, constraints, usage, working principles, and more information about the cluster-level failover. It contains the following sections:
+
+- [What is cluster-level failover?](#what-is-cluster-level-failover)
+
+  * [Concept of cluster-level failover](#concept-of-cluster-level-failover)
+   
+  * [Why use cluster-level failover?](#why-use-cluster-level-failover)
+
+  * [When to use cluster-level failover?](#when-to-use-cluster-level-failover)
+
+  * [When cluster-level failover is triggered?](#when-cluster-level-failover-is-triggered)
+
+  * [Why does cluster-level failover fail?](#why-does-cluster-level-failover-fail)
+
+  * [What are the limitations of cluster-level failover?](#what-are-the-limitations-of-cluster-level-failover)
+
+  * [What are the relationships between cluster-level failover and geo-replication?](#what-are-the-relationships-between-cluster-level-failover-and-geo-replication)
+  
+- [How to use cluster-level failover?](#how-to-use-cluster-level-failover)
+
+- [How does cluster-level failover work?](#how-does-cluster-level-failover-work)
+  
+> #### What is cluster-level failover
+
+This chapter helps you better understand the concept of cluster-level failover.
+> ##### Concept of cluster-level failover
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+Automatic cluster-level failover supports Pulsar clients switching from a primary cluster to one or several backup clusters automatically and seamlessly when it detects a failover event based on the configured detecting policy set by **users**. 
+
+![Automatic cluster-level failover](assets/cluster-level-failover-1.png)
+
+<!--Controlled cluster-level failover-->
+
+Controlled cluster-level failover supports Pulsar clients switching from a primary cluster to one or several backup clusters. The switchover is manually set by **administrators**.
+
+![Controlled cluster-level failover](assets/cluster-level-failover-2.png)
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+Once the primary cluster functions again, Pulsar clients can switch back to the primary cluster. Most of the time users won’t even notice a thing. Users can keep using applications and services without interruptions or timeouts.
+
+> ##### Why use cluster-level failover?
+
+The cluster-level failover provides fault tolerance, continuous availability, and high availability together. It brings a number of benefits, including but not limited to:
+
+* Reduced cost: services can be switched and recovered automatically with no data loss.
+
+* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+
+* Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
+
+> ##### When to use cluster-level failover?
+
+The cluster-level failover protects your environment in a number of ways, including but not limited to:
+
+* Disaster recovery: cluster-level failover can automatically and seamlessly transfer the production workload on a primary cluster to one or several backup clusters, which ensures minimum data loss and reduced recovery time.
+
+* Planned migration: if you want to migrate production workloads from an old cluster to a new cluster, you can improve the migration efficiency with cluster-level failover. For example, you can test whether the data migration goes smoothly in case of a failover event, identify possible issues and risks before the migration.
+
+> ##### When cluster-level failover is triggered?
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+Automatic cluster-level failover is triggered when Pulsar clients cannot connect to the primary cluster for a prolonged period of time. This can be caused by any number of reasons including, but not limited to: 
+
+* Network failure: internet connection is lost.
+
+* Power failure: shutdown time of a primary cluster exceeds time limits.
+
+* Service error: errors occur on a primary cluster (for example, the primary cluster does not function because of time limits).
+
+* Crashed storage space: the primary cluster does not have enough storage space, but the corresponding storage space on the backup server functions normally. 
+
+<!--Controlled cluster-level failover-->
+
+Controlled cluster-level failover is triggered when administrators set the switchover manually. 
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+> ##### Why does cluster-level failover fail?
+
+Obviously, the cluster-level failover does not succeed if the backup cluster is unreachable by active Pulsar clients. This can happen for many reasons, including but not limited to:
+
+* Power failure: the backup cluster is shut down or does not function normally. 
+
+* Crashed storage space: primary and backup clusters do not have enough storage space. 
+
+* If the failover is initiated, but no cluster can assume the role of an available cluster due to errors, and the primary cluster is not able to provide service normally.
+
+* If you manually initiate a switchover, but services cannot be switched to the backup cluster server, then the system will attempt to switch services back to the primary cluster.
+
+* Fail to authenticate or authorize between 1) primary and backup clusters, or 2) between two backup clusters.
+
+> ##### What are the limitations of cluster-level failover?
+
+Currently, cluster-level failover can perform probes to prevent data loss, but it can not check the status of backup clusters. If backup clusters are not healthy, you cannot produce or consume data.
+
+> #### What are the relationships between cluster-level failover and geo-replication?
+
+The cluster-level failover is an extension of [geo-replication](concepts-replication.md) to improve stability and robustness. The cluster-level failover depends on geo-replication, and they have some **differences** as below.
+
+Influence |Cluster-level failover|Geo-replication
+|---|---|---
+Do administrators have heavy workloads?|No or maybe.<br /><br />- For the **automatic** cluster-level failover, the cluster switchover is triggered automatically based on the policies set by **users**.<br /><br />- For the **controlled** cluster-level failover, the switchover is triggered manually by **administrators**.|Yes.<br /><br />If a cluster fails, immediate administration intervention is required.|
+Result in data loss?|No.<br /><br />For both **automatic** and **controlled** cluster-level failover, if the failed primary cluster doesn't replicate messages immediately to the backup cluster, the Pulsar client can't consume the non-replicated messages. After the primary cluster is restored and the Pulsar client switches back, the non-replicated data can still be consumed by the Pulsar client. Consequently, the data is not lost.<br /><br />- For the **automatic** cluster-level failover, services can be switched and recovered automatically with no data loss.<br /><br />- For the **controlled** cluster-level failover, services can be switched and recovered manually and data loss may happen.|Yes.<br /><br />Pulsar clients and DNS systems have caches. When administrators switch the DNS from a primary cluster to a backup cluster, it takes some time for cache trigger timeout, which delays client recovery time and fails to produce or consume messages.
+Result in Pulsar client failure? |No or maybe.<br /><br />- For **automatic** cluster-level failover, services can be switched and recovered automatically and the Pulsar client does not fail. <br /><br />- For **controlled** cluster-level failover, services can be switched and recovered manually, but the Pulsar client fails before administrators can take action. |Same as above.
+
+> #### How to use cluster-level failover
+
+This section guides you through every step on how to configure cluster-level failover.
+
+**Tip**
+
+- You should configure cluster-level failover only when the cluster contains sufficient resources to handle all possible consequences. Workload intensity on the backup cluster may increase significantly.
+
+- Connect clusters to an uninterruptible power supply (UPS) unit to reduce the risk of unexpected power loss.
+
+**Requirements**
+
+* Pulsar client 2.10 or later versions.
+
+* For backup clusters:
+
+    * The number of BooKeeper nodes should be equal to or greater than the ensemble quorum.
+
+    * The number of ZooKeeper nodes should be equal to or greater than 3.
+
+* **Turn on geo-replication** between the primary cluster and any dependent cluster (primary to backup or backup to backup) to prevent data loss.
+
+* Set `replicateSubscriptionState` to `true` when creating consumers.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+This is an example of how to construct a Java Pulsar client to use automatic cluster-level failover. The switchover is triggered automatically.
+
+```
+  private PulsarClient getAutoFailoverClient() throws PulsarClientException {
+
+        ServiceUrlProvider failover = AutoClusterFailover.builder()
+                .primary("pulsar://localhost:6650")
+                .secondary(Collections.singletonList("pulsar://other1:6650","pulsar://other2:6650"))
+                .failoverDelay(30, TimeUnit.SECONDS)
+                .switchBackDelay(60, TimeUnit.SECONDS)
+                .checkInterval(1000, TimeUnit.MILLISECONDS)
+	    	    .secondaryTlsTrustCertsFilePath("/path/to/ca.cert.pem")
+    .secondaryAuthentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
+"tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
+
+                .build();
+
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .build();
+
+        failover.initialize(pulsarClient);
+        return pulsarClient;
+    }
+```
+
+Configure the following parameters:
+
+Parameter|Default value|Required?|Description
+|---|---|---|---
+`primary`|N/A|Yes|Service URL of the primary cluster.
+`secondary`|N/A|Yes|Service URL(s) of one or several backup clusters.<br /><br/>You can specify several backup clusters using a comma-separated list.<br /><br/> Note that:<br />- The backup cluster is chosen in the sequence shown in the list. <br />- If all backup clusters are available, the Pulsar client chooses the first backup cluster.
+`failoverDelay`|N/A|Yes|The delay before the Pulsar client switches from the primary cluster to the backup cluster.<br /><br/>Automatic failover is controlled by a probe task: <br />1) The probe task first checks the health status of the primary cluster. <br /> 2) If the probe task finds the continuous failure time of the primary cluster exceeds `failoverDelayMs`, it switches the Pulsar client to the backup cluster. 
+`switchBackDelay`|N/A|Yes|The delay before the Pulsar client switches from the backup cluster to the primary cluster.<br /><br/>Automatic failover switchover is controlled by a probe task: <br /> 1) After the Pulsar client switches from the primary cluster to the backup cluster, the probe task continues to check the status of the primary cluster. <br /> 2) If the primary cluster functions well and continuously remains active longer than `switchBackDelay`, the Pulsar client switches back to the primary cluster.
+`checkInterval`|30s|No|Frequency of performing a probe task (in seconds).
+`secondaryTlsTrustCertsFilePath`|N/A|No|Path to the trusted TLS certificate file of the backup cluster.
+`secondaryAuthentication`|N/A|No|Authentication of the backup cluster.
+
+<!--Controlled cluster-level failover-->
+
+This is an example of how to construct a Java Pulsar client to use controlled cluster-level failover. The switchover is triggered by administrators manually.
+
+**Note**: you can have one or several backup clusters but can only specify one.
+
+```
+ public PulsarClient getControlledFailoverClient() throws IOException {
+Map<String, String> header = new HashMap<>(); 
+  header.put(“service_user_id”, “my-user”);
+  header.put(“service_password”, “tiger”);
+  header.put(“clusterA”, “tokenA”);
+  header.put(“clusterB”, “tokenB”);
+
+  ServiceUrlProvider provider = 
+      ControlledClusterFailover.builder()
+        .defaultServiceUrl("pulsar://localhost:6650")
+        .checkInterval(1, TimeUnit.MINUTES)
+        .urlProvider("http://localhost:8080/test")
+        .urlProviderHeader(header)
+        .build();
+
+  PulsarClient pulsarClient = 
+     PulsarClient.builder()
+      .build();
+
+  provider.initialize(pulsarClient);
+  return pulsarClient;
+}
+
+```
+
+Parameter|Default value|Required?|Description
+|---|---|---|---
+`defaultServiceUrl`|N/A|Yes|Pulsar service URL.
+`checkInterval`|30s|No|Frequency of performing a probe task (in seconds).
+`urlProvider`|N/A|Yes|URL provider service.
+`urlProviderHeader`|N/A|No|`urlProviderHeader` is a map containing tokens and credentials. <br /><br />If you enable authentication or authorization between Pulsar clients and primary and backup clusters, you need to provide `urlProviderHeader`.
+
+Here is an example of how `urlProviderHeader` works.
+
+![How urlProviderHeader works](assets/cluster-level-failover-3.png)
+
+Assume that you want to connect Pulsar client 1 to cluster A.
+
+1. Pulsar client 1 sends the token *t1* to the URL provider service.
+
+2. The URL provider service returns the credential *c1* and the cluster A URL to the Pulsar client.
+   
+    The URL provider service manages all tokens and credentials. It returns different credentials based on different tokens and different target cluster URLs to different Pulsar clients.
+
+    **Note**: **the credential must be in a JSON file and contain parameters as shown**.
+
+    ```
+    {
+    "serviceUrl": "pulsar+ssl://target:6651", 
+    "tlsTrustCertsFilePath": "/security/ca.cert.pem",
+    "authPluginClassName":"org.apache.pulsar.client.impl.auth.AuthenticationTls",
+    "authParamsString": " \"tlsCertFile\": \"/security/client.cert.pem\" 
+        \"tlsKeyFile\": \"/security/client-pk8.pem\" "
+    }
+    ```
+
+3. Pulsar client 1 connects to cluster A using credential *c1*.
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+>#### How does cluster-level failover work?
+
+This chapter explains the working process of cluster-level failover. For more implementation details, see [PIP-121](https://github.com/apache/pulsar/issues/13315).
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+In automatic failover cluster, the primary cluster and backup cluster are aware of each other's availability. The automatic failover cluster performs the following actions without administrator intervention:
+
+1. The Pulsar client runs a probe task at intervals defined in `checkInterval`.
+   
+2. If the probe task finds the failure time of the primary cluster exceeds the time set in the `failoverDelay` parameter, it searches backup clusters for an available healthy cluster.
+
+    2a) If there are healthy backup clusters, the Pulsar client switches to a backup cluster in the order defined in `secondary`.
+
+    2b) If there is no healthy backup cluster, the Pulsar client does not perform the switchover, and the probe task continues to look  for an available backup cluster.
+
+3. The probe task checks whether the primary cluster functions well or not. 
+
+    3a) If the primary cluster comes back and the continuous healthy time exceeds the time set in `switchBackDelay`, the Pulsar client switches back to the primary cluster.
+
+    3b) If the primary cluster does not come back, the Pulsar client does not perform the switchover. 
+
+![Workflow of automatic failover cluster](assets/cluster-level-failover-4.png)
+
+<!--Controlled cluster-level failover-->
+
+1. The Pulsar client runs a probe task at intervals defined in `checkInterval`.
+
+2. The probe task fetches the service URL configuration from the URL provider service, which is configured by `urlProvider`.
+
+    2a) If the service URL configuration is changed, the probe task  switches to the target cluster without checking the health status of the target cluster.
+
+    2b) If the service URL configuration is not changed, the Pulsar client does not perform the switchover.
+
+3. If the Pulsar client switches to the target cluster, the probe task continues to fetch service URL configuration from the URL provider service at intervals defined in `checkInterval`. 
+
+    3a) If the service URL configuration is changed, the probe task  switches to the target cluster without checking the health status of the target cluster.
+
+    3b) If the service URL configuration is not changed, it does not perform the switchover.
+
+![Workflow of controlled failover cluster](assets/cluster-level-failover-5.png)
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ## Producer
 
 In Pulsar, producers write messages to topics. Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object (as in the section [above](#client-configuration)), you can create a {@inject: javadoc:Producer:/client/org/apache/pulsar/client/api/Producer} for a specific Pulsar [topic](reference-terminology.md#topic).
