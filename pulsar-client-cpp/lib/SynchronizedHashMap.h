@@ -86,6 +86,16 @@ class SynchronizedHashMap {
         }
     }
 
+    OptValue findFirstValueIf(std::function<bool(const V&)> f) const {
+        Lock lock(mutex_);
+        for (const auto& kv : data_) {
+            if (f(kv.second)) {
+                return OptValue::of(kv.second);
+            }
+        }
+        return OptValue::empty();
+    }
+
     OptValue remove(const K& key) {
         Lock lock(mutex_);
         auto it = data_.find(key);

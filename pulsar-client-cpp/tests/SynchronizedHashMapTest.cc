@@ -45,16 +45,22 @@ TEST(SynchronizedHashMap, testClear) {
 }
 
 TEST(SynchronizedHashMap, testRemoveAndFind) {
-    SyncMapType m;
-    m.emplace(1, 100);
+    SyncMapType m({{1, 100}, {2, 200}, {3, 300}});
 
     OptValue optValue;
+    optValue = m.findFirstValueIf([](const int& x) { return x == 200; });
+    ASSERT_TRUE(optValue.is_present());
+    ASSERT_EQ(optValue.value(), 200);
+
+    optValue = m.findFirstValueIf([](const int& x) { return x >= 301; });
+    ASSERT_FALSE(optValue.is_present());
+
     optValue = m.find(1);
     ASSERT_TRUE(optValue.is_present());
     ASSERT_EQ(optValue.value(), 100);
 
-    ASSERT_FALSE(m.find(2).is_present());
-    ASSERT_FALSE(m.remove(2).is_present());
+    ASSERT_FALSE(m.find(0).is_present());
+    ASSERT_FALSE(m.remove(0).is_present());
 
     optValue = m.remove(1);
     ASSERT_TRUE(optValue.is_present());
@@ -67,12 +73,12 @@ TEST(SynchronizedHashMap, testRemoveAndFind) {
 TEST(SynchronizedHashMapTest, testForEach) {
     SyncMapType m({{1, 100}, {2, 200}, {3, 300}});
     std::vector<int> values;
-    m.forEachValue([&values](const int& value) { values.emplace_back(value); });
+    ASSERT_EQ(3, m.forEachValue([&values](const int& value) { values.emplace_back(value); }));
     std::sort(values.begin(), values.end());
     ASSERT_EQ(values, std::vector<int>({100, 200, 300}));
 
     PairVector pairs;
-    m.forEach([&pairs](const int& key, const int& value) { pairs.emplace_back(key, value); });
+    ASSERT_EQ(3, m.forEach([&pairs](const int& key, const int& value) { pairs.emplace_back(key, value); }));
     PairVector expectedPairs({{1, 100}, {2, 200}, {3, 300}});
     ASSERT_EQ(sort(pairs), expectedPairs);
 }

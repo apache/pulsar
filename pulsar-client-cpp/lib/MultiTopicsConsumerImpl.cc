@@ -704,7 +704,7 @@ void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callb
 }
 
 void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
-    consumers_.forEach([enabled](const std::string& name, const ConsumerImplPtr& consumer) {
+    consumers_.forEachValue([enabled](const ConsumerImplPtr& consumer) {
         consumer->setNegativeAcknowledgeEnabledForTesting(enabled);
     });
 }
@@ -714,23 +714,19 @@ bool MultiTopicsConsumerImpl::isConnected() const {
     if (state_ != Ready) {
         return false;
     }
+    lock.unlock();
 
-    std::atomic_bool result{true};
-    consumers_.forEach([&result](const std::string& name, const ConsumerImplPtr& consumer) {
-        if (consumer->isConnected()) {
-            result = false;
-        }
-    });
-    return true;
+    return consumers_
+        .findFirstValueIf([](const ConsumerImplPtr& consumer) { return !consumer->isConnected(); })
+        .is_empty();
 }
 
 uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
-    std::atomic<uint64_t> numberOfConnectedConsumer{0};
-    consumers_.forEach(
-        [&numberOfConnectedConsumer](const std::string& name, const ConsumerImplPtr& consumer) {
-            if (consumer->isConnected()) {
-                numberOfConnectedConsumer++;
-            }
-        });
+    uint64_t numberOfConnectedConsumer = 0;
+    consumers_.forEachValue([&numberOfConnectedConsumer](const ConsumerImplPtr& consumer) {
+        if (consumer->isConnected()) {
+            numberOfConnectedConsumer++;
+        }
+    });
     return numberOfConnectedConsumer;
 }
