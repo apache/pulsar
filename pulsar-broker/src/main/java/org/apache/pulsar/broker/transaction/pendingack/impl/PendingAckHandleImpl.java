@@ -515,9 +515,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
                             cumulativeAckOfTransaction = null;
                         }
-                        //TODO: pendingAck handle next pr will fix
-                        persistentSubscription.redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
                         abortFuture.complete(null);
+
+                        // in cumulative ack with transaction, don't depend on server redeliver message,
+                        // it will cause the messages to be out of order
                     }).exceptionally(e -> {
                         log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
                                 topicName, txnId, e);
