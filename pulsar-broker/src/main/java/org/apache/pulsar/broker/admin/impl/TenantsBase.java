@@ -162,12 +162,12 @@ public class TenantsBase extends PulsarWebResource {
                     log.info("[{}] Created tenant {}", clientAppId(), tenant);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to create tenant {}", clientAppId, tenant, e);
+                    log.error("[{}] Failed to create tenant {}", clientAppId, tenant, ex);
                     asyncResponse.resume(new RestException(ex));
                     return null;
                 });
             }).exceptionally(ex -> {
-                log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, e);
+                log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, ex);
                 asyncResponse.resume(new RestException(ex));
                 return null;
             });
