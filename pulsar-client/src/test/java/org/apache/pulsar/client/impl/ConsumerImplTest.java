@@ -227,7 +227,7 @@ public class ConsumerImplTest {
         CommandCloseConsumer commandCloseConsumer = new CommandCloseConsumer();
         commandCloseConsumer.setConsumerId(consumer.consumerId);
         commandCloseConsumer.setRequestId(1);
-        commandCloseConsumer.setAllowReconnect(false);
+        commandCloseConsumer.setReconnect(false);
         cnx.handleCloseConsumer(commandCloseConsumer);
         Awaitility.await().untilAsserted(() -> {
             HandlerState.State state = consumer.getState();

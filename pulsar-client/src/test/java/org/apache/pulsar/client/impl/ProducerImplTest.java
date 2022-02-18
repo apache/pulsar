@@ -93,7 +93,7 @@ public class ProducerImplTest {
         CommandCloseProducer commandCloseProducer = new CommandCloseProducer();
         commandCloseProducer.setProducerId(producer.producerId);
         commandCloseProducer.setRequestId(1);
-        commandCloseProducer.setAllowReconnect(false);
+        commandCloseProducer.setReconnect(false);
         cnx.handleCloseProducer(commandCloseProducer);
         Awaitility.await().untilAsserted(() -> {
             HandlerState.State state = producer.getState();
