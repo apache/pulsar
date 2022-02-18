@@ -19,11 +19,10 @@
 package org.apache.pulsar.functions.instance;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.Getter;
-
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import lombok.Getter;
 
 public class InstanceCache {
 

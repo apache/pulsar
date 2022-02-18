@@ -16,25 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.source;
-
-import lombok.Data;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.functions.FunctionConfig;
-
-@Data
-public abstract class PulsarSourceConfig {
-
-    private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    SubscriptionType subscriptionType;
-    private String subscriptionName;
-    private SubscriptionInitialPosition subscriptionPosition;
-    // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
-    private Integer maxMessageRetries = -1;
-    private String deadLetterTopic;
-
-    private String typeClassName;
-    private Long timeoutMs;
-    private Long negativeAckRedeliveryDelayMs;
-}
+package org.apache.pulsar.functions.instance.stats;
