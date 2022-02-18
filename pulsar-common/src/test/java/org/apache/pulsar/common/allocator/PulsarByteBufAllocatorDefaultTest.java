@@ -26,6 +26,7 @@ import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -60,6 +61,9 @@ public class PulsarByteBufAllocatorDefaultTest {
                 PulsarByteBufAllocator.createByteBufAllocator();
             }
             assertTrue(called.get());
+        } finally {
+            Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
+                    PulsarByteBufAllocator.createByteBufAllocator());
         }
     }
 

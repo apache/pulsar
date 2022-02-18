@@ -419,10 +419,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean authoritative = lookup.isAuthoritative();
 
         // use the connection-specific listener name by default.
-        final String advertisedListenerName = lookup.hasAdvertisedListenerName() ? lookup.getAdvertisedListenerName()
-                : this.listenerName;
+        final String advertisedListenerName =
+                lookup.hasAdvertisedListenerName() && StringUtils.isNotBlank(lookup.getAdvertisedListenerName())
+                        ? lookup.getAdvertisedListenerName() : this.listenerName;
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
+            log.debug("[{}] Received Lookup from {} for {} requesting listener {}", lookup.getTopic(), remoteAddress,
+                    requestId, StringUtils.isNotBlank(advertisedListenerName) ? advertisedListenerName : "(none)");
         }
 
         TopicName topicName = validateTopicName(lookup.getTopic(), requestId, lookup);
@@ -1399,8 +1401,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             producers.remove(producerId, producerFuture);
         }).exceptionally(ex -> {
-            log.error("[{}] Failed to add producer to topic {}: producerId={}, {}",
-                    remoteAddress, topicName, producerId, ex.getMessage());
+            if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to add producer to topic {}: producerId={}, {}",
+                            remoteAddress, topicName, producerId, ex.getCause().getMessage());
+                }
+            } else {
+                log.warn("[{}] Failed to add producer to topic {}: producerId={}, {}",
+                        remoteAddress, topicName, producerId, ex.getCause().getMessage());
+            }
 
             producer.closeNow(true);
             if (producerFuture.completeExceptionally(ex)) {

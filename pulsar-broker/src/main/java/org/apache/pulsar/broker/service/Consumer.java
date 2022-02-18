@@ -542,7 +542,8 @@ public class Consumer {
 
     private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)
+            && pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
@@ -553,7 +554,7 @@ public class Consumer {
                 int currentCardinality = cursorBitSet.cardinality();
                 ackedCount = lastCardinality - currentCardinality;
                 cursorBitSet.recycle();
-            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
+            } else {
                 ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
             }
         }
@@ -574,6 +575,7 @@ public class Consumer {
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
                 unAckedCount = cursorBitSet.cardinality();
+                cursorBitSet.recycle();
             }
         }
         return unAckedCount;

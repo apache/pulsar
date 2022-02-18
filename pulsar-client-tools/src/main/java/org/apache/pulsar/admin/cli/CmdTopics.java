@@ -72,7 +72,6 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -244,10 +243,6 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
         jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
-
-        jcommander.addCommand("remove-schema-compatibility-strategy", new RemoveSchemaCompatibilityStrategy());
-        jcommander.addCommand("set-schema-compatibility-strategy", new SetSchemaCompatibilityStrategy());
-        jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
 
         initDeprecatedCommands();
     }
@@ -2814,50 +2809,6 @@ public class CmdTopics extends CmdBase {
             }
             print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
 
-        }
-    }
-
-    @Parameters(commandDescription = "Remove schema compatibility strategy on a topic")
-    private class RemoveSchemaCompatibilityStrategy extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topicPolicies().removeSchemaCompatibilityStrategy(persistentTopic);
-        }
-    }
-
-    @Parameters(commandDescription = "Set schema compatibility strategy on a topic")
-    private class SetSchemaCompatibilityStrategy extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Parameter(names = {"--strategy", "-s"}, description = "Schema compatibility strategy: [UNDEFINED, "
-                + "ALWAYS_INCOMPATIBLE, ALWAYS_COMPATIBLE, BACKWARD, FORWARD, FULL, BACKWARD_TRANSITIVE, "
-                + "FORWARD_TRANSITIVE, FULL_TRANSITIVE]", required = true)
-        private SchemaCompatibilityStrategy strategy;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topicPolicies().setSchemaCompatibilityStrategy(persistentTopic, strategy);
-        }
-    }
-
-    @Parameters(commandDescription = "Get schema compatibility strategy on a topic")
-    private class GetSchemaCompatibilityStrategy extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Parameter(names = {"-ap", "--applied"}, description = "Get the applied policy of the topic")
-        private boolean applied = false;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topicPolicies().getSchemaCompatibilityStrategy(persistentTopic, applied));
         }
     }
 }

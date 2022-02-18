@@ -33,7 +33,13 @@ COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
 COPY scripts/watch-znode.py /pulsar/bin
 COPY scripts/install-pulsar-client.sh /pulsar/bin
 
-RUN mkdir /pulsar/data
+# In order to support running this docker image as a container on OpenShift
+# the final image needs to give the root group sufficient permission.
+# The file permissions are preserved when copying files from this builder image to the target image.
+RUN chmod -R g+w /pulsar/conf
+# Presto writes logs to this directory (at least during tests), so we need to give the process permission
+# to create those log directories. This should be removed when presto is removed.
+RUN chmod g+w /pulsar/lib/presto
 
 ### Create 2nd stage from Ubuntu image
 ### and add OpenJDK and Python dependencies (for Pulsar functions)
@@ -57,6 +63,14 @@ RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirr
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
+# Pulsar currently writes to the below directories, assuming the default configuration.
+# Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
+# 1. /pulsar/data - both bookkeepers and zookeepers use this directory
+# 2. /pulsar/logs - function workers write to this directory and pulsar-admin initializes this directory
+# 3. /pulsar/download - functions write to this directory
+# 4. /pulsar - hadoop writes to this directory
+RUN mkdir /pulsar && chmod g+w /pulsar
+
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
@@ -67,4 +81,8 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
+# This script is intentionally run as the root user to make the dependencies available for all UIDs.
 RUN /pulsar/bin/install-pulsar-client.sh
+
+# The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
+USER 10000

@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -103,8 +104,13 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             }
 
             this.reader = builder.create();
-
-            this.subscription = ((ReaderImpl<?>) this.reader).getConsumer().getSubscription();
+            if (reader instanceof MultiTopicsReaderImpl) {
+                this.subscription = ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer().getSubscription();
+            } else if (reader instanceof ReaderImpl) {
+                this.subscription = ((ReaderImpl<?>) reader).getConsumer().getSubscription();
+            } else {
+                throw new IllegalArgumentException(String.format("Illegal Reader Type %s", reader.getClass()));
+            }
             if (!this.service.addReader(this)) {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
