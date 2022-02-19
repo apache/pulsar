@@ -86,6 +86,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @DataProvider(name = "ackReceiptEnabledWithMaxMessageSize")
+    public Object[][] ackReceiptEnabledWithMaxMessageSize() {
+        return new Object[][] { { true, true }, { true, false }, { false, true }, { false, false } };
+    }
+
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
@@ -104,11 +109,15 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
-    public void testLargeMessage(boolean ackReceiptEnabled) throws Exception {
+    @Test(dataProvider = "ackReceiptEnabledWithMaxMessageSize")
+    public void testLargeMessage(boolean ackReceiptEnabled, boolean clientSizeMaxMessageSize) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
+        clientSizeMaxMessageSize = false;
         this.conf.setMaxMessageSize(50);
+        if (clientSizeMaxMessageSize) {
+            this.conf.setMaxMessageSize(5);
+        }
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
@@ -117,6 +126,9 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
+        if (clientSizeMaxMessageSize) {
+            producerBuilder.chunkMaxMessageSize(5);
+        }
 
         Producer<byte[]> producer = producerBuilder.compressionType(CompressionType.LZ4).enableChunking(true)
                 .enableBatching(false).create();
@@ -503,5 +515,5 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
         return str.toString();
     }
-
+ 
 }

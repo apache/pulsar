@@ -344,6 +344,16 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> enableChunking(boolean enableChunking);
 
     /**
+     * Max chunk message size in bytes. Producer chunks the message if chunking is enabled and message size is larger
+     * than max chunk-message size. By default chunkMaxMessageSize value is -1 and in that case, producer chunks based
+     * on max-message size configured at broker.
+     *
+     * @param chunkMaxMessageSize
+     * @return
+     */
+    ProducerBuilder<T> chunkMaxMessageSize(int chunkMaxMessageSize);
+
+    /**
      * Sets a {@link CryptoKeyReader}.
      *
      * <p>Configure the key reader to be used to encrypt the message payloads.
