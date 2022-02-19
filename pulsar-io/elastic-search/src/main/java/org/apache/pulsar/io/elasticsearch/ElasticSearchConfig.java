@@ -50,7 +50,11 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The index name that the connector writes messages to, the default is the topic name"
+        help = "The index name that the connector writes messages to, the default is the topic name."
+                + " It accepts date formats in the name to support event time based index with"
+                + " the pattern %{+<date-format>}. For example, suppose the event time of the record"
+                + " is 1645182000000L, the indexName is \"logs-%{+yyyy-MM-dd}\", then the formatted"
+                + " index name would be \"logs-2022-02-18\"."
     )
     private String indexName;
 
