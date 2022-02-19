@@ -164,7 +164,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
                             componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
                         } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\""
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
                                             + "when getting %s package from %s", e.getMessage(),
                                     ComponentTypeUtils.toString(componentType), functionPkgUrl), e);
                         }
@@ -343,7 +343,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                         try {
                             componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
                         } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\""
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
                                             + "when getting %s package from %s", e.getMessage(),
                                     ComponentTypeUtils.toString(componentType), functionPkgUrl));
                         }
@@ -357,7 +357,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                         componentPackageFile = FunctionCommon.extractFileFromPkgURL(
                                 existingComponent.getPackageLocation().getPackagePath());
                     } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\""
+                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
                                         + "when getting %s package from %s", e.getMessage(),
                                 ComponentTypeUtils.toString(componentType), functionPkgUrl));
                     }

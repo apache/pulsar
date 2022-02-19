@@ -428,7 +428,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                     log.debug("{}/{}/{} Ignoring outdated request version: {}", tenant, namespace, functionName,
                             version);
                 }
-                throw new IllegalArgumentException("Delete request ignored because"
+                throw new IllegalArgumentException("Delete request ignored because "
                         + "it is out of date. Please try again.");
             }
         }
@@ -456,7 +456,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 setFunctionMetaData(updateRequestFs);
                 needsScheduling = true;
             } else {
-                throw new IllegalArgumentException("Update request"
+                throw new IllegalArgumentException("Update request "
                         + "ignored because it is out of date. Please try again.");
             }
         }
