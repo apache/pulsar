@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
-
 import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
 

@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.service;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;

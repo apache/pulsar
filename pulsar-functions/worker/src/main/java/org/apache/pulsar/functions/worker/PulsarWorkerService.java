@@ -354,7 +354,7 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             // initializing dlog namespace for function worker
-            if (workerConfig.isInitializedDlogMetadata()){
+            if (workerConfig.isInitializedDlogMetadata()) {
                 dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);

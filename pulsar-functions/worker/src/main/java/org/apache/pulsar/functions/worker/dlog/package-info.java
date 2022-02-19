@@ -16,25 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
-
-import java.io.Serializable;
-import org.apache.pulsar.broker.ShutdownService;
-
-public interface ErrorNotifier extends Serializable, AutoCloseable {
-
-  void triggerError(Throwable th);
-
-  void waitForError() throws Exception;
-
-  void close();
-
-  static ErrorNotifier getDefaultImpl() {
-    return new ErrorNotifierImpl();
-  }
-
-  static ErrorNotifier getShutdownServiceImpl(ShutdownService shutdownService) {
-    return new ErrorNotifierShutdownServiceImpl(shutdownService);
-  }
-
-}
+package org.apache.pulsar.functions.worker.dlog;
