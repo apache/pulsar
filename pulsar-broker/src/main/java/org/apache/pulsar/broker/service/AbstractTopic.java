@@ -328,13 +328,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (isSystemTopic()) {
             schemaCompatibilityStrategy = config.getSystemTopicSchemaCompatibilityStrategy();
         }
-        topicPolicies.getSubscribeRate().updateBrokerValue(subscribeRate(config));
+        topicPolicies.getSubscribeRate().updateBrokerValue(subscribeRateInBroker(config));
         topicPolicies.getSubscriptionDispatchRate().updateBrokerValue(subscriptionDispatchRateInBroker(config));
         topicPolicies.getSchemaCompatibilityStrategy()
                 .updateBrokerValue(formatSchemaCompatibilityStrategy(schemaCompatibilityStrategy));
     }
 
-    private SubscribeRate subscribeRate(ServiceConfiguration config) {
+    private SubscribeRate subscribeRateInBroker(ServiceConfiguration config) {
         return new SubscribeRate(
             config.getSubscribeThrottlingRatePerConsumer(),
             config.getSubscribeRatePeriodPerConsumerInSecond()
