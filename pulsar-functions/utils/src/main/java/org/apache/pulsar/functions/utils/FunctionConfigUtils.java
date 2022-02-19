@@ -596,7 +596,7 @@ public class FunctionConfigUtils {
         // One and only one of outputSchemaType and outputSerdeClassName should be set
         if (!isEmpty(functionConfig.getOutputSerdeClassName()) && !isEmpty(functionConfig.getOutputSchemaType())) {
             throw new IllegalArgumentException(
-                    "Only one of outputSchemaType or outputSerdeClassName should be set");
+                "Only one of outputSchemaType or outputSerdeClassName should be set");
         }
 
         if (!isEmpty(functionConfig.getOutputSchemaType())) {

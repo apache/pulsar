@@ -255,8 +255,8 @@ public class FunctionCommon {
             downloadFromHttpUrl(destPkgUrl, tempFile);
             return tempFile;
         } else {
-            throw new IllegalArgumentException(
-                    "Unsupported url protocol " + destPkgUrl + ", supported url protocols: [file/http/https]");
+            throw new IllegalArgumentException("Unsupported url protocol "
+                    + destPkgUrl + ", supported url protocols: [file/http/https]");
         }
     }
 

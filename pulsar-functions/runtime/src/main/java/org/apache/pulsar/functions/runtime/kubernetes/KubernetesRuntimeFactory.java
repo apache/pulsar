@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -59,8 +60,8 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 @Data
 public class KubernetesRuntimeFactory implements RuntimeFactory {
 
-    static final int NUM_RETRIES = 5;
-    static final long SLEEP_BETWEEN_RETRIES_MS = 500;
+    static int numRetries = 5;
+    static long sleepBetweenRetriesMs = 500;
 
     private String k8Uri;
     private String jobNamespace;
@@ -343,7 +344,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
+    public void doAdmissionChecks(Function.FunctionDetails functionDetails){
         final String overriddenJobName = getOverriddenName(functionDetails);
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
@@ -379,11 +380,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             // Setup a timer to change stuff.
             if (!isEmpty(changeConfigMap)) {
                 changeConfigMapTimer = new Timer();
-                final KubernetesRuntimeFactory thisFacatory = this;
+                final KubernetesRuntimeFactory kubernetesRuntimeFactory = this;
                 changeConfigMapTimer.scheduleAtFixedRate(new TimerTask() {
                     @Override
                     public void run() {
-                        fetchConfigMap(coreClient, changeConfigMap, changeConfigMapNamespace, thisFacatory);
+                        fetchConfigMap(coreClient, changeConfigMap, changeConfigMapNamespace, kubernetesRuntimeFactory);
                     }
                 }, 300000, 300000);
             }
@@ -427,15 +428,12 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (minCpu != null) {
                 if (functionDetails.getResources() == null) {
                     throw new IllegalArgumentException(
-                            String.format(
-                                    "Per instance CPU requested is not specified. Must "
-                                            + "specify CPU requested for function to be at least %s",
-                                    minCpu));
+                            String.format("Per instance CPU requested is not specified. "
+                                    + "Must specify CPU requested for function to be at least %s", minCpu));
                 } else if (functionDetails.getResources().getCpu() < minCpu) {
                     throw new IllegalArgumentException(
-                            String.format(
-                                    "Per instance CPU requested, %s, for function is "
-                                            + "less than the minimum required, %s",
+                            String.format("Per instance CPU requested, %s, "
+                                            + "for function is less than the minimum required, %s",
                                     functionDetails.getResources().getCpu(), minCpu));
                 }
             }
@@ -443,15 +441,12 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (minRam != null) {
                 if (functionDetails.getResources() == null) {
                     throw new IllegalArgumentException(
-                            String.format(
-                                    "Per instance RAM requested is not specified."
-                                            + "Must specify RAM requested for function to be at least %s ",
-                                    minRam));
+                            String.format("Per instance RAM requested is not specified. "
+                                    + "Must specify RAM requested for function to be at least %s", minRam));
                 } else if (functionDetails.getResources().getRam() < minRam) {
                     throw new IllegalArgumentException(
-                            String.format(
-                                    "Per instance RAM requested, %s, for function is less "
-                                            + "than the minimum required, %s",
+                            String.format("Per instance RAM requested, %s, "
+                                            + "for function is less than the minimum required, %s",
                                     functionDetails.getResources().getRam(), minRam));
                 }
             }
@@ -492,9 +487,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                     long cpuMillis = Math.round(baseMillis * functionDetails.getResources().getCpu());
                     if (cpuMillis == 0 || cpuMillis % grnCpuMillis != 0) {
                         throw new IllegalArgumentException(
-                                String.format(
-                                        "Per instance cpu requested, %s, for "
-                                                + "function should be positive and a multiple of the granularity, %s",
+                                String.format("Per instance cpu requested, %s, for function should be positive and a "
+                                                + "multiple of the granularity, %s",
                                         functionDetails.getResources().getCpu(), grnCpu));
                     }
                     if (functionInstanceResourceChangeInLockStep) {
@@ -506,21 +500,19 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 if (functionDetails.getResources().getRam() == 0
                         || functionDetails.getResources().getRam() % grnRam != 0) {
                     throw new IllegalArgumentException(
-                            String.format(
-                                    "Per instance ram requested, %s, for function "
-                                            + "should be positive and a multiple of the granularity, %s",
+                            String.format("Per instance ram requested, %s, "
+                                            + "for function should be positive and a multiple of the granularity, %s",
                                     functionDetails.getResources().getRam(), grnRam));
                 }
                 if (functionInstanceResourceChangeInLockStep && multiples > 0) {
                     long ramMultiples = functionDetails.getResources().getRam() / grnRam;
                     if (multiples != ramMultiples) {
                         throw new IllegalArgumentException(
-                                String.format("Per instance cpu requested, %s, ram requested, %s, "
-                                                + "for function should be positive and the same multiple of the "
+                                String.format("Per instance cpu requested, %s, ram requested, %s,"
+                                                + " for function should be positive and the same multiple of the "
                                                 + "granularity, cpu, %s, ram, %s",
                                         functionDetails.getResources().getCpu(),
-                                        functionDetails.getResources().getRam(),
-                                        grnCpu, grnRam));
+                                        functionDetails.getResources().getRam(), grnCpu, grnRam));
                     }
                 }
             }

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
@@ -449,8 +450,8 @@ public class KubernetesRuntime implements Runtime {
 
         Actions.Action createService = Actions.Action.builder()
                 .actionName(String.format("Submitting service for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     final V1Service response;
                     try {
@@ -538,8 +539,8 @@ public class KubernetesRuntime implements Runtime {
 
         Actions.Action createStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Submitting statefulset for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
@@ -585,8 +586,8 @@ public class KubernetesRuntime implements Runtime {
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
         Actions.Action deleteStatefulSet = Actions.Action.builder()
                 .actionName(String.format("Deleting statefulset for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     Response response;
                     try {
@@ -634,8 +635,8 @@ public class KubernetesRuntime implements Runtime {
         Actions.Action waitForStatefulSetDeletion = Actions.Action.builder()
                 .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
                 // set retry period to be about 2x the graceshutdown time
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES * 2)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS * 2)
+                .numRetries(KubernetesRuntimeFactory.numRetries * 2)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs * 2)
                 .supplier(() -> {
                     V1StatefulSet response;
                     try {
@@ -663,8 +664,8 @@ public class KubernetesRuntime implements Runtime {
         // Need to wait for all pods to die so we can cleanup subscriptions.
         Actions.Action waitForStatefulPodsToTerminate = Actions.Action.builder()
                 .actionName(String.format("Waiting for pods for function %s to terminate", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES * 2)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS * 2)
+                .numRetries(KubernetesRuntimeFactory.numRetries * 2)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs * 2)
                 .supplier(() -> {
                     String labels = String.format("tenant=%s,namespace=%s,name=%s",
                             instanceConfig.getFunctionDetails().getTenant(),
@@ -736,8 +737,8 @@ public class KubernetesRuntime implements Runtime {
 
         Actions.Action deleteService = Actions.Action.builder()
                 .actionName(String.format("Deleting service for function %s", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     final Response response;
                     try {
@@ -782,8 +783,8 @@ public class KubernetesRuntime implements Runtime {
 
         Actions.Action waitForServiceDeletion = Actions.Action.builder()
                 .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
-                .numRetries(KubernetesRuntimeFactory.NUM_RETRIES)
-                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.SLEEP_BETWEEN_RETRIES_MS)
+                .numRetries(KubernetesRuntimeFactory.numRetries)
+                .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
                     V1Service response;
                     try {
@@ -1071,19 +1072,16 @@ public class KubernetesRuntime implements Runtime {
                 case JAVA:
                     if (functionDockerImages.get("JAVA") != null) {
                         imageName = functionDockerImages.get("JAVA");
-                        break;
                     }
                     break;
                 case PYTHON:
                     if (functionDockerImages.get("PYTHON") != null) {
                         imageName = functionDockerImages.get("PYTHON");
-                        break;
                     }
                     break;
                 case GO:
                     if (functionDockerImages.get("GO") != null) {
                         imageName = functionDockerImages.get("GO");
-                        break;
                     }
                     break;
                 default:

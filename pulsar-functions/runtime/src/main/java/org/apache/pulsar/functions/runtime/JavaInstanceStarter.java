@@ -91,8 +91,8 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     public String tlsTrustCertFilePath;
 
-    @Parameter(names = "--state_storage_impl_class", description = "State Storage"
-            + "Service Implementation class\n", required = false)
+    @Parameter(names = "--state_storage_impl_class", description = "State Storage Service "
+            + "Implementation class\n", required = false)
     public String stateStorageImplClass;
 
     @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = false)
@@ -101,20 +101,20 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--port", description = "Port to listen on\n", required = true)
     public int port;
 
-    @Parameter(names = "--metricsPort", description = "Port metrics will be exposed on\n", required = true)
+    @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
     public int metricsPort;
 
     @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     public int maxBufferedTuples;
 
-    @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in"
+    @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in "
             + "seconds between healtchecks", required = true)
     public int expectedHealthCheckInterval;
 
     @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
     public String secretsProviderClassName;
 
-    @Parameter(names = "--secrets_provider_config", description = "The config that needs to be"
+    @Parameter(names = "--secrets_provider_config", description = "The config that needs to be "
             + "passed to secrets provider", required = false)
     public String secretsProviderConfig;
 
@@ -122,18 +122,18 @@ public class JavaInstanceStarter implements AutoCloseable {
             + "instance is running on", required = true)
     public String clusterName;
 
-    @Parameter(names = "--nar_extraction_directory", description = "The directory where"
+    @Parameter(names = "--nar_extraction_directory", description = "The directory where "
             + "extraction of nar packages happen", required = false)
     public String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
-    @Parameter(names = "--pending_async_requests", description = "Max pending async"
-            + "requests per instance", required = false)
+    @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance",
+            required = false)
     public int maxPendingAsyncRequests = 1000;
 
     @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
     public String webServiceUrl = null;
 
-    @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client"
+    @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client "
             + "exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 

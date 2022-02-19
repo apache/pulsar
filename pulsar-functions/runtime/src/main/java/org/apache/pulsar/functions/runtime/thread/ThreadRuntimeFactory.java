@@ -163,8 +163,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 workerConfig.getStateStorageProviderImplementation(),
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null,
-                workerConfig.isExposeAdminClientEnabled(), workerConfig.getPulsarWebServiceUrl(),
-                Optional.of(connectorsManager));
+                workerConfig.isExposeAdminClientEnabled(),
+                workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager));
     }
 
     @Override

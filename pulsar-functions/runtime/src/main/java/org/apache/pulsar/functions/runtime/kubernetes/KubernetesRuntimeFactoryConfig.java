@@ -65,7 +65,7 @@ public class KubernetesRuntimeFactoryConfig {
     protected String pulsarRootDir;
     @FieldContext(
             doc = "The config admin CLI allows users to customize the configuration of the admin cli tool, such as:"
-                    + " `/bin/pulsar-admin and /bin/pulsarctl`."
+                    + " `/bin/pulsar-admin and /bin/pulsarctl`. "
                     + "By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl` "
                     + " you need to set this setting accordingly"
     )
@@ -126,7 +126,7 @@ public class KubernetesRuntimeFactoryConfig {
     protected String changeConfigMapNamespace;
 
     @FieldContext(
-            doc = "Additional memory padding added on top of the memory"
+            doc = "Additional memory padding added on top of the memory "
                     + "requested by the function per on a per instance basis"
     )
     protected int percentMemoryPadding;
@@ -144,7 +144,7 @@ public class KubernetesRuntimeFactoryConfig {
     protected double memoryOverCommitRatio = 1.0;
 
     @FieldContext(
-            doc = "The port inside the function pod which is used by the worker to communicate with the pod"
+      doc = "The port inside the function pod which is used by the worker to communicate with the pod"
     )
     private Integer grpcPort = 9093;
 

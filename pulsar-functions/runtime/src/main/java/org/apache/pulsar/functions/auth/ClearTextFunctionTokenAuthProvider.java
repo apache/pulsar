@@ -65,8 +65,8 @@ public class ClearTextFunctionTokenAuthProvider implements FunctionAuthProvider 
     }
 
     @Override
-    public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
-            throws Exception {
+    public void cleanUpAuthData(Function.FunctionDetails funcDetails,
+                                Optional<FunctionAuthData> functionAuthData) throws Exception {
         //no-op
     }
 }

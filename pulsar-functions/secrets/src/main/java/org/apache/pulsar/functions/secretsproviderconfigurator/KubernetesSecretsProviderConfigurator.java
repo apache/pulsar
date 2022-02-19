@@ -41,8 +41,8 @@ import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvid
  * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables.
  */
 public class KubernetesSecretsProviderConfigurator implements SecretsProviderConfigurator {
-    private static final String ID_KEY = "path";
-    private static final String KEY_KEY = "key";
+    private static String idKey = "path";
+    private static String keyKey = "key";
 
     @Override
     public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
@@ -92,8 +92,8 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
                 secretEnv.name(entry.getKey())
                         .valueFrom(new V1EnvVarSource()
                                 .secretKeyRef(new V1SecretKeySelector()
-                                        .name(kv.get(ID_KEY))
-                                        .key(kv.get(KEY_KEY))));
+                                        .name(kv.get(idKey))
+                                        .key(kv.get(keyKey))));
                 container.addEnvItem(secretEnv);
             }
         }
@@ -126,10 +126,10 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
                     if (kubernetesSecret.size() < 2) {
                         throw new IllegalArgumentException("Kubernetes Secret should contain id and key");
                     }
-                    if (!kubernetesSecret.containsKey(ID_KEY)) {
+                    if (!kubernetesSecret.containsKey(idKey)) {
                         throw new IllegalArgumentException("Kubernetes Secret should contain id information");
                     }
-                    if (!kubernetesSecret.containsKey(KEY_KEY)) {
+                    if (!kubernetesSecret.containsKey(keyKey)) {
                         throw new IllegalArgumentException("Kubernetes Secret should contain key information");
                     }
                 } else {

@@ -150,17 +150,17 @@ public class LocalRunner implements AutoCloseable {
     @Parameter(names = "--sinkConfig", description = "The json representation of SinkConfig",
             hidden = true, converter = SinkConfigConverter.class)
     protected SinkConfig sinkConfig;
-    @Parameter(names = "--stateStorageImplClass", description = "The implemenatation class"
+    @Parameter(names = "--stateStorageImplClass", description = "The implemenatation class "
             + "state storage service (by default Apache BookKeeper)", hidden = true, required = false)
     protected String stateStorageImplClass;
-    @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service"
+    @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service "
             + "(by default Apache BookKeeper)", hidden = true)
     protected String stateStorageServiceUrl;
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
     protected String brokerServiceUrl;
     @Parameter(names = "--webServiceUrl", description = "The URL for the Pulsar web service", hidden = true)
     protected String webServiceUrl = null;
-    @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which"
+    @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which "
             + "function-process can connect to broker", hidden = true)
     protected String clientAuthPlugin;
     @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
@@ -407,8 +407,7 @@ public class LocalRunner implements AutoCloseable {
                     ClassLoader sourceClassLoader = FunctionCommon.getClassLoaderFromPackage(
                             Function.FunctionDetails.ComponentType.SOURCE,
                             sourceConfig.getClassName(), file, narExtractionDirectory);
-                    functionDetails = SourceConfigUtils.convert(
-                            sourceConfig,
+                    functionDetails = SourceConfigUtils.convert(sourceConfig,
                             SourceConfigUtils.validateAndExtractDetails(sourceConfig, sourceClassLoader, true));
                     userCodeClassLoader = sourceClassLoader;
                     userCodeClassLoaderCreated = true;

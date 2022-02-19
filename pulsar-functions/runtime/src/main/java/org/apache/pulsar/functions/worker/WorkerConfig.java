@@ -128,14 +128,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_WORKER,
             doc = "Enable the enforcement of limits on the incoming HTTP requests"
-    )
+        )
     private boolean httpRequestsLimitEnabled = false;
 
     @FieldContext(
-            category = CATEGORY_WORKER,
-            doc = "Max HTTP requests per seconds allowed. The excess"
+            category =  CATEGORY_WORKER,
+            doc = "Max HTTP requests per seconds allowed. The excess "
                     + "of requests will be rejected with HTTP code 429 (Too many requests)"
-    )
+        )
     private double httpRequestsMaxPerSecond = 100.0;
 
     @FieldContext(
@@ -515,13 +515,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Map<String, String> secretsProviderConfiguratorConfig;
     @FieldContext(
             category = CATEGORY_FUNC_RUNTIME_MNG,
-            doc = "A set of the minimum amount of resources functions must request."
+            doc = "A set of the minimum amount of resources functions must request.  "
                     + "Support for this depends on function runtime."
     )
     private Resources functionInstanceMinResources;
     @FieldContext(
             category = CATEGORY_FUNC_RUNTIME_MNG,
-            doc = "A set of the maximum amount of resources functions may request."
+            doc = "A set of the maximum amount of resources functions may request.  "
                     + "Support for this depends on function runtime."
     )
     private Resources functionInstanceMaxResources;

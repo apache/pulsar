@@ -68,7 +68,7 @@ public class ConnectorUtils {
             Class sourceClass = narClassLoader.loadClass(conf.getSourceClass());
             if (!(Source.class.isAssignableFrom(sourceClass) || BatchSource.class.isAssignableFrom(sourceClass))) {
                 throw new IOException(String.format("Class %s does not implement interface %s or %s",
-                        conf.getSourceClass(), Source.class.getName(), BatchSource.class.getName()));
+                  conf.getSourceClass(), Source.class.getName(), BatchSource.class.getName()));
             }
         } catch (Throwable t) {
             Exceptions.rethrowIOException(t);

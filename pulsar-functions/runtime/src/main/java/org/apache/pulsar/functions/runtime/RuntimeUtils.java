@@ -299,7 +299,7 @@ public class RuntimeUtils {
             }
 
             if (StringUtils.isNotEmpty(functionInstanceClassPath)) {
-                args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
+               args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
             } else {
                 // add complete classpath for broker/worker so that the function instance can load
                 // the functions instance dependencies separately from user code dependencies
@@ -378,8 +378,8 @@ public class RuntimeUtils {
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--function_details");
-        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails())
-                + "'");
+        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace()
+                .print(instanceConfig.getFunctionDetails()) + "'");
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
