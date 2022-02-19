@@ -277,9 +277,8 @@ public class ElasticSearchConfig implements Serializable {
 
         if (StringUtils.isNotEmpty(indexName) && createIndexIfNeeded) {
             // see https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
-            if (!indexName.toLowerCase(Locale.ROOT).equals(indexName)) {
-                throw new IllegalArgumentException("indexName should be lowercase only.");
-            }
+            // date format may contain upper cases, so we need to valid against parsed index name
+            IndexNameFormatter.validate(indexName);
             if (indexName.startsWith("-") || indexName.startsWith("_") || indexName.startsWith("+")) {
                 throw new IllegalArgumentException("indexName start with an invalid character.");
             }

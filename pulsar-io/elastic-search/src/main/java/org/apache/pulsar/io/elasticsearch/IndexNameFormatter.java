@@ -71,6 +71,15 @@ public class IndexNameFormatter {
         return Pair.of(segments, formatters);
     }
 
+    static void validate(String format) {
+        Pair<List<String>, List<DateTimeFormatter>> parsed = parseFormat(format);
+        for (String s : parsed.getLeft()) {
+            if (!s.toLowerCase(Locale.ROOT).equals(s)) {
+                throw new IllegalArgumentException("indexName should be lowercase only.");
+            }
+        }
+    }
+
     public String indexName(Record<GenericObject> record) {
         if (this.dateTimeFormatters.isEmpty()) {
             return this.indexNameFormat;
