@@ -1985,7 +1985,7 @@ public class CmdNamespaces extends CmdBase {
             } else if (strategyStr.equals("NONE")) {
                 strategy = SchemaAutoUpdateCompatibilityStrategy.AlwaysCompatible;
             } else {
-                throw new PulsarAdminException("Either --compatibility or --disabled must be specified");
+                throw new ParameterException("Either --compatibility or --disabled must be specified");
             }
             getAdmin().namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, strategy);
         }
