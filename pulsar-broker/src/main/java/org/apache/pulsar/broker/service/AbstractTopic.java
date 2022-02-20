@@ -1118,4 +1118,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSubscriptionDispatchRate().updateBrokerValue(
             subscriptionDispatchRateInBroker(brokerService.pulsar().getConfiguration()));
     }
+
+    public void updateBrokerPublishRate() {
+        topicPolicies.getPublishRate().updateBrokerValue(
+            publishRateInBroker(brokerService.pulsar().getConfiguration()));
+    }
 }
