@@ -282,6 +282,18 @@ public class CLITest extends PulsarTestSuite {
                 "clear-properties",
                 namespace);
         assertTrue(result.getStdout().isEmpty());
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "bookies",
+                    "set-bookie-rack",
+                    "-b", "localhost:8082",
+                    "-r", "");
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "rack name is invalid, it should not be null, empty or '/'\n\n");
+        }
     }
 
     @Test
