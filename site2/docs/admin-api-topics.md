@@ -984,7 +984,7 @@ To get the topic-level deduplication snapshot interval, use one of the following
 <!--Pulsar-admin API-->
 
 ```
-$ pulsar-admin topics get-deduplication-snapshot-interval options
+pulsar-admin topics get-deduplication-snapshot-interval options
 ```
 
 <!--REST API-->
@@ -1010,7 +1010,7 @@ To set the topic-level deduplication snapshot interval, use one of the following
 <!--Pulsar-admin API-->
 
 ```
-$ pulsar-admin topics set-deduplication-snapshot-interval options 
+pulsar-admin topics set-deduplication-snapshot-interval options 
 ```
 
 <!--REST API-->
@@ -1040,7 +1040,7 @@ To remove the topic-level deduplication snapshot interval, use one of the follow
 <!--Pulsar-admin API-->
 
 ```
-$ pulsar-admin topics remove-deduplication-snapshot-interval options
+pulsar-admin topics remove-deduplication-snapshot-interval options
 ```
 
 <!--REST API-->
