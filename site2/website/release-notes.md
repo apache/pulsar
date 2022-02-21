@@ -12,6 +12,7 @@ Align configurations defaults between default file and Java object (broker.conf,
 [PIP 118] Do not restart brokers when ZooKeeper session expires as default [#13341](https://github.com/apache/pulsar/pull/13341)
 [PIP 119] Enabled consistent hashing by default on KeyShared subscriptions dispatcher [#13352](https://github.com/apache/pulsar/pull/13352)
 [PIP 120] Enabled client memory limit controller by default [#13344](https://github.com/apache/pulsar/pull/13344)
+Make Docker images non-root, by default, and OpenShift compliant [#13376](https://github.com/apache/pulsar/pull/13376)
 [PIP 122] Change loadBalancer default loadSheddingStrategy to ThresholdShedder [#13733](https://github.com/apache/pulsar/pull/13733)
 Fixed netcat returning early for probe [#14088](https://github.com/apache/pulsar/pull/14088)
 
