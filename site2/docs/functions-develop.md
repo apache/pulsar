@@ -13,7 +13,9 @@ Interface | Description | Use cases
 :---------|:------------|:---------
 Language-native interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python). | Functions that do not require access to the function [context](#context).
 Pulsar Function SDK for Java/Python/Go | Pulsar-specific libraries that provide a range of functionality not provided by "native" interfaces. | Functions that require access to the function [context](#context).
+Extended Pulsar Function SDK for Java | An extension to Pulsar-specific libraries, providing the initialization and close interfaces in Java. | Functions that require initializing and releasing external resources.
 
+### Language-native interface
 The language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, has no external dependencies. The following example is language-native function.
 
 <!--DOCUSAURUS_CODE_TABS-->
@@ -50,6 +52,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Pulsar Function SDK for Java/Python/Go
 The following example uses Pulsar Functions SDK.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -100,7 +103,52 @@ func main() {
 }
 ```
 For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
+<!--END_DOCUSAURUS_CODE_TABS-->
 
+### Extended Pulsar Function SDK for Java
+This extended Pulsar Function SDK provides two additional interfaces to initialize and release external resources.
+- By using the `initialize` interface, you can initialize external resources which only need one-time initialization when the function instance starts.
+- By using the `close` interface, you can close the referenced external resources when the function instance closes. 
+
+> **Note**
+>
+> The extended Pulsar Function SDK for Java is available in Pulsar 2.10.0 and later versions.
+> Before using it, you need to set up Pulsar Function worker 2.10.0 or later versions.
+
+The following example uses the extended interface of Pulsar Function SDK for Java to initialize RedisClient when the function instance starts and release it when the function instance closes.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+```Java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import io.lettuce.core.RedisClient;
+
+public class InitializableFunction implements Function<String, String> {
+    private RedisClient redisClient;
+    
+    private void initRedisClient(Map<String, Object> connectInfo) {
+        redisClient = RedisClient.create(connectInfo.get("redisURI"));
+    }
+
+    @Override
+    public void initialize(Context context) {
+        Map<String, Object> connectInfo = context.getUserConfigMap();
+        redisClient = initRedisClient(connectInfo);
+    }
+    
+    @Override
+    public String process(String input, Context context) {
+        String value = client.get(key);
+        return String.format("%s-%s", input, value);
+    }
+
+    @Override
+    public void close() {
+        redisClient.close();
+    }
+}
+```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Schema registry

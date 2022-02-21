@@ -399,10 +399,10 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks,"
+        @Parameter(names = {"-a", "--actions"}, description = "Actions to be granted (produce,consume,sources,sinks,"
                 + "functions,packages)", required = true)
         private List<String> actions;
 
@@ -421,7 +421,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which revoke permissions", required = true)
         private String role;
 
         @Override

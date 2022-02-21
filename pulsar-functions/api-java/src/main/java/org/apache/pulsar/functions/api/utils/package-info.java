@@ -16,36 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.utils;
-
-import static org.testng.Assert.assertEquals;
-import java.io.Serializable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import org.testng.annotations.Test;
-
 /**
- * Unit test of {@link JavaSerDe}.
+ * State Store API.
  */
-public class JavaSerDeTest {
-
-    @Data
-    @AllArgsConstructor
-    private static class TestObject implements Serializable {
-
-        private int intField;
-        private String stringField;
-
-    }
-
-    @Test
-    public void testSerDe() {
-        TestObject to = new TestObject(1234, "test-serde-java-object");
-
-        byte[] data = JavaSerDe.of().serialize(to);
-        TestObject deserializeTo = (TestObject) JavaSerDe.of().deserialize(data);
-
-        assertEquals(to, deserializeTo);
-    }
-
-}
+package org.apache.pulsar.functions.api.utils;

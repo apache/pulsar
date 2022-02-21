@@ -449,6 +449,8 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 | numHttpServerThreads | Number of threads to use for HTTP requests processing | 2 * Runtime.getRuntime().availableProcessors()|
 |isRunningStandalone|This flag controls features that are meant to be used when running in standalone mode.|N/A|
 |clusterName| The name of the cluster that this broker belongs to. |standalone|
+|maxTenants|The maximum number of tenants that can be created in each Pulsar cluster. When the number of tenants reaches the threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
+| maxNamespacesPerTenant | The maximum number of namespaces that can be created in each tenant. When the number of namespaces reaches this threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
 | failureDomainsEnabled | Enable cluster's failure-domain which can distribute brokers into logical region. | false |
 |zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. |30000|
 |zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds.|30|
