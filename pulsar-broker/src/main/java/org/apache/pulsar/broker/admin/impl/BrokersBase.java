@@ -387,7 +387,8 @@ public class BrokersBase extends AdminResource {
                 // All system topics are using compaction, even though is not explicitly set in the policies.
                         !subscription.getName().equals(Compactor.COMPACTION_SUBSCRIPTION))
                 .map(Subscription::delete).collect(Collectors.toList()))
-                .exceptionally(ex -> { Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     // we need to ignore exception when force delete futures
                     if (!(realCause instanceof BrokerServiceException.SubscriptionBusyException)) {
                         LOG.warn("[{}] Got error while delete previous subscription.", clientAppId(), ex);
