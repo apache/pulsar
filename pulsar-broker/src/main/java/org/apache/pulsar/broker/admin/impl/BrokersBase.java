@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
-    private static long HEATH_CHECK_FORCE_DELETE_TIME = 30_000;
+    private static final long HEATH_CHECK_FORCE_DELETE_TIME = 30_000;
 
     @GET
     @Path("/{cluster}")
