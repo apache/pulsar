@@ -34,6 +34,13 @@ pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
 ```
 
+> Note
+> By default, pulsar sql won't get the last message in the topic. If you want to 
+> get the last message, you need to configure the following configurations.
+> For the broker config, you need to set `bookkeeperExplicitLacIntervalInMills`.
+> For the Presto config, you need to set `pulsar.bookkeeper-use-v2-protocol=false` and `pulsar.bookkeeper-explicit-interval`.
+> Then you should get the last message from sql.
+
 ## Query data from existing Presto clusters
 
 If you already have a Presto cluster, you can copy the Presto Pulsar connector plugin to your existing cluster. Download the archived plugin package with the following command.
