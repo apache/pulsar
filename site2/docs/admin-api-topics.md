@@ -1057,6 +1057,87 @@ admin.topics().removeDeduplicationSnapshotInterval(topic)
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 
+### Configure inactive topic policies
+
+#### Get inactive topic policies
+
+To get the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-inactive-topic-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getInactiveTopicPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set inactive topic policies
+
+To set the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-inactive-topic-policies options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+```json
+{
+  "interval": 1000
+}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove inactive topic policies
+
+To remove the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-inactive-topic-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeInactiveTopicPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
 ## Manage non-partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
 
