@@ -973,6 +973,90 @@ admin.topics().getBacklogSizeByMessageId(topic, messageId);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+
+### Configure deduplication snapshot interval
+
+#### Get deduplication snapshot interval
+
+To get the topic-level deduplication snapshot interval, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+$ pulsar-admin topics get-deduplication-snapshot-interval options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getDeduplicationSnapshotInterval(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set deduplication snapshot interval
+
+To set the topic-level deduplication snapshot interval, use one of the following methods.
+
+> **Prerequisite** `brokerDeduplicationEnabled` must be set to `true`.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+$ pulsar-admin topics set-deduplication-snapshot-interval options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+```json
+{
+  "interval": 1000
+}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setDeduplicationSnapshotInterval(topic, 1000)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove deduplication snapshot interval
+
+To remove the topic-level deduplication snapshot interval, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+$ pulsar-admin topics remove-deduplication-snapshot-interval options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeDeduplicationSnapshotInterval(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
 ## Manage non-partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
 
