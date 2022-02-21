@@ -356,7 +356,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void testWaitingCurosrCausedMemoryLeak() throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic";
-        for (int i=0; i<10; i++) {
+        for (int i = 0; i < 10; i ++) {
             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                     .subscriptionType(SubscriptionType.Failover).subscriptionName("test" + i).subscribe();
             Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
