@@ -842,7 +842,6 @@ public class PersistentSubscription implements Subscription {
             this.close().thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
-                log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
                 closeSubscriptionFuture.completeExceptionally(exception);
                 return null;
             });
@@ -866,7 +865,12 @@ public class PersistentSubscription implements Subscription {
             }
         }).exceptionally(exception -> {
             IS_FENCED_UPDATER.set(this, FALSE);
-            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            if (FutureUtil.unwrapCompletionException(exception) instanceof SubscriptionBusyException) {
+                log.warn("[{}][{}] Error deleting subscription, because subscription has active consumers",
+                        topicName, subName);
+            } else {
+                log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            }
             deleteFuture.completeExceptionally(exception);
             return null;
         });
