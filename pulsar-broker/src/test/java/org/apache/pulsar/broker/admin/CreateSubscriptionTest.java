@@ -19,15 +19,22 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -126,5 +133,19 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                     admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
                     Lists.newArrayList("sub-1"));
         }
+    }
+
+    @Test
+    public void testWaitingCurosrCausedMemoryLeak() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-topic";
+        for (int i = 0; i < 10; i ++) {
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                    .subscriptionType(SubscriptionType.Failover).subscriptionName("test" + i).subscribe();
+            Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
+            consumer.close();
+        }
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl)(topicRef.getManagedLedger());
+        assertEquals(ml.getWaitingCursorsCount(), 0);
     }
 }
