@@ -138,8 +138,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final int partitionIndex;
     private final boolean hasParentConsumer;
 
-    private final int receiverQueueRefillThreshold;
-
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
     private final NegativeAcksTracker negativeAcksTracker;
@@ -254,7 +252,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.hasParentConsumer = hasParentConsumer;
-        this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
@@ -839,8 +836,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 boolean firstTimeConnect = subscribeFuture.complete(this);
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
-                if (!(firstTimeConnect && hasParentConsumer) && conf.getReceiverQueueSize() != 0) {
-                    increaseAvailablePermits(cnx, conf.getReceiverQueueSize());
+                if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
+                    increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
                 }
             }).exceptionally((e) -> {
                 deregisterFromClientCnx();
@@ -1449,7 +1446,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        if (conf.getReceiverQueueSize() == 0) {
+        if (getCurrentReceiverQueueSize() == 0) {
             // call interceptor and complete received callback
             trackMessage(message);
             interceptAndComplete(message, receivedFuture);
@@ -1596,7 +1593,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
 
-        while (available >= receiverQueueRefillThreshold && !paused) {
+        while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 sendFlowPermitsToBroker(currentCnx, available);
                 break;
@@ -1608,6 +1605,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public void increaseAvailablePermits(int delta) {
         increaseAvailablePermits(cnx(), delta);
+    }
+
+    @Override
+    protected void setCurrentReceiverQueueSize(int newSize) {
+        checkArgument(newSize > 0, "receiver queue size should larger than 0");
+        int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
+        int delta = newSize - oldSize;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] update maxReceiverQueueSize from {} to {}, increaseAvailablePermits by {}",
+                    topic, subscription, oldSize, newSize, delta);
+        }
+        increaseAvailablePermits(delta);
     }
 
     @Override
