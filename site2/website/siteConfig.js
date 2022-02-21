@@ -130,7 +130,7 @@ const siteConfig = {
     { blog: true, label: "Blog" },
     { href: "#community", label: "Community" },
     { href: "#apache", label: "Apache" },
-    { href: "https://pulsar-next.staged.apache.org/", label: "New Website" },
+    { href: "https://pulsar-next.staged.apache.org/", label: "New Website(Beta)" },
     // Determines search bar position among links
     //{ search: true },
     // Determines language drop down position among links
