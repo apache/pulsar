@@ -1046,7 +1046,7 @@ pulsar-admin topics remove-deduplication-snapshot-interval options
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
 ```
 
 <!--Java API-->
@@ -1100,12 +1100,6 @@ pulsar-admin topics set-inactive-topic-policies options
 {@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
 ```
 
-```json
-{
-  "interval": 1000
-}
-```
-
 <!--Java API-->
 
 ```java
@@ -1127,13 +1121,88 @@ pulsar-admin topics remove-inactive-topic-policies options
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
 ```
 
 <!--Java API-->
 
 ```java
 admin.topics().removeInactiveTopicPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
+### Configure offload policies
+
+#### Get offload policies
+
+To get the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-offload-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getOffloadPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set offload policies
+
+To set the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-offload-policies options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setOffloadPolicies(topic, offloadPolicies)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove offload policies
+
+To remove the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-offload-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeOffloadPolicies(topic)
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
