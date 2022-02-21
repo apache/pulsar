@@ -1106,7 +1106,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         assertEquals(((ConsumerImpl<byte[]>) consumer).incomingMessages.size(), count - transactionCumulativeAck);
 
         // wait transaction timeout, we can't use Awaitility, we need to wait 3000 then the transaction will timeout
-        Thread.sleep(3000);
+        Thread.sleep(4000);
 
         // can receive the cumulative ack first message
         message = consumer.receive();
