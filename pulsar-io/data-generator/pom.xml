@@ -49,18 +49,6 @@
             <artifactId>jfairy</artifactId>
             <version>0.5.9</version>
         </dependency>
-        <dependency>
-            <groupId>com.google.inject</groupId>
-            <artifactId>guice</artifactId>
-            <version>${guice.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.inject.extensions</groupId>
-            <artifactId>guice-assistedinject</artifactId>
-            <version>${guice.version}</version>
-            <scope>runtime</scope>
-        </dependency>
 
         <dependency>
             <groupId>org.apache.avro</groupId>

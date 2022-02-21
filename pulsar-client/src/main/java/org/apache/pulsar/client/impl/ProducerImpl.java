@@ -1336,7 +1336,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     long sequenceId = te.getSequenceId();
                     long ns = System.nanoTime();
                     String errMsg = String.format(
-                        "%s : createdAt %s ns ago, firstSentAt %s ns ago, lastSentAt %s ns ago, retryCount %s",
+                        "%s : createdAt %s seconds ago, firstSentAt %s seconds ago, lastSentAt %s seconds ago, "
+                                + "retryCount %s",
                         te.getMessage(),
                         RelativeTimeUtil.nsToSeconds(ns - this.createdAt),
                         RelativeTimeUtil.nsToSeconds(this.firstSentAt <= 0
@@ -1537,8 +1538,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                       schemaInfo, epoch, userProvidedProducerName,
-                       conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction()),
+                        schemaInfo, epoch, userProvidedProducerName,
+                        conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction(),
+                        conf.getInitialSubscriptionName()),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();

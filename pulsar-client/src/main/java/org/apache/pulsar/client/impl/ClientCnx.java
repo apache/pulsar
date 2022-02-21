@@ -37,7 +37,6 @@ import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -448,15 +447,7 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
-            List<Long> ackSets = Collections.emptyList();
-            if (cmdMessage.getAckSetsCount() > 0) {
-                ackSets = new ArrayList<>(cmdMessage.getAckSetsCount());
-                for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
-                    ackSets.add(cmdMessage.getAckSetAt(i));
-                }
-            }
-            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), ackSets,
-                    headersAndPayload, this);
+            consumer.messageReceived(cmdMessage, headersAndPayload, this);
         }
     }
 

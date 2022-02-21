@@ -164,6 +164,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
 |advertisedAddress| Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 |clusterName| Name of the cluster to which this broker belongs to ||
+|maxTenants|The maximum number of tenants that can be created in each Pulsar cluster. When the number of tenants reaches the threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
 |brokerDeduplicationEnabled|  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.  |false|
 |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000|
 |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000|
@@ -257,6 +258,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
 |schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
 |systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 |offloadersDirectory|The directory for all the offloader implementations.|./offloaders|
 |bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: zk+hierarchical://localhost:2181/ledgers. The metadata service uri list can also be semicolon separated values like below: zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
@@ -363,6 +365,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false |
 | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| maxNamespacesPerTenant | The maximum number of namespaces that can be created in each tenant. When the number of namespaces reaches this threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 |subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared |
 | managedLedgerInfoCompressionType | Compression type of managed ledger information. <br /><br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br /><br />If this value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br /><br />**Note** that after enabling this configuration, if you want to degrade a broker, you need to change the value to `NONE` and make sure all ledger metadata is saved without compression. | None |
@@ -568,8 +571,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. | |
 | systemTopicEnabled | Enable/Disable system topics. | false |
 | topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 | proxyRoles | Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
-| authenticateOriginalAuthData | If this flag is set, the broker authenticates the original Auth data. Otherwise, it just accepts the originalPrincipal and authorizes it (if required). | false |
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
 |authorizationEnabled|  Enforce authorization in brokers. |false|

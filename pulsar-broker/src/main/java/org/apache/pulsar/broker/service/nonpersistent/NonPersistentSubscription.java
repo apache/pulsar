@@ -471,7 +471,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
      // No-op
     }
 

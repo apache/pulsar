@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -637,6 +638,14 @@ public class PersistentReplicator extends AbstractReplicator
     public void deleteFailed(ManagedLedgerException exception, Object ctx) {
         log.error("[{}][{} -> {}] Failed to delete message at {}: {}", topicName, localCluster, remoteCluster, ctx,
                 exception.getMessage(), exception);
+        if (ctx instanceof PositionImpl) {
+            PositionImpl deletedEntry = (PositionImpl) ctx;
+            if (deletedEntry.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+                brokerService.getPulsar().getExecutor().schedule(
+                        () -> cursor.asyncDelete(deletedEntry, (PersistentReplicator) this, deletedEntry), 10,
+                        TimeUnit.SECONDS);
+            }
+        }
     }
 
     public void updateRates() {
@@ -764,4 +773,9 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);
+
+    @VisibleForTesting
+    public ManagedCursor getCursor() {
+        return cursor;
+    }
 }

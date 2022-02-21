@@ -1126,6 +1126,8 @@ public class BacklogQuotaManagerTest {
         }
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         // publish should work now
+        producer.close();
+        producer = createProducer(client, topic1);
         Exception sendException = null;
         gotException = false;
         try {

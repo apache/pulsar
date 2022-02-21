@@ -205,10 +205,7 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
         } catch (RestException re) {
-            if (re.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode()) {
-                throw new RestException(Status.NOT_FOUND, "Namespace not found");
-            }
-            throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
+            throw re;
         } catch (Exception e) {
             log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespaceName, e.getMessage());
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
@@ -850,5 +847,18 @@ public abstract class AdminResource extends PulsarWebResource {
                         persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
                         persistence.getBookkeeperAckQuorum()));
 
+    }
+
+    /**
+     * Check current exception whether is redirect exception.
+     *
+     * @param ex The throwable.
+     * @return Whether is redirect exception
+     */
+    protected static boolean isRedirectException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
 }

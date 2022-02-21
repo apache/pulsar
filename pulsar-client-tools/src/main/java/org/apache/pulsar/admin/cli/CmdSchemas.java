@@ -115,7 +115,7 @@ public class CmdSchemas extends CmdBase {
         @Parameter(names = { "-c", "--classname" }, description = "class name of pojo", required = true)
         private String className;
 
-        @Parameter(names = { "--always-allow-null" }, arity = 1,
+        @Parameter(names = {"-a", "--always-allow-null"}, arity = 1,
                    description = "set schema whether always allow null or not")
         private boolean alwaysAllowNull = true;
 

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -53,6 +56,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -85,6 +89,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
     private volatile boolean isListenerHandlingMessage = false;
+
+    protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
+            AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
+
+    @Setter
+    @Getter
+    protected volatile long consumerEpoch;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
@@ -1052,6 +1063,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 ? receivedConsumer.internalPinnedExecutor
                 : internalPinnedExecutor;
         return executor;
+    }
+
+    // If message consumer epoch is smaller than consumer epoch present that
+    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
+    // so we should release this message and receive again
+    protected boolean isValidConsumerEpoch(MessageImpl<T> message) {
+        if ((getSubType() == CommandSubscribe.SubType.Failover
+                || getSubType() == CommandSubscribe.SubType.Exclusive)
+                && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
+                && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
+            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], consumerEpoch : [{}]",
+                    topic, message.getMessageId(), consumerEpoch);
+            message.release();
+            message.recycle();
+            return false;
+        }
+        return true;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);
