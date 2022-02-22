@@ -2120,19 +2120,26 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         c1.skipEntries(2, IndividualDeletedEntries.Exclude);
         // let current ledger close
         ml.rollCurrentLedgerIfFull();
-        // let retention expire
-        Thread.sleep(1500);
+
+        // the closed and expired ledger should be deleted
+        Awaitility.await()
+                .pollDelay(1500, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    assertTrue(ml.getLedgersInfoAsList().size() <= 1);
+                    assertEquals(ml.getTotalSize(), 0);
+                });
         // delete the expired ledger
         ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
 
-        // the closed and expired ledger should be deleted
-        assertTrue(ml.getLedgersInfoAsList().size() <= 1);
-        assertEquals(ml.getTotalSize(), 0);
-
         // check metrics within each phrase
-        assertEquals(ml.mbean.getNumberOfLedgersMarkedDeletable(), 2);
-        assertEquals(ml.mbean.getNumberOfLedgersBeingDeleted(), 2);
-        assertEquals(ml.mbean.getNumberOfLedgersExceededMaxRetryCount(), 0);
+        Awaitility.await()
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertEquals(ml.mbean.getNumberOfLedgersMarkedDeletable(), 2);
+                    assertEquals(ml.mbean.getNumberOfLedgersBeingDeleted(), 2);
+                    assertEquals(ml.mbean.getNumberOfLedgersExceededMaxRetryCount(), 0);
+                });
         ml.close();
     }
 

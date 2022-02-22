@@ -151,9 +151,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected static final int AsyncOperationTimeoutSeconds = 30;
 
-    protected static final String DELETABLE_LEDGER_MARKER_KEYWORD = "pulsar.ml.deletable.ledgers";
+    protected static final String DELETABLE_LEDGER_MARKER_KEYWORD = "DL";
     protected static final String DELETABLE_LEDGER_MARKER_PREFIX = DELETABLE_LEDGER_MARKER_KEYWORD + ":";
-    protected static final String DELETABLE_OFFLOADED_LEDGER_MARKER_KEYWORD = "pulsar.ml.deletable.offloaded.ledgers";
+    protected static final String DELETABLE_OFFLOADED_LEDGER_MARKER_KEYWORD = "DOL";
     protected static final String DELETABLE_OFFLOADED_LEDGER_MARKER_PREFIX =
             DELETABLE_OFFLOADED_LEDGER_MARKER_KEYWORD + ":";
     protected static final String DELETABLE_LEDGER_PLACEHOLDER = "";
@@ -2592,9 +2592,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void result, Stat stat) {
-                    // perform actual deletion
-                    removeAllDeletableLedgers();
-
                     log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.size(),
                             TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
                     ledgersStat = stat;
@@ -2602,6 +2599,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     trimmerMutex.unlock();
 
                     promise.complete(null);
+
+                    // perform actual deletion in background
+                    scheduledExecutor.submit(safeRun(() -> tryRemoveAllDeletableLedgers()));
                 }
 
                 @Override
@@ -4262,14 +4262,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (!counter.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
                 for (Long deletableLedger : deletableLedgers) {
                     if (!finishedDeletedLedgers.contains(deletableLedger)) {
-                        log.warn("[{}] Failed to delete ledger:{} due to operation timeout", name, deletableLedger);
+                        log.warn("[{}] Failed to delete ledger:{} due to operation timeout={}s",
+                                name, deletableLedger, AsyncOperationTimeoutSeconds);
                         timeoutDeletedLedgers.add(deletableLedger);
                     }
                 }
                 for (Long deletableOffloadedLedger : deletableOffloadedLedgers) {
                     if (!finishedDeletedOffloadedLedgers.contains(deletableOffloadedLedger)) {
-                        log.warn("[{}] Failed to delete offloaded ledger:{} due to operation timeout",
-                                name, deletableOffloadedLedger);
+                        log.warn("[{}] Failed to delete offloaded ledger:{} due to operation timeout={}s",
+                                name, deletableOffloadedLedger, AsyncOperationTimeoutSeconds);
                         timeoutDeletedLedgers.add(deletableOffloadedLedger);
                     }
                 }
@@ -4311,14 +4312,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Successfully delete bookkeeper ledgers: {} and offloaded ledgers: {}. "
-                                + "Failed to delete bookkeeper ledgers: {} and offloaded ledgers: {}", name,
+                                + "Failed to delete bookkeeper ledgers: {} and offloaded ledgers: {}. " +
+                                "Timeout ledgers: {}", name,
                         succeedDeletedLedgers, succeedDeletedOffloadedLedgers,
-                        failDeletedLedgers, failDeletedOffloadedLedgers);
+                        failDeletedLedgers, failDeletedOffloadedLedgers,
+                        timeoutDeletedLedgers);
             }
         } catch (Exception e) {
             // Avoid modifying the existing meta-information so that
             // it can trigger a retry in the next check
             log.error("[{}] Failed to update metadata after ledger deletion", name);
+        }
+    }
+
+    private void tryRemoveAllDeletableLedgers() {
+        if (!metadataMutex.tryLock()) {
+            scheduledExecutor.schedule(safeRun(() -> tryRemoveAllDeletableLedgers()), 100, TimeUnit.MILLISECONDS);
+        } else {
+            removeAllDeletableLedgers();
+            metadataMutex.unlock();
         }
     }
 
