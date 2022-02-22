@@ -455,7 +455,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .subscribe();
 
         final int messages = 10;
-
         for (int i = 0; i < messages; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -489,6 +488,45 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_count"));
+    }
+
+    @Test
+    public void testNonPersistentSubMetrics() throws Exception {
+        Producer<byte[]> p1 =
+                pulsarClient.newProducer().topic("non-persistent://my-property/use/my-ns/my-topic1").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("non-persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 100;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log"));
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log_no_delayed"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_throughput_out"));
+        assertTrue(metrics.containsKey("pulsar_throughput_out"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_rate_redeliver"));
+        assertTrue(metrics.containsKey("pulsar_subscription_unacked_messages"));
+        assertTrue(metrics.containsKey("pulsar_subscription_blocked_on_unacked_messages"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_rate_out"));
+        assertTrue(metrics.containsKey("pulsar_out_bytes_total"));
+        assertTrue(metrics.containsKey("pulsar_out_messages_total"));
+        assertTrue(metrics.containsKey("pulsar_subscription_last_expire_timestamp"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_drop_rate"));
     }
 
     @Test
