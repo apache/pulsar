@@ -30,7 +30,6 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import java.lang.reflect.InvocationTargetException;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -214,13 +213,16 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage) throws PulsarServerException {
+    public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
+          throws PulsarServerException {
         try {
-            Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
+            Map<SchemaType, SchemaCompatibilityCheck> checkers =
+                  getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
             this.schemaStorage = schemaStorage;
             this.compatibilityChecks = checkers;
             this.clock = Clock.systemUTC();
-        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
+        } catch (ClassNotFoundException | NoSuchMethodException
+              | IllegalAccessException | InvocationTargetException | InstantiationException e) {
             throw new PulsarServerException("cannot initialize schema compatibility checkers", e);
         }
     }
