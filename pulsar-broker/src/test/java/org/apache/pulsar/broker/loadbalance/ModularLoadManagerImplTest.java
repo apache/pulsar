@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -35,6 +36,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -51,6 +53,7 @@ import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
@@ -601,5 +604,32 @@ public class ModularLoadManagerImplTest {
         }
 
         pulsar.close();
+    }
+
+    @Test
+    public void testRemoveDeadBrokerTimeAverageData() throws Exception {
+        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
+        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        assertEquals(lm.getAvailableBrokers().size(), 2);
+
+        pulsar2.close();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(lm.getAvailableBrokers().size(), 1);
+        });
+        lm.updateAll();
+
+        List<String> data =  pulsar1.getLocalMetadataStore()
+                .getMetadataCache(TimeAverageBrokerData.class).getChildren(TIME_AVERAGE_BROKER_ZPATH).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar1.getLeaderElectionService().isLeader());
+        });
+
+        assertEquals(data.size(), 1);
+
+
+
+
     }
 }
