@@ -1091,6 +1091,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Whether ConcurrentLongLongPairHashMap supports automatic shrinking," +
+                    "the default is false, which means automatic shrinking is not supported.")
+    private boolean autoShrink = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
         doc = "Enable tracking of replicated subscriptions state across clusters.")
     private boolean enableReplicatedSubscriptions = true;
 

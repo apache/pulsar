@@ -161,7 +161,7 @@ public interface Topic {
      * @param option
      * @return
      */
-    CompletableFuture<Consumer> subscribe(SubscriptionOption option);
+    CompletableFuture<Consumer> subscribe(SubscriptionOption option, boolean autoShrink);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);

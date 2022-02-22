@@ -138,11 +138,22 @@ public class Consumer {
     @Setter
     private volatile long consumerEpoch;
 
+    @Deprecated
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch){
+        this(subscription, subType, topicName, consumerId, priorityLevel, consumerName,
+                isDurable, cnx, appId, metadata, readCompacted, subscriptionInitialPosition, keySharedMeta,
+                startMessageId, consumerEpoch, false);
+    }
+
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    boolean isDurable, TransportCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch, boolean autoShrink) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -186,7 +197,11 @@ public class Consumer {
         stats.metadata = this.metadata;
 
         if (Subscription.isIndividualAckMode(subType)) {
-            this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder().autoShrink(true).build();
+            this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder()
+                    .expectedItems(256)
+                    .concurrencyLevel(1)
+                    .autoShrink(autoShrink)
+                    .build();
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;

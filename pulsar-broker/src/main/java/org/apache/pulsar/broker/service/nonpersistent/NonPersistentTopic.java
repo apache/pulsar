@@ -235,13 +235,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option, boolean autoShrink) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
                 option.isDurable(), option.getStartMessageId(), option.getMetadata(),
                 option.isReadCompacted(), option.getInitialPosition(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
-                option.getKeySharedMeta());
+                option.getKeySharedMeta(), autoShrink);
     }
 
     @Override
@@ -251,10 +251,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  Map<String, String> metadata, boolean readCompacted,
                                                  InitialPosition initialPosition,
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
-                                                 KeySharedMeta keySharedMeta) {
+                                                 KeySharedMeta keySharedMeta,  boolean autoShrink) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, resetStartMessageBackInSec,
-                replicateSubscriptionState, keySharedMeta);
+                replicateSubscriptionState, keySharedMeta, autoShrink);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -264,7 +264,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           boolean readCompacted, InitialPosition initialPosition,
                                                           long resetStartMessageBackInSec,
                                                           boolean replicateSubscriptionState,
-                                                          KeySharedMeta keySharedMeta) {
+                                                          KeySharedMeta keySharedMeta,
+                                                          boolean autoShrink) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -308,7 +309,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta,
-                    MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+                    MessageId.latest, DEFAULT_CONSUMER_EPOCH, autoShrink);
 
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                 if (!cnx.isActive()) {
