@@ -33,7 +33,7 @@ import org.apache.pulsar.functions.api.Record;
 /**
  * A class that helps to generate the time-based index names.
  *
- * The formatter will find the pattern %{+<date-format>} in the format string,
+ * The formatter finds the pattern %{+<date-format>} in the format string
  * and replace them with strings that are formatted from the event time of the record
  * using <date-format>. The format follows the rules of {@link java.time.format.DateTimeFormatter}.
  *
