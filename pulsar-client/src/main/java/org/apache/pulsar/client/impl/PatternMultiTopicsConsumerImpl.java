@@ -25,19 +25,19 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,8 +48,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final Mode subscriptionMode;
     protected NamespaceName namespaceName;
     private volatile Timeout recheckPatternTimeout = null;
+    private volatile String topicsHash;
 
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
+                                          String topicsHash,
                                           PulsarClientImpl client,
                                           ConsumerConfigurationData<T> conf,
                                           ExecutorProvider executorProvider,
@@ -60,6 +62,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         super(client, conf, executorProvider, subscribeFuture, schema, interceptors,
                 false /* createTopicIfDoesNotExist */);
         this.topicsPattern = topicsPattern;
+        this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;
 
         if (this.namespaceName == null) {
@@ -83,17 +86,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             return;
         }
 
-        CompletableFuture<Void> recheckFuture = new CompletableFuture<>();
-        List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(2);
 
-        client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode).thenAccept(topics -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
-                topics.forEach(topicName ->
-                    log.debug("Get topics under namespace {}, topic: {}", namespaceName.toString(), topicName));
-            }
-
-            List<String> newTopics = PulsarClientImpl.topicsPatternFilter(topics, topicsPattern);
+        client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, topicsPattern.pattern(),
+                topicsHash).thenAccept(getTopicsResult -> {
             List<String> oldTopics = new ArrayList<>();
             oldTopics.addAll(getPartitionedTopics());
             getPartitions().forEach(p -> {
@@ -102,21 +97,48 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     oldTopics.add(p);
                 }
             });
-
-            futures.add(topicsChangeListener.onTopicsAdded(topicsListsMinus(newTopics, oldTopics)));
-            futures.add(topicsChangeListener.onTopicsRemoved(topicsListsMinus(oldTopics, newTopics)));
-            FutureUtil.waitForAll(futures)
-                .thenAccept(finalFuture -> recheckFuture.complete(null))
-                .exceptionally(ex -> {
-                    log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
-                    recheckFuture.completeExceptionally(ex);
-                    return null;
-                });
+            topicsHash = updateSubscriptions(topicsPattern, topicsHash, namespaceName, getTopicsResult,
+                    topicsChangeListener, oldTopics, topic);
         });
 
         // schedule the next re-check task
         this.recheckPatternTimeout = client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
                 Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+    }
+
+    static String updateSubscriptions(Pattern topicsPattern, String topicsHash, NamespaceName namespaceName,
+                               GetTopicsResult getTopicsResult, TopicsChangedListener topicsChangeListener,
+                               List<String> oldTopics, String dummyTopicName) {
+        List<CompletableFuture<Void>> futures = new ArrayList(2);
+        if (log.isDebugEnabled()) {
+            log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
+                    namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
+                    getTopicsResult.isFiltered());
+            getTopicsResult.getTopics().forEach(topicName ->
+                    log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
+        }
+
+        if (!getTopicsResult.isChanged()) {
+            return topicsHash;
+        }
+        String newTopicsHash = getTopicsResult.getTopicsHash();
+
+        List<String> newTopics;
+        if (getTopicsResult.isFiltered()) {
+            newTopics = getTopicsResult.getTopics();
+        } else {
+            newTopics = TopicList.filterTopics(getTopicsResult.getTopics(), topicsPattern);
+        }
+
+
+        futures.add(topicsChangeListener.onTopicsAdded(TopicList.minus(newTopics, oldTopics)));
+        futures.add(topicsChangeListener.onTopicsRemoved(TopicList.minus(oldTopics, newTopics)));
+        FutureUtil.waitForAll(futures)
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to recheck topics change: {}", dummyTopicName, ex.getMessage());
+                return null;
+            });
+        return newTopicsHash;
     }
 
     public Pattern getPattern() {
@@ -174,13 +196,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 });
             return addFuture;
         }
-    }
-
-    // get topics, which are contained in list1, and not in list2
-    public static List<String> topicsListsMinus(List<String> list1, List<String> list2) {
-        HashSet<String> s1 = new HashSet<>(list1);
-        s1.removeAll(list2);
-        return s1.stream().collect(Collectors.toList());
     }
 
     @Override
