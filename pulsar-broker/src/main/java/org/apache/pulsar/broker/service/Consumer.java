@@ -186,7 +186,7 @@ public class Consumer {
         stats.metadata = this.metadata;
 
         if (Subscription.isIndividualAckMode(subType)) {
-            this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
+            this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder().autoShrink(true).build();
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
