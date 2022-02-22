@@ -4312,8 +4312,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Successfully delete bookkeeper ledgers: {} and offloaded ledgers: {}. "
-                                + "Failed to delete bookkeeper ledgers: {} and offloaded ledgers: {}. " +
-                                "Timeout ledgers: {}", name,
+                                + "Failed to delete bookkeeper ledgers: {} and offloaded ledgers: {}. "
+                                + "Timeout ledgers: {}", name,
                         succeedDeletedLedgers, succeedDeletedOffloadedLedgers,
                         failDeletedLedgers, failDeletedOffloadedLedgers,
                         timeoutDeletedLedgers);
