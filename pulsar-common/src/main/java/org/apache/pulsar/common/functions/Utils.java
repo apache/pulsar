@@ -65,7 +65,8 @@ public class Utils {
     public static void inferMissingExecutor(FunctionConfig functionConfig) {
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             functionConfig.setExecutor("java");
-        } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
+        }
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
             functionConfig.setExecutor("python");
         }
     }
