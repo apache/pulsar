@@ -350,8 +350,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
 
         /**
-         * Here is an explanation of why the null value is returned.
-         * pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationState.java#L49
+         * @param authData Authentication data.
+         * @return null. Explanation of returning null values, {@link AuthenticationState#authenticateAsync(AuthData)}
+         * @throws AuthenticationException
          */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {

@@ -20,6 +20,7 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +46,7 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return headers.entrySet();
+        return Collections.unmodifiableMap(this.headers).entrySet();
     }
 
     @Override

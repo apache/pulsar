@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +46,7 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return headers.entrySet();
+        return Collections.unmodifiableMap(this.headers).entrySet();
     }
 
     @Override

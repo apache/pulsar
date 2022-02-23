@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.client.impl.auth;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -43,7 +44,7 @@ public class AuthenticationDataToken implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return this.headers.entrySet();
+        return Collections.unmodifiableMap(this.headers).entrySet();
     }
 
     @Override
