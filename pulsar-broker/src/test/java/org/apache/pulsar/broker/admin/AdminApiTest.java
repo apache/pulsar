@@ -747,6 +747,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().revokePermissionsOnNamespace("prop-xyz/ns1", "my-role");
         policies.auth_policies.getNamespaceAuthentication().remove("spiffe://developer/passport-role");
         policies.auth_policies.getNamespaceAuthentication().remove("my-role");
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
 
         assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), null);
