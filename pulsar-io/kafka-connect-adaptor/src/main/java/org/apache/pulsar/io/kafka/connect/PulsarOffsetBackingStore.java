@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.WorkerConfig;
@@ -49,7 +50,7 @@ import org.apache.pulsar.client.api.Schema;
 @Slf4j
 public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
-    private Map<ByteBuffer, ByteBuffer> data;
+    private ConcurrentHashMap<ByteBuffer, ByteBuffer> data;
     private PulsarClient client;
     private String topic;
     private Producer<byte[]> producer;
@@ -65,7 +66,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     public void configure(WorkerConfig workerConfig) {
         this.topic = workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG);
         checkArgument(!isBlank(topic), "Offset storage topic must be specified");
-        this.data = new HashMap<>();
+        this.data = new ConcurrentHashMap<>();
 
         log.info("Configure offset backing store on pulsar topic {}", topic);
     }
@@ -126,11 +127,9 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     }
 
     void processMessage(Message<byte[]> message) {
-        synchronized (data) {
-            data.put(
-                ByteBuffer.wrap(message.getKey().getBytes(UTF_8)),
-                ByteBuffer.wrap(message.getValue()));
-        }
+        data.put(
+            ByteBuffer.wrap(message.getKey().getBytes(UTF_8)),
+            ByteBuffer.wrap(message.getValue()));
     }
 
     @Override
@@ -191,10 +190,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         return endFuture.thenApply(ignored -> {
             Map<ByteBuffer, ByteBuffer> values = new HashMap<>();
             for (ByteBuffer key : keys) {
-                ByteBuffer value;
-                synchronized (data) {
-                    value = data.get(key);
-                }
+                ByteBuffer value = data.get(key);
                 if (null != value) {
                     values.put(key, value);
                 }
