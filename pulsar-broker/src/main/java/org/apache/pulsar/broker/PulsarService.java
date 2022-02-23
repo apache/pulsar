@@ -803,7 +803,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     + (StringUtils.isNotEmpty(brokerServiceUrlTls) ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready, bootstrap_seconds={}", bootstrapTimeSeconds);
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
-                    config.getClusterName(), ReflectionToStringBuilder.toString(config));
+                    config.getClusterName(), config);
 
             state = State.Started;
         } catch (Exception e) {
