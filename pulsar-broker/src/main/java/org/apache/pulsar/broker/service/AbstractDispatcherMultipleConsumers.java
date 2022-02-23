@@ -246,16 +246,14 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
             if (consumerSelectorClassInstance instanceof StickyKeyConsumerSelector) {
                 return (StickyKeyConsumerSelector) consumerSelectorClassInstance;
             } else {
-                log.error("create key shared consumer selector strategy failed."
-                        + "using ConsistentHashingStickyKeyConsumerSelector instead.");
-                return new ConsistentHashingStickyKeyConsumerSelector(
-                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+                throw new RuntimeException(String.format("Failed create KeySharedConsumerSelectorStrategy: %s."
+                        + "Class should be implemented StickyKeyConsumerSelector interface",
+                        conf.getKeySharedConsumerSelectorStrategy()));
             }
         } catch (Exception e) {
-            log.error("Error when trying to create key shared consumer selector strategy: ", e);
+            throw new RuntimeException(String.format("Failed create KeySharedConsumerSelectorStrategy: %s.",
+                    conf.getKeySharedConsumerSelectorStrategy()), e);
         }
-        return new ConsistentHashingStickyKeyConsumerSelector(
-                conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
     }
 
 
