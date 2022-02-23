@@ -736,6 +736,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.bundles = PoliciesUtil.defaultBundle();
         policies.auth_policies.getNamespaceAuthentication().put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.allOf(AuthAction.class));
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.getNamespaceAuthentication());
