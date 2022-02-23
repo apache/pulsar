@@ -168,7 +168,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     // Regression test for making sure partition changes are always periodically checked even after a check returned
     // exceptionally.
     public void testTableViewUpdatePartitionsTriggeredDespiteExceptions() throws Exception {
-        String topic = "persistent://public/default/tableview-test-update-partitions";
+        String topic = "persistent://public/default/tableview-test-update-partitions-triggered-despite-exceptions";
         admin.topics().createPartitionedTopic(topic, 3);
         int count = 20;
         Set<String> keys = this.publishMessages(topic, count, false);
