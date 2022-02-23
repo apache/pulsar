@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.apache.commons.lang3.builder.ToStringExclude;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
@@ -254,7 +255,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "tlsTrustStorePassword",
             value = "Password of TLS TrustStore."
     )
-    @ToStringExclude
+    @ToString.Exclude
     private String tlsTrustStorePassword = null;
 
     @ApiModelProperty(
@@ -326,7 +327,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "socks5ProxyPassword",
             value = "Password of SOCKS5 proxy."
     )
-    @ToStringExclude
+    @ToString.Exclude
     private String socks5ProxyPassword;
 
     public Authentication getAuthentication() {
