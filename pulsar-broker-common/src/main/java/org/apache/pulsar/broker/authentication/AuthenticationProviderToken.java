@@ -316,10 +316,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         private final AuthenticationProviderToken provider;
         private AuthenticationDataSource authenticationDataSource;
         private Jwt<?, Claims> jwt;
-        private SocketAddress remoteAddress;
-        private SSLSession sslSession;
         private long expiration;
-        private HttpServletRequest request;
 
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
@@ -327,8 +324,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 SocketAddress remoteAddress,
                 SSLSession sslSession) throws AuthenticationException {
             this.provider = provider;
-            this.remoteAddress = remoteAddress;
-            this.sslSession = sslSession;
             String token = new String(authData.getBytes(), UTF_8);
             this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             this.checkExpiration(token);
@@ -338,15 +333,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 AuthenticationProviderToken provider,
                 HttpServletRequest request) throws AuthenticationException {
             this.provider = provider;
-            this.request = request;
-            String httpHeaderValue = this.request.getHeader(HTTP_HEADER_NAME);
+            String httpHeaderValue = request.getHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
                 throw new AuthenticationException("Invalid HTTP Authorization header");
             }
 
             // Remove prefix
             String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-            this.authenticationDataSource = new AuthenticationDataHttps(this.request);
+            this.authenticationDataSource = new AuthenticationDataHttps(request);
             this.checkExpiration(token);
         }
 
