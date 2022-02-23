@@ -27,6 +27,7 @@ import org.apache.pulsar.common.util.Murmur3_32Hash;
 public interface StickyKeyConsumerSelector {
 
     int DEFAULT_RANGE_SIZE =  2 << 15;
+    int DEFAULT_REPLICE_POINTS = 100;
 
     /**
      * Add a new consumer.

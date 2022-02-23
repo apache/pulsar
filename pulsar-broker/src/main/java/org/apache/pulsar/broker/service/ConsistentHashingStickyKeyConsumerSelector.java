@@ -47,6 +47,10 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
 
     private final int numberOfPoints;
 
+    public ConsistentHashingStickyKeyConsumerSelector() {
+        this(DEFAULT_REPLICE_POINTS);
+    }
+
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
         this.hashRing = new TreeMap<>();
         this.numberOfPoints = numberOfPoints;
