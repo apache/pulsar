@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -68,6 +69,16 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private SchemaStorage schemaStorage;
     private Clock clock;
     private SchemaRegistryStats stats;
+
+    @VisibleForTesting
+    SchemaRegistryServiceImpl(Clock clock) {
+        this.clock = clock;
+    }
+
+    @VisibleForTesting
+    SchemaRegistryServiceImpl() {
+        this(Clock.systemUTC());
+    }
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(Clock clock) {
