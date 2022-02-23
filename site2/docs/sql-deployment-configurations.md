@@ -110,7 +110,7 @@ pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
 ```
 
-**Note: by default, Pulsar SQL does not get the last message in a topic**. It is not a bug but controlled by settings. By default, BookKeeper LAC only advanced when subsequent entries are added. If there is no subsequent entry added, the last written entry is not visible to readers until the ledger is closed. This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly reads from BookKeeper ledger. 
+**Note: by default, Pulsar SQL does not get the last message in a topic**. It is by design and controlled by settings. By default, BookKeeper LAC only advances when subsequent entries are added. If there is no subsequent entry added, the last written entry is not visible to readers until the ledger is closed. This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly reads from BookKeeper ledger. 
 
 If you want to get the last message in a topic, set the following configurations:
 
