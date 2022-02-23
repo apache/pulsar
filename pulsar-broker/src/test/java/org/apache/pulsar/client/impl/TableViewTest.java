@@ -90,7 +90,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         try (Producer<byte[]> producer = builder.create()) {
             CompletableFuture<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
-                String key = "key" + i;
+                String key = "key"+ i;
                 byte[] data = ("my-message-" + i).getBytes();
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);

@@ -104,10 +104,10 @@ public class TableViewImpl<T> implements TableView<T> {
         }
 
         start().whenComplete((tw, ex) -> {
-            if (ex != null) {
-                log.warn("Failed to check for changes in number of partitions");
-                schedulePartitionsCheck();
-            }
+           if (ex != null) {
+               log.warn("Failed to check for changes in number of partitions: {}", ex);
+               schedulePartitionsCheck();
+           }
         });
     }
 
@@ -128,12 +128,12 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public T get(String key) {
-        return data.get(key);
+       return data.get(key);
     }
 
     @Override
     public Set<Map.Entry<String, T>> entrySet() {
-        return data.entrySet();
+       return data.entrySet();
     }
 
     @Override
@@ -237,27 +237,27 @@ public class TableViewImpl<T> implements TableView<T> {
                                          AtomicLong messagesRead) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
-                    if (hasMessage) {
-                        reader.readNextAsync()
-                                .thenAccept(msg -> {
-                                    messagesRead.incrementAndGet();
-                                    handleMessage(msg);
-                                    readAllExistingMessages(reader, future, startTime, messagesRead);
-                                }).exceptionally(ex -> {
-                                    future.completeExceptionally(ex);
-                                    return null;
-                                });
-                    } else {
-                        // Reached the end
-                        long endTime = System.nanoTime();
-                        long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                        log.info("Started table view for topic {} - replayed {} messages in {} seconds",
-                                reader.getTopic(),
-                                messagesRead,
-                                durationMillis / 1000.0);
-                        future.complete(reader);
-                        readTailMessages(reader);
-                    }
+                   if (hasMessage) {
+                       reader.readNextAsync()
+                               .thenAccept(msg -> {
+                                  messagesRead.incrementAndGet();
+                                  handleMessage(msg);
+                                  readAllExistingMessages(reader, future, startTime, messagesRead);
+                               }).exceptionally(ex -> {
+                                   future.completeExceptionally(ex);
+                                   return null;
+                               });
+                   } else {
+                       // Reached the end
+                       long endTime = System.nanoTime();
+                       long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                       log.info("Started table view for topic {} - Replayed {} messages in {} seconds",
+                               reader.getTopic(),
+                               messagesRead,
+                               durationMillis / 1000.0);
+                       future.complete(reader);
+                       readTailMessages(reader);
+                   }
                 });
     }
 
