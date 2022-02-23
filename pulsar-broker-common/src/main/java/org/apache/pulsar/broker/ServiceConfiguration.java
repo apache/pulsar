@@ -599,6 +599,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> subscriptionTypesEnabled =
             Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
