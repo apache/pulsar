@@ -217,6 +217,9 @@ public class CommandGenerator {
         if (subscriptionInitialPosition != null) {
             commandBuilder.append(" --subs-position " + subscriptionInitialPosition.name());
         }
+        if (executor != null) {
+            commandBuilder.append(" --executor " + executor);
+        }
 
         switch (runtime){
             case JAVA:

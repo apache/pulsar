@@ -43,7 +43,12 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
         testFunctionLocalRun(Runtime.JAVA);
     }
 
-   @Test(groups = {"java_function", "function"})
+    @Test(groups = {"java_function", "function"})
+    public void testJavaFunctionLocalRunWithExecutor() throws Exception {
+        testFunctionLocalRunWithExecutor(Runtime.JAVA, "java");
+    }
+
+    @Test(groups = {"java_function", "function"})
    public void testJavaFunctionNegAck() throws Exception {
        testFunctionNegAck(Runtime.JAVA);
    }

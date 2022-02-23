@@ -121,6 +121,129 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
+    protected void testFunctionLocalRunWithExecutor(Runtime runtime, String executor) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD) {
+            return;
+        }
+
+
+        String inputTopicName = "persistent://public/default/test-function-local-run-with-executor" + runtime + "-input-" + randomName(8);
+        String outputTopicName = "test-function-local-run-with-executor" + runtime + "-output-" + randomName(8);
+
+        final int numMessages = 10;
+        String cmd = "";
+        CommandGenerator commandGenerator = new CommandGenerator();
+        commandGenerator.setAdminUrl("pulsar://pulsar-broker-0:6650");
+        commandGenerator.setSourceTopic(inputTopicName);
+        commandGenerator.setSinkTopic(outputTopicName);
+        commandGenerator.setFunctionName("localRunTestWithExecutor-" + randomName(8));
+        commandGenerator.setRuntime(runtime);
+        commandGenerator.setExecutor(executor);
+        switch (runtime) {
+            case JAVA:
+                commandGenerator.setFunctionClassName(EXCLAMATION_JAVA_CLASS);
+                cmd = commandGenerator.generateLocalRunCommand(null);
+                break;
+            case PYTHON:
+                commandGenerator.setFunctionClassName(EXCLAMATION_PYTHON_CLASS);
+                cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_PYTHON_FILE);
+                break;
+            case GO:
+                commandGenerator.setFunctionClassName(null);
+                cmd = commandGenerator.generateLocalRunCommand(EXCLAMATION_GO_FILE);
+                break;
+        }
+
+        log.info("cmd: {}", cmd);
+        pulsarCluster.getAnyWorker().execCmdAsync(cmd.split(" "));
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+            retryStrategically((test) -> {
+                try {
+                    return admin.topics().getStats(inputTopicName).getSubscriptions().size() == 1;
+                } catch (PulsarAdminException e) {
+                    return false;
+                }
+            }, 30, 200);
+
+            assertEquals(admin.topics().getStats(inputTopicName).getSubscriptions().size(), 1);
+
+            // publish and consume result
+            if (Runtime.JAVA == runtime) {
+                // java supports schema
+                @Cleanup PulsarClient client = PulsarClient.builder()
+                        .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                        .build();
+
+                @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                        .topic(outputTopicName)
+                        .subscriptionType(SubscriptionType.Exclusive)
+                        .subscriptionName("test-sub")
+                        .subscribe();
+
+                @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
+                        .topic(inputTopicName)
+                        .create();
+
+                for (int i = 0; i < numMessages; i++) {
+                    producer.send("message-" + i);
+                }
+
+                Set<String> expectedMessages = new HashSet<>();
+                for (int i = 0; i < numMessages; i++) {
+                    expectedMessages.add("message-" + i + "!");
+                }
+
+                for (int i = 0; i < numMessages; i++) {
+                    Message<String> msg = consumer.receive(60 * 2, TimeUnit.SECONDS);
+                    log.info("Received: {}", msg.getValue());
+                    assertTrue(expectedMessages.contains(msg.getValue()));
+                    expectedMessages.remove(msg.getValue());
+                }
+                assertEquals(expectedMessages.size(), 0);
+
+            } else {
+                // python doesn't support schema
+
+                @Cleanup PulsarClient client = PulsarClient.builder()
+                        .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                        .build();
+                @Cleanup Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
+                        .topic(outputTopicName)
+                        .subscriptionType(SubscriptionType.Exclusive)
+                        .subscriptionName("test-sub")
+                        .subscribe();
+
+                @Cleanup Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                        .topic(inputTopicName)
+                        .enableBatching(true)
+                        .batcherBuilder(BatcherBuilder.DEFAULT)
+                        .create();
+
+                for (int i = 0; i < numMessages; i++) {
+                    producer.newMessage().value(("message-" + i).getBytes(UTF_8)).send();
+                }
+
+                Set<String> expectedMessages = new HashSet<>();
+                for (int i = 0; i < numMessages; i++) {
+                    expectedMessages.add("message-" + i + "!");
+                }
+
+                for (int i = 0; i < numMessages; i++) {
+                    Message<byte[]> msg = consumer.receive(60 * 2, TimeUnit.SECONDS);
+                    String msgValue = new String(msg.getValue(), UTF_8);
+                    log.info("Received: {}", msgValue);
+                    assertTrue(expectedMessages.contains(msgValue));
+                    expectedMessages.remove(msgValue);
+                }
+                assertEquals(expectedMessages.size(), 0);
+            }
+        }
+    }
+
     protected void testFunctionLocalRun(Runtime runtime) throws  Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;

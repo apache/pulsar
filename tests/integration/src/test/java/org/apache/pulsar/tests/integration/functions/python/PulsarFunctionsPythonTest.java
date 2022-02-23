@@ -35,6 +35,11 @@ public class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
     }
 
     @Test(groups = {"python_function", "function"})
+    public void testPythonFunctionLocalRunWithExecutor() throws Exception {
+        testFunctionLocalRunWithExecutor(Runtime.PYTHON, "python");
+    }
+
+    @Test(groups = {"python_function", "function"})
     public void testPythonFunctionNegAck() throws Exception {
         testFunctionNegAck(Runtime.PYTHON);
     }
