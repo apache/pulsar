@@ -62,6 +62,14 @@ public class Utils {
         functionConfig.setNamespace(DEFAULT_NAMESPACE);
     }
 
+    public static void inferMissingExecutor(FunctionConfig functionConfig) {
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+            functionConfig.setExecutor("java");
+        } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
+            functionConfig.setExecutor("python");
+        }
+    }
+
     public static void inferMissingArguments(SourceConfig sourceConfig) {
         if (sourceConfig.getTenant() == null) {
             sourceConfig.setTenant(PUBLIC_TENANT);

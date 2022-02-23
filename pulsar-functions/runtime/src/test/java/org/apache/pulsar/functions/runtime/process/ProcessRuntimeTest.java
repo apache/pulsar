@@ -180,6 +180,12 @@ public class ProcessRuntimeTest {
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setRuntime(runtime);
+        if (runtime == FunctionDetails.Runtime.JAVA) {
+            functionDetailsBuilder.setExecutor("java");
+        }
+        if (runtime == FunctionDetails.Runtime.PYTHON) {
+            functionDetailsBuilder.setExecutor("python");
+        }
         functionDetailsBuilder.setTenant(TEST_TENANT);
         functionDetailsBuilder.setNamespace(TEST_NAMESPACE);
         functionDetailsBuilder.setName(TEST_NAME);

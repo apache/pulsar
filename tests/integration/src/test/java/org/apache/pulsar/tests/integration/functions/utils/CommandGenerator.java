@@ -51,6 +51,7 @@ public class CommandGenerator {
     private String logTopic;
     private String outputSerDe;
     private String processingGuarantees;
+    private String executor;
     private Runtime runtime;
     private Integer parallelism;
     private String adminUrl;
@@ -99,8 +100,11 @@ public class CommandGenerator {
         if (functionName != null) {
             commandBuilder.append(" --name " + functionName);
         }
-        if(runtime != Runtime.GO){
+        if (runtime != Runtime.GO) {
             commandBuilder.append(" --className " + functionClassName);
+        }
+        if (executor != null) {
+            commandBuilder.append(" --executor " + executor);
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);

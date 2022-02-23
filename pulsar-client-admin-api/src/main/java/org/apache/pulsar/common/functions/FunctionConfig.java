@@ -111,6 +111,7 @@ public class FunctionConfig {
     private String fqfn;
     private WindowConfig windowConfig;
     private Long timeoutMs;
+    private String executor;
     private String jar;
     private String py;
     private String go;

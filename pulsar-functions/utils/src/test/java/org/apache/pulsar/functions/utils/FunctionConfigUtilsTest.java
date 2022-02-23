@@ -76,6 +76,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
+        functionConfig.setExecutor("java");
         functionConfig.setTimeoutMs(2000l);
         functionConfig.setRuntimeFlags("-DKerberos");
         ProducerConfig producerConfig = new ProducerConfig();
@@ -510,6 +511,7 @@ public class FunctionConfigUtilsTest {
         String namespace = "ns1";
         String tenant = "tenant1";
         String classname = getClass().getName();
+        String executor = "java";
         int parallelism = 3;
         Map<String, String> userConfig = new HashMap<>();
         userConfig.put("key1", "val1");
@@ -538,6 +540,7 @@ public class FunctionConfigUtilsTest {
                 .setTenant(tenant)
                 .setName(name)
                 .setClassName(classname)
+                .setExecutor(executor)
                 .setParallelism(parallelism)
                 .setUserConfig(new Gson().toJson(userConfig))
                 .setProcessingGuarantees(processingGuarantees)
@@ -557,6 +560,7 @@ public class FunctionConfigUtilsTest {
         assertEquals(functionConfig.getTenant(), tenant);
         assertEquals(functionConfig.getNamespace(), namespace);
         assertEquals(functionConfig.getName(), name);
+        assertEquals(functionConfig.getExecutor(), executor);
         assertEquals(functionConfig.getClassName(), classname);
         assertEquals(functionConfig.getLogTopic(), logTopic);
         assertEquals((Object) functionConfig.getResources().getCpu(), resources.getCpu());

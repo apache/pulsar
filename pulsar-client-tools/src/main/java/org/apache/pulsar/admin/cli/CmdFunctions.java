@@ -198,6 +198,10 @@ public class CmdFunctions extends CmdBase {
         protected String deprecatedClassName;
         @Parameter(names = "--classname", description = "The class name of a Pulsar Function")
         protected String className;
+        @Parameter(names = "--executor", description = "Path to the executor for the function, "
+                + "if the function is written in Java, the default value is `java`,and if the function is "
+                + "written in Python, the default value is `python`")
+        protected String executor;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function "
                 + "(if the function is written in Java). It also supports URL path [http/https/file "
                 + "(file protocol assumes that file already exists on worker host)/function "
@@ -617,6 +621,10 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setDeadLetterTopic(deadLetterTopic);
             }
 
+            if (null != executor) {
+                functionConfig.setExecutor(executor);
+            }
+
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
             }
@@ -657,6 +665,10 @@ public class CmdFunctions extends CmdBase {
             }
             if (StringUtils.isEmpty(functionConfig.getNamespace())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+            }
+
+            if (StringUtils.isEmpty(functionConfig.getExecutor())) {
+                org.apache.pulsar.common.functions.Utils.inferMissingExecutor(functionConfig);
             }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())

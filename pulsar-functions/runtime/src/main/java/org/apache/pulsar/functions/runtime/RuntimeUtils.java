@@ -284,8 +284,14 @@ public class RuntimeUtils {
             return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
         }
 
+        String executor = instanceConfig.getFunctionDetails().getExecutor();
+
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            args.add("java");
+            if (StringUtils.isNotEmpty(executor)) {
+                args.add(executor);
+            } else {
+                args.add("java");
+            }
             args.add("-cp");
 
             String classpath = instanceFile;
@@ -340,7 +346,11 @@ public class RuntimeUtils {
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
-            args.add("python");
+            if (StringUtils.isNotEmpty(executor)) {
+                args.add(executor);
+            } else {
+                args.add("python");
+            }
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                 for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                     args.add(runtimeFlagArg);
@@ -414,7 +424,7 @@ public class RuntimeUtils {
         }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-        
+
         args.add("--port");
         args.add(String.valueOf(grpcPort));
 
@@ -426,7 +436,7 @@ public class RuntimeUtils {
             args.add("--pending_async_requests");
             args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
         }
-        
+
         // state storage configs
         if (null != stateStorageServiceUrl) {
             args.add("--state_storage_serviceurl");

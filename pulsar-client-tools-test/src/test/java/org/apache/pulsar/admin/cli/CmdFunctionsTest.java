@@ -321,6 +321,21 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreatePyFunctionWithExecutor() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--executor", "python",
+                "--name", "test-py-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--py", URL_WITH_PY,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", "process_python_function",
+        });
+    }
+
+    @Test
     public void testCreatePyFunctionWithFileUrl() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -639,6 +654,21 @@ public class CmdFunctionsTest {
         assertEquals(NAMESPACE, stateGetter.getNamespace());
         assertEquals(FN_NAME, stateGetter.getFunctionName());
         verify(functions, times(0)).getFunctionState(any(), any(), any(), any());
+    }
+
+    @Test
+    public void testCreateFunctionWithExecutor() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--executor", "java",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
     }
 
     @Test

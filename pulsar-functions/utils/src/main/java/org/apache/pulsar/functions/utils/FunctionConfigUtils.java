@@ -311,6 +311,11 @@ public class FunctionConfigUtils {
         } else {
             functionDetailsBuilder.setParallelism(1);
         }
+        if (functionConfig.getExecutor() != null) {
+            functionDetailsBuilder.setExecutor(functionConfig.getExecutor());
+        } else {
+            functionDetailsBuilder.setExecutor("");
+        }
 
         // use default resources if resources not set
         Resources resources = Resources.mergeWithDefault(functionConfig.getResources());
@@ -375,6 +380,7 @@ public class FunctionConfigUtils {
 
         functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());
+        functionConfig.setExecutor(functionDetails.getExecutor());
 
         // Set subscription position
         functionConfig.setSubscriptionPosition(
