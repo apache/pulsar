@@ -25,9 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -119,52 +118,59 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
+        CompletableFuture<Void> applyDLQConfig;
         if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
-            String retryLetterTopic =
-                    topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String deadLetterTopic =
-                    topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            AtomicReference<String> retryLetterTopic =
+                    new AtomicReference<>(topicFirst + "-" + conf.getSubscriptionName()
+                            + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX);
+            AtomicReference<String> deadLetterTopic =
+                    new AtomicReference<>(topicFirst + "-" + conf.getSubscriptionName()
+                            + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX);
 
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
             String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
                     + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
             String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
                     + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-            try {
-                if (client.getPartitionedTopicMetadata(oldRetryLetterTopic)
-                        .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
-                    retryLetterTopic = oldRetryLetterTopic;
-                }
-                if (client.getPartitionedTopicMetadata(oldDeadLetterTopic)
-                        .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
-                    deadLetterTopic = oldDeadLetterTopic;
-                }
-            } catch (InterruptedException | TimeoutException e) {
-                return FutureUtil.failedFuture(e);
-            } catch (ExecutionException e) {
-                return FutureUtil.failedFuture(e.getCause());
-            }
-
-            if (conf.getDeadLetterPolicy() == null) {
-                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
-                                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
-                                        .retryLetterTopic(retryLetterTopic)
-                                        .deadLetterTopic(deadLetterTopic)
-                                        .build());
-            } else {
-                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
-                    conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
-                }
-                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
-                    conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
-                }
-            }
-            conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+            applyDLQConfig = client.getPartitionedTopicMetadata(oldRetryLetterTopic)
+                    .thenAccept(metadata -> {
+                        if (metadata.partitions > 0) {
+                            retryLetterTopic.set(oldRetryLetterTopic);
+                        }
+                    })
+                    .thenCompose(__ -> client.getPartitionedTopicMetadata(oldDeadLetterTopic))
+                    .thenAccept(metadata -> {
+                        if (metadata.partitions > 0) {
+                            deadLetterTopic.set(oldDeadLetterTopic);
+                        }
+                    }).thenAccept(__ -> {
+                        if (conf.getDeadLetterPolicy() == null) {
+                            conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
+                                    .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
+                                    .retryLetterTopic(retryLetterTopic.get())
+                                    .deadLetterTopic(deadLetterTopic.get())
+                                    .build());
+                        } else {
+                            if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
+                                conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic.get());
+                            }
+                            if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                                conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic.get());
+                            }
+                        }
+                        conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+                    });
+        } else {
+            applyDLQConfig = CompletableFuture.completedFuture(null);
         }
-        return interceptorList == null || interceptorList.size() == 0
-                ? client.subscribeAsync(conf, schema, null)
-                : client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
+        return applyDLQConfig.thenCompose(__ -> {
+            if (interceptorList == null || interceptorList.size() == 0) {
+                return client.subscribeAsync(conf, schema, null);
+            } else {
+                return client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
+            }
+        });
     }
 
     @Override
