@@ -248,8 +248,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
-        Policies policies = admin.namespaces().getPolicies(namespaceName.toString());
-        Assert.assertFalse(policies.is_allow_auto_update_schema);
 
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
@@ -263,7 +261,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(true);
-        policies = admin.namespaces().getPolicies(namespaceName.toString());
+        Policies policies = admin.namespaces().getPolicies(namespaceName.toString());
         Assert.assertTrue(policies.is_allow_auto_update_schema);
 
         ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
