@@ -34,7 +34,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 @Test(groups = "broker-impl")
