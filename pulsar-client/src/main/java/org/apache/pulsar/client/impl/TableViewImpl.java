@@ -105,7 +105,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
         start().whenComplete((tw, ex) -> {
            if (ex != null) {
-               log.warn("Failed to check for changes in number of partitions: {}", ex);
+               log.warn("Failed to check for changes in number of partitions:", ex);
                schedulePartitionsCheck();
            }
         });
