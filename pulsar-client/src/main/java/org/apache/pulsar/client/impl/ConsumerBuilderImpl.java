@@ -144,7 +144,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                         if (metadata.partitions > 0) {
                             deadLetterTopic.set(oldDeadLetterTopic);
                         }
-                    }).thenAccept(__ -> {
                         if (conf.getDeadLetterPolicy() == null) {
                             conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
                                     .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
