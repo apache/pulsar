@@ -18,15 +18,25 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class TransactionUtil {
-    public static CompletableFuture<Void> prepareCommit(Transaction transaction) {
+    public static CompletableFuture<Void> prepareCommitAsyn(Transaction transaction) {
         if (!(transaction instanceof TransactionImpl)) {
             return FutureUtil.failedFuture(new IllegalArgumentException("Only support transactionImpl!"));
         }
-        return ((TransactionImpl) transaction).prepareCommit();
+        List<CompletableFuture<?>> futureList = new ArrayList<>();
+        futureList.add(((TransactionImpl) transaction).getAckFuture());
+        futureList.add(((TransactionImpl) transaction).getSendFuture());
+        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
+    }
+
+    public static void prepareCommit(Transaction transaction) throws ExecutionException, InterruptedException {
+        prepareCommitAsyn(transaction).get();
     }
 }

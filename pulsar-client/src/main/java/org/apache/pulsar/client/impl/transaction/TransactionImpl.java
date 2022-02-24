@@ -63,7 +63,9 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
     private Map<ConsumerImpl<?>, Integer> cumulativeAckConsumers;
+    @Getter
     private volatile CompletableFuture<Void> ackFuture = new CompletableFuture<>();
+    @Getter
     private volatile CompletableFuture<MessageId> sendFuture = new CompletableFuture<>();
 
     private volatile State state;
@@ -258,10 +260,4 @@ public class TransactionImpl implements Transaction , TimerTask {
         ackFuture = ackFuture.thenCompose(ignore -> newAckFuture);
     }
 
-    public CompletableFuture<Void> prepareCommit() {
-        List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.add(ackFuture);
-        futureList.add(sendFuture);
-        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
-    }
 }
