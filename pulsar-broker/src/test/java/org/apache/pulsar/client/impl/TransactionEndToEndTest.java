@@ -142,8 +142,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
-        TransactionUtil.prepareCommit(txn1).get();
-        TransactionUtil.prepareCommit(txn2).get();
+        TransactionUtil.prepareCommitAsyn(txn1).get();
+        TransactionUtil.prepareCommitAsyn(txn2).get();
         txn1.commit().get();
         txn2.commit().get();
 
@@ -286,7 +286,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Message<byte[]> message = consumer.receive();
             consumer.acknowledgeAsync(message.getMessageId(), txn).get();
         }
-        TransactionUtil.prepareCommit(txn).get();
+        TransactionUtil.prepareCommitAsyn(txn).get();
         txn.commit().get();
         boolean flag = false;
         String topic = TopicName.get(topicName).toString();
@@ -381,7 +381,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             // 2) ack committed by a new txn
-            TransactionUtil.prepareCommit(commitTxn).get();
+            TransactionUtil.prepareCommitAsyn(commitTxn).get();
             commitTxn.commit().get();
 
             // after transaction commit, the messages can't be received
@@ -392,7 +392,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             field.setAccessible(true);
             field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
-                TransactionUtil.prepareCommit(commitTxn).get();
+                TransactionUtil.prepareCommitAsyn(commitTxn).get();
                 commitTxn.commit().get();
                 fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
@@ -456,7 +456,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
         log.info("transaction messages can't be received before transaction committed");
 
-        TransactionUtil.prepareCommit(txn).get();
+        TransactionUtil.prepareCommitAsyn(txn).get();
         txn.commit().get();
 
         int ackedMessageCount = 0;
@@ -617,13 +617,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
             }
 
-            TransactionUtil.prepareCommit(commitTxn).get();
+            TransactionUtil.prepareCommitAsyn(commitTxn).get();
             commitTxn.commit().get();
             Field field = TransactionImpl.class.getDeclaredField("state");
             field.setAccessible(true);
             field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
-                TransactionUtil.prepareCommit(commitTxn).get();
+                TransactionUtil.prepareCommitAsyn(commitTxn).get();
                 commitTxn.commit().get();
                 fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
@@ -741,7 +741,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             for (int i = 0; i < 1000; i++) {
                 producer.newMessage(txn).value(("" + i).getBytes()).sendAsync();
             }
-            TransactionUtil.prepareCommit(txn).get();
+            TransactionUtil.prepareCommitAsyn(txn).get();
             txn.commit().get();
 
             for (int i = 0; i < 1000; i++) {
@@ -780,7 +780,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
 
         producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync().get();
-        TransactionUtil.prepareCommit(produceTxn).get();
+        TransactionUtil.prepareCommitAsyn(produceTxn).get();
         produceTxn.commit().get();
         try {
             producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync().get();
@@ -790,7 +790,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         try {
-            TransactionUtil.prepareCommit(produceTxn).get();
+            TransactionUtil.prepareCommitAsyn(produceTxn).get();
             produceTxn.commit().get();
             fail();
         } catch (Exception e) {
@@ -847,7 +847,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                         timeoutTxn.getTxnID().getLeastSigBits(), timeoutTxn.getTxnID().getMostSigBits());
 
         try {
-            TransactionUtil.prepareCommit(timeoutTxnSkipClientTimeout).get();
+            TransactionUtil.prepareCommitAsyn(timeoutTxnSkipClientTimeout).get();
             timeoutTxnSkipClientTimeout.commit().get();
             fail();
         } catch (Exception e) {

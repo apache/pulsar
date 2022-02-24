@@ -154,7 +154,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
 
         if (endAction) {
-            TransactionUtil.prepareCommit(tnx).get();
+            TransactionUtil.prepareCommitAsyn(tnx).get();
             tnx.commit().get();
         } else {
             tnx.abort().get();
@@ -266,7 +266,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         // The pending messages count should be the incomingMessageCnt
         Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), incomingMessageCnt);
 
-        TransactionUtil.prepareCommit(txn).get();
+        TransactionUtil.prepareCommitAsyn(txn).get();
         txn.commit().get();
 
         // After commit, the pending messages count should be 0

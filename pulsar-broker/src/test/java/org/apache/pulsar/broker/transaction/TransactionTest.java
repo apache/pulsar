@@ -486,7 +486,7 @@ public class TransactionTest extends TransactionTestBase {
         PositionImpl position2 = topicTransactionBuffer.getMaxReadPosition();
         Assert.assertEquals(position2.getLedgerId(), messageId.getLedgerId());
         Assert.assertEquals(position2.getEntryId(), messageId.getEntryId());
-        TransactionUtil.prepareCommit(transaction).get();
+        TransactionUtil.prepareCommitAsyn(transaction).get();
         transaction.commit().get();
         PositionImpl position3 = topicTransactionBuffer.getMaxReadPosition();
 
@@ -700,7 +700,7 @@ public class TransactionTest extends TransactionTestBase {
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
         abortTxn.abort();
-        TransactionUtil.prepareCommit(commitTxn).get();
+        TransactionUtil.prepareCommitAsyn(commitTxn).get();
         commitTxn.commit().get();
     }
 
@@ -754,7 +754,7 @@ public class TransactionTest extends TransactionTestBase {
                         e.printStackTrace();
                     }
                 }));
-        TransactionUtil.prepareCommit(transaction).get();
+        TransactionUtil.prepareCommitAsyn(transaction).get();
         CompletableFuture<Void> completableFuture =  transaction.commit();
         try {
             completableFuture.get(5, TimeUnit.SECONDS);
@@ -783,7 +783,7 @@ public class TransactionTest extends TransactionTestBase {
                 .build()
                 .get();
 
-        TransactionUtil.prepareCommit(transaction).get();
+        TransactionUtil.prepareCommitAsyn(transaction).get();
         transaction.commit().get();
 
         Field field = TransactionImpl.class.getDeclaredField("timeout");

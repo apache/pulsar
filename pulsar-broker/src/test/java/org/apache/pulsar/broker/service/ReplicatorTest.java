@@ -1309,7 +1309,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false).create();
         producer.newMessage(transaction).value("1".getBytes(StandardCharsets.UTF_8)).send();
-        TransactionUtil.prepareCommit(transaction).get();
+        TransactionUtil.prepareCommitAsyn(transaction).get();
         transaction.commit().get();
 
         Awaitility.await().untilAsserted(() -> {

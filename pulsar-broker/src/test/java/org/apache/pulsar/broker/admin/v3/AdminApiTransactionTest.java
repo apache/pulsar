@@ -262,7 +262,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         long currentTime = System.currentTimeMillis();
         MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
 
-        TransactionUtil.prepareCommit(transaction).get();
+        TransactionUtil.prepareCommitAsyn(transaction).get();
         transaction.commit().get();
 
         transaction = (TransactionImpl) getTransaction();
@@ -308,7 +308,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } else {
             consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), transaction);
         }
-        TransactionUtil.prepareCommit(transaction).get();
+        TransactionUtil.prepareCommitAsyn(transaction).get();
         transaction.commit().get();
 
         transactionPendingAckStats = admin.transactions().
@@ -361,7 +361,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
                 stats.transactionLogStats.managedLedgerName);
 
-        TransactionUtil.prepareCommit(transaction).get();
+        TransactionUtil.prepareCommitAsyn(transaction).get();
         transaction.commit().get();
 
         stats = admin.transactions()

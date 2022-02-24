@@ -443,7 +443,7 @@ public class PerformanceConsumer {
                         && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
                     Transaction transaction = atomicReference.get();
                     if (!arguments.isAbortTransaction) {
-                        TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+                        TransactionUtil.prepareCommitAsyn(transaction).thenRun(() -> {
                             transaction.commit()
                                     .thenRun(() -> {
                                         totalEndTxnOpSuccessNum.increment();

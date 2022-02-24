@@ -140,7 +140,7 @@ public class TransactionTest extends TransactionTestBase {
 
             transferConsumer.acknowledgeAsync(message.getMessageId(), transaction);
 
-            TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+            TransactionUtil.prepareCommitAsyn(transaction).thenRun(() -> {
                 try {
                     transaction.commit().get();
                 } catch (InterruptedException | ExecutionException e) {

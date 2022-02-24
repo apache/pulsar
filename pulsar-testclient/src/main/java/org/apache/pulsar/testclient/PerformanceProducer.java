@@ -771,7 +771,7 @@ public class PerformanceProducer {
                     if (arguments.isEnableTransaction
                             && numMessageSend.incrementAndGet() == arguments.numMessagesPerTransaction) {
                         if (!arguments.isAbortTransaction) {
-                            TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+                            TransactionUtil.prepareCommitAsyn(transaction).thenRun(() -> {
                                 transaction.commit()
                                         .thenRun(() -> {
                                             log.info("Committed transaction {}",

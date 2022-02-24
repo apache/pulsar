@@ -117,7 +117,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 }
             }
 
-            TransactionUtil.prepareCommit(commitTxn).get();
+            TransactionUtil.prepareCommitAsyn(commitTxn).get();
             commitTxn.commit().get();
 
             int count = 0;
@@ -270,7 +270,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
 
                             // the messages has been produced were all acked, the memory in broker for the messages has been cleared.
-                            TransactionUtil.prepareCommit(commitTwice).get();
+                            TransactionUtil.prepareCommitAsyn(commitTwice).get();
                             commitTwice.commit().get();
                             assertEquals(batchDeletedIndexes.size(), 0);
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);

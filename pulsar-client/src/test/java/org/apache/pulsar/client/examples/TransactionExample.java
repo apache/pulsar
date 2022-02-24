@@ -89,7 +89,7 @@ public class TransactionExample {
 
             CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(), txn);
 
-            TransactionUtil.prepareCommit(txn).get();
+            TransactionUtil.prepareCommitAsyn(txn).get();
             txn.commit().get();
 
             // the message ids can be returned from the sendFuture1 and sendFuture2

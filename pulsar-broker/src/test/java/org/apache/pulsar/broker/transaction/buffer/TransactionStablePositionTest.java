@@ -107,7 +107,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
 
-        TransactionUtil.prepareCommit(txn).get();
+        TransactionUtil.prepareCommitAsyn(txn).get();
         txn.commit().get();
 
         message = consumer.receive(2, TimeUnit.SECONDS);

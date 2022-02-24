@@ -449,7 +449,7 @@ public class PerformanceTransaction {
                         }
                         if (!arguments.isDisableTransaction) {
                             if (!arguments.isAbortTransaction) {
-                                TransactionUtil.prepareCommit(transaction).thenRun(() -> {
+                                TransactionUtil.prepareCommitAsyn(transaction).thenRun(() -> {
                                     transaction.commit()
                                             .thenRun(() -> {
                                                 numTxnOpSuccess.increment();
