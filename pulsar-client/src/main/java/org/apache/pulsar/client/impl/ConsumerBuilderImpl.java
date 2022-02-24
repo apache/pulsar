@@ -126,13 +126,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                     + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
             String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
                     + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-            CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
-                    client.getPartitionedTopicMetadata(oldRetryLetterTopic);
-            CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
-                    client.getPartitionedTopicMetadata(oldDeadLetterTopic);
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
+                        client.getPartitionedTopicMetadata(oldRetryLetterTopic);
+                CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
+                        client.getPartitionedTopicMetadata(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
                             String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
