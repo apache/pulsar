@@ -130,34 +130,41 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                     client.getPartitionedTopicMetadata(oldRetryLetterTopic);
             CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
                     client.getPartitionedTopicMetadata(oldDeadLetterTopic);
-            applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
-                    .thenAccept(__ -> {
-                        String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                        + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-                        String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                        + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-                        if (retryLetterTopicMetadata.join().partitions > 0) {
-                            retryLetterTopic = oldRetryLetterTopic;
-                        }
-                        if (deadLetterTopicMetadata.join().partitions > 0) {
-                            deadLetterTopic = oldDeadLetterTopic;
-                        }
-                        if (conf.getDeadLetterPolicy() == null) {
-                            conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
-                                    .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
-                                    .retryLetterTopic(retryLetterTopic)
-                                    .deadLetterTopic(deadLetterTopic)
-                                    .build());
-                        } else {
-                            if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
-                                conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
+            DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
+            if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
+                    || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
+                        .thenAccept(__ -> {
+                            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
+                                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+                            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
+                                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+                            if (retryLetterTopicMetadata.join().partitions > 0) {
+                                retryLetterTopic = oldRetryLetterTopic;
                             }
-                            if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
-                                conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
+                            if (deadLetterTopicMetadata.join().partitions > 0) {
+                                deadLetterTopic = oldDeadLetterTopic;
                             }
-                        }
-                        conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
-                    });
+                            if (deadLetterPolicy == null) {
+                                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
+                                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
+                                        .retryLetterTopic(retryLetterTopic)
+                                        .deadLetterTopic(deadLetterTopic)
+                                        .build());
+                            } else {
+                                if (StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())) {
+                                    conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
+                                }
+                                if (StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                                    conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
+                                }
+                            }
+                            conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+                        });
+
+            } else {
+                applyDLQConfig = CompletableFuture.completedFuture(null);
+            }
         } else {
             applyDLQConfig = CompletableFuture.completedFuture(null);
         }
