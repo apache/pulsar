@@ -178,7 +178,7 @@ Moreover, as the administrator has full control of the certificate authority, a 
 
 One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the "CommonName," and then enable hostname verification on the client.
 
-The examples below show that hostname verification are disabled for the CLI tools/Java/Python/C++/Node.js/C# clients by default. 
+The examples below show that hostname verification is disabled for the CLI tools/Java/Python/C++/Node.js/C# clients by default. 
 
 ### CLI tools
 
