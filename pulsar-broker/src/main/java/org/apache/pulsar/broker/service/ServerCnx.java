@@ -1273,6 +1273,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             if (!Strings.isNullOrEmpty(initialSubscriptionName)
                                     && topic.isPersistent()
                                     && !topic.getSubscriptions().containsKey(initialSubscriptionName)) {
+                                if (!this.getBrokerService().isAllowAutoSubscriptionCreation(topicName)) {
+                                    String msg =
+                                            "Could not create the initial subscription due to the auto subscription "
+                                                    + "creation is not allowed.";
+                                    log.warn("[{}] {} initialSubscriptionName: {}, topic: {}",
+                                            remoteAddress, msg, initialSubscriptionName, topicName);
+                                    commandSender.sendErrorResponse(requestId,
+                                            ServerError.NotAllowedError, msg);
+                                    producers.remove(producerId, producerFuture);
+                                    return;
+                                }
                                 createInitSubFuture =
                                         topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
                                                 false);
