@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -57,6 +56,7 @@ import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Getter(AccessLevel.PUBLIC)
@@ -121,41 +121,39 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         CompletableFuture<Void> applyDLQConfig;
         if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
-            AtomicReference<String> retryLetterTopic =
-                    new AtomicReference<>(topicFirst + "-" + conf.getSubscriptionName()
-                            + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX);
-            AtomicReference<String> deadLetterTopic =
-                    new AtomicReference<>(topicFirst + "-" + conf.getSubscriptionName()
-                            + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX);
-
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
             String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
                     + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
             String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
                     + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-            applyDLQConfig = client.getPartitionedTopicMetadata(oldRetryLetterTopic)
-                    .thenAccept(metadata -> {
-                        if (metadata.partitions > 0) {
-                            retryLetterTopic.set(oldRetryLetterTopic);
+            CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
+                    client.getPartitionedTopicMetadata(oldRetryLetterTopic);
+            CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
+                    client.getPartitionedTopicMetadata(oldDeadLetterTopic);
+            applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
+                    .thenAccept(__ -> {
+                        String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
+                                        + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+                        String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
+                                        + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+                        if (retryLetterTopicMetadata.join().partitions > 0) {
+                            retryLetterTopic = oldRetryLetterTopic;
                         }
-                    })
-                    .thenCompose(__ -> client.getPartitionedTopicMetadata(oldDeadLetterTopic))
-                    .thenAccept(metadata -> {
-                        if (metadata.partitions > 0) {
-                            deadLetterTopic.set(oldDeadLetterTopic);
+                        if (deadLetterTopicMetadata.join().partitions > 0) {
+                            deadLetterTopic = oldDeadLetterTopic;
                         }
                         if (conf.getDeadLetterPolicy() == null) {
                             conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
                                     .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
-                                    .retryLetterTopic(retryLetterTopic.get())
-                                    .deadLetterTopic(deadLetterTopic.get())
+                                    .retryLetterTopic(retryLetterTopic)
+                                    .deadLetterTopic(deadLetterTopic)
                                     .build());
                         } else {
                             if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
-                                conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic.get());
+                                conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
                             }
                             if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
-                                conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic.get());
+                                conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
                             }
                         }
                         conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
