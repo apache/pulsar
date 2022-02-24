@@ -33,6 +33,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -128,13 +129,14 @@ public class AutoClusterFailoverTest {
         for (int i = 0; i < 2; i++) {
             Awaitility.await().untilAsserted(() ->
                     Assert.assertEquals(secondary, autoClusterFailover.getServiceUrl()));
+            assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
 
             // primary cluster came back
             Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
             Awaitility.await().untilAsserted(() ->
                     Assert.assertEquals(primary, autoClusterFailover.getServiceUrl()));
-            assertTrue(autoClusterFailover.getRecoverTimestamp() == -1);
-            assertTrue(autoClusterFailover.getFailedTimestamp() == -1);
+            assertEquals(autoClusterFailover.getRecoverTimestamp(), -1);
+            assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
 
             Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         }
