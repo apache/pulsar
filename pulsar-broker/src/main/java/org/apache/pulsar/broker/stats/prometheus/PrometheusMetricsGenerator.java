@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.CompositeByteBuf;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.Collector.MetricFamilySamples.Sample;
@@ -28,10 +28,13 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.channels.FileChannel;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -39,22 +42,34 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.MetricsArray;
+import org.apache.pulsar.broker.stats.WindowWrap;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.eclipse.jetty.server.HttpOutput;
 
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
  * in a text format suitable to be consumed by Prometheus.
  * Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
  */
+@Slf4j
 public class PrometheusMetricsGenerator {
+    private static final MetricsArray<File> METRICS_ARRAY = new MetricsArray<>(5, 60 * 1000);
+    private static final String DIRECTORY_NAME = System.getProperty("user.dir") + "/metrics/";
+    private static final AtomicBoolean DIRECTORY_CREATED = new AtomicBoolean(false);
 
     static {
         DefaultExports.initialize();
@@ -97,37 +112,86 @@ public class PrometheusMetricsGenerator {
                 splitTopicAndPartitionIndexLabel, out, null);
     }
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel, OutputStream out,
-        List<PrometheusRawMetricsProvider> metricsProviders)
-        throws IOException {
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
-        try {
+    public static synchronized void generate(PulsarService pulsar, boolean includeTopicMetrics,
+                                             boolean includeConsumerMetrics, boolean includeProducerMetrics,
+                                             boolean splitTopicAndPartitionIndexLabel, OutputStream out,
+                                             List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
+        //for test only
+        if (!(out instanceof HttpOutput)) {
+            File file = _generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
+                    splitTopicAndPartitionIndexLabel, metricsProviders);
+           byte[] bytes = FileUtils.readFileToByteArray(file);
+           out.write(bytes);
+           return;
+        }
+
+        //for /metrics endpoint
+        WindowWrap<File> window = METRICS_ARRAY.currentWindow(oldFile -> {
+            if (oldFile != null && oldFile.exists()) {
+                oldFile.delete();
+            }
+
+            try {
+                log.debug("Ready to generate metrics file");
+                return _generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
+                        splitTopicAndPartitionIndexLabel, metricsProviders);
+            } catch (IOException e) {
+                return null;
+            }
+        });
+
+        if (window != null && window.value() != null) {
+            File file = window.value();
+            log.debug("Current window start {}, current window file name {}", window.getStart(), file.getName());
+            try (RandomAccessFile rFile = new RandomAccessFile(window.value(), "r");
+                 FileChannel channel = rFile.getChannel()) {
+                HttpOutput output = (HttpOutput) out;
+                //send out metrics data by send_file
+                output.sendContent(channel);
+            }
+        }
+    }
+
+    private static File _generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+                                  boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
+                                  List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
+        File file = _createNewFile();
+        CompositeByteBuf buf = ByteBufAllocator.DEFAULT.compositeDirectBuffer();
+        try (RandomAccessFile rFile = new RandomAccessFile(file, "rw");
+             FileChannel channel = rFile.getChannel()) {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
+            writeBufferToFile(channel, buf);
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
                     includeProducerMetrics, splitTopicAndPartitionIndexLabel, stream);
+            writeBufferToFile(channel, buf);
 
             if (pulsar.getWorkerServiceOpt().isPresent()) {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
+                writeBufferToFile(channel, buf);
             }
 
             if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
                 TransactionAggregator.generate(pulsar, stream, includeTopicMetrics);
+                writeBufferToFile(channel, buf);
             }
 
             generateBrokerBasicMetrics(pulsar, stream);
+            writeBufferToFile(channel, buf);
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
+            writeBufferToFile(channel, buf);
 
             if (metricsProviders != null) {
                 for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
                     metricsProvider.generate(stream);
+                    writeBufferToFile(channel, buf);
                 }
             }
-            out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
+
+            return file;
         } finally {
             buf.release();
         }
@@ -279,4 +343,64 @@ public class PrometheusMetricsGenerator {
         }
     }
 
+    /**
+     * clean files when JVM exit
+     */
+    public static void cleanFile() {
+        File directory = new File(DIRECTORY_NAME);
+        if (!directory.exists()) {
+            return;
+        }
+
+        File[] files = directory.listFiles();
+        if (files == null || files.length <= 0) {
+            directory.delete();
+            return;
+        }
+
+        for (File file : files) {
+            if (file.exists()) {
+                file.delete();
+            }
+        }
+
+        directory.delete();
+    }
+
+    private static synchronized File _createNewFile() {
+        if (DIRECTORY_CREATED.get()) {
+            return new File(DIRECTORY_NAME + UUID.randomUUID());
+        }
+
+        File directory = new File(DIRECTORY_NAME);
+        if (!directory.exists()) {
+            directory.mkdir();
+        }
+
+        DIRECTORY_CREATED.set(true);
+        return new File(DIRECTORY_NAME + UUID.randomUUID());
+    }
+
+    /**
+     * write and flush buffer to file
+     *
+     * @param channel the file channel
+     * @param buf
+     */
+    private static void writeBufferToFile(FileChannel channel, CompositeByteBuf buf) {
+        int readableBytes = buf.readableBytes();
+        if (readableBytes <= 0) {
+            return;
+        }
+
+        try {
+            channel.write(buf.nioBuffers());
+            //I/O operation may block current thread, avoid high CPU usage
+            channel.force(false);
+        } catch (IOException e) {
+            log.error("write metrics data to file failed", e);
+        } finally {
+            buf.clear();
+        }
+    }
 }
