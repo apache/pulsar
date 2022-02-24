@@ -126,7 +126,7 @@ public class AutoClusterFailoverTest {
         autoClusterFailover.initialize(pulsarClient);
 
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 2; i++) {
             Awaitility.await().untilAsserted(() ->
                     Assert.assertEquals(secondary, autoClusterFailover.getServiceUrl()));
 
