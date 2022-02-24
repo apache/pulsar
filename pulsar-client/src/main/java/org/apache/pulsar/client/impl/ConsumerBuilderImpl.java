@@ -161,8 +161,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                             }
                             conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
                         });
-
             } else {
+                conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
                 applyDLQConfig = CompletableFuture.completedFuture(null);
             }
         } else {
