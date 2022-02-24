@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -30,13 +29,18 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.swagger.util.Json;
 import lombok.Cleanup;
 
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -49,10 +53,8 @@ import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
-import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -78,140 +80,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testReadCompactedMessageWithInclusive() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" +
-                UUID.randomUUID();
-        final int numMessages = 5;
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .blockIfQueueFull(true)
-                .enableBatching(false)
-                .create();
-
-        CompletableFuture<MessageId> lastMessage = null;
-        for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
-        }
-        producer.flush();
-        lastMessage.join();
-//        admin.topics().unload(topic);
-        admin.topics().triggerCompaction(topic);
-        Thread.sleep(10000);
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-        for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + "asd").value(String.format("msg [%d]", i)).sendAsync();
-        }
-        producer.flush();
-        lastMessage.join();
-        admin.topics().triggerCompaction(topic);
-        Thread.sleep(10000);
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-        Awaitility.await().untilAsserted(() -> {
-            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
-            Assert.assertEquals(stats.compactedLedger.entries, numMessages);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
-        });
-
-        Awaitility.await()
-                .pollInterval(3, TimeUnit.SECONDS)
-                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
-                    admin.topics().unload(topic);
-                    System.out.println("--------- LastConfirmedEntry" + admin.topics().getInternalStats(topic).lastConfirmedEntry);
-                    Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
-                });
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-
-        @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
-                .topic(topic)
-                .startMessageIdInclusive()
-                .startMessageId(MessageId.latest)
-                .readCompacted(true)
-                .create();
-        Assert.assertTrue(reader.hasMessageAvailable());
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-    }
-
-    @Test
-    public void testReadCompactedMessageWithInclusive2() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" +
-                UUID.randomUUID();
-        final int numMessages = 5;
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .blockIfQueueFull(true)
-                .enableBatching(false)
-                .create();
-
-        CompletableFuture<MessageId> lastMessage = null;
-        for (int i = 0; i < numMessages; ++i) {
-            lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
-        }
-        producer.flush();
-        lastMessage.join();
-        producer.close();
-//        admin.topics().triggerCompaction(topic);
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("test-123")
-                .subscribe();
-
-        for (int i = 0; i < numMessages; ++i) {
-            Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
-            if (receive != null) {
-                consumer.acknowledge(receive);
-            }
-        }
-        consumer.close();
-        admin.topics().unload(topic);
-        Thread.sleep(5000);
-        @Cleanup
-        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .blockIfQueueFull(true)
-                .enableBatching(false)
-                .create();
-        producer2.close();
-
-//        Awaitility.await().untilAsserted(() -> {
-//            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-//            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
-//            Assert.assertEquals(stats.compactedLedger.entries, numMessages);
-//            Assert.assertEquals(admin.topics().getStats(topic)
-//                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-//            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
-//        });
-//
-//        Awaitility.await()
-//                .pollInterval(3, TimeUnit.SECONDS)
-//                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
-//                    admin.topics().unload(topic);
-//                    System.out.println("--------- LastConfirmedEntry" + admin.topics().getInternalStats(topic).lastConfirmedEntry);
-//                    Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
-//                });
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-
-        @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
-                .topic(topic)
-                .startMessageIdInclusive()
-                .startMessageId(MessageId.latest)
-                .readCompacted(true)
-                .create();
-        Assert.assertTrue(reader.hasMessageAvailable());
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-
-    }
-        @DataProvider
+    @DataProvider
     public static Object[][] variationsForExpectedPos() {
         return new Object[][] {
                 // batching / start-inclusive / num-of-messages
