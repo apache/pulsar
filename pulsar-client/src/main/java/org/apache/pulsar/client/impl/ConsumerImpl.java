@@ -2155,7 +2155,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     MessageIdImpl markDeletePosition = MessageIdImpl
                             .convertToMessageIdImpl(response.markDeletePosition);
 
-                    if (markDeletePosition != null) {
+                    if (markDeletePosition != null && markDeletePosition.getEntryId() >= 0) {
                         // we only care about comparing ledger ids and entry ids as mark delete position doesn't have
                         // other ids such as batch index
                         int result = ComparisonChain.start()

@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
-import io.swagger.util.Json;
 import lombok.Cleanup;
 
 import org.apache.bookkeeper.client.BKException;
@@ -812,7 +811,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.flush();
         lastMessage.join();
         admin.topics().unload(topic);
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
         admin.topics().triggerCompaction(topic);
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
@@ -829,7 +827,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                     admin.topics().unload(topic);
                     Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
                 });
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
 
         @Cleanup
         Reader<byte[]> reader = pulsarClient.newReader()
@@ -838,64 +835,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 .startMessageId(MessageId.latest)
                 .readCompacted(true)
                 .create();
+
         Assert.assertTrue(reader.hasMessageAvailable());
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-    }
-
-    @Test
-    public void testSeekToCompactedData() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testSeek-" +
-                UUID.randomUUID();
-        final int numMessages = 1000;
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .blockIfQueueFull(true)
-                .enableBatching(false)
-                .create();
-
-        CompletableFuture<MessageId> lastMessage = null;
-        CompletableFuture<MessageId> firstMessage = null;
-        for (int i = 0; i < numMessages; ++i) {
-            CompletableFuture<MessageId> messageId =
-                    producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
-            if (i == 0) {
-                firstMessage = messageId;
-            }
-            lastMessage = messageId;
-        }
-        producer.flush();
-        lastMessage.join();
-        admin.topics().unload(topic);
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-        admin.topics().triggerCompaction(topic);
-        Awaitility.await().untilAsserted(() -> {
-            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
-            Assert.assertEquals(stats.compactedLedger.entries, numMessages);
-            Assert.assertEquals(admin.topics().getStats(topic)
-                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
-            Assert.assertEquals(stats.lastConfirmedEntry, stats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition);
-        });
-
-        Awaitility.await()
-                .pollInterval(3, TimeUnit.SECONDS)
-                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
-                    admin.topics().unload(topic);
-                    Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));
-                });
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
-
-        @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader()
-                .topic(topic)
-                .startMessageId(MessageId.latest)
-                .readCompacted(true)
-                .create();
-
-        reader.seek(firstMessage.join());
-        Assert.assertTrue(reader.hasMessageAvailable());
-        System.out.println(Json.pretty(admin.topics().getInternalStats(topic)));
+        Assert.assertEquals(reader.readNext().getMessageId(), lastMessage.get());
     }
 }
