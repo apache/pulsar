@@ -125,7 +125,6 @@ public class AutoClusterFailoverTest {
 
         autoClusterFailover.initialize(pulsarClient);
 
-
         for (int i = 0; i < 2; i++) {
             Awaitility.await().untilAsserted(() ->
                     Assert.assertEquals(secondary, autoClusterFailover.getServiceUrl()));
@@ -134,9 +133,8 @@ public class AutoClusterFailoverTest {
             Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
             Awaitility.await().untilAsserted(() ->
                     Assert.assertEquals(primary, autoClusterFailover.getServiceUrl()));
-            if (autoClusterFailover.getCurrentPulsarServiceUrl().equals(primary)) {
-                assertTrue(autoClusterFailover.getRecoverTimestamp() == -1);
-            }
+            assertTrue(autoClusterFailover.getRecoverTimestamp() == -1);
+            assertTrue(autoClusterFailover.getFailedTimestamp() == -1);
 
             Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         }
