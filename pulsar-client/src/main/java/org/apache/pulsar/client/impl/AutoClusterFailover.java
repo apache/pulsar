@@ -22,9 +22,7 @@ import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowabl
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,7 +37,6 @@ import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.net.ServiceURI;
 
 @Slf4j
 @Data
