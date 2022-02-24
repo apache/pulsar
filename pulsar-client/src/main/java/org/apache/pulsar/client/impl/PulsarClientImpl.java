@@ -860,6 +860,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public synchronized void updateServiceUrl(String serviceUrl) throws PulsarClientException {
+        if (serviceUrl != null && serviceUrl.equals(conf.getServiceUrl())) {
+            log.info("Ignore service URL to {}，because it is the same as the current service URL!", serviceUrl);
+            return;
+        }
         log.info("Updating service URL to {}", serviceUrl);
 
         conf.setServiceUrl(serviceUrl);
