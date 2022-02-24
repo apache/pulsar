@@ -2160,7 +2160,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((AsyncCallbacks.ResetCursorCallback) invocationOnMock.getArguments()[1]).resetComplete(null);
             return null;
-        }).when(mockCursor).asyncResetCursor(any(), any());
+        }).when(mockCursor).asyncResetCursor(any(), false, any());
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
             return null;
