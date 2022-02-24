@@ -127,9 +127,14 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     }
 
     void processMessage(Message<byte[]> message) {
-        data.put(
-            ByteBuffer.wrap(message.getKey().getBytes(UTF_8)),
-            ByteBuffer.wrap(message.getValue()));
+        if (message.getKey() != null) {
+            data.put(
+                ByteBuffer.wrap(message.getKey().getBytes(UTF_8)),
+                ByteBuffer.wrap(message.getValue()));
+        } else {
+            log.debug("Got message without key from the offset storage topic, skip it. message value: {}",
+                    message.getValue());
+        }
     }
 
     @Override
