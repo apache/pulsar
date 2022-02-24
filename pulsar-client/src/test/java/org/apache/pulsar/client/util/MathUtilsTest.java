@@ -19,22 +19,23 @@
 
 package org.apache.pulsar.client.util;
 
-import static org.testng.Assert.*;
+
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class MathUtilsTest {
 
     @Test
     public void testCeilDiv() {
-        assertEquals(MathUtils.ceilDiv(0, 1024), 0);
-        assertEquals(MathUtils.ceilDiv(1, 1024), 1);
-        assertEquals(MathUtils.ceilDiv(1023, 1024), 1);
-        assertEquals(MathUtils.ceilDiv(1024, 1024), 1);
-        assertEquals(MathUtils.ceilDiv(1025, 1024), 2);
+        Assert.assertEquals(MathUtils.ceilDiv(0, 1024), 0);
+        Assert.assertEquals(MathUtils.ceilDiv(1, 1024), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(1023, 1024), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(1024, 1024), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(1025, 1024), 2);
 
-        assertEquals(MathUtils.ceilDiv(0, Integer.MAX_VALUE), 0);
-        assertEquals(MathUtils.ceilDiv(1, Integer.MAX_VALUE), 1);
-        assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE - 1, Integer.MAX_VALUE), 1);
-        assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE, Integer.MAX_VALUE), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(0, Integer.MAX_VALUE), 0);
+        Assert.assertEquals(MathUtils.ceilDiv(1, Integer.MAX_VALUE), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE - 1, Integer.MAX_VALUE), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE, Integer.MAX_VALUE), 1);
     }
 }
