@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.stats;
 
 import org.junit.Test;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 public class MetricsArrayTest {
 
     @Test

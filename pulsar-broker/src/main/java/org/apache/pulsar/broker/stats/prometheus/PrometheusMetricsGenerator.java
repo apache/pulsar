@@ -44,7 +44,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
@@ -118,7 +117,7 @@ public class PrometheusMetricsGenerator {
                                              List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         //for test only
         if (!(out instanceof HttpOutput)) {
-            File file = _generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
+            File file = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                     splitTopicAndPartitionIndexLabel, metricsProviders);
            byte[] bytes = FileUtils.readFileToByteArray(file);
            out.write(bytes);
@@ -133,7 +132,7 @@ public class PrometheusMetricsGenerator {
 
             try {
                 log.debug("Ready to generate metrics file");
-                return _generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
+                return generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                         splitTopicAndPartitionIndexLabel, metricsProviders);
             } catch (IOException e) {
                 return null;
@@ -152,10 +151,10 @@ public class PrometheusMetricsGenerator {
         }
     }
 
-    private static File _generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+    private static File generate0(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
                                   boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
                                   List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
-        File file = _createNewFile();
+        File file = createNewFile0();
         CompositeByteBuf buf = ByteBufAllocator.DEFAULT.compositeDirectBuffer();
         try (RandomAccessFile rFile = new RandomAccessFile(file, "rw");
              FileChannel channel = rFile.getChannel()) {
@@ -344,7 +343,7 @@ public class PrometheusMetricsGenerator {
     }
 
     /**
-     * clean files when JVM exit
+     * clean files when JVM exit.
      */
     public static void cleanFile() {
         File directory = new File(DIRECTORY_NAME);
@@ -367,7 +366,7 @@ public class PrometheusMetricsGenerator {
         directory.delete();
     }
 
-    private static synchronized File _createNewFile() {
+    private static synchronized File createNewFile0() {
         if (DIRECTORY_CREATED.get()) {
             return new File(DIRECTORY_NAME + UUID.randomUUID());
         }
@@ -382,7 +381,7 @@ public class PrometheusMetricsGenerator {
     }
 
     /**
-     * write and flush buffer to file
+     * write and flush buffer to file.
      *
      * @param channel the file channel
      * @param buf
