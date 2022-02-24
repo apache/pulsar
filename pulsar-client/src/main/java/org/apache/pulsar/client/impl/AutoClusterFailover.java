@@ -64,6 +64,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private long failedTimestamp;
     private final long intervalMs;
     private static final int TIMEOUT = 30_000;
+    private final PulsarServiceNameResolver resolver;
 
     private AutoClusterFailover(AutoClusterFailoverBuilderImpl builder) {
         this.primary = builder.primary;
@@ -79,6 +80,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.recoverTimestamp = -1;
         this.failedTimestamp = -1;
         this.intervalMs = builder.checkIntervalMs;
+        this.resolver = new PulsarServiceNameResolver();
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-service-provider"));
     }
@@ -124,9 +126,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
 
     boolean probeAvailable(String url) {
         try {
-            URI uri = ServiceURI.create(url).getUri();
+            resolver.updateServiceUrl(url);
             Socket socket = new Socket();
-            socket.connect(new InetSocketAddress(uri.getHost(), uri.getPort()), TIMEOUT);
+            socket.connect(resolver.resolveHost(), TIMEOUT);
             socket.close();
             return true;
         } catch (Exception e) {
