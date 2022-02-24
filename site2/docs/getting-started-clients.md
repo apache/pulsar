@@ -8,14 +8,19 @@ Pulsar supports the following client libraries:
 
 |Language|Documentation|Release note|Code repo
 |---|---|---|---
-Java |- [User doc](client-libraries-java.md) <br /><br />- [API doc](https://pulsar.apache.org/api/client/)|Java client is released along with Pulsar, so Java client release note is a part of [Pulsar release note](https://pulsar.apache.org/release-notes/).|[Java client code repo](https://github.com/apache/pulsar/tree/master/pulsar-client) is hosted in the Pulsar main repo on GitHub. 
-C++ | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](https://pulsar.apache.org/api/cpp/)|C++ client is released along with Pulsar, so C++ client release note is a part of [Pulsar release note](https://pulsar.apache.org/release-notes/).|[C++ client code repo](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp) is hosted in the Pulsar main repo on GitHub. 
-Python | - [User doc](client-libraries-python.md) <br /><br />- [API doc](https://pulsar.apache.org/api/python/)|Python client is released along with Pulsar, so Python client release note is a part of [Pulsar release note](https://pulsar.apache.org/release-notes/).|[Python client code repo](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) is hosted in the Pulsar main repo on GitHub. 
-WebSocket| [User doc](client-libraries-websocket.md) | WebSocket client is released along with Pulsar, so WebSocket client release note is a part of [Pulsar release note](https://pulsar.apache.org/release-notes/).|[WebSocket client code repo](https://github.com/apache/pulsar/tree/master/pulsar-websocket) is hosted in the Pulsar main repo on GitHub.
-Go client|[User doc](client-libraries-go.md)|Go client is not released along with Pulsar. The release note is available at [here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG.md). |[Go client code repo](https://github.com/apache/pulsar-client-go) is hosted outside of Pulsar main repo.
-Node.js|[User doc](client-libraries-node.md)|Node.js client is not released along with Pulsar. The release note is available at [here](https://github.com/apache/pulsar-client-node/releases). |[Node.js client code repo](https://github.com/apache/pulsar-client-node) is hosted outside of Pulsar main repo.
-C# |[User doc](client-libraries-dotnet.md)|C# client is not released along with Pulsar. The release note is available at [here](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md). |[C# client code repo](https://github.com/apache/pulsar-dotpulsar) is hosted outside of Pulsar main repo.
+Java |- [User doc](client-libraries-java.md) <br /><br />- [API doc](https://pulsar.apache.org/api/client/)|[Pulsar release note](https://pulsar.apache.org/release-notes/)|[Java client code repo](https://github.com/apache/pulsar/tree/master/pulsar-client) 
+C++ | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](https://pulsar.apache.org/api/cpp/)|[Pulsar release note](https://pulsar.apache.org/release-notes/)|[C++ client code repo](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp) 
+Python | - [User doc](client-libraries-python.md) <br /><br />- [API doc](https://pulsar.apache.org/api/python/)|[Pulsar release note](https://pulsar.apache.org/release-notes/)|[Python client code repo](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 
+WebSocket| [User doc](client-libraries-websocket.md) | [Pulsar release note](https://pulsar.apache.org/release-notes/)|[WebSocket client code repo](https://github.com/apache/pulsar/tree/master/pulsar-websocket) 
+Go client|[User doc](client-libraries-go.md)|[Go client release note](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG.md) |[Go client code repo](https://github.com/apache/pulsar-client-go) 
+Node.js|[User doc](client-libraries-node.md)|[Node.js client release note](https://github.com/apache/pulsar-client-node/releases). |[Node.js client code repo](https://github.com/apache/pulsar-client-node) 
+C# |[User doc](client-libraries-dotnet.md)| [C# client release note](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md). |[C# client code repo](https://github.com/apache/pulsar-dotpulsar) 
 
+> **Note**
+> 
+> - The code repos of **Java, C++, Python,** and **WebSocket** clients are hosted in the [Pulsar main repo](https://github.com/apache/pulsar) and these clients are released with Pulsar, so their release notes are parts of [Pulsar release note](https://pulsar.apache.org/release-notes/).
+> 
+> - The code repos of **Go, Node.js,** and **C#** clients are hosted outside of the [Pulsar main repo](https://github.com/apache/pulsar) and these clients are not released with Pulsar, so they have independent release notes.
 
 ## Feature matrix
 Pulsar client feature matrix for different languages is listed on [Pulsar Feature Matrix (Client and Function)](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914) page.
