@@ -792,7 +792,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testReadCompactedMessageWithInclusive() throws Exception {
+    public void testReadCompactedLatestMessageWithInclusive() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" +
                 UUID.randomUUID();
         final int numMessages = 1;
