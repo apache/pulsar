@@ -327,9 +327,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     /**
      * Use this config to automatically create an initial subscription when creating the topic.
-     * If this field is not set or the broker's `allowAutoSubscriptionCreation` is disabled, the initial subscription
-     * will not be created.
-     * This method is limited to internal use
+     * If this field is not set, the initial subscription will not be created.
+     * If this filed is set but the broker's `allowAutoSubscriptionCreation` is disabled, the producer will fail to
+     * be created.
+     * This method is limited to internal use.
      *
      * @param initialSubscriptionName Name of the initial subscription of the topic.
      * @return the producer builder implementation instance
