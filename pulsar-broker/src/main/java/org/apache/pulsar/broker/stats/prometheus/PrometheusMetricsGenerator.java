@@ -97,31 +97,32 @@ public class PrometheusMetricsGenerator {
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
         boolean includeProducerMetrics, OutputStream out) throws IOException {
-        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, false, out, null);
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
+                false, out, null, Boolean.FALSE);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
         boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
         OutputStream out) throws IOException {
         generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
-                splitTopicAndPartitionIndexLabel, out, null);
+                splitTopicAndPartitionIndexLabel, out, null, Boolean.FALSE);
     }
 
     public static synchronized void generate(PulsarService pulsar, boolean includeTopicMetrics,
                                              boolean includeConsumerMetrics, boolean includeProducerMetrics,
                                              boolean splitTopicAndPartitionIndexLabel, OutputStream out,
-                                             List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
-        //for test only
-        if (!(out instanceof HttpOutput)) {
+                                             List<PrometheusRawMetricsProvider> metricsProviders,
+                                             boolean useCache) throws IOException {
+        if (!useCache) {
             ByteBuf buf = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                     splitTopicAndPartitionIndexLabel, metricsProviders);
             byte[] bytes = ByteBufUtil.getBytes(buf);
             out.write(bytes);
             buf.release();
+            log.debug("Metrics buffer released.");
             return;
         }
 
-        //for /metrics endpoint
         if (null == metricsArray) {
             int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
             metricsArray = new MetricsArray<>(1, (int) TimeUnit.SECONDS.toMillis(period));
@@ -130,12 +131,14 @@ public class PrometheusMetricsGenerator {
             // release expired buffer, in case of memory leak
             if (oldBuf != null && oldBuf.refCnt() > 0) {
                 oldBuf.release();
+                log.debug("Cached metrics buffer released");
             }
 
             try {
-                log.info("Ready to generate metrics file");
-                return generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
+                ByteBuf buf = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                         splitTopicAndPartitionIndexLabel, metricsProviders);
+                log.debug("Generated metrics buffer size {}", buf.readableBytes());
+                return buf;
             } catch (IOException e) {
                 log.error("Generate metrics failed", e);
                 //return empty buffer if exception happens
@@ -143,15 +146,22 @@ public class PrometheusMetricsGenerator {
             }
         });
 
-        if (window != null && window.value() != null) {
-            ByteBuf buf = window.value();
-            log.info("Current window start {}, current cached buf size {}", window.start(), buf.readableBytes());
+        if (null == window || null == window.value()) {
+            return;
+        }
+
+        ByteBuf buf = window.value();
+        log.debug("Current window start {}, current cached buf size {}", window.start(), buf.readableBytes());
+        if (out instanceof HttpOutput) {
             HttpOutput output = (HttpOutput) out;
             //no mem_copy and memory allocations here
             ByteBuffer[] buffers = buf.nioBuffers();
             for (ByteBuffer buffer : buffers) {
                 output.write(buffer);
             }
+        } else {
+            byte[] data = ByteBufUtil.getBytes(buf);
+            out.write(data);
         }
     }
 

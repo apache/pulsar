@@ -78,7 +78,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 res.setContentType("text/plain");
                 PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
                         shouldExportProducerMetrics, splitTopicAndPartitionLabel, res.getOutputStream(),
-                        metricsProviders);
+                        metricsProviders, Boolean.TRUE);
             } catch (Exception e) {
                 long end = System.currentTimeMillis();
                 long time = end - start;

@@ -73,6 +73,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1364,6 +1365,34 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, 870);
 
         pulsarClient.close();
+    }
+
+    @Test
+    public void testMetricsWithCache() throws Throwable {
+        ServiceConfiguration configuration = Mockito.mock(ServiceConfiguration.class);
+        Mockito.when(configuration.getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
+        Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
+
+        int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
+        MetricsArray<Object> metricsArray = new MetricsArray<>(2, (int) TimeUnit.SECONDS.toMillis(period));
+
+        for (int a = 0; a < 10; a++) {
+            long start = System.currentTimeMillis();
+            ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
+            PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut1, null, true);
+            ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+            PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut2, null, true);
+            long end = System.currentTimeMillis();
+
+            if (metricsArray.currentWindowStart(start) == metricsArray.currentWindowStart(end)) {
+                String metricsStr1 = statsOut1.toString();
+                String metricsStr2 = statsOut2.toString();
+                assertEquals(metricsStr1, metricsStr2);
+                Multimap<String, Metric> metrics = parseMetrics(metricsStr1);
+            }
+
+            Thread.sleep(TimeUnit.SECONDS.toMillis(period / 2));
+        }
     }
 
     @Test
