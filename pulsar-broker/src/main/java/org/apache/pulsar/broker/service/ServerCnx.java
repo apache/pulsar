@@ -1339,6 +1339,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
                             producers.remove(producerId, producerFuture);
 
+                            log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
+                                    producerId, requestId, exception);
+                            if (producerFuture.completeExceptionally(exception)) {
+                                commandSender.sendErrorResponse(requestId,
+                                        ServiceUnitNotReadyException.getClientErrorCode(cause),
+                                        cause.getMessage());
+                            }
+                            producers.remove(producerId, producerFuture);
                             return null;
                         });
                     } else {
