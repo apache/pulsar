@@ -127,6 +127,11 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
         // test invalid rack name
         // use rack aware placement policy
+        String errorMsg = "Bookie 'rack' parameter is invalid, When `RackawareEnsemblePlacementPolicy` is enabled, "
+            + "the rack name is not allowed to contain slash (`/`) except for the beginning and end of the rack name "
+            + "string. When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain "
+            + "one slash (`/`) except for the beginning and end of the rack name string.";
+
         BookieInfo newInfo3 = BookieInfo.builder()
             .rack("/rack/a")
             .hostname("127.0.0.2")
@@ -136,6 +141,7 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
             fail();
         } catch (PulsarAdminException e) {
             assertEquals(412, e.getStatusCode());
+            assertEquals(errorMsg, e.getMessage());
         }
 
         BookieInfo newInfo4 = BookieInfo.builder()
@@ -161,7 +167,7 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
             fail();
         } catch (PulsarAdminException e) {
             assertEquals(412, e.getStatusCode());
-            log.info("[hangc] ", e);
+            assertEquals(errorMsg, e.getMessage());
         }
 
         BookieInfo newInfo6 = BookieInfo.builder()

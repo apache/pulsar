@@ -170,7 +170,11 @@ public class Bookies extends AdminResource {
         boolean isRackEnabled = pulsar().getConfiguration().isBookkeeperClientRackawarePolicyEnabled();
         boolean isRegionEnabled = pulsar().getConfiguration().isBookkeeperClientRegionawarePolicyEnabled();
         if (isRackEnabled && ((isRegionEnabled && separatorCnt != 1) || (!isRegionEnabled && separatorCnt != 0))) {
-            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Bookie 'rack' parameter is invalid"));
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Bookie 'rack' parameter is invalid, "
+                + "When `RackawareEnsemblePlacementPolicy` is enabled, the rack name is not allowed to contain "
+                + "slash (`/`) except for the beginning and end of the rack name string. "
+                + "When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain "
+                + "one slash (`/`) except for the beginning and end of the rack name string."));
             return;
         }
 
