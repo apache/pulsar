@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.common.base.Strings;
 import java.util.function.Supplier;
@@ -120,7 +121,7 @@ public class CmdBookies extends CmdBase {
 
         private void checkArgument(boolean expression, @NonNull Object errorMessage) {
             if (!expression) {
-                throw new IllegalArgumentException(String.valueOf(errorMessage));
+                throw new ParameterException(String.valueOf(errorMessage));
             }
         }
     }
