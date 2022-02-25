@@ -2012,8 +2012,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     MessageIdImpl markDeletePosition = MessageIdImpl
                             .convertToMessageIdImpl(response.markDeletePosition);
 
-                    if (markDeletePosition != null) {
-                        // we only care about comparing ledger ids and entry ids as mark delete position doesn't have other ids such as batch index
+                    if (markDeletePosition != null && !(markDeletePosition.getEntryId() < 0
+                            && markDeletePosition.getLedgerId() > lastMessageId.getLedgerId())) {
+                        // we only care about comparing ledger ids and entry ids as mark delete position doesn't have
+                        // other ids such as batch index
                         int result = ComparisonChain.start()
                                 .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
                                 .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())

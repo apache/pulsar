@@ -237,7 +237,8 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback) {
+        public void asyncResetCursor(final Position position, boolean forceReset,
+                AsyncCallbacks.ResetCursorCallback callback) {
 
         }
 
