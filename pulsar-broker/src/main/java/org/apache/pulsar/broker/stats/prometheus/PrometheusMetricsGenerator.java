@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.CompositeByteBuf;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
@@ -116,8 +115,7 @@ public class PrometheusMetricsGenerator {
         if (!useCache) {
             ByteBuf buf = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                     splitTopicAndPartitionIndexLabel, metricsProviders);
-            byte[] bytes = ByteBufUtil.getBytes(buf);
-            out.write(bytes);
+            writeBufferOut(buf, out);
             buf.release();
             log.debug("Metrics buffer released.");
             return;
@@ -160,8 +158,7 @@ public class PrometheusMetricsGenerator {
                 output.write(buffer);
             }
         } else {
-            byte[] data = ByteBufUtil.getBytes(buf);
-            out.write(data);
+            writeBufferOut(buf, out);
         }
     }
 
@@ -335,6 +332,22 @@ public class PrometheusMetricsGenerator {
                 stream.write(Collector.doubleToGoString(sample.value));
                 stream.write('\n');
             }
+        }
+    }
+
+    /**
+     * read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
+     * not modify buffer readIndex/writeIndex here.
+     *
+     * @param buf
+     * @param out
+     * @throws IOException
+     */
+    private static void writeBufferOut(ByteBuf buf, OutputStream out) throws IOException {
+        int readIndex = buf.readerIndex();
+        int readableBytes = buf.readableBytes();
+        for (int i = 0; i < readableBytes; i++) {
+            out.write(buf.getByte(readIndex + i));
         }
     }
 
