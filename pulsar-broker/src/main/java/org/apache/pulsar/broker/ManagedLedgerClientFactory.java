@@ -41,6 +41,7 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS;
 
 public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
@@ -79,7 +80,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         }
 
         statsProvider.start(configuration);
-        StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
+        StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client_default");
 
         this.defaultBkClient =
                 bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(),
@@ -91,9 +92,15 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
                 bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
                     try {
+                        Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
+                        String suffix = properties != null ?
+                            (String) properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, "default") : "default";
+                        StatsLogger statsLogger1 = statsProvider
+                            .getStatsLogger("pulsar_managedLedger_client_" + suffix);
+
                         return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
                                 Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
+                                ensemblePlacementPolicyConfig.getProperties(), statsLogger1);
                     } catch (Exception e) {
                         log.error("Failed to initialize bk-client for policy {}, properties {}",
                                 ensemblePlacementPolicyConfig.getPolicyClass(),
