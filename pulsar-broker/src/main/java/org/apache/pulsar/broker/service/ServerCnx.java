@@ -1286,8 +1286,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             "Failed to create the initial subscription: " + ex.getCause().getMessage();
                                     log.warn("[{}] {} initialSubscriptionName: {}, topic: {}",
                                             remoteAddress, msg, initialSubscriptionName, topicName);
-                                    commandSender.sendErrorResponse(requestId,
-                                            BrokerServiceException.getClientErrorCode(ex), msg);
+                                    if (producerFuture.completeExceptionally(ex)) {
+                                        commandSender.sendErrorResponse(requestId,
+                                                BrokerServiceException.getClientErrorCode(ex), msg);
+                                    }
                                     producers.remove(producerId, producerFuture);
                                     return;
                                 }
@@ -1300,9 +1302,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             Throwable cause = exception.getCause();
                             log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
                                     producerId, requestId, exception);
-                            commandSender.sendErrorResponse(requestId,
-                                    ServiceUnitNotReadyException.getClientErrorCode(cause),
-                                    cause.getMessage());
+                            if (producerFuture.completeExceptionally(exception)) {
+                                commandSender.sendErrorResponse(requestId,
+                                        ServiceUnitNotReadyException.getClientErrorCode(cause),
+                                        cause.getMessage());
+                            }
+                            producers.remove(producerId, producerFuture);
                             return null;
                         });
                     });
