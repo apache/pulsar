@@ -39,7 +39,8 @@ public class Worker {
     private final WorkerService workerService;
     private WorkerServer server;
 
-    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
+    private final OrderedExecutor orderedExecutor =
+            OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private final ErrorNotifier errorNotifier;
@@ -95,7 +96,7 @@ public class Worker {
                 this.server.stop();
             }
             workerService.stop();
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.warn("Failed to gracefully stop worker service ", e);
         }
 

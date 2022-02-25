@@ -37,45 +37,45 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Sinks<W extends WorkerService> extends Component<W> {
 
-    void registerSink(final String tenant,
-                      final String namespace,
-                      final String sinkName,
-                      final InputStream uploadedInputStream,
-                      final FormDataContentDisposition fileDetail,
-                      final String sinkPkgUrl,
-                      final SinkConfig sinkConfig,
-                      final String clientRole,
+    void registerSink(String tenant,
+                      String namespace,
+                      String sinkName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sinkPkgUrl,
+                      SinkConfig sinkConfig,
+                      String clientRole,
                       AuthenticationDataHttps clientAuthenticationDataHttps);
 
-    void updateSink(final String tenant,
-                    final String namespace,
-                    final String sinkName,
-                    final InputStream uploadedInputStream,
-                    final FormDataContentDisposition fileDetail,
-                    final String sinkPkgUrl,
-                    final SinkConfig sinkConfig,
-                    final String clientRole,
+    void updateSink(String tenant,
+                    String namespace,
+                    String sinkName,
+                    InputStream uploadedInputStream,
+                    FormDataContentDisposition fileDetail,
+                    String sinkPkgUrl,
+                    SinkConfig sinkConfig,
+                    String clientRole,
                     AuthenticationDataHttps clientAuthenticationDataHttps,
                     UpdateOptionsImpl updateOptions);
 
-    SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
-                                                 final String namespace,
-                                                 final String sinkName,
-                                                 final String instanceId,
-                                                 final URI uri,
-                                                 final String clientRole,
-                                                 final AuthenticationDataSource clientAuthenticationDataHttps);
+    SinkInstanceStatusData getSinkInstanceStatus(String tenant,
+                                                 String namespace,
+                                                 String sinkName,
+                                                 String instanceId,
+                                                 URI uri,
+                                                 String clientRole,
+                                                 AuthenticationDataSource clientAuthenticationDataHttps);
 
-    SinkStatus getSinkStatus(final String tenant,
-                             final String namespace,
-                             final String componentName,
-                             final URI uri,
-                             final String clientRole,
-                             final AuthenticationDataSource clientAuthenticationDataHttps);
+    SinkStatus getSinkStatus(String tenant,
+                             String namespace,
+                             String componentName,
+                             URI uri,
+                             String clientRole,
+                             AuthenticationDataSource clientAuthenticationDataHttps);
 
-    SinkConfig getSinkInfo(final String tenant,
-                           final String namespace,
-                           final String componentName);
+    SinkConfig getSinkInfo(String tenant,
+                           String namespace,
+                           String componentName);
 
     List<ConnectorDefinition> getSinkList();
 
