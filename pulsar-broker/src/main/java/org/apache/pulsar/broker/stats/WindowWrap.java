@@ -29,11 +29,11 @@ public final class WindowWrap<T> {
         this.value = value;
     }
 
-    public long getInterval() {
+    public long interval() {
         return this.interval;
     }
 
-    public long getStart() {
+    public long start() {
         return this.start;
     }
 
@@ -41,7 +41,7 @@ public final class WindowWrap<T> {
         return value;
     }
 
-    public void setValue(T value) {
+    public void value(T value) {
         this.value = value;
     }
 

@@ -64,7 +64,7 @@ import org.eclipse.jetty.server.HttpOutput;
  */
 @Slf4j
 public class PrometheusMetricsGenerator {
-    private static MetricsArray<ByteBuf> metricsArray;
+    private static volatile MetricsArray<ByteBuf> metricsArray;
 
     static {
         DefaultExports.initialize();
@@ -127,6 +127,7 @@ public class PrometheusMetricsGenerator {
             metricsArray = new MetricsArray<>(1, (int) TimeUnit.SECONDS.toMillis(period));
         }
         WindowWrap<ByteBuf> window = metricsArray.currentWindow(oldBuf -> {
+            // release expired buffer, in case of memory leak
             if (oldBuf != null && oldBuf.refCnt() > 0) {
                 oldBuf.release();
             }
@@ -136,13 +137,15 @@ public class PrometheusMetricsGenerator {
                 return generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                         splitTopicAndPartitionIndexLabel, metricsProviders);
             } catch (IOException e) {
-                return null;
+                log.error("Generate metrics failed", e);
+                //return empty buffer if exception happens
+                return ByteBufAllocator.DEFAULT.heapBuffer(0);
             }
         });
 
         if (window != null && window.value() != null) {
             ByteBuf buf = window.value();
-            log.info("Current window start {}, current cached buf size {}", window.getStart(), buf.readableBytes());
+            log.info("Current window start {}, current cached buf size {}", window.start(), buf.readableBytes());
             HttpOutput output = (HttpOutput) out;
             //no mem_copy and memory allocations here
             ByteBuffer[] buffers = buf.nioBuffers();

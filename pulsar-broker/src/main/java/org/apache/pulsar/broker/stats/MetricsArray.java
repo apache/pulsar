@@ -49,16 +49,19 @@ public final class MetricsArray<T> {
         while (true) {
             WindowWrap<T> old = array.get(idx);
             if (old == null) {
-                WindowWrap<T> window = new WindowWrap<>(interval, windowStart, function.apply(null));
+                WindowWrap<T> window = new WindowWrap<>(interval, windowStart, null);
                 if (array.compareAndSet(idx, null, window)) {
+                    T value = null == function ? null : function.apply(null);
+                    window.value(value);
                     return window;
                 } else {
                     Thread.yield();
                 }
-            } else if (windowStart == old.getStart()) {
+            } else if (windowStart == old.start()) {
                 return old;
-            } else if (windowStart > old.getStart()) {
-                old.setValue(function.apply(old.value()));
+            } else if (windowStart > old.start()) {
+                T value = null == function ? null : function.apply(old.value());
+                old.value(value);
                 old.resetWindowStart(windowStart);
                 return old;
             } else {
@@ -77,11 +80,11 @@ public final class MetricsArray<T> {
         return timeMillis - timeMillis % this.interval;
     }
 
-    public int getSampleCount() {
+    public int sampleCount() {
         return sampleCount;
     }
 
-    public int getInterval() {
+    public int interval() {
         return interval;
     }
 
