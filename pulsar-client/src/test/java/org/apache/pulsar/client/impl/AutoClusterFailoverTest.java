@@ -128,14 +128,14 @@ public class AutoClusterFailoverTest {
         for (int i = 0; i < 2; i++) {
             Awaitility.await().untilAsserted(() ->
                     Assert.assertEquals(secondary, autoClusterFailover.getServiceUrl()));
-            assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
+            assertEquals(-1, autoClusterFailover.getFailedTimestamp());
 
             // primary cluster came back
             Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
             Awaitility.await().untilAsserted(() ->
                     Assert.assertEquals(primary, autoClusterFailover.getServiceUrl()));
-            assertEquals(autoClusterFailover.getRecoverTimestamp(), -1);
-            assertEquals(autoClusterFailover.getFailedTimestamp(), -1);
+            assertEquals(-1, autoClusterFailover.getRecoverTimestamp());
+            assertEquals(-1, autoClusterFailover.getFailedTimestamp());
 
             Mockito.doReturn(false).when(autoClusterFailover).probeAvailable(primary);
         }
