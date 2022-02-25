@@ -2256,42 +2256,42 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
         TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
-        try {
-            PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
-                    .getNamespaceResources()
-                    .getPartitionedTopicResources();
-            if (topicName.isPartitioned() && !partitionedTopicResources.partitionedTopicExists(topicName)) {
-                return CompletableFuture.completedFuture(null);
-            }
-            CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
-            getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
-                    .thenAccept((metadata -> {
-                        // make sure all sub partitions were deleted
-                        for (int i = 0; i < metadata.partitions; i++) {
-                            if (brokerService.getPulsar().getPulsarResources().getTopicResources()
-                                    .persistentTopicExists(topicName.getPartition(i)).join()) {
-                                throw new UnsupportedOperationException();
-                            }
-                        }
-                    }))
-                    .thenAccept((res) -> partitionedTopicResources.deletePartitionedTopicAsync(topicName)
-                            .thenAccept((r) -> {
-                        deleteMetadataFuture.complete(null);
-                    }).exceptionally(ex -> {
-                        deleteMetadataFuture.completeExceptionally(ex.getCause());
-                        return null;
-                    }))
-                    .exceptionally((e) -> {
-                        if (!(e.getCause() instanceof UnsupportedOperationException)) {
-                            log.error("delete metadata fail", e);
-                        }
-                        deleteMetadataFuture.complete(null);
-                        return null;
-                    });
-            return deleteMetadataFuture;
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
+        PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources();
+        if (!topicName.isPartitioned()) {
+            return CompletableFuture.completedFuture(null);
         }
+        return partitionedTopicResources.partitionedTopicExistsAsync(topicName)
+                .thenCompose(partitionedTopicExist -> {
+                    if (!partitionedTopicExist) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return getBrokerService()
+                            .fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                            .thenCompose((metadata -> {
+                                List<CompletableFuture<Boolean>> persistentTopicExists =
+                                        new ArrayList<>(metadata.partitions);
+                                for (int i = 0; i < metadata.partitions; i++) {
+                                    persistentTopicExists.add(brokerService.getPulsar()
+                                            .getPulsarResources().getTopicResources()
+                                            .persistentTopicExists(topicName.getPartition(i)));
+                                }
+                                return FutureUtil.waitForAll(persistentTopicExists)
+                                        .thenAccept(__ -> {
+                                            // make sure all sub partitions were deleted after all future complete
+                                            persistentTopicExists.forEach(future -> {
+                                                boolean topicExist = future.join();
+                                                if (topicExist) {
+                                                    UnsupportedOperationException ex =
+                                                            new UnsupportedOperationException();
+                                                    log.error("[{}] Delete metadata fail", topic, ex);
+                                                    throw ex;
+                                                }
+                                            });
+                                        });
+                            })).thenCompose(__ -> partitionedTopicResources.deletePartitionedTopicAsync(topicName));
+                });
     }
 
     @Override
