@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
+import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -69,7 +70,6 @@ import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.apache.pulsar.functions.worker.service.api.Workers;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -273,8 +273,11 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             if (workerConfig.isInitializedDlogMetadata()) {
-                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getMetadataStoreUrl()
-                        .substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length()));
+                String metadataStoreUrl = internalConf.getMetadataStoreUrl();
+                if (metadataStoreUrl.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                    metadataStoreUrl = metadataStoreUrl.substring(ZK_SCHEME_IDENTIFIER.length());
+                }
+                dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
@@ -357,9 +360,11 @@ public class PulsarWorkerService implements WorkerService {
         try {
             // initializing dlog namespace for function worker
             if (workerConfig.isInitializedDlogMetadata()){
-                dlogURI =
-                        WorkerUtils.newDlogNamespaceURI(internalConf.getMetadataStoreUrl()
-                                .substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length()));
+                String metadataStoreUrl = internalConf.getMetadataStoreUrl();
+                if (metadataStoreUrl.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                    metadataStoreUrl = metadataStoreUrl.substring(ZK_SCHEME_IDENTIFIER.length());
+                }
+                dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }

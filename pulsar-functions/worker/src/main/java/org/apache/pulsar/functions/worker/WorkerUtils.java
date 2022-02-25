@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -62,7 +63,6 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.KeeperException.Code;
 
 @Slf4j
@@ -174,8 +174,11 @@ public final class WorkerUtils {
         // for BC purposes
         if (internalConf.getBookkeeperMetadataServiceUri() == null) {
             ledgersRootPath = internalConf.getLedgersRootPath();
-            ledgersStoreServers = internalConf.getMetadataStoreUrl()
-                    .substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
+            String metadataStoreUrl = internalConf.getMetadataStoreUrl();
+            if (metadataStoreUrl.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                metadataStoreUrl = metadataStoreUrl.substring(ZK_SCHEME_IDENTIFIER.length());
+            }
+            ledgersStoreServers = metadataStoreUrl;
             chrootPath = "";
         } else {
             URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
