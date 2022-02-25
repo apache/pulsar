@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -239,26 +240,34 @@ public class PulsarRecordCursor implements RecordCursor {
     @VisibleForTesting
     class DeserializeEntries extends Thread {
 
-        protected boolean isRunning = false;
+        private final AtomicBoolean isRunning;
 
         private final CompletableFuture<Void> closeHandle;
 
         public DeserializeEntries() {
             super("deserialize-thread-split-" + pulsarSplit.getSplitId());
+            this.isRunning = new AtomicBoolean(false);
             this.closeHandle = new CompletableFuture<>();
         }
 
+        @Override
+        public void start() {
+            if (isRunning.compareAndSet(false, true)) {
+                super.start();
+            }
+        }
+
         public CompletableFuture<Void> close() {
-            isRunning = false;
-            super.interrupt();
+            if (isRunning.compareAndSet(true, false)) {
+                super.interrupt();
+            }
             return closeHandle;
         }
 
         @Override
         public void run() {
-            isRunning = true;
             try {
-                while (isRunning) {
+                while (isRunning.get()) {
                     int read = entryQueue.drain(new MessagePassingQueue.Consumer<Entry>() {
                         @Override
                         public void accept(Entry entry) {
