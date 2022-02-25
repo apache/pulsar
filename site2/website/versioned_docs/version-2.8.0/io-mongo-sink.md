@@ -49,3 +49,84 @@ Before using the Mongo sink connector, you need to create a configuration file t
         batchSize: 2
         batchTimeMs: 500
     ```
+
+## Usage
+
+This example shows how to sink the data to a MongoDB table using the Pulsar MongoDB connector.
+
+1. Start a MongoDB server, then create a database and a collection.
+
+    ```shell
+    mongo
+
+    > use local
+    > rs.initiate()
+    > use pulsar
+    > db.createCollection(function)
+    ```
+
+2. Create a `mongo-sink.yaml` config file.
+
+    ```yaml
+    configs:
+        mongoUri: "mongodb://127.0.0.1:27017"
+        database: "pulsar"
+        collection: "function"
+    ```
+
+3. Create the sink job. Make sure the NAR file is available at `connectors/pulsar-io-mongo-{{pulsar:version}}.nar`.
+
+    ```shell
+    bin/pulsar-admin sinks localrun \
+    --archive connectors/pulsar-io-mongo-{{pulsar:version}}.nar \
+    --tenant public \
+    --namespace default \
+    --inputs mongo-sink-topic \
+    --name pulsar-mongo-sink \
+    --sink-config-file mongo-sink.yaml  \
+    --parallelism 1
+
+4. Start the built-in connector DataGeneratorSource and ingest some mock data.Make sure the NAR file is available at `connectors/pulsar-io-data-generator-{{pulsar:version}}.nar`.
+
+    ```shell
+    bin/pulsar-admin sources create --name generator --destinationTopicName mongo-sink-topic --source-type data-generator
+    ```
+
+5. Check documents in the MongoDB.
+
+    ```shell
+    mongo
+
+    > use pulsar
+    > rs0:PRIMARY> db.function.find().pretty().limit(1)
+    {
+        "_id" : ObjectId("6214f32b1f31a4132b552397"),
+        "address" : {
+            "street" : "Herzi Street",
+            "streetNumber" : "37",
+            "apartmentNumber" : "193",
+            "postalCode" : "73013",
+            "city" : "New York"
+        },
+        "firstName" : "Jordan",
+        "middleName" : "Samuel",
+        "lastName" : "Romero",
+        "email" : "jordan.romero@gmail.com",
+        "username" : "jromero",
+        "password" : "wrXRlRj6",
+        "sex" : "MALE",
+        "telephoneNumber" : "287-375-324",
+        "dateOfBirth" : NumberLong("713018814903"),
+        "age" : 29,
+        "company" : {
+            "name" : "Alist",
+            "domain" : "alist.eu",
+            "email" : "info@alist.eu",
+            "vatIdentificationNumber" : "05-0005784"
+        },
+        "companyEmail" : "jordan.romero@alist.eu",
+        "nationalIdentityCardNumber" : "291-82-9050",
+        "nationalIdentificationNumber" : "",
+        "passportNumber" : "LmPukdVmG"
+    }
+    ``` 
