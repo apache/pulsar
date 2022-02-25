@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -273,10 +273,7 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             if (workerConfig.isInitializedDlogMetadata()) {
-                String metadataStoreUrl = internalConf.getMetadataStoreUrl();
-                if (metadataStoreUrl.startsWith(ZK_SCHEME_IDENTIFIER)) {
-                    metadataStoreUrl = metadataStoreUrl.substring(ZK_SCHEME_IDENTIFIER.length());
-                }
+                String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
                 dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
@@ -360,10 +357,7 @@ public class PulsarWorkerService implements WorkerService {
         try {
             // initializing dlog namespace for function worker
             if (workerConfig.isInitializedDlogMetadata()) {
-                String metadataStoreUrl = internalConf.getMetadataStoreUrl();
-                if (metadataStoreUrl.startsWith(ZK_SCHEME_IDENTIFIER)) {
-                    metadataStoreUrl = metadataStoreUrl.substring(ZK_SCHEME_IDENTIFIER.length());
-                }
+                String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
                 dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
