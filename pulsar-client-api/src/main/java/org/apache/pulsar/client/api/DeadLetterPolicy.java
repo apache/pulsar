@@ -52,7 +52,7 @@ public class DeadLetterPolicy {
     /**
      * Name of the initial subscription name of the dead letter topic.
      * If this field is not set, the initial subscription for the dead letter topic will not be created.
-     * If this filed is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail
+     * If this field is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail
      * to be created.
      */
     private String initialSubscriptionName;
