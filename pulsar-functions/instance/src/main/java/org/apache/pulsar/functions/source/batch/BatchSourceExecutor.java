@@ -189,7 +189,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       TypedMessageBuilder<byte[]> message = sourceContext.newOutputMessage(intermediateTopicName, Schema.BYTES);
       message.value(task).properties(properties);
       // Note: we can only make this send async if the api returns a future to
-     // the connector so that errors can be handled by the connector
+      // the connector so that errors can be handled by the connector
       message.send();
     } catch (Exception e) {
       log.error("error writing discovered task to intermediate topic", e);
