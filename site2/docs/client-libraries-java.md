@@ -498,7 +498,7 @@ Name| Type |  <div style="width:300px">Description</div>|  Default
 `batchingEnabled`| boolean|Enable batching of messages. |true
 `chunkingEnabled` | boolean | Enable chunking of messages. |false
 `compressionType`|CompressionType|Message data compression type used by a producer. <br />Available options:<li>[`LZ4`](https://github.com/lz4/lz4)</li><li>[`ZLIB`](https://zlib.net/)<br /><li>[`ZSTD`](https://facebook.github.io/zstd/)</li><li>[`SNAPPY`](https://google.github.io/snappy/)</li>| No compression
-`initialSubscriptionName`|string|Use this configuration to automatically create an initial subscription when creating a topic. If this field is not set, the initial subscription is not created.|null
+`initialSubscriptionName`|string|Use this configuration to automatically create an initial subscription when creating a topic. If this field is not set or the broker's `allowAutoSubscriptionCreation` is disabled, the initial subscription is not created.|null
 
 You can configure parameters if you do not want to use the default configuration.
 
