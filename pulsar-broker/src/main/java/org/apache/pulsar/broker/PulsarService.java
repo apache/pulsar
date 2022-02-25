@@ -424,6 +424,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 brokerAdditionalServlets = null;
             }
 
+            if (this.transactionMetadataStoreService != null) {
+                this.transactionMetadataStoreService.close();
+                this.transactionMetadataStoreService = null;
+            }
+
             GracefulExecutorServicesShutdown executorServicesShutdown =
                     GracefulExecutorServicesShutdown
                             .initiate()
