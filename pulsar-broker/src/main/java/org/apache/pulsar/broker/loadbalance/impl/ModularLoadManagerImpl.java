@@ -491,7 +491,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         knownBrokers.removeAll(deadBrokers);
         if (pulsar.getLeaderElectionService() != null
                 && pulsar.getLeaderElectionService().isLeader()) {
-            deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStore);
+            deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
         }
 
         final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
@@ -1091,16 +1091,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
     }
 
-    private void deleteTimeAverageDataFromMetadataStore(String broker) {
+    private void deleteTimeAverageDataFromMetadataStoreAsync(String broker) {
         final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
-        try {
-            timeAverageBrokerDataCache.delete(timeAverageZPath).join();
-        } catch (Exception e) {
-            if (!(e.getCause() instanceof NotFoundException)) {
+        timeAverageBrokerDataCache.delete(timeAverageZPath).whenComplete((__, ex) -> {
+            if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
                 log.warn("Failed to delete dead broker {} time "
-                        + "average data from metadata store", broker, e);
+                        + "average data from metadata store", broker, ex);
             }
-        }
+        });
     }
 
     private void refreshBrokerToFailureDomainMap() {
