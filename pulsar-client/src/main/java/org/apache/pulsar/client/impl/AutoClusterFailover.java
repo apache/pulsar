@@ -22,9 +22,7 @@ import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowabl
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,7 +37,6 @@ import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.net.ServiceURI;
 
 @Slf4j
 @Data
@@ -64,6 +61,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private long failedTimestamp;
     private final long intervalMs;
     private static final int TIMEOUT = 30_000;
+    private final PulsarServiceNameResolver resolver;
 
     private AutoClusterFailover(AutoClusterFailoverBuilderImpl builder) {
         this.primary = builder.primary;
@@ -79,6 +77,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.recoverTimestamp = -1;
         this.failedTimestamp = -1;
         this.intervalMs = builder.checkIntervalMs;
+        this.resolver = new PulsarServiceNameResolver();
         this.executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-service-provider"));
     }
@@ -105,8 +104,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                 probeAndUpdateServiceUrl(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
                         primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
                 // secondary cluster is up, check whether need to switch back to primary or not
-                probeAndCheckSwitchBack(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
-                        primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
+                if (!currentPulsarServiceUrl.equals(primary)) {
+                    probeAndCheckSwitchBack(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
+                            primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
+                }
             }
         }), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
 
@@ -124,9 +125,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
 
     boolean probeAvailable(String url) {
         try {
-            URI uri = ServiceURI.create(url).getUri();
+            resolver.updateServiceUrl(url);
             Socket socket = new Socket();
-            socket.connect(new InetSocketAddress(uri.getHost(), uri.getPort()), TIMEOUT);
+            socket.connect(resolver.resolveHost(), TIMEOUT);
             socket.close();
             return true;
         } catch (Exception e) {

@@ -24,14 +24,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import java.time.Duration;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.functions.worker.executor.MockExecutorController;
 import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
@@ -54,7 +50,7 @@ public class ClusterServiceCoordinatorTest {
 
         this.mockExecutor = mock(ScheduledExecutorService.class);
         this.mockExecutorController = new MockExecutorController()
-            .controlScheduleAtFixedRate(mockExecutor, 10);
+                .controlScheduleAtFixedRate(mockExecutor, 10);
 
         this.leaderService = mock(LeaderService.class);
         this.checkIsStillLeader = () -> leaderService.isLeader();

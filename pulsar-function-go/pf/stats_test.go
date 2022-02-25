@@ -213,4 +213,47 @@ func TestMetricsServer(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 	resp.Body.Close()
+	gi.close()
+	metricsServicer.close()
+}
+
+// nolint
+func TestUserMetrics(t *testing.T) {
+	gi := newGoInstance()
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.NotEmpty(t, body)
+	assert.NotContainsf(t, string(body), "pulsar_function_user_metric", "user metric should not appear yet")
+
+	testUserMetricValues := map[string]int{"test": 1, "test2": 2}
+
+	for labelname, value := range testUserMetricValues {
+		gi.context.RecordMetric(labelname, float64(value))
+	}
+
+	time.Sleep(time.Second * 1)
+	resp, err = http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err = ioutil.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.NotEmpty(t, body)
+
+	for labelname, value := range testUserMetricValues {
+		for _, quantile := range []string{"0.5", "0.9", "0.99", "0.999"} {
+			assert.Containsf(t, string(body), fmt.Sprintf("\n"+`pulsar_function_user_metric{cluster="pulsar-function-go",fqfn="//go-function",instance_id="pulsar-function",metric="%s",name="go-function",namespace="/",tenant="",quantile="%s"} %d`+"\n", labelname, quantile, value), "user metric %q quantile %s not found with value %d", labelname, quantile, value)
+		}
+	}
+
+	resp.Body.Close()
+	gi.close()
+	metricsServicer.close()
 }

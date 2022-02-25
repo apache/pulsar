@@ -27,7 +27,7 @@ from .schema import Schema
 try:
     import fastavro
     HAS_AVRO = True
-except ModuleNotFoundError:
+except ImportError:
     HAS_AVRO = False
 
 if HAS_AVRO:

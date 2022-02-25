@@ -139,10 +139,10 @@ class ContextImpl(pulsar.Context):
     return list(self.instance_config.function_details.source.inputSpecs.keys())
 
   def get_output_topic(self):
-    return self.instance_config.function_details.output
+    return self.instance_config.function_details.sink.topic
 
   def get_output_serde_class_name(self):
-    return self.instance_config.function_details.outputSerdeClassName
+    return self.instance_config.function_details.sink.serDeClassName
 
   def callback_wrapper(self, callback, topic, message_id, result, msg):
     if result != pulsar.Result.Ok:

@@ -138,6 +138,11 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public void removeWaitingCursor(ManagedCursor cursor) {
+
+    }
+
+    @Override
     public void asyncOpenCursor(String name, AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
 
     }

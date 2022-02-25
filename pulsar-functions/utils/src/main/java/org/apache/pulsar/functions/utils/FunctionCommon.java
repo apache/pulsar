@@ -38,7 +38,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -80,23 +79,24 @@ public class FunctionCommon {
     public static int findAvailablePort() {
         // The logic here is a little flaky. There is no guarantee that this
         // port returned will be available later on when the instance starts
-        // TODO(sanjeev):- Fix this
+        // TODO:- Fix this.
         try {
             ServerSocket socket = new ServerSocket(0);
             int port = socket.getLocalPort();
             socket.close();
             return port;
-        } catch (IOException ex){
+        } catch (IOException ex) {
             throw new RuntimeException("No free port found", ex);
         }
     }
 
-    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader) throws ClassNotFoundException {
+    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader)
+            throws ClassNotFoundException {
         boolean isWindowConfigPresent = functionConfig.getWindowConfig() != null;
         Class functionClass = classLoader.loadClass(functionConfig.getClassName());
         return getFunctionTypes(functionClass, isWindowConfigPresent);
     }
-    
+
     public static Class<?>[] getFunctionTypes(Class userClass, boolean isWindowConfigPresent) {
         Class<?>[] typeArgs;
         // if window function
@@ -173,7 +173,9 @@ public class FunctionCommon {
 
     public static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees convertProcessingGuarantee(
             FunctionConfig.ProcessingGuarantees processingGuarantees) {
-        for (org.apache.pulsar.functions.proto.Function.ProcessingGuarantees type : org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.values()) {
+        for (org.apache.pulsar.functions.proto.Function.ProcessingGuarantees type :
+                org.apache.pulsar.functions.proto.Function.ProcessingGuarantees
+                .values()) {
             if (type.name().equals(processingGuarantees.name())) {
                 return type;
             }
@@ -253,7 +255,8 @@ public class FunctionCommon {
             downloadFromHttpUrl(destPkgUrl, tempFile);
             return tempFile;
         } else {
-            throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
+            throw new IllegalArgumentException("Unsupported url protocol "
+                    + destPkgUrl + ", supported url protocols: [file/http/https]");
         }
     }
 
@@ -331,11 +334,13 @@ public class FunctionCommon {
      */
     public static String getStateNamespace(String tenant, String namespace) {
         return String.format("%s_%s", tenant, namespace)
-            .replace("-", "_");
+                .replace("-", "_");
     }
 
-    public static String getFullyQualifiedName(org.apache.pulsar.functions.proto.Function.FunctionDetails FunctionDetails) {
-        return getFullyQualifiedName(FunctionDetails.getTenant(), FunctionDetails.getNamespace(), FunctionDetails.getName());
+    public static String getFullyQualifiedName(
+            org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails) {
+        return getFullyQualifiedName(functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName());
 
     }
 
@@ -407,15 +412,16 @@ public class FunctionCommon {
             // if connector class name is not provided, we can only try to load archive as a NAR
             if (isEmpty(connectorClassName)) {
                 if (narClassLoader == null) {
-                    throw new IllegalArgumentException(String.format("%s package does not have the correct format. " +
-                                    "Pulsar cannot determine if the package is a NAR package or JAR package. " +
-                                    "%s classname is not provided and attempts to load it as a NAR package produced " +
-                                    "the following error.",
+                    throw new IllegalArgumentException(String.format("%s package does not have the correct format. "
+                                    + "Pulsar cannot determine if the package is a NAR package or JAR package. "
+                                    + "%s classname is not provided and attempts to load it as a NAR package produced "
+                                    + "the following error.",
                             capFirstLetter(componentType), capFirstLetter(componentType)),
                             narClassLoaderException);
                 }
                 try {
-                    if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+                    if (componentType
+                            == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
                         connectorClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
                     } else {
                         connectorClassName = ConnectorUtils.getIOSinkClass((NarClassLoader) narClassLoader);
@@ -477,11 +483,15 @@ public class FunctionCommon {
                             + " Pulsar cannot determine if the package is a NAR package or JAR package.");
 
                     if (jarClassLoaderException != null) {
-                        errorMsg.append(" Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                        errorMsg.append(
+                                " Attempts to load it as a JAR package produced error: " + jarClassLoaderException
+                                        .getMessage());
                     }
 
                     if (narClassLoaderException != null) {
-                        errorMsg.append(" Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                        errorMsg.append(
+                                " Attempts to load it as a NAR package produced error: " + narClassLoaderException
+                                        .getMessage());
                     }
 
                     throw new IllegalArgumentException(errorMsg.toString());
@@ -501,7 +511,8 @@ public class FunctionCommon {
         return StringUtils.capitalize(en.toString().toLowerCase());
     }
 
-    public static boolean isFunctionCodeBuiltin(org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails) {
+    public static boolean isFunctionCodeBuiltin(
+            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails) {
         if (functionDetails.hasSource()) {
             org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = functionDetails.getSource();
             if (!isEmpty(sourceSpec.getBuiltin())) {

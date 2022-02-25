@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.executor;
 
 import static org.testng.Assert.assertEquals;
-
 import java.time.Duration;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

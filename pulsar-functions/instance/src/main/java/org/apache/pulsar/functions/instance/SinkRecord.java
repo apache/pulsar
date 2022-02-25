@@ -100,7 +100,7 @@ public class SinkRecord<T> implements Record<T> {
 
         if (sourceRecord.getSchema() != null) {
             // unwrap actual schema
-            Schema<T> schema =  sourceRecord.getSchema();
+            Schema<T> schema = sourceRecord.getSchema();
             // AutoConsumeSchema is a special schema, that comes into play
             // when the Sink is going to handle any Schema
             // usually you see Sink<GenericObject> or Sink<GenericRecord> in this case

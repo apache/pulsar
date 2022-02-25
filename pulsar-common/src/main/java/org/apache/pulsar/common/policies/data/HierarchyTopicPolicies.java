@@ -54,6 +54,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
     final PolicyHierarchyValue<DispatchRateImpl> subscriptionDispatchRate;
     final PolicyHierarchyValue<SchemaCompatibilityStrategy> schemaCompatibilityStrategy;
+    final PolicyHierarchyValue<DispatchRateImpl> dispatchRate;
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
@@ -80,5 +81,6 @@ public class HierarchyTopicPolicies {
         compactionThreshold = new PolicyHierarchyValue<>();
         subscriptionDispatchRate = new PolicyHierarchyValue<>();
         schemaCompatibilityStrategy = new PolicyHierarchyValue<>();
+        dispatchRate = new PolicyHierarchyValue<>();
     }
 }
