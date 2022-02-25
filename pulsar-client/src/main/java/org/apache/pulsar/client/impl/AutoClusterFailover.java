@@ -104,8 +104,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                 probeAndUpdateServiceUrl(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
                         primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
                 // secondary cluster is up, check whether need to switch back to primary or not
-                probeAndCheckSwitchBack(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
-                        primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
+                if (!currentPulsarServiceUrl.equals(primary)) {
+                    probeAndCheckSwitchBack(primary, primaryAuthentication, primaryTlsTrustCertsFilePath,
+                            primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
+                }
             }
         }), intervalMs, intervalMs, TimeUnit.MILLISECONDS);
 
