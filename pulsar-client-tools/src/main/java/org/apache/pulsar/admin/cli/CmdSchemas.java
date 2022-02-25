@@ -144,7 +144,7 @@ public class CmdSchemas extends CmdBase {
                 input.setType("JSON");
                 input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
             } else {
-                throw new Exception("Unknown schema type specified as type");
+                throw new ParameterException("Invalid schema type " + type + ". Valid options are: avro, json");
             }
             input.setProperties(schemaDefinition.getProperties());
             if (dryRun) {

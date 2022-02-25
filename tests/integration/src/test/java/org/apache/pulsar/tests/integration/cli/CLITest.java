@@ -336,6 +336,20 @@ public class CLITest extends PulsarTestSuite {
         } catch (ContainerExecException e) {
             assertTrue(e.getResult().getStderr().contains("Schema not found"));
         }
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "schemas",
+                    "extract",
+                    "--jar", "/pulsar/examples/api-examples.jar",
+                    "--type", "xml",
+                    "--classname", "org.apache.pulsar.functions.api.examples.pojo.Tick",
+                    topicName);
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "Invalid schema type xml. Valid options are: avro, json\n\n");
+        }
     }
 
     @Test
