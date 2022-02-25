@@ -1477,7 +1477,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     getCurrentReceiverQueueSize(), newSize);
         }
         CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, newSize);
-        consumers.values().forEach(c -> c.setCurrentReceiverQueueSize(newSize));
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 }
