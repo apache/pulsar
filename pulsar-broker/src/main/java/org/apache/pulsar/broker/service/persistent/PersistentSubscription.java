@@ -742,7 +742,15 @@ public class PersistentSubscription implements Subscription {
                     topicName, subName);
 
             try {
-                cursor.asyncResetCursor(finalPosition, new AsyncCallbacks.ResetCursorCallback() {
+                boolean forceReset = false;
+                if (topic.getCompactedTopic() != null && topic.getCompactedTopic().getCompactionHorizon().isPresent()) {
+                    PositionImpl horizon = (PositionImpl) topic.getCompactedTopic().getCompactionHorizon().get();
+                    PositionImpl resetTo = (PositionImpl) finalPosition;
+                    if (horizon.compareTo(resetTo) >= 0) {
+                        forceReset = true;
+                    }
+                }
+                cursor.asyncResetCursor(finalPosition, forceReset, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {
                         if (log.isDebugEnabled()) {
