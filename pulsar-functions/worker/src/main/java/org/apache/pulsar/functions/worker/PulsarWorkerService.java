@@ -359,7 +359,7 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             // initializing dlog namespace for function worker
-            if (workerConfig.isInitializedDlogMetadata()){
+            if (workerConfig.isInitializedDlogMetadata()) {
                 String metadataStoreUrl = internalConf.getMetadataStoreUrl();
                 if (metadataStoreUrl.startsWith(ZK_SCHEME_IDENTIFIER)) {
                     metadataStoreUrl = metadataStoreUrl.substring(ZK_SCHEME_IDENTIFIER.length());
