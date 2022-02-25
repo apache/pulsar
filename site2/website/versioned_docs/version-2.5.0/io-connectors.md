@@ -166,6 +166,8 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 ### MongoDB
 
 * [Configuration](io-mongo-sink.md#configuration)
+
+* [Example](io-mongo-sink.md#usage)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/mongo/src/main/java/org/apache/pulsar/io/mongodb/MongoSink.java)
   
