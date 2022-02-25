@@ -14,3 +14,4 @@ jobs:
           stale-pr-message: 'The pr had no activity for 30 days, mark with Stale label.'
           days-before-stale: 30
           days-before-close: -1
+          operations-per-run: 700
