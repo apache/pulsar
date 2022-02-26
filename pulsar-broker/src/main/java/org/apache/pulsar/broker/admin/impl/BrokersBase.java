@@ -354,7 +354,8 @@ public class BrokersBase extends AdminResource {
                     if (!topicOptional.isPresent()) {
                         LOG.error("[{}] Fail to run health check while get topic {}. because get null value.",
                                 clientAppId(), topicName);
-                        throw new RestException(Status.NOT_FOUND, "Topic [{}] not found after create.");
+                        throw new RestException(Status.NOT_FOUND,
+                                String.format("Topic [%s] not found after create.", topicName));
                     }
                     return tryCleanPreviousSubscriptions(topicOptional.get());
                 }).thenCompose(unused-> {
