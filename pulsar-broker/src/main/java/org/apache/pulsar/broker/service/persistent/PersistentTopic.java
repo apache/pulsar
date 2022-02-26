@@ -2285,7 +2285,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                     log.error("[{}] Delete metadata fail", topic);
                                                     return CompletableFuture.completedFuture(null);
                                                 } else {
-                                                    return partitionedTopicResources.deletePartitionedTopicAsync(topicName);
+                                                    return partitionedTopicResources
+                                                            .deletePartitionedTopicAsync(topicName);
                                                 }
                                             });
                                 }));
