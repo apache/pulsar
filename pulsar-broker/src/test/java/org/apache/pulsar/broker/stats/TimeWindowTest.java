@@ -21,16 +21,16 @@ package org.apache.pulsar.broker.stats;
 import org.junit.Test;
 import org.testng.Assert;
 
-public class MetricsArrayTest {
+public class TimeWindowTest {
 
     @Test
     public void windowTest() throws Exception {
         int intervalInMs = 1000;
         int sampleCount = 2;
-        MetricsArray<Integer> leapArray = new MetricsArray<>(sampleCount, intervalInMs);
+        TimeWindow<Integer> timeWindow = new TimeWindow<>(sampleCount, intervalInMs);
 
-        WindowWrap<Integer> expect1 = leapArray.currentWindow(oldValue -> 1);
-        WindowWrap<Integer> expect2 = leapArray.currentWindow(oldValue -> null);
+        WindowWrap<Integer> expect1 = timeWindow.current(oldValue -> 1);
+        WindowWrap<Integer> expect2 = timeWindow.current(oldValue -> null);
         Assert.assertNotNull(expect1);
         Assert.assertNotNull(expect2);
 
@@ -42,8 +42,8 @@ public class MetricsArrayTest {
 
         Thread.sleep(intervalInMs);
 
-        WindowWrap<Integer> expect3 = leapArray.currentWindow(oldValue -> 2);
-        WindowWrap<Integer> expect4 = leapArray.currentWindow(oldValue -> null);
+        WindowWrap<Integer> expect3 = timeWindow.current(oldValue -> 2);
+        WindowWrap<Integer> expect4 = timeWindow.current(oldValue -> null);
         Assert.assertNotNull(expect3);
         Assert.assertNotNull(expect4);
 
@@ -55,8 +55,8 @@ public class MetricsArrayTest {
 
         Thread.sleep(intervalInMs);
 
-        WindowWrap<Integer> expect5 = leapArray.currentWindow(oldValue -> 3);
-        WindowWrap<Integer> expect6 = leapArray.currentWindow(oldValue -> null);
+        WindowWrap<Integer> expect5 = timeWindow.current(oldValue -> 3);
+        WindowWrap<Integer> expect6 = timeWindow.current(oldValue -> null);
         Assert.assertNotNull(expect5);
         Assert.assertNotNull(expect6);
 
@@ -68,8 +68,8 @@ public class MetricsArrayTest {
 
         Thread.sleep(intervalInMs);
 
-        WindowWrap<Integer> expect7 = leapArray.currentWindow(oldValue -> 4);
-        WindowWrap<Integer> expect8 = leapArray.currentWindow(oldValue -> null);
+        WindowWrap<Integer> expect7 = timeWindow.current(oldValue -> 4);
+        WindowWrap<Integer> expect8 = timeWindow.current(oldValue -> null);
         Assert.assertNotNull(expect7);
         Assert.assertNotNull(expect8);
 

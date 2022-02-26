@@ -47,7 +47,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.stats.MetricsArray;
+import org.apache.pulsar.broker.stats.TimeWindow;
 import org.apache.pulsar.broker.stats.WindowWrap;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
@@ -63,7 +63,7 @@ import org.eclipse.jetty.server.HttpOutput;
  */
 @Slf4j
 public class PrometheusMetricsGenerator {
-    private static volatile MetricsArray<ByteBuf> metricsArray;
+    private static volatile TimeWindow<ByteBuf> timeWindow;
     private static final int MAX_COMPONENTS = 64;
 
     static {
@@ -122,11 +122,11 @@ public class PrometheusMetricsGenerator {
             return;
         }
 
-        if (null == metricsArray) {
+        if (null == timeWindow) {
             int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
-            metricsArray = new MetricsArray<>(1, (int) TimeUnit.SECONDS.toMillis(period));
+            timeWindow = new TimeWindow<>(1, (int) TimeUnit.SECONDS.toMillis(period));
         }
-        WindowWrap<ByteBuf> window = metricsArray.currentWindow(oldBuf -> {
+        WindowWrap<ByteBuf> window = timeWindow.current(oldBuf -> {
             // release expired buffer, in case of memory leak
             if (oldBuf != null && oldBuf.refCnt() > 0) {
                 oldBuf.release();

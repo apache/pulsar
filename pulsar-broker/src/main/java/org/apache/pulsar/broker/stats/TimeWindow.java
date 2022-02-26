@@ -21,12 +21,12 @@ package org.apache.pulsar.broker.stats;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
 
-public final class MetricsArray<T> {
+public final class TimeWindow<T> {
     private final int interval;
     private final int sampleCount;
     private final AtomicReferenceArray<WindowWrap<T>> array;
 
-    public MetricsArray(int sampleCount, int interval) {
+    public TimeWindow(int sampleCount, int interval) {
         this.sampleCount = sampleCount;
         this.interval = interval;
         this.array = new AtomicReferenceArray<>(sampleCount);
@@ -38,7 +38,7 @@ public final class MetricsArray<T> {
      * @param function generate data.
      * @return
      */
-    public synchronized WindowWrap<T> currentWindow(Function<T, T> function) {
+    public synchronized WindowWrap<T> current(Function<T, T> function) {
         long millis = System.currentTimeMillis();
 
         if (millis < 0) {

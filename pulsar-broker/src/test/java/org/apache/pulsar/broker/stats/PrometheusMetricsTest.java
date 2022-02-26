@@ -1412,7 +1412,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
 
         int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
-        MetricsArray<Object> metricsArray = new MetricsArray<>(2, (int) TimeUnit.SECONDS.toMillis(period));
+        TimeWindow<Object> timeWindow = new TimeWindow<>(2, (int) TimeUnit.SECONDS.toMillis(period));
 
         for (int a = 0; a < 10; a++) {
             long start = System.currentTimeMillis();
@@ -1422,7 +1422,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut2, null, true);
             long end = System.currentTimeMillis();
 
-            if (metricsArray.currentWindowStart(start) == metricsArray.currentWindowStart(end)) {
+            if (timeWindow.currentWindowStart(start) == timeWindow.currentWindowStart(end)) {
                 String metricsStr1 = statsOut1.toString();
                 String metricsStr2 = statsOut2.toString();
                 assertEquals(metricsStr1, metricsStr2);
