@@ -288,7 +288,7 @@ public class TopicOwnerTest {
         // All brokers will invalidate bundles cache after namespace bundle split
         pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
                 pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
-                true, null);
+                true, null, null);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().

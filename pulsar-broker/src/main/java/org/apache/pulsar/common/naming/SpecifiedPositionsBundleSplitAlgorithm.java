@@ -18,34 +18,41 @@
  */
 package org.apache.pulsar.common.naming;
 
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 
 /**
- * This algorithm divides the bundle into two parts with the same topics count.
+ * This algorithm divides the bundle into several parts by the specified positions.
  */
-public class TopicCountEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm  {
-
+public class SpecifiedPositionsBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm{
     @Override
     public CompletableFuture<List<Long>> getSplitBoundary(BundleSplitOption bundleSplitOption) {
         NamespaceService service = bundleSplitOption.getService();
         NamespaceBundle bundle = bundleSplitOption.getBundle();
+        List<Long> positions = bundleSplitOption.getPositions();
+        if (positions == null || positions.size() == 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+        // sort all positions
+        Collections.sort(positions);
         return service.getOwnedTopicListForNamespaceBundle(bundle).thenCompose(topics -> {
             if (topics == null || topics.size() <= 1) {
                 return CompletableFuture.completedFuture(null);
             }
-            List<Long> topicNameHashList = new ArrayList<>(topics.size());
-            for (String topic : topics) {
-                topicNameHashList.add(bundle.getNamespaceBundleFactory().getLongHashCode(topic));
+            List<Long> splitBoundaries = positions
+                    .stream()
+                    .filter(position -> position > bundle.getLowerEndpoint() && position < bundle.getUpperEndpoint())
+                    .collect(Collectors.toList());
+
+            if (splitBoundaries.size() == 0) {
+                return CompletableFuture.completedFuture(null);
             }
-            Collections.sort(topicNameHashList);
-            long splitStart = topicNameHashList.get(Math.max((topicNameHashList.size() / 2) - 1, 0));
-            long splitEnd = topicNameHashList.get(topicNameHashList.size() / 2);
-            long splitMiddle = splitStart + (splitEnd - splitStart) / 2;
-            return CompletableFuture.completedFuture(Collections.singletonList(splitMiddle));
+            return CompletableFuture.completedFuture(splitBoundaries);
         });
     }
 }

@@ -27,11 +27,13 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -239,19 +241,20 @@ public class NamespaceBundlesTest {
         NamespaceBundle bundleToSplit = bundles.getBundles().get(0);
 
         try {
-            factory.splitBundles(bundleToSplit, 0, bundleToSplit.getLowerEndpoint());
+            factory.splitBundles(bundleToSplit, 0,
+                    Collections.singletonList(bundleToSplit.getLowerEndpoint()));
         } catch (IllegalArgumentException e) {
             //No-op
         }
         try {
-            factory.splitBundles(bundleToSplit, 0, bundleToSplit.getUpperEndpoint());
+            factory.splitBundles(bundleToSplit, 0, Collections.singletonList(bundleToSplit.getUpperEndpoint()));
         } catch (IllegalArgumentException e) {
             //No-op
         }
 
         Long fixBoundary = bundleToSplit.getLowerEndpoint() + 10;
         Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundleToSplit,
-                0, fixBoundary).join();
+                0, Collections.singletonList(fixBoundary)).join();
         assertEquals(splitBundles.getRight().get(0).getLowerEndpoint(), bundleToSplit.getLowerEndpoint());
         assertEquals(splitBundles.getRight().get(1).getLowerEndpoint().longValue(), bundleToSplit.getLowerEndpoint() + fixBoundary);
     }

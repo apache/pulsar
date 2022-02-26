@@ -28,6 +28,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1104,8 +1106,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName,
-                                                boolean authoritative, boolean unload, String splitAlgorithmName) {
+    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName, boolean authoritative,
+                                                boolean unload, String splitAlgorithmName, List<Long> splitBoundaries) {
         validateSuperUserAccess();
         checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
@@ -1144,7 +1146,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName))
+                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries)
                 .thenRun(() -> {
                     log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
                     asyncResponse.resume(Response.noContent().build());
@@ -1160,6 +1162,50 @@ public abstract class NamespacesBase extends AdminResource {
             }
             return null;
         });
+    }
+
+    protected TopicHashPositions internalGetTopicHashPositions(String bundleRange, List<String> topicList) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Getting hash position for topic list {}, bundle {}", clientAppId(), topicList, bundleRange);
+        }
+        if (topicList == null || topicList.size() == 0) {
+            return null;
+        }
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                false, true);
+        try {
+            List<String> allTopicsInThisBundle =
+                    pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle).get();
+            if (allTopicsInThisBundle.size() == 0) {
+                return null;
+            }
+            Map<String, Long> topicHashPositions = new HashMap<>();
+            for (String topic : topicList) {
+                // partitioned topic
+                if (TopicName.get(topic).getPartitionIndex() == -1) {
+                    allTopicsInThisBundle.stream()
+                            .filter(t -> TopicName.get(t).getPartitionedTopicName().equals(TopicName.get(topic).getPartitionedTopicName()))
+                            .forEach(partition -> {
+                                topicHashPositions.put(partition,  pulsar().getNamespaceService()
+                                        .getNamespaceBundleFactory().getLongHashCode(partition));
+                            });
+                } else { // topic partition
+                    if (allTopicsInThisBundle.contains(topic)) {
+                        topicHashPositions.put(topic, pulsar().getNamespaceService()
+                                .getNamespaceBundleFactory().getLongHashCode(topic));
+                    }
+                }
+            }
+            if (topicHashPositions.size() == 0) {
+                return null;
+            }
+            return new TopicHashPositions(namespaceName.toString(), bundleRange, topicHashPositions);
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("[{}] {} Failed to get topic list for bundle {}.", clientAppId(), namespaceName, bundle);
+            throw new RestException(e);
+        }
     }
 
     private String getBundleRange(String bundleName) {

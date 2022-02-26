@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
 
 /**
  * Admin interface for namespaces management.
@@ -2061,10 +2062,11 @@ public interface Namespaces {
      * @param bundle range of bundle to split
      * @param unloadSplitBundles
      * @param splitAlgorithmName
+     * @param splitBoundaries
      * @throws PulsarAdminException
      */
-    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName)
-            throws PulsarAdminException;
+    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
+                              String splitAlgorithmName, List<Long> splitBoundaries) throws PulsarAdminException;
 
     /**
      * Split namespace bundle asynchronously.
@@ -2073,9 +2075,34 @@ public interface Namespaces {
      * @param bundle range of bundle to split
      * @param unloadSplitBundles
      * @param splitAlgorithmName
+     * @param splitBoundaries
      */
-    CompletableFuture<Void> splitNamespaceBundleAsync(
-            String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName);
+    CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle, boolean unloadSplitBundles,
+                                                      String splitAlgorithmName, List<Long> splitBoundaries);
+
+    /**
+     * Get positions for topic list in a bundle.
+     *
+     * @param namespace
+     * @param bundle range of bundle
+     * @param topicList
+     * @return hash positions for all topics in topicList
+     * @throws PulsarAdminException
+     */
+    TopicHashPositions getTopicHashPositions(String namespace,
+                                             String bundle, List<String> topicList) throws PulsarAdminException;
+
+    /**
+     * Get positions for topic list in a bundle.
+     *
+     * @param namespace
+     * @param bundle range of bundle
+     * @param topicList
+     * @return hash positions for all topics in topicList
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<TopicHashPositions> getTopicHashPositionsAsync(String namespace,
+                                                                     String bundle, List<String> topicList);
 
     /**
      * Set message-publish-rate (topics under this namespace can publish this many messages per second).

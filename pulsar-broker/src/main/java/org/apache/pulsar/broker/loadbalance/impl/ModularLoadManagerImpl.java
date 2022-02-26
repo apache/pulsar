@@ -722,7 +722,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
                     log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-                        unloadSplitBundles, null);
+                        unloadSplitBundles, null, null);
 
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {

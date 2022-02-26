@@ -1431,7 +1431,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(
                         LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
                         LoadManagerShared.getBundleRangeFromBundleName(bundleName),
-                        pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), null);
+                        pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), null, null);
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);

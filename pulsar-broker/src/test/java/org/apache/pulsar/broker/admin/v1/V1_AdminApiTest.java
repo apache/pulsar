@@ -973,7 +973,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null, null);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1003,7 +1003,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null, null);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1025,13 +1025,13 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                     () ->
                     {
                         log.info("split 2 bundles at the same time. spilt: 0x00000000_0x7fffffff ");
-                        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false, null);
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false, null, null);
                         return null;
                     },
                     () ->
                     {
                         log.info("split 2 bundles at the same time. spilt: 0x7fffffff_0xffffffff ");
-                        admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false, null);
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false, null, null);
                         return null;
                     }
                 )
@@ -1057,25 +1057,25 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                     () ->
                     {
                         log.info("split 4 bundles at the same time. spilt: 0x00000000_0x3fffffff ");
-                        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false, null);
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false, null, null);
                         return null;
                     },
                     () ->
                     {
                         log.info("split 4 bundles at the same time. spilt: 0x3fffffff_0x7fffffff ");
-                        admin.namespaces().splitNamespaceBundle(namespace, "0x3fffffff_0x7fffffff", false, null);
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x3fffffff_0x7fffffff", false, null, null);
                         return null;
                     },
                     () ->
                     {
                         log.info("split 4 bundles at the same time. spilt: 0x7fffffff_0xbfffffff ");
-                        admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xbfffffff", false, null);
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xbfffffff", false, null, null);
                         return null;
                     },
                     () ->
                     {
                         log.info("split 4 bundles at the same time. spilt: 0xbfffffff_0xffffffff ");
-                        admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false, null);
+                        admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false, null, null);
                         return null;
                     }
                 )
