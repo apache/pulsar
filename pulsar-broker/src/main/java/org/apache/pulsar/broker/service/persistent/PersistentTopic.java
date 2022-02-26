@@ -2259,47 +2259,38 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources();
-        if (topicName.isPartitioned()) {
-            return partitionedTopicResources.partitionedTopicExistsAsync(topicName)
-                    .thenCompose(partitionedTopicExist -> {
-                        if (!partitionedTopicExist) {
-                            return CompletableFuture.completedFuture(null);
-                        } else {
-                            return innerDeletePartitionedMetadata(topicName, partitionedTopicResources);
-                        }
-                    });
-        } else {
-            return innerDeletePartitionedMetadata(topicName, partitionedTopicResources);
-        }
-    }
-
-    private CompletableFuture<Void> innerDeletePartitionedMetadata(TopicName topicName,
-                                                                   PartitionedTopicResources partitionedTopicResources)
-    {
-        return getBrokerService()
-                .fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
-                .thenCompose((metadata -> {
-                    List<CompletableFuture<Boolean>> persistentTopicExists = new ArrayList<>(metadata.partitions);
-                    for (int i = 0; i < metadata.partitions; i++) {
-                        persistentTopicExists.add(brokerService.getPulsar()
-                                .getPulsarResources().getTopicResources()
-                                .persistentTopicExists(topicName.getPartition(i)));
+        return partitionedTopicResources.partitionedTopicExistsAsync(topicName)
+                .thenCompose(partitionedTopicExist -> {
+                    if (!partitionedTopicExist) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return getBrokerService()
+                                .fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                                .thenCompose((metadata -> {
+                                    List<CompletableFuture<Boolean>> persistentTopicExists =
+                                            new ArrayList<>(metadata.partitions);
+                                    for (int i = 0; i < metadata.partitions; i++) {
+                                        persistentTopicExists.add(brokerService.getPulsar()
+                                                .getPulsarResources().getTopicResources()
+                                                .persistentTopicExists(topicName.getPartition(i)));
+                                    }
+                                    return FutureUtil.waitForAll(persistentTopicExists)
+                                            .thenCompose(unused -> {
+                                                // make sure all sub partitions were deleted after all future complete
+                                                Optional<Boolean> anyExistPartition = persistentTopicExists.stream()
+                                                        .map(CompletableFuture::join)
+                                                        .filter(topicExist -> topicExist)
+                                                        .findAny();
+                                                if (anyExistPartition.isPresent()) {
+                                                    log.error("[{}] Delete metadata fail", topic);
+                                                    return CompletableFuture.completedFuture(null);
+                                                } else {
+                                                    return partitionedTopicResources.deletePartitionedTopicAsync(topicName);
+                                                }
+                                            });
+                                }));
                     }
-                    return FutureUtil.waitForAll(persistentTopicExists)
-                            .thenCompose(unused -> {
-                                // make sure all sub partitions were deleted after all future complete
-                                Optional<Boolean> anyExistPartition = persistentTopicExists.stream()
-                                        .map(CompletableFuture::join)
-                                        .filter(topicExist -> topicExist)
-                                        .findAny();
-                                if (anyExistPartition.isPresent()) {
-                                    log.error("[{}] Delete metadata fail", topic);
-                                    return CompletableFuture.completedFuture(null);
-                                } else {
-                                    return partitionedTopicResources.deletePartitionedTopicAsync(topicName);
-                                }
-                            });
-                }));
+                });
     }
 
     @Override
