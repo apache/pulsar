@@ -29,14 +29,13 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
 public class SpecifiedPositionsBundleSplitAlgorithmTest {
     @Test
-    public void testWrongArg() {
+    public void testNullBoundaries() throws Exception {
         SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm();
-        assertThrows(NullPointerException.class, () -> algorithm.getSplitBoundary(new BundleSplitOption()));
+        assertNull(algorithm.getSplitBoundary(new BundleSplitOption()).get());
     }
 
     @Test
@@ -70,9 +69,12 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
         doReturn(1L).when(mockNamespaceBundle).getLowerEndpoint();
-        doReturn(1000L).when(mockNamespaceBundle).getLowerEndpoint();
+        doReturn(1000L).when(mockNamespaceBundle).getUpperEndpoint();
+        doReturn(CompletableFuture.completedFuture(Lists.newArrayList("topic", "topic2")))
+                .when(mockNamespaceService)
+                .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
 
-        List<Long> positions = Arrays.asList(1L, 100L, 200L, 500L, 800L, 1000L);
+        List<Long> positions = Arrays.asList(100L, 200L, 500L, 800L);
         List<Long> splitPositions = algorithm.getSplitBoundary(
                 new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, positions)).join();
 
