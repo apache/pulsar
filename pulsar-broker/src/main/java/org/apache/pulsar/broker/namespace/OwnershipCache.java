@@ -177,7 +177,8 @@ public class OwnershipCache {
     }
 
     /**
-     * Method to get the current owner of the <code>NamespaceBundle</code> or set the local broker as the owner if absent.
+     * Method to get the current owner of the <code>NamespaceBundle</code> 
+     * or set the local broker as the owner if absent.
      *
      * @param bundle
      *            the <code>NamespaceBundle</code>
