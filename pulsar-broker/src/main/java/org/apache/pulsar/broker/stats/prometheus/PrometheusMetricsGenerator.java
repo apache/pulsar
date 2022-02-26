@@ -64,6 +64,7 @@ import org.eclipse.jetty.server.HttpOutput;
 @Slf4j
 public class PrometheusMetricsGenerator {
     private static volatile MetricsArray<ByteBuf> metricsArray;
+    private static final int MAX_COMPONENTS = 64;
 
     static {
         DefaultExports.initialize();
@@ -166,7 +167,8 @@ public class PrometheusMetricsGenerator {
                                      boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
                                      List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         //Use unpooled buffers here to avoid direct buffer usage increasing.
-        ByteBuf buf = UnpooledByteBufAllocator.DEFAULT.compositeDirectBuffer();
+        //when write out 200MB data, MAX_COMPONENTS = 64 needn't mem_copy. see: CompositeByteBuf#consolidateIfNeeded()
+        ByteBuf buf = UnpooledByteBufAllocator.DEFAULT.compositeDirectBuffer(MAX_COMPONENTS);
         boolean exceptionHappens = false;
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
