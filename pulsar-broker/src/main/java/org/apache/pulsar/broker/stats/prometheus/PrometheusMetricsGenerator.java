@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.Collector.MetricFamilySamples.Sample;
@@ -165,7 +165,8 @@ public class PrometheusMetricsGenerator {
     private static ByteBuf generate0(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
                                      boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
                                      List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
-        CompositeByteBuf buf = ByteBufAllocator.DEFAULT.compositeDirectBuffer();
+        //Use unpooled buffers here to avoid direct buffer usage increasing.
+        ByteBuf buf = UnpooledByteBufAllocator.DEFAULT.compositeDirectBuffer();
         boolean exceptionHappens = false;
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
