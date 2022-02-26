@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
 import java.util.Arrays;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.testng.annotations.Test;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import static org.mockito.Mockito.doReturn;

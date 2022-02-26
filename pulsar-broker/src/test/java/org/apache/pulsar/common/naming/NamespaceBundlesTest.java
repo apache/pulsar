@@ -27,7 +27,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;

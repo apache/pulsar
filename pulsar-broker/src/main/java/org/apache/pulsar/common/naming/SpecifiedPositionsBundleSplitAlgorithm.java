@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.naming;
 
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

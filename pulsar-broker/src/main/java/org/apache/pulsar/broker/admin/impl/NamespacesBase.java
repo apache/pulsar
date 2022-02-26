@@ -1186,7 +1186,8 @@ public abstract class NamespacesBase extends AdminResource {
                 // partitioned topic
                 if (TopicName.get(topic).getPartitionIndex() == -1) {
                     allTopicsInThisBundle.stream()
-                            .filter(t -> TopicName.get(t).getPartitionedTopicName().equals(TopicName.get(topic).getPartitionedTopicName()))
+                            .filter(t -> TopicName.get(t).getPartitionedTopicName()
+                                    .equals(TopicName.get(topic).getPartitionedTopicName()))
                             .forEach(partition -> {
                                 topicHashPositions.put(partition,  pulsar().getNamespaceService()
                                         .getNamespaceBundleFactory().getLongHashCode(partition));
