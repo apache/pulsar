@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.fail;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -166,5 +167,28 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         producer.close();
 
         Assert.assertTrue(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
+    }
+
+    @Test
+    public void testInitialSubscriptionCreationWithAutoCreationDisable()
+            throws PulsarAdminException, PulsarClientException {
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+
+        final TopicName topic =
+                TopicName.get("persistent", "public", "default",
+                        "testInitialSubscriptionCreationWithAutoCreationDisable");
+        final String initialSubscriptionName = "init-sub";
+        admin.topics().createNonPartitionedTopic(topic.toString());
+        try {
+            Producer<byte[]> producer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
+                    .initialSubscriptionName(initialSubscriptionName)
+                    .topic(topic.toString())
+                    .create();
+            fail("Should not pass");
+        } catch (PulsarClientException.NotAllowedException exception) {
+            // ok
+        }
+
+        Assert.assertFalse(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
     }
 }
