@@ -3252,12 +3252,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     totalEntriesInCurrentLedger = 0;
                 }
             } else {
-                totalEntriesInCurrentLedger = ledgers.get(currentLedgerId).getEntries();
+                totalEntriesInCurrentLedger = ledgers.get(currentLedgerId) != null ?
+                        ledgers.get(currentLedgerId).getEntries() : 0;
             }
 
-            if (null == ledgers.get(currentLedgerId)) {
-                break;
-            }
 
             long unreadEntriesInCurrentLedger = totalEntriesInCurrentLedger - currentEntryId;
 
