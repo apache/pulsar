@@ -3255,6 +3255,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 totalEntriesInCurrentLedger = ledgers.get(currentLedgerId).getEntries();
             }
 
+            if (null == ledgers.get(currentLedgerId)) {
+                break;
+            }
+
             long unreadEntriesInCurrentLedger = totalEntriesInCurrentLedger - currentEntryId;
 
             if (unreadEntriesInCurrentLedger >= entriesToSkip) {
