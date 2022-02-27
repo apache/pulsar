@@ -43,6 +43,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.meta.MetadataClientDriver;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -55,6 +56,7 @@ import org.apache.pulsar.common.policies.data.RawBookieInfo;
 @Produces(MediaType.APPLICATION_JSON)
 @Slf4j
 public class Bookies extends AdminResource {
+    private static final String PATH_SEPARATOR = "/";
 
     @GET
     @Path("/racks-info")
@@ -160,6 +162,20 @@ public class Bookies extends AdminResource {
 
         if (group == null) {
             throw new RestException(Status.PRECONDITION_FAILED, "Bookie 'group' parameters is missing");
+        }
+
+        // validate rack name
+        int separatorCnt = StringUtils.countMatches(
+            StringUtils.strip(bookieInfo.getRack(), PATH_SEPARATOR), PATH_SEPARATOR);
+        boolean isRackEnabled = pulsar().getConfiguration().isBookkeeperClientRackawarePolicyEnabled();
+        boolean isRegionEnabled = pulsar().getConfiguration().isBookkeeperClientRegionawarePolicyEnabled();
+        if (isRackEnabled && ((isRegionEnabled && separatorCnt != 1) || (!isRegionEnabled && separatorCnt != 0))) {
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Bookie 'rack' parameter is invalid, "
+                + "When `RackawareEnsemblePlacementPolicy` is enabled, the rack name is not allowed to contain "
+                + "slash (`/`) except for the beginning and end of the rack name string. "
+                + "When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain "
+                + "one slash (`/`) except for the beginning and end of the rack name string."));
+            return;
         }
 
         getPulsarResources().getBookieResources()
