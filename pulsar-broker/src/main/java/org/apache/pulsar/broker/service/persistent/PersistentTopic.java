@@ -2282,8 +2282,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                         .filter(topicExist -> topicExist)
                                                         .findAny();
                                                 if (anyExistPartition.isPresent()) {
-                                                    log.error("[{}] Delete topic metadata failed because" +
-                                                            " another partition exist.", topicName);
+                                                    log.error("[{}] Delete topic metadata failed because"
+                                                            + " another partition exist.", topicName);
                                                     throw new UnsupportedOperationException(
                                                             String.format("Another partition exists for [%s].",
                                                                     topicName));
