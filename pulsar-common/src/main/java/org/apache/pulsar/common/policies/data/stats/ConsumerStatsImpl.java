@@ -58,7 +58,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public int unackedMessages;
 
     /** Number of average messages per entry for the consumer consumed. */
-    public int avgMessagesPerEntry;
+    public float avgMessagesPerEntry;
 
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
@@ -160,5 +160,10 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     public String getReadPositionWhenJoining() {
         return readPositionWhenJoining;
+    }
+
+    // return integer for compatibility
+    public int getAvgMessagesPerEntry() {
+        return (int) avgMessagesPerEntry;
     }
 }

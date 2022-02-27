@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -122,12 +123,12 @@ public class Consumer {
      * The initial value is 1000, when new value comes, it will update with
      * avgMessagesPerEntry = avgMessagePerEntry * avgPercent + (1 - avgPercent) * new Value.
      */
-    private static final AtomicIntegerFieldUpdater<Consumer> AVG_MESSAGES_PER_ENTRY =
-            AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "avgMessagesPerEntry");
-    private volatile int avgMessagesPerEntry = 1000;
+    private static final AtomicReferenceFieldUpdater<Consumer, Float> AVG_MESSAGES_PER_ENTRY =
+            AtomicReferenceFieldUpdater.newUpdater(Consumer.class, Float.class, "avgMessagesPerEntry");
+    private volatile Float avgMessagesPerEntry = 1000f;
     private static final long [] EMPTY_ACK_SET = new long[0];
 
-    private static final double avgPercent = 0.9;
+    private static final float avgPercent = 0.9f;
     private boolean preciseDispatcherFlowControl;
     private PositionImpl readPositionWhenJoining;
     private final String clientAddress; // IP address only, no port number included
@@ -170,7 +171,7 @@ public class Consumer {
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
-        AVG_MESSAGES_PER_ENTRY.set(this, 1000);
+        AVG_MESSAGES_PER_ENTRY.set(this, 1000f);
 
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
@@ -281,10 +282,8 @@ public class Consumer {
         }
 
         // calculate avg message per entry
-        int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
-        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent
-                + (1 - avgPercent) * totalMessages / entries.size());
-        AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
+        AVG_MESSAGES_PER_ENTRY.getAndUpdate(this, prevAvgMessagesPerEntry ->
+                prevAvgMessagesPerEntry * avgPercent + (1 - avgPercent) * totalMessages / entries.size());
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
@@ -292,7 +291,7 @@ public class Consumer {
         if (log.isDebugEnabled()){
             log.debug("[{}-{}] Added {} minus {} messages to MESSAGE_PERMITS_UPDATER in broker.service.Consumer"
                             + " for consumerId: {}; avgMessagesPerEntry is {}",
-                   topicName, subscription, ackedCount, totalMessages, consumerId, tmpAvgMessagesPerEntry);
+                   topicName, subscription, ackedCount, totalMessages, consumerId, AVG_MESSAGES_PER_ENTRY.get(this));
         }
         incrementUnackedMessages(unackedMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
@@ -699,7 +698,7 @@ public class Consumer {
         return MESSAGE_PERMITS_UPDATER.get(this);
     }
 
-    public int getAvgMessagesPerEntry() {
+    public float getAvgMessagesPerEntry() {
         return AVG_MESSAGES_PER_ENTRY.get(this);
     }
 
