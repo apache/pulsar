@@ -348,7 +348,8 @@ public class PulsarClientImpl implements PulsarClient {
                 producer = newPartitionedProducerImpl(topic, conf, schema, interceptors, producerCreatedFuture,
                         metadata);
             } else {
-                producer = newProducerImpl(topic, -1, conf, schema, interceptors, producerCreatedFuture);
+                producer = newProducerImpl(topic, -1, conf, schema, interceptors, producerCreatedFuture,
+                        Optional.empty());
             }
 
             producers.add(producer);
@@ -405,9 +406,10 @@ public class PulsarClientImpl implements PulsarClient {
                                                   ProducerConfigurationData conf,
                                                   Schema<T> schema,
                                                   ProducerInterceptors interceptors,
-                                                  CompletableFuture<Producer<T>> producerCreatedFuture) {
+                                                  CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                  Optional<String> overrideProducerName) {
         return new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, partitionIndex, schema,
-                interceptors);
+                interceptors, overrideProducerName);
     }
 
     public CompletableFuture<Consumer<byte[]>> subscribeAsync(ConsumerConfigurationData<byte[]> conf) {
@@ -945,9 +947,9 @@ public class PulsarClientImpl implements PulsarClient {
             TopicName topicName = TopicName.get(topic);
             AtomicLong opTimeoutMs = new AtomicLong(conf.getLookupTimeoutMs());
             Backoff backoff = new BackoffBuilder()
-                    .setInitialTime(100, TimeUnit.MILLISECONDS)
+                    .setInitialTime(conf.getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                    .setMax(1, TimeUnit.MINUTES)
+                    .setMax(conf.getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                     .create();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs,
                                         metadataFuture, new ArrayList<>());

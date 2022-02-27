@@ -84,6 +84,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
 
     public static final String TENANT = "tnx";
     protected static final String NAMESPACE1 = TENANT + "/ns1";
+    protected ServiceConfiguration conf = new ServiceConfiguration();
 
     public void internalSetup() throws Exception {
         incrementSetupNumber();
@@ -145,7 +146,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
 
     protected void startBroker() throws Exception {
         for (int i = 0; i < brokerCount; i++) {
-            ServiceConfiguration conf = new ServiceConfiguration();
             conf.setClusterName(CLUSTER_NAME);
             conf.setAdvertisedAddress("localhost");
             conf.setManagedLedgerCacheSizeMB(8);
@@ -155,7 +155,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setConfigurationStoreServers("localhost:3181");
             conf.setAllowAutoTopicCreationType("non-partitioned");
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
-            conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
             conf.setBrokerShutdownTimeoutMs(0L);
             conf.setBrokerServicePort(Optional.of(0));

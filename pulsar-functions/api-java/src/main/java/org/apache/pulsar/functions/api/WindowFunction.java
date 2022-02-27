@@ -29,11 +29,11 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 @FunctionalInterface
-public interface WindowFunction<I, O> {
+public interface WindowFunction<X, T> {
     /**
      * Process the input.
      *
      * @return the output
      */
-    O process(Collection<Record<I>> input, WindowContext context) throws Exception;
+    T process(Collection<Record<X>> input, WindowContext context) throws Exception;
 }

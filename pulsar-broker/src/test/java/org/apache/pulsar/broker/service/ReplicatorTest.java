@@ -51,11 +51,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.State;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -1317,7 +1321,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
         cleanup();
         setup();
-
     }
 
     private void initTransaction(int coordinatorSize, PulsarAdmin admin, String ServiceUrl,
@@ -1365,6 +1368,61 @@ public class ReplicatorTest extends ReplicatorTestBase {
         for (String expectTopic : expectedTopicList) {
             Assert.assertTrue(list.contains(expectTopic));
         }
+    }
+
+    @Test
+    public void testReplicatorWithFailedAck() throws Exception {
+
+        log.info("--- Starting ReplicatorTest::testReplication ---");
+
+        String namespace = "pulsar/global/ns2";
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        final TopicName dest = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/ackFailedTopic"));
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+        log.info("--- Starting producer --- " + url1);
+
+        // Produce from cluster1 and consume from the rest
+        producer1.produce(2);
+
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(dest.toString(), false)
+                .getNow(null).get();
+        ConcurrentOpenHashMap<String, Replicator> replicators = topic.getReplicators();
+        PersistentReplicator replicator = (PersistentReplicator) replicators.get("r2");
+
+        Awaitility.await().timeout(50, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(org.apache.pulsar.broker.service.AbstractReplicator.State.Started,
+                        replicator.getState()));
+
+        assertEquals(replicator.getState(), org.apache.pulsar.broker.service.AbstractReplicator.State.Started);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) replicator.getCursor();
+        cursor.setState(State.Closed);
+
+        Field field = ManagedCursorImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(cursor, State.Closed);
+
+        producer1.produce(10);
+
+        Position deletedPos = cursor.getMarkDeletedPosition();
+        Position readPos = cursor.getReadPosition();
+
+        Awaitility.await().timeout(30, TimeUnit.SECONDS).until(
+                () -> cursor.getMarkDeletedPosition().getEntryId() != (cursor.getReadPosition().getEntryId() - 1));
+
+        assertNotEquals((readPos.getEntryId() - 1), deletedPos.getEntryId());
+
+        field.set(cursor, State.Open);
+
+        Awaitility.await().timeout(30, TimeUnit.SECONDS).until(
+                () -> cursor.getMarkDeletedPosition().getEntryId() == (cursor.getReadPosition().getEntryId() - 1));
+
+        deletedPos = cursor.getMarkDeletedPosition();
+        readPos = cursor.getReadPosition();
+        assertEquals((readPos.getEntryId() - 1), deletedPos.getEntryId());
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);

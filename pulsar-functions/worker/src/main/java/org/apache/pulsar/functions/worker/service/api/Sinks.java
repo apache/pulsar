@@ -147,16 +147,16 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                                                  final String clientRole,
                                                  final AuthenticationDataSource clientAuthenticationDataHttps);
 
-    SinkStatus getSinkStatus(final String tenant,
-                             final String namespace,
-                             final String componentName,
-                             final URI uri,
-                             final String clientRole,
-                             final AuthenticationDataSource clientAuthenticationDataHttps);
+    SinkStatus getSinkStatus(String tenant,
+                             String namespace,
+                             String componentName,
+                             URI uri,
+                             String clientRole,
+                             AuthenticationDataSource clientAuthenticationDataHttps);
 
-    SinkConfig getSinkInfo(final String tenant,
-                           final String namespace,
-                           final String componentName);
+    SinkConfig getSinkInfo(String tenant,
+                           String namespace,
+                           String componentName);
 
     List<ConnectorDefinition> getSinkList();
 

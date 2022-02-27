@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -514,7 +515,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
                             cumulativeAckOfTransaction = null;
                         }
-                        persistentSubscription.redeliverUnacknowledgedMessages(consumer);
+                        //TODO: pendingAck handle next pr will fix
+                        persistentSubscription.redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
                         abortFuture.complete(null);
                     }).exceptionally(e -> {
                         log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
@@ -674,13 +676,18 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     && individualAckPositions.containsKey(entry.getValue())) {
                 BitSetRecyclable thisBitSet =
                         BitSetRecyclable.valueOf(entry.getValue().getAckSet());
-                thisBitSet.flip(0, individualAckPositions.get(entry.getValue()).right);
+                int batchSize = individualAckPositions.get(entry.getValue()).right;
+                thisBitSet.flip(0, batchSize);
                 BitSetRecyclable otherBitSet =
                         BitSetRecyclable.valueOf(individualAckPositions
                                 .get(entry.getValue()).left.getAckSet());
                 otherBitSet.or(thisBitSet);
-                individualAckPositions.get(entry.getKey())
-                        .left.setAckSet(otherBitSet.toLongArray());
+                if (otherBitSet.cardinality() == batchSize) {
+                    individualAckPositions.remove(entry.getValue());
+                } else {
+                    individualAckPositions.get(entry.getKey())
+                            .left.setAckSet(otherBitSet.toLongArray());
+                }
                 otherBitSet.recycle();
                 thisBitSet.recycle();
             } else {

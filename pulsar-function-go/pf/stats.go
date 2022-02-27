@@ -35,6 +35,8 @@ var (
 	metricsLabelNames          = []string{"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"}
 	exceptionLabelNames        = []string{"error"}
 	exceptionMetricsLabelNames = append(metricsLabelNames, exceptionLabelNames...)
+	userLabelNames             = []string{"metric"}
+	userMetricLabelNames       = append(metricsLabelNames, userLabelNames...)
 )
 
 const (
@@ -52,6 +54,8 @@ const (
 	TotalUserExceptions1min        = "user_exceptions_total_1min"
 	ProcessLatencyMs1min           = "process_latency_ms_1min"
 	TotalReceived1min              = "received_total_1min"
+
+	UserMetric = "user_metric"
 )
 
 // Declare Prometheus
@@ -122,6 +126,18 @@ var (
 		prometheus.GaugeOpts{
 			Name: PulsarFunctionMetricsPrefix + "system_exception",
 			Help: "Exception from system code."}, exceptionMetricsLabelNames)
+
+	userMetricSummary = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name: PulsarFunctionMetricsPrefix + UserMetric,
+			Help: "User defined metric.",
+			Objectives: map[float64]float64{
+				0.5:   0.01,
+				0.9:   0.01,
+				0.99:  0.01,
+				0.999: 0.01,
+			},
+		}, userMetricLabelNames)
 )
 
 type MetricsServicer struct {
@@ -146,6 +162,7 @@ func init() {
 	reg.MustRegister(statTotalReceived1min)
 	reg.MustRegister(userExceptions)
 	reg.MustRegister(systemExceptions)
+	reg.MustRegister(userMetricSummary)
 
 }
 
@@ -339,7 +356,9 @@ func (s *MetricsServicer) serve() {
 		// create a listener on metrics port
 		log.Infof("Starting metrics server on port %d", s.goInstance.context.GetMetricsPort())
 		err := s.server.ListenAndServe()
-		if err != nil {
+		switch err {
+		case nil, http.ErrServerClosed:
+		default:
 			log.Fatalf("failed to start metrics server: %v", err)
 		}
 	}()

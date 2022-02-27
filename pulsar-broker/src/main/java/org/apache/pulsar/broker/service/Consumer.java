@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.Future;
@@ -33,6 +34,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -131,11 +134,15 @@ public class Consumer {
     private final MessageId startMessageId;
     private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;
 
+    @Getter
+    @Setter
+    private volatile long consumerEpoch;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -186,6 +193,7 @@ public class Consumer {
         }
 
         this.clientAddress = cnx.clientSourceAddress();
+        this.consumerEpoch = consumerEpoch;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
     }
@@ -214,6 +222,14 @@ public class Consumer {
         return readCompacted;
     }
 
+    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+                                     EntryBatchIndexesAcks batchIndexesAcks,
+                                     int totalMessages, long totalBytes, long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker) {
+        return sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+                totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH);
+    }
+
     /**
      * Dispatch a list of entries to the consumer. <br/>
      * <b>It is also responsible to release entries data and recycle entries object.</b>
@@ -223,7 +239,7 @@ public class Consumer {
     public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
-                                     RedeliveryTracker redeliveryTracker) {
+                                     RedeliveryTracker redeliveryTracker, long epoch) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
 
         if (entries.isEmpty() || totalMessages == 0) {
@@ -286,7 +302,7 @@ public class Consumer {
 
 
         return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
-                entries, batchSizes, batchIndexesAcks, redeliveryTracker);
+                entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
@@ -465,17 +481,13 @@ public class Consumer {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets);
+                ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             } else {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position);
+                ackedCount = batchSize;
             }
 
-            if (msgId.hasBatchIndex()) {
-                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
-            } else {
-                positionsAcked.add(new MutablePair<>(position, 0));
-            }
+            positionsAcked.add(new MutablePair<>(position, (int) batchSize));
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
@@ -519,7 +531,7 @@ public class Consumer {
     }
 
     private long getAckedCountForMsgIdNoAckSets(long batchSize, PositionImpl position) {
-        if (Subscription.isIndividualAckMode(subType) && isAcknowledgmentAtBatchIndexLevelEnabled) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET);
@@ -530,7 +542,8 @@ public class Consumer {
 
     private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)
+            && pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
@@ -541,10 +554,17 @@ public class Consumer {
                 int currentCardinality = cursorBitSet.cardinality();
                 ackedCount = lastCardinality - currentCardinality;
                 cursorBitSet.recycle();
-            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
+            } else {
                 ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
             }
         }
+        return ackedCount;
+    }
+
+    private long getAckedCountForTransactionAck(long batchSize, long[] ackSets) {
+        BitSetRecyclable bitset = BitSetRecyclable.create().resetWords(ackSets);
+        long ackedCount = batchSize - bitset.cardinality();
+        bitset.recycle();
         return ackedCount;
     }
 
@@ -555,6 +575,7 @@ public class Consumer {
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
                 unAckedCount = cursorBitSet.cardinality();
+                cursorBitSet.recycle();
             }
         }
         return unAckedCount;
@@ -847,7 +868,7 @@ public class Consumer {
         return priorityLevel;
     }
 
-    public void redeliverUnacknowledgedMessages() {
+    public void redeliverUnacknowledgedMessages(long consumerEpoch) {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
         clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
@@ -872,7 +893,7 @@ public class Consumer {
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
-            subscription.redeliverUnacknowledgedMessages(this);
+            subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
 
         flowConsumerBlockedPermits(this);
@@ -925,9 +946,6 @@ public class Consumer {
         if (Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
-        }
-        if (unackedMsgs < 0) {
-            log.error("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
         }
         return unackedMsgs;
     }

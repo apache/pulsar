@@ -142,22 +142,22 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                       final InputStream uploadedInputStream,
                                       final boolean delete,
                                       URI uri,
-                                      final String clientRole,
-                                      final AuthenticationDataSource clientAuthenticationDataHttps);
+                                      String clientRole,
+                                      AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionStatus getFunctionStatus(final String tenant,
-                                     final String namespace,
-                                     final String componentName,
-                                     final URI uri,
-                                     final String clientRole,
-                                     final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionStatus getFunctionStatus(String tenant,
+                                     String namespace,
+                                     String componentName,
+                                     URI uri,
+                                     String clientRole,
+                                     AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant,
-                                                         final String namespace,
-                                                         final String componentName,
-                                                         final String instanceId,
-                                                         final URI uri,
-                                                         final String clientRole,
-                                                         final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
+                                                         String namespace,
+                                                         String componentName,
+                                                         String instanceId,
+                                                         URI uri,
+                                                         String clientRole,
+                                                         AuthenticationDataSource clientAuthenticationDataHttps);
 
 }

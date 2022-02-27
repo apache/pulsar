@@ -140,25 +140,25 @@ public interface Sources<W extends WorkerService> extends Component<W> {
     }
 
 
-    SourceStatus getSourceStatus(final String tenant,
-                                 final String namespace,
-                                 final String componentName,
-                                 final URI uri,
-                                 final String clientRole,
-                                 final AuthenticationDataSource clientAuthenticationDataHttps);
+    SourceStatus getSourceStatus(String tenant,
+                                 String namespace,
+                                 String componentName,
+                                 URI uri,
+                                 String clientRole,
+                                 AuthenticationDataSource clientAuthenticationDataHttps);
 
 
-    SourceInstanceStatusData getSourceInstanceStatus(final String tenant,
-                                                     final String namespace,
-                                                     final String sourceName,
-                                                     final String instanceId,
-                                                     final URI uri,
-                                                     final String clientRole,
-                                                     final AuthenticationDataSource clientAuthenticationDataHttps);
+    SourceInstanceStatusData getSourceInstanceStatus(String tenant,
+                                                     String namespace,
+                                                     String sourceName,
+                                                     String instanceId,
+                                                     URI uri,
+                                                     String clientRole,
+                                                     AuthenticationDataSource clientAuthenticationDataHttps);
 
-    SourceConfig getSourceInfo(final String tenant,
-                               final String namespace,
-                               final String componentName);
+    SourceConfig getSourceInfo(String tenant,
+                               String namespace,
+                               String componentName);
 
     List<ConnectorDefinition> getSourceList();
 

@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.functions.api;
 
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-import org.slf4j.Logger;
-
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.slf4j.Logger;
 
 @InterfaceAudience.Public
 @InterfaceStability.Stable
@@ -181,10 +180,11 @@ public interface WindowContext {
      * @param object
      *            The object that needs to be published
      * @param schemaOrSerdeClassName
-     *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
+     *            Either a builtin schema type (eg: "avro", "json", "protobuf")
+     *            or the class name of the custom schema class
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
+    <T> CompletableFuture<Void> publish(String topicName, T object, String schemaOrSerdeClassName);
 
     /**
      * Publish an object to the topic using default schemas.
@@ -193,5 +193,5 @@ public interface WindowContext {
      * @param object The object that needs to be published
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object);
+    <T> CompletableFuture<Void> publish(String topicName, T object);
 }

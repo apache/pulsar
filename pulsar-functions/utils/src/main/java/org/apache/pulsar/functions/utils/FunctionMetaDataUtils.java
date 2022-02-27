@@ -23,7 +23,8 @@ import org.apache.pulsar.functions.proto.Function;
 
 public class FunctionMetaDataUtils {
 
-    public static boolean canChangeState(Function.FunctionMetaData functionMetaData, int instanceId, Function.FunctionState newState) {
+    public static boolean canChangeState(Function.FunctionMetaData functionMetaData, int instanceId,
+                                         Function.FunctionState newState) {
         if (instanceId >= functionMetaData.getFunctionDetails().getParallelism()) {
             return false;
         }
@@ -40,7 +41,9 @@ public class FunctionMetaDataUtils {
         } else {
             // want to change state for all instances
             for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
-                if (state != newState) return true;
+                if (state != newState) {
+                    return true;
+                }
             }
             return false;
         }
@@ -60,7 +63,7 @@ public class FunctionMetaDataUtils {
             for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
                 builder.putInstanceStates(i, state);
             }
-        } else if (instanceId < builder.getFunctionDetails().getParallelism()){
+        } else if (instanceId < builder.getFunctionDetails().getParallelism()) {
             builder.putInstanceStates(instanceId, state);
         }
         return builder.build();

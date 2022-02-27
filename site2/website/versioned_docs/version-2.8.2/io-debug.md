@@ -29,11 +29,11 @@ To better demonstrate how to debug Pulsar connectors, here takes a Mongo sink co
 4. Configure the Mongo sink with the `mongo-sink-config.yaml` file.
     ```bash
     configs:
-    mongoUri: "mongodb://pulsar-mongo:27017"
-    database: "pulsar"
-    collection: "messages"
-    batchSize: 2
-    batchTimeMs: 500
+      mongoUri: "mongodb://pulsar-mongo:27017"
+      database: "pulsar"
+      collection: "messages"
+      batchSize: 2
+      batchTimeMs: 500
     ```
     ```bash
     docker cp mongo-sink-config.yaml pulsar-mongo-standalone:/pulsar/

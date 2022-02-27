@@ -172,13 +172,6 @@
     </dependency>
 
     <dependency>
-      <groupId>net.jodah</groupId>
-      <artifactId>failsafe</artifactId>
-      <version>${failsafe.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
       <scope>test</scope>
@@ -240,8 +233,9 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
-              <argLine>-Xmx1G -XX:MaxDirectMemorySize=1G
+              <argLine>${testJacocoAgentArgument} -Xmx1G -XX:MaxDirectMemorySize=1G
               -Dio.netty.leakDetectionLevel=advanced
+              ${test.additional.args}
               </argLine>
               <skipTests>false</skipTests>
               <suiteXmlFiles>
