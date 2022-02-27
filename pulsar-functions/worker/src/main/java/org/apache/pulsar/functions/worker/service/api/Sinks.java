@@ -49,14 +49,14 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param clientRole Client role for running the Pulsar Sink
      * @param clientAuthenticationDataHttps Authentication status of the http client
      */
-    void registerSink(final String tenant,
-                      final String namespace,
-                      final String sinkName,
-                      final InputStream uploadedInputStream,
-                      final FormDataContentDisposition fileDetail,
-                      final String sinkPkgUrl,
-                      final SinkConfig sinkConfig,
-                      final String clientRole,
+    void registerSink(String tenant,
+                      String namespace,
+                      String sinkName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sinkPkgUrl,
+                      SinkConfig sinkConfig,
+                      String clientRole,
                       AuthenticationDataSource clientAuthenticationDataHttps);
 
     /**
@@ -65,14 +65,14 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * the signature of the AuthenticationDataSource.
      */
     @Deprecated
-    default void registerSink(final String tenant,
-                      final String namespace,
-                      final String sinkName,
-                      final InputStream uploadedInputStream,
-                      final FormDataContentDisposition fileDetail,
-                      final String sinkPkgUrl,
-                      final SinkConfig sinkConfig,
-                      final String clientRole,
+    default void registerSink(String tenant,
+                      String namespace,
+                      String sinkName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sinkPkgUrl,
+                      SinkConfig sinkConfig,
+                      String clientRole,
                       AuthenticationDataHttps clientAuthenticationDataHttps) {
         registerSink(
                 tenant,
@@ -99,14 +99,14 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param clientAuthenticationDataHttps Authentication status of the http client
      * @param updateOptions Options while updating the sink
      */
-    void updateSink(final String tenant,
-                    final String namespace,
-                    final String sinkName,
-                    final InputStream uploadedInputStream,
-                    final FormDataContentDisposition fileDetail,
-                    final String sinkPkgUrl,
-                    final SinkConfig sinkConfig,
-                    final String clientRole,
+    void updateSink(String tenant,
+                    String namespace,
+                    String sinkName,
+                    InputStream uploadedInputStream,
+                    FormDataContentDisposition fileDetail,
+                    String sinkPkgUrl,
+                    SinkConfig sinkConfig,
+                    String clientRole,
                     AuthenticationDataSource clientAuthenticationDataHttps,
                     UpdateOptionsImpl updateOptions);
 

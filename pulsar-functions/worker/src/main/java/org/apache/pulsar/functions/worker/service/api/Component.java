@@ -40,17 +40,17 @@ public interface Component<W extends WorkerService> {
 
     W worker();
 
-    void deregisterFunction(final String tenant,
-                            final String namespace,
-                            final String componentName,
-                            final String clientRole,
+    void deregisterFunction(String tenant,
+                            String namespace,
+                            String componentName,
+                            String clientRole,
                             AuthenticationDataSource clientAuthenticationDataHttps);
 
     @Deprecated
-    default void deregisterFunction(final String tenant,
-                            final String namespace,
-                            final String componentName,
-                            final String clientRole,
+    default void deregisterFunction(String tenant,
+                            String namespace,
+                            String componentName,
+                            String clientRole,
                             AuthenticationDataHttps clientAuthenticationDataHttps) {
         deregisterFunction(
                 tenant,
@@ -159,12 +159,12 @@ public interface Component<W extends WorkerService> {
 
     StreamingOutput downloadFunction(String path,
                                      String clientRole,
-                                     final AuthenticationDataSource clientAuthenticationDataHttps);
+                                     AuthenticationDataSource clientAuthenticationDataHttps);
 
     @Deprecated
     default StreamingOutput downloadFunction(String path,
                                      String clientRole,
-                                     final AuthenticationDataHttps clientAuthenticationDataHttps) {
+                                     AuthenticationDataHttps clientAuthenticationDataHttps) {
         return downloadFunction(path, clientRole, (AuthenticationDataSource) clientAuthenticationDataHttps);
     }
 
@@ -172,14 +172,14 @@ public interface Component<W extends WorkerService> {
                                      String namespace,
                                      String componentName,
                                      String clientRole,
-                                     final AuthenticationDataSource clientAuthenticationDataHttps);
+                                     AuthenticationDataSource clientAuthenticationDataHttps);
 
     @Deprecated
     default StreamingOutput downloadFunction(String tenant,
                                      String namespace,
                                      String componentName,
                                      String clientRole,
-                                     final AuthenticationDataHttps clientAuthenticationDataHttps) {
+                                     AuthenticationDataHttps clientAuthenticationDataHttps) {
         return downloadFunction(
                 tenant,
                 namespace,

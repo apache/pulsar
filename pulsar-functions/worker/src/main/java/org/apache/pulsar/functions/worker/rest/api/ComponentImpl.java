@@ -1210,7 +1210,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                     .getBytes(kv.value(), kv.value().readerIndex(), kv.value().readableBytes()), UTF_8),
                                     null, null, kv.version());
                         } catch (Exception e) {
-                            value = new FunctionState(key, null, ByteBufUtil.getBytes(kv.value()), null, kv.version());
+                            value = new FunctionState(
+                                    key, null, ByteBufUtil.getBytes(kv.value()), null, kv.version());
                         }
                     }
                 }
@@ -1409,7 +1410,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public StreamingOutput downloadFunction(final String path, String clientRole, AuthenticationDataSource clientAuthenticationDataHttps) {
+    public StreamingOutput downloadFunction(
+            final String path, String clientRole, AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
