@@ -38,7 +38,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 public interface Sources<W extends WorkerService> extends Component<W> {
 
     /**
-     * Update a function
+     * Update a function.
      * @param tenant The tenant of a Pulsar Source
      * @param namespace The namespace of a Pulsar Source
      * @param sourceName The name of a Pulsar Source
@@ -49,14 +49,14 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * @param clientRole Client role for running the Pulsar Source
      * @param clientAuthenticationDataHttps Authentication status of the http client
      */
-    void registerSource(final String tenant,
-                        final String namespace,
-                        final String sourceName,
-                        final InputStream uploadedInputStream,
-                        final FormDataContentDisposition fileDetail,
-                        final String sourcePkgUrl,
-                        final SourceConfig sourceConfig,
-                        final String clientRole,
+    void registerSource(String tenant,
+                        String namespace,
+                        String sourceName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String sourcePkgUrl,
+                        SourceConfig sourceConfig,
+                        String clientRole,
                         AuthenticationDataSource clientAuthenticationDataHttps);
 
     /**
@@ -65,14 +65,14 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * the signature of the AuthenticationDataSource.
      */
     @Deprecated
-    default void registerSource(final String tenant,
-                        final String namespace,
-                        final String sourceName,
-                        final InputStream uploadedInputStream,
-                        final FormDataContentDisposition fileDetail,
-                        final String sourcePkgUrl,
-                        final SourceConfig sourceConfig,
-                        final String clientRole,
+    default void registerSource(String tenant,
+                        String namespace,
+                        String sourceName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String sourcePkgUrl,
+                        SourceConfig sourceConfig,
+                        String clientRole,
                         AuthenticationDataHttps clientAuthenticationDataHttps) {
         registerSource(
                 tenant,
@@ -87,7 +87,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
     }
 
     /**
-     * Update a function
+     * Update a function.
      * @param tenant The tenant of a Pulsar Source
      * @param namespace The namespace of a Pulsar Source
      * @param sourceName The name of a Pulsar Source
@@ -99,14 +99,14 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * @param clientAuthenticationDataHttps Authentication status of the http client
      * @param updateOptions Options while updating the source
      */
-    void updateSource(final String tenant,
-                      final String namespace,
-                      final String sourceName,
-                      final InputStream uploadedInputStream,
-                      final FormDataContentDisposition fileDetail,
-                      final String sourcePkgUrl,
-                      final SourceConfig sourceConfig,
-                      final String clientRole,
+    void updateSource(String tenant,
+                      String namespace,
+                      String sourceName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sourcePkgUrl,
+                      SourceConfig sourceConfig,
+                      String clientRole,
                       AuthenticationDataSource clientAuthenticationDataHttps,
                       UpdateOptionsImpl updateOptions);
 
@@ -116,14 +116,14 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * the signature of the AuthenticationDataSource.
      */
     @Deprecated
-    default void updateSource(final String tenant,
-                      final String namespace,
-                      final String sourceName,
-                      final InputStream uploadedInputStream,
-                      final FormDataContentDisposition fileDetail,
-                      final String sourcePkgUrl,
-                      final SourceConfig sourceConfig,
-                      final String clientRole,
+    default void updateSource(String tenant,
+                      String namespace,
+                      String sourceName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sourcePkgUrl,
+                      SourceConfig sourceConfig,
+                      String clientRole,
                       AuthenticationDataHttps clientAuthenticationDataHttps,
                       UpdateOptionsImpl updateOptions) {
         updateSource(

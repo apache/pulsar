@@ -38,7 +38,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 public interface Sinks<W extends WorkerService> extends Component<W> {
 
     /**
-     * Update a function
+     * Update a function.
      * @param tenant The tenant of a Pulsar Sink
      * @param namespace The namespace of a Pulsar Sink
      * @param sinkName The name of a Pulsar Sink
@@ -87,7 +87,7 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
     }
 
     /**
-     * Update a function
+     * Update a function.
      * @param tenant The tenant of a Pulsar Sink
      * @param namespace The namespace of a Pulsar Sink
      * @param sinkName The name of a Pulsar Sink
@@ -116,14 +116,14 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * the signature of the AuthenticationDataSource.
      */
     @Deprecated
-    default void updateSink(final String tenant,
-                    final String namespace,
-                    final String sinkName,
-                    final InputStream uploadedInputStream,
-                    final FormDataContentDisposition fileDetail,
-                    final String sinkPkgUrl,
-                    final SinkConfig sinkConfig,
-                    final String clientRole,
+    default void updateSink(String tenant,
+                    String namespace,
+                    String sinkName,
+                    InputStream uploadedInputStream,
+                    FormDataContentDisposition fileDetail,
+                    String sinkPkgUrl,
+                    SinkConfig sinkConfig,
+                    String clientRole,
                     AuthenticationDataHttps clientAuthenticationDataHttps,
                     UpdateOptionsImpl updateOptions) {
         updateSink(
@@ -139,13 +139,13 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                 updateOptions);
     }
 
-    SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
-                                                 final String namespace,
-                                                 final String sinkName,
-                                                 final String instanceId,
-                                                 final URI uri,
-                                                 final String clientRole,
-                                                 final AuthenticationDataSource clientAuthenticationDataHttps);
+    SinkInstanceStatusData getSinkInstanceStatus(String tenant,
+                                                 String namespace,
+                                                 String sinkName,
+                                                 String instanceId,
+                                                 URI uri,
+                                                 String clientRole,
+                                                 AuthenticationDataSource clientAuthenticationDataHttps);
 
     SinkStatus getSinkStatus(String tenant,
                              String namespace,

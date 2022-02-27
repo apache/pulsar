@@ -35,7 +35,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 public interface Functions<W extends WorkerService> extends Component<W> {
 
     /**
-     * Register a new function
+     * Register a new function.
      * @param tenant The tenant of a Pulsar Function
      * @param namespace The namespace of a Pulsar Function
      * @param functionName The name of a Pulsar Function
@@ -46,14 +46,14 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * @param clientRole Client role for running the pulsar function
      * @param clientAuthenticationDataHttps Authentication status of the http client
      */
-    void registerFunction(final String tenant,
-                          final String namespace,
-                          final String functionName,
-                          final InputStream uploadedInputStream,
-                          final FormDataContentDisposition fileDetail,
-                          final String functionPkgUrl,
-                          final FunctionConfig functionConfig,
-                          final String clientRole,
+    void registerFunction(String tenant,
+                          String namespace,
+                          String functionName,
+                          InputStream uploadedInputStream,
+                          FormDataContentDisposition fileDetail,
+                          String functionPkgUrl,
+                          FunctionConfig functionConfig,
+                          String clientRole,
                           AuthenticationDataSource clientAuthenticationDataHttps);
 
     /**
@@ -62,14 +62,14 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * the signature of the AuthenticationDataSource.
      */
     @Deprecated
-    default void registerFunction(final String tenant,
-                          final String namespace,
-                          final String functionName,
-                          final InputStream uploadedInputStream,
-                          final FormDataContentDisposition fileDetail,
-                          final String functionPkgUrl,
-                          final FunctionConfig functionConfig,
-                          final String clientRole,
+    default void registerFunction(String tenant,
+                          String namespace,
+                          String functionName,
+                          InputStream uploadedInputStream,
+                          FormDataContentDisposition fileDetail,
+                          String functionPkgUrl,
+                          FunctionConfig functionConfig,
+                          String clientRole,
                           AuthenticationDataHttps clientAuthenticationDataHttps) {
         registerFunction(
                 tenant,
@@ -84,7 +84,7 @@ public interface Functions<W extends WorkerService> extends Component<W> {
     }
 
     /**
-     * Update a function
+     * Update a function.
      * @param tenant The tenant of a Pulsar Function
      * @param namespace The namespace of a Pulsar Function
      * @param functionName The name of a Pulsar Function
@@ -96,14 +96,14 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * @param clientAuthenticationDataHttps Authentication status of the http client
      * @param updateOptions Options while updating the function
      */
-    void updateFunction(final String tenant,
-                        final String namespace,
-                        final String functionName,
-                        final InputStream uploadedInputStream,
-                        final FormDataContentDisposition fileDetail,
-                        final String functionPkgUrl,
-                        final FunctionConfig functionConfig,
-                        final String clientRole,
+    void updateFunction(String tenant,
+                        String namespace,
+                        String functionName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String functionPkgUrl,
+                        FunctionConfig functionConfig,
+                        String clientRole,
                         AuthenticationDataSource clientAuthenticationDataHttps,
                         UpdateOptionsImpl updateOptions);
 
@@ -113,14 +113,14 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * the signature of the AuthenticationDataSource.
      */
     @Deprecated
-    default void updateFunction(final String tenant,
-                        final String namespace,
-                        final String functionName,
-                        final InputStream uploadedInputStream,
-                        final FormDataContentDisposition fileDetail,
-                        final String functionPkgUrl,
-                        final FunctionConfig functionConfig,
-                        final String clientRole,
+    default void updateFunction(String tenant,
+                        String namespace,
+                        String functionName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String functionPkgUrl,
+                        FunctionConfig functionConfig,
+                        String clientRole,
                         AuthenticationDataHttps clientAuthenticationDataHttps,
                         UpdateOptionsImpl updateOptions) {
         updateFunction(
@@ -136,11 +136,11 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                 updateOptions);
     }
 
-    void updateFunctionOnWorkerLeader(final String tenant,
-                                      final String namespace,
-                                      final String functionName,
-                                      final InputStream uploadedInputStream,
-                                      final boolean delete,
+    void updateFunctionOnWorkerLeader(String tenant,
+                                      String namespace,
+                                      String functionName,
+                                      InputStream uploadedInputStream,
+                                      boolean delete,
                                       URI uri,
                                       String clientRole,
                                       AuthenticationDataSource clientAuthenticationDataHttps);
