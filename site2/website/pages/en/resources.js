@@ -26,6 +26,26 @@ class Resources extends React.Component {
               <hr />
             </header>
             
+            <h2><translate>Books</translate></h2>
+            <table className="versions">
+              <thead>
+                <tr>
+                  <th><translate>Book</translate></th>
+                  <th><translate>Author</translate></th>
+                </tr>
+              </thead>
+              <tbody>
+                {resources.books.map(
+                  (a, i) => (
+                    <tr key={i}>
+                      <td><a href={a.link}>{a.book}</a></td>
+                      <td>{a.author}</td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+
             <h2><translate>Articles</translate></h2>
             <table className="versions">
               <thead>
