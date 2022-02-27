@@ -2265,7 +2265,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return CompletableFuture.completedFuture(null);
                     } else {
                         return getBrokerService()
-                                .fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                                .fetchPartitionedTopicMetadataAsync(topicName)
                                 .thenCompose((metadata -> {
                                     List<CompletableFuture<Boolean>> persistentTopicExists =
                                             new ArrayList<>(metadata.partitions);
@@ -2282,6 +2282,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                         .filter(topicExist -> topicExist)
                                                         .findAny();
                                                 if (anyExistPartition.isPresent()) {
+                                                    log.error("[{}] Delete topic metadata failed because" +
+                                                            " another partition exist.", topicName);
                                                     throw new UnsupportedOperationException(
                                                             String.format("Another partition exists for [%s].",
                                                                     topicName));
