@@ -3252,8 +3252,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     totalEntriesInCurrentLedger = 0;
                 }
             } else {
-                totalEntriesInCurrentLedger = ledgers.get(currentLedgerId) != null ?
-                        ledgers.get(currentLedgerId).getEntries() : 0;
+                totalEntriesInCurrentLedger = ledgers.get(currentLedgerId) != null
+                        ? ledgers.get(currentLedgerId).getEntries() : 0;
             }
 
 
