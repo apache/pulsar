@@ -19,9 +19,16 @@
 
 package org.apache.pulsar.functions.utils;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -46,15 +53,6 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Source;
 
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
-
 @Slf4j
 public class SourceConfigUtils {
 
@@ -70,7 +68,8 @@ public class SourceConfigUtils {
             throws IllegalArgumentException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
-        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
+        boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive()
+                .startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         if (sourceConfig.getTenant() != null) {
             functionDetailsBuilder.setTenant(sourceConfig.getTenant());
@@ -112,7 +111,8 @@ public class SourceConfigUtils {
 
         // Batch source handling
         if (sourceConfig.getBatchSourceConfig() != null) {
-            configs.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY, new Gson().toJson(sourceConfig.getBatchSourceConfig()));
+            configs.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY,
+                    new Gson().toJson(sourceConfig.getBatchSourceConfig()));
             configs.put(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY, sourceSpecBuilder.getClassName());
             sourceSpecBuilder.setClassName("org.apache.pulsar.functions.source.batch.BatchSourceExecutor");
         }
@@ -205,7 +205,8 @@ public class SourceConfigUtils {
         sourceConfig.setNamespace(functionDetails.getNamespace());
         sourceConfig.setName(functionDetails.getName());
         sourceConfig.setParallelism(functionDetails.getParallelism());
-        sourceConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+        sourceConfig.setProcessingGuarantees(
+                FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Function.SourceSpec sourceSpec = functionDetails.getSource();
         if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
             sourceConfig.setClassName(sourceSpec.getClassName());
@@ -213,14 +214,15 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
             sourceConfig.setArchive("builtin://" + sourceSpec.getBuiltin());
         }
-        Map<String, Object> configMap = extractSourceConfig(sourceSpec, FunctionCommon.getFullyQualifiedName(functionDetails));
+        Map<String, Object> configMap =
+                extractSourceConfig(sourceSpec, FunctionCommon.getFullyQualifiedName(functionDetails));
         if (configMap != null) {
             BatchSourceConfig batchSourceConfig = extractBatchSourceConfig(configMap);
             if (batchSourceConfig != null) {
                 sourceConfig.setBatchSourceConfig(batchSourceConfig);
                 if (configMap.containsKey(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY)) {
-                    if (!StringUtils.isEmpty((String)configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY))) {
-                        sourceConfig.setClassName((String)configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY));
+                    if (!StringUtils.isEmpty((String) configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY))) {
+                        sourceConfig.setClassName((String) configMap.get(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY));
                     } else {
                         sourceConfig.setClassName(null);
                     }
@@ -232,7 +234,8 @@ public class SourceConfigUtils {
             sourceConfig.setConfigs(configMap);
         }
         if (!isEmpty(functionDetails.getSecretsMap())) {
-            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            Type type = new TypeToken<Map<String, Object>>() {
+            }.getType();
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             sourceConfig.setSecrets(secretsMap);
         }
@@ -346,7 +349,8 @@ public class SourceConfigUtils {
         Class<?> typeArg = getSourceType(sourceClass);
 
         // Only one of serdeClassName or schemaType should be set
-        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
+        if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils
+                .isEmpty(sourceConfig.getSchemaType())) {
             throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
         }
 
@@ -358,7 +362,9 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null && sourceConfig.getProducerConfig().getCryptoConfig() != null) {
-            ValidatorUtils.validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), sourceClassLoader, true);
+            ValidatorUtils
+                    .validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), sourceClassLoader,
+                            true);
         }
 
         if (typeArg.equals(TypeResolver.Unknown.class)) {
@@ -409,14 +415,16 @@ public class SourceConfigUtils {
         if (newConfig.getSecrets() != null) {
             mergedConfig.setSecrets(newConfig.getSecrets());
         }
-        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees().equals(existingConfig.getProcessingGuarantees())) {
+        if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
+                .equals(existingConfig.getProcessingGuarantees())) {
             throw new IllegalArgumentException("Processing Guarantees cannot be altered");
         }
         if (newConfig.getParallelism() != null) {
             mergedConfig.setParallelism(newConfig.getParallelism());
         }
         if (newConfig.getResources() != null) {
-            mergedConfig.setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
+            mergedConfig
+                    .setResources(ResourceConfigUtils.merge(existingConfig.getResources(), newConfig.getResources()));
         }
         if (!StringUtils.isEmpty(newConfig.getArchive())) {
             mergedConfig.setArchive(newConfig.getArchive());
@@ -446,8 +454,8 @@ public class SourceConfigUtils {
 
     public static Map<String, Object> extractSourceConfig(Function.SourceSpec sourceSpec, String fqfn) {
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
-            TypeReference<HashMap<String, Object>> typeRef
-                    = new TypeReference<HashMap<String, Object>>() {
+            TypeReference<HashMap<String, Object>> typeRef =
+                    new TypeReference<HashMap<String, Object>>() {
             };
             try {
                 return ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(), typeRef);
@@ -524,7 +532,8 @@ public class SourceConfigUtils {
 
     public static void validateSourceConfig(SourceConfig sourceConfig, Class configClass) {
         try {
-            Object configObject = ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
+            Object configObject =
+                    ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }

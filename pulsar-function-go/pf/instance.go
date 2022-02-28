@@ -507,6 +507,7 @@ func (gi *goInstance) getMetrics() *pb.MetricsData {
 	totalUserExceptions1min := gi.getTotalUserExceptions1min()
 	totalSysExceptions1min := gi.getTotalSysExceptions1min()
 	//avg_process_latency_ms_1min := gi.get_avg_process_latency_1min()
+	userMetricsMap := gi.getUserMetricsMap()
 
 	metricsData := pb.MetricsData{}
 	// total metrics
@@ -521,6 +522,9 @@ func (gi *goInstance) getMetrics() *pb.MetricsData {
 	metricsData.ProcessedSuccessfullyTotal_1Min = int64(totalProcessedSuccessfully1min)
 	metricsData.SystemExceptionsTotal_1Min = int64(totalSysExceptions1min)
 	metricsData.UserExceptionsTotal_1Min = int64(totalUserExceptions1min)
+
+	// user metrics
+	metricsData.UserMetrics = userMetricsMap
 
 	return &metricsData
 }
@@ -546,6 +550,13 @@ func (gi *goInstance) getMatchingMetricFunc() func(lbl *prometheus_client.LabelP
 }
 
 func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) prometheus_client.Metric {
+	filteredMetricFamilies := gi.getFilteredMetricFamilies(metricName)
+	metricFunc := gi.getMatchingMetricFunc()
+	matchingMetric := getFirstMatch(filteredMetricFamilies[0].Metric, metricFunc)
+	return *matchingMetric
+}
+
+func (gi *goInstance) getFilteredMetricFamilies(metricName string) []*prometheus_client.MetricFamily {
 	metricFamilies, err := reg.Gather()
 	if err != nil {
 		log.Errorf("Something went wrong when calling reg.Gather(), the metricName is: %s", metricName)
@@ -558,9 +569,7 @@ func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) prometheu
 		// handle this.
 		log.Errorf("Too many metric families for metricName: %s " + metricName)
 	}
-	metricFunc := gi.getMatchingMetricFunc()
-	matchingMetric := getFirstMatch(filteredMetricFamilies[0].Metric, metricFunc)
-	return *matchingMetric
+	return filteredMetricFamilies
 }
 
 func (gi *goInstance) getTotalReceived() float32 {
@@ -635,4 +644,40 @@ func (gi *goInstance) getTotalReceived1min() float32 {
 	// "pulsar_function_" +  "received_total_1min", GaugeVec
 	val := metric.GetGauge().Value
 	return float32(*val)
+}
+
+func (gi *goInstance) getUserMetricsMap() map[string]float64 {
+	userMetricMap := map[string]float64{}
+	filteredMetricFamilies := gi.getFilteredMetricFamilies(PulsarFunctionMetricsPrefix + UserMetric)
+	for _, m := range filteredMetricFamilies[0].GetMetric() {
+		var isFuncMetric bool
+		var userLabelName string
+	VERIFY_USER_METRIC:
+		for _, l := range m.GetLabel() {
+			switch l.GetName() {
+			case "fqfn":
+				if l.GetValue() == gi.context.GetTenantAndNamespaceAndName() {
+					isFuncMetric = true
+					if userLabelName != "" {
+						break VERIFY_USER_METRIC
+					}
+				}
+			case "metric":
+				userLabelName = l.GetValue()
+				if isFuncMetric {
+					break VERIFY_USER_METRIC
+				}
+			}
+		}
+		if isFuncMetric && userLabelName != "" {
+			summary := m.GetSummary()
+			count := summary.GetSampleCount()
+			if count <= 0 {
+				userMetricMap[userLabelName] = 0
+			} else {
+				userMetricMap[userLabelName] = summary.GetSampleSum() / float64(count)
+			}
+		}
+	}
+	return userMetricMap
 }

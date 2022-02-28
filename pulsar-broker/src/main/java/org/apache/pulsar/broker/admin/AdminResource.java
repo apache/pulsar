@@ -293,6 +293,10 @@ public abstract class AdminResource extends PulsarWebResource {
             BundlesData bundleData = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName).getBundlesData();
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
+            if (policies.is_allow_auto_update_schema == null) {
+                // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
+                policies.is_allow_auto_update_schema = pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+            }
 
             return policies;
         } catch (RestException re) {
@@ -517,20 +521,7 @@ public abstract class AdminResource extends PulsarWebResource {
     protected Policies getNamespacePolicies(String tenant, String cluster, String namespace) {
         NamespaceName ns = NamespaceName.get(tenant, cluster, namespace);
 
-        try {
-            Policies policies = namespaceResources().getPolicies(ns)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-            // fetch bundles from LocalZK-policies
-            BundlesData bundleData  = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(ns).getBundlesData();
-            policies.bundles = bundleData != null ? bundleData : policies.bundles;
-            return policies;
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespace policies {}", clientAppId(), ns, e);
-            throw new RestException(e);
-        }
+        return getNamespacePolicies(ns);
     }
 
     protected boolean isNamespaceReplicated(NamespaceName namespaceName) {

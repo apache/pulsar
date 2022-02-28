@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.nar.NarClassLoader;
-
-import java.util.Map;
 
 @Data
 @Accessors(chain = true)
@@ -66,7 +65,8 @@ public class KubernetesRuntimeFactoryConfig {
     protected String pulsarRootDir;
     @FieldContext(
             doc = "The config admin CLI allows users to customize the configuration of the admin cli tool, such as:"
-                    + " `/bin/pulsar-admin and /bin/pulsarctl`. By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl` "
+                    + " `/bin/pulsar-admin and /bin/pulsarctl`. "
+                    + "By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl` "
                     + " you need to set this setting accordingly"
     )
     protected String configAdminCLI;
@@ -126,19 +126,20 @@ public class KubernetesRuntimeFactoryConfig {
     protected String changeConfigMapNamespace;
 
     @FieldContext(
-            doc = "Additional memory padding added on top of the memory requested by the function per on a per instance basis"
+            doc = "Additional memory padding added on top of the memory "
+                    + "requested by the function per on a per instance basis"
     )
     protected int percentMemoryPadding;
 
     @FieldContext(
-            doc = "The ratio cpu request and cpu limit to be set for a function/source/sink." +
-                    "  The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio"
+            doc = "The ratio cpu request and cpu limit to be set for a function/source/sink."
+                    + "  The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio"
     )
     protected double cpuOverCommitRatio = 1.0;
 
     @FieldContext(
-            doc = "The ratio memory request and memory limit to be set for a function/source/sink." +
-                    "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
+            doc = "The ratio memory request and memory limit to be set for a function/source/sink."
+                    + "  The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio"
     )
     protected double memoryOverCommitRatio = 1.0;
 
@@ -162,9 +163,9 @@ public class KubernetesRuntimeFactoryConfig {
     )
     private String functionInstanceClassPath = "";
     @FieldContext(
-            doc = "The duration in seconds before the StatefulSet deleted on function stop/restart. " +
-                    "Value must be non-negative integer. The value zero indicates delete immediately. " +
-                    "Default is 5 seconds."
+            doc = "The duration in seconds before the StatefulSet deleted on function stop/restart. "
+                    + "Value must be non-negative integer. The value zero indicates delete immediately. "
+                    + "Default is 5 seconds."
     )
     protected int gracePeriodSeconds = 5;
 

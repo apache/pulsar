@@ -34,49 +34,49 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Functions<W extends WorkerService> extends Component<W> {
 
-    void registerFunction(final String tenant,
-                          final String namespace,
-                          final String functionName,
-                          final InputStream uploadedInputStream,
-                          final FormDataContentDisposition fileDetail,
-                          final String functionPkgUrl,
-                          final FunctionConfig functionConfig,
-                          final String clientRole,
+    void registerFunction(String tenant,
+                          String namespace,
+                          String functionName,
+                          InputStream uploadedInputStream,
+                          FormDataContentDisposition fileDetail,
+                          String functionPkgUrl,
+                          FunctionConfig functionConfig,
+                          String clientRole,
                           AuthenticationDataHttps clientAuthenticationDataHttps);
 
-    void updateFunction(final String tenant,
-                        final String namespace,
-                        final String functionName,
-                        final InputStream uploadedInputStream,
-                        final FormDataContentDisposition fileDetail,
-                        final String functionPkgUrl,
-                        final FunctionConfig functionConfig,
-                        final String clientRole,
+    void updateFunction(String tenant,
+                        String namespace,
+                        String functionName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String functionPkgUrl,
+                        FunctionConfig functionConfig,
+                        String clientRole,
                         AuthenticationDataHttps clientAuthenticationDataHttps,
                         UpdateOptionsImpl updateOptions);
 
-    void updateFunctionOnWorkerLeader(final String tenant,
-                                      final String namespace,
-                                      final String functionName,
-                                      final InputStream uploadedInputStream,
-                                      final boolean delete,
+    void updateFunctionOnWorkerLeader(String tenant,
+                                      String namespace,
+                                      String functionName,
+                                      InputStream uploadedInputStream,
+                                      boolean delete,
                                       URI uri,
-                                      final String clientRole,
-                                      final AuthenticationDataSource clientAuthenticationDataHttps);
+                                      String clientRole,
+                                      AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionStatus getFunctionStatus(final String tenant,
-                                     final String namespace,
-                                     final String componentName,
-                                     final URI uri,
-                                     final String clientRole,
-                                     final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionStatus getFunctionStatus(String tenant,
+                                     String namespace,
+                                     String componentName,
+                                     URI uri,
+                                     String clientRole,
+                                     AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant,
-                                                         final String namespace,
-                                                         final String componentName,
-                                                         final String instanceId,
-                                                         final URI uri,
-                                                         final String clientRole,
-                                                         final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
+                                                         String namespace,
+                                                         String componentName,
+                                                         String instanceId,
+                                                         URI uri,
+                                                         String clientRole,
+                                                         AuthenticationDataSource clientAuthenticationDataHttps);
 
 }

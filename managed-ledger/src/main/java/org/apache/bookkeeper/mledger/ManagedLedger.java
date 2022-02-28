@@ -293,6 +293,13 @@ public interface ManagedLedger {
     void deleteCursor(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Remove a ManagedCursor from this ManagedLedger's waitingCursors.
+     *
+     * @param cursor the ManagedCursor
+     */
+    void removeWaitingCursor(ManagedCursor cursor);
+
+    /**
      * Open a ManagedCursor asynchronously.
      *
      * @see #openCursor(String)

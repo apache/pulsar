@@ -81,8 +81,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         super(metadataStoreConfig);
 
         try {
-            if (metadataURL.startsWith("zk:")) {
-                this.zkConnectString = metadataURL.substring(3);
+            if (metadataURL.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                this.zkConnectString = metadataURL.substring(ZK_SCHEME_IDENTIFIER.length());
             } else {
                 this.zkConnectString = metadataURL;
             }
