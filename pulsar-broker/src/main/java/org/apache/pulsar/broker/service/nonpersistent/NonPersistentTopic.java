@@ -911,7 +911,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     }
 
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
-                            .thenAccept(__ -> tryToDeletePartitionedMetadata())
+                            .thenCompose(__ -> tryToDeletePartitionedMetadata())
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
                                 Throwable throwable = e.getCause();
@@ -938,16 +938,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             return CompletableFuture.completedFuture(null);
         }
         TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
-        try {
-            NamespaceResources.PartitionedTopicResources partitionedTopicResources = brokerService.pulsar()
-                    .getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
-            if (!partitionedTopicResources.partitionedTopicExists(topicName)) {
-                return CompletableFuture.completedFuture(null);
-            }
-            return partitionedTopicResources.deletePartitionedTopicAsync(topicName);
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
+        NamespaceResources.PartitionedTopicResources partitionedTopicResources = brokerService.pulsar()
+                .getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
+        return partitionedTopicResources.partitionedTopicExistsAsync(topicName)
+                .thenCompose(partitionedTopicExist -> {
+                    if (!partitionedTopicExist) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return partitionedTopicResources.deletePartitionedTopicAsync(topicName);
+                    }
+                });
     }
 
     @Override
