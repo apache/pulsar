@@ -3052,11 +3052,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 //They throw an IllegalArgumentException when the mark deletes a position that has already been deleted.
+                //See this#setAcknowledgedPosition
                 if (exception.getCause() instanceof IllegalArgumentException) {
-                    log.warn("[{}][{}] Failed to flush mark-delete position. {}", ledger.getName(), name,
-                            exception.getMessage());
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] Failed to flush mark-delete position.", ledger.getName(), name, exception);
+                    }
                 } else {
-                    log.error("[{}][{}] Failed to flush mark-delete position", ledger.getName(), name, exception);
+                    log.warn("[{}][{}] Failed to flush mark-delete position", ledger.getName(), name, exception);
                 }
             }
         }, null);
