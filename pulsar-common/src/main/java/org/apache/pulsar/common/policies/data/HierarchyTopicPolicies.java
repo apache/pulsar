@@ -53,6 +53,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
     final PolicyHierarchyValue<DispatchRateImpl> replicatorDispatchRate;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
+    final PolicyHierarchyValue<SubscribeRate> subscribeRate;
     final PolicyHierarchyValue<DispatchRateImpl> subscriptionDispatchRate;
     final PolicyHierarchyValue<SchemaCompatibilityStrategy> schemaCompatibilityStrategy;
     final PolicyHierarchyValue<DispatchRateImpl> dispatchRate;
@@ -81,6 +82,7 @@ public class HierarchyTopicPolicies {
         delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
         replicatorDispatchRate = new PolicyHierarchyValue<>();
         compactionThreshold = new PolicyHierarchyValue<>();
+        subscribeRate = new PolicyHierarchyValue<>();
         subscriptionDispatchRate = new PolicyHierarchyValue<>();
         schemaCompatibilityStrategy = new PolicyHierarchyValue<>();
         dispatchRate = new PolicyHierarchyValue<>();

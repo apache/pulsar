@@ -376,10 +376,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 && DispatchRateLimiter.isDispatchRateEnabled(topicPolicies.getDispatchRate().get())) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
-            boolean isDispatchRateNeeded = SubscribeRateLimiter.isDispatchRateNeeded(brokerService, policies, topic);
-            if (!subscribeRateLimiter.isPresent() && isDispatchRateNeeded) {
-                this.subscribeRateLimiter = Optional.of(new SubscribeRateLimiter(this));
-            } else if (!isDispatchRateNeeded) {
+
+            if (SubscribeRateLimiter.isSubscribeRateEnabled(getSubscribeRate())) {
+                this.subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
+            } else {
                 this.subscribeRateLimiter = Optional.empty();
             }
 
@@ -2416,7 +2416,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // update rate-limiter if policies updated
                 dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
                 if (this.subscribeRateLimiter.isPresent()) {
-                    subscribeRateLimiter.get().onPoliciesUpdate(data);
+                    subscribeRateLimiter.get().onSubscribeRateUpdate(getSubscribeRate());
                 }
 
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
@@ -3054,7 +3054,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
             if (this.subscribeRateLimiter.isPresent()) {
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
-                        subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
+                        subscribeRateLimiter.onSubscribeRateUpdate(getSubscribeRate()));
             }
             replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             checkMessageExpiry();
