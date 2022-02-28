@@ -17,30 +17,3 @@
  * under the License.
  */
 package org.apache.pulsar.structuredeventlog.slf4j;
-
-import java.time.Clock;
-import org.apache.pulsar.structuredeventlog.Event;
-import org.apache.pulsar.structuredeventlog.EventResources;
-import org.apache.pulsar.structuredeventlog.EventResourcesImpl;
-import org.apache.pulsar.structuredeventlog.StructuredEventLog;
-
-public class Slf4jStructuredEventLog implements StructuredEventLog {
-    public static final Slf4jStructuredEventLog INSTANCE = new Slf4jStructuredEventLog();
-    // Visible for testing
-    Clock clock = Clock.systemUTC();
-
-    @Override
-    public Event newRootEvent() {
-        return new Slf4jEvent(clock, null).traceId(Slf4jEvent.randomId());
-    }
-
-    @Override
-    public EventResources newEventResources() {
-        return new EventResourcesImpl(null);
-    }
-
-    @Override
-    public Event unstash() {
-        throw new UnsupportedOperationException("TODO");
-    }
-}
