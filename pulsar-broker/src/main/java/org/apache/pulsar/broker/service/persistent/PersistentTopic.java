@@ -395,7 +395,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             // dispatch rate limiter for each replicator
             replicators.forEach((name, replicator) ->
-                replicator.initializeDispatchRateLimiterIfNeeded(policies));
+                replicator.initializeDispatchRateLimiterIfNeeded());
         }
     }
 
