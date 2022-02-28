@@ -266,7 +266,7 @@ public class Consumer {
 
         // calculate avg message per entry
         int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
-        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent
+        tmpAvgMessagesPerEntry = (int) Math.floor(tmpAvgMessagesPerEntry * avgPercent
                 + (1 - avgPercent) * totalMessages / entries.size());
         AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
