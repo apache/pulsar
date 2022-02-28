@@ -1540,7 +1540,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         hashPositions.add(hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
         hashPositions.add(hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
         hashPositions.add(hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
-        hashPositions.forEach(t -> System.out.println(String.format("0x%x", t)));
 
         // 6. do split by SPECIFIED_POSITIONS_DIVIDE
         admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false,

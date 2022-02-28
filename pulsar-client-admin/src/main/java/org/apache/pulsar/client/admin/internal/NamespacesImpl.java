@@ -1121,10 +1121,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, bundle, "split")
                 .queryParam("unload", Boolean.toString(unloadSplitBundles))
                 .queryParam("splitAlgorithmName", splitAlgorithmName);
-        if (splitBoundaries != null && splitBoundaries.size() > 0) {
-            path.queryParam("splitBoundaries", splitBoundaries.toArray());
-        }
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+
+        return (splitBoundaries == null || splitBoundaries.size() == 0) ?
+                asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)) :
+                asyncPutRequest(path, Entity.entity(splitBoundaries, MediaType.APPLICATION_JSON));
     }
 
     @Override

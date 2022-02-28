@@ -317,14 +317,12 @@ public class NamespaceBundleFactory {
             NamespaceBundle targetBundle, int argNumBundles, List<Long> splitBoundaries) {
         checkArgument(canSplitBundle(targetBundle),
                 "%s bundle can't be split further since range not larger than 1", targetBundle);
-        checkArgument(splitBoundaries != null,
-                "%s bundle can't be split further since splitBoundaries is null", targetBundle);
-        checkArgument(splitBoundaries.size() > 0,
-                "%s bundle can't be split further since boundaries is empty", targetBundle);
-        Collections.sort(splitBoundaries);
-        checkArgument(splitBoundaries.get(0) > targetBundle.getLowerEndpoint()
-                        && splitBoundaries.get(splitBoundaries.size() - 1) < targetBundle.getUpperEndpoint(),
-                "The given fixed keys must between the key range of the %s bundle", targetBundle);
+        if (splitBoundaries != null && splitBoundaries.size() > 0) {
+            Collections.sort(splitBoundaries);
+            checkArgument(splitBoundaries.get(0) > targetBundle.getLowerEndpoint()
+                            && splitBoundaries.get(splitBoundaries.size() - 1) < targetBundle.getUpperEndpoint(),
+                    "The given fixed keys must between the key range of the %s bundle", targetBundle);
+        }
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
@@ -344,9 +342,20 @@ public class NamespaceBundleFactory {
                     splitPartition = i;
                     long minVal = sourceBundle.partitions[i];
                     partitions[pos++] = minVal;
-                    for (long splitBoundary : splitBoundaries) {
-                        partitions[pos++] = splitBoundary;
+                    if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                        long maxVal = sourceBundle.partitions[i + 1];
+                        long segSize = (maxVal - minVal) / numBundles;
+                        long curPartition = minVal + segSize;
+                        for (int j = 0; j < numBundles - 1; j++) {
+                            partitions[pos++] = curPartition;
+                            curPartition += segSize;
+                        }
+                    } else {
+                        for (long splitBoundary : splitBoundaries) {
+                            partitions[pos++] = splitBoundary;
+                        }
                     }
+
                 } else {
                     partitions[pos++] = sourceBundle.partitions[i];
                 }
