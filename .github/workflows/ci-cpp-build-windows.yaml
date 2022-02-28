@@ -104,11 +104,11 @@ jobs:
         run: rm -rf "$VCPKG_INSTALLATION_ROOT"
         shell: bash
 
-#      - name: Install vcpkg packages
-#        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-#        shell: bash
-#        run: |
-#          cd pulsar-client-cpp && vcpkg install --triplet ${{ matrix.triplet }}
+      - name: Install vcpkg packages
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        shell: bash
+        run: |
+          cd pulsar-client-cpp && ${{ env.VCPKG_ROOT }}/vcpkg install --triplet ${{ matrix.triplet }}
 
       - name: Configure (default)
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
@@ -120,7 +120,6 @@ jobs:
               -B ./build-0 \
               -G "${{ matrix.generator }}" ${{ matrix.arch }} \
               -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF \
-              -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake \
               -DVCPKG_TRIPLET=${{ matrix.triplet }} \
               -DCMAKE_BUILD_TYPE=Release \
               -S .
@@ -146,7 +145,6 @@ jobs:
               -G "${{ matrix.generator }}" ${{ matrix.arch }} \
               -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF \
               -DVCPKG_TRIPLET=${{ matrix.triplet }} \
-              -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_STATIC_LIB=OFF \
               -S .
