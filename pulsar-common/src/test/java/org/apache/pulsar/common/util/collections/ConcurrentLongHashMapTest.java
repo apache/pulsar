@@ -181,7 +181,7 @@ public class ConcurrentLongHashMapTest {
     @Test
     public void testNegativeUsedBucketCount() {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .expandFactor(16)
+                .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
 
@@ -199,7 +199,7 @@ public class ConcurrentLongHashMapTest {
     public void testRehashing() {
         int n = 16;
         ConcurrentLongHashMap<Integer> map = ConcurrentLongHashMap.<Integer>newBuilder()
-                .expandFactor(n / 2)
+                .expectedItems(n / 2)
                 .concurrencyLevel(1)
                 .build();
         assertEquals(map.capacity(), n);
@@ -217,7 +217,7 @@ public class ConcurrentLongHashMapTest {
     public void testRehashingWithDeletes() {
         int n = 16;
         ConcurrentLongHashMap<Integer> map = ConcurrentLongHashMap.<Integer>newBuilder()
-                .expandFactor(n / 2)
+                .expectedItems(n / 2)
                 .concurrencyLevel(1)
                 .build();
         assertEquals(map.capacity(), n);
@@ -312,7 +312,7 @@ public class ConcurrentLongHashMapTest {
     @Test
     public void stressConcurrentInsertionsAndReads() throws Throwable {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
-                .expandFactor(4)
+                .expectedItems(4)
                 .concurrencyLevel(1)
                 .build();
         @Cleanup("shutdownNow")
