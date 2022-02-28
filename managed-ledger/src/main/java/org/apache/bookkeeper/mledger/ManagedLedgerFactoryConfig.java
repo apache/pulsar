@@ -53,6 +53,12 @@ public class ManagedLedgerFactoryConfig {
     private long cacheEvictionTimeThresholdMillis = 1000;
 
     /**
+     * Whether the cache eviction task should skip evict entries before the slowest cursor which means
+     * the cache eviction task only evict entries by {@link #cacheEvictionTimeThresholdMillis}.
+     */
+    private boolean cacheEvictionSkipSlowestCursor = false;
+
+    /**
      * Whether we should make a copy of the entry payloads when inserting in cache.
      */
     private boolean copyEntriesInCache = false;

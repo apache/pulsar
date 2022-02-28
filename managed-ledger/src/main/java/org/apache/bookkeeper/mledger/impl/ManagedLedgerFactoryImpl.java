@@ -277,7 +277,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
                 ManagedLedgerImpl ml = mlfuture.getNow(null);
                 if (ml != null) {
-                    ml.doCacheEviction(maxTimestamp);
+                    ml.doCacheEviction(maxTimestamp, config.isCacheEvictionSkipSlowestCursor());
                 }
             }
         });

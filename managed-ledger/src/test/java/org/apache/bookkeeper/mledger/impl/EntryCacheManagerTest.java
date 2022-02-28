@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -354,6 +355,46 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         assertEquals(cacheManager.getSize(), 0);
         assertEquals(cache.getSize(), 0);
+    }
+
+    @Test
+    public void verifyEvictionSkipSlowestCursor() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(1000);
+        config.setCacheEvictionFrequency(100);
+        // set eviction time to bigger enough to avoid evict by time expiry
+        config.setCacheEvictionTimeThresholdMillis(1000000);
+        // skip eviction by slowest cursor
+        config.setCacheEvictionSkipSlowestCursor(true);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test");
+        ManagedCursor c1 = ledger.openCursor("c1");
+        c1.setActive();
+        ManagedCursor c2 = ledger.openCursor("c2");
+        c2.setActive();
+
+        EntryCacheManager cacheManager = factory.getEntryCacheManager();
+        assertEquals(cacheManager.getSize(), 0);
+
+        EntryCache cache = cacheManager.getEntryCache(ledger);
+        assertEquals(cache.getSize(), 0);
+
+        ledger.addEntry(new byte[4]);
+        Position lostPosition = ledger.addEntry(new byte[3]);
+
+        // make all cursor move to the last position
+        c1.markDelete(lostPosition);
+        c2.markDelete(lostPosition);
+
+        c1.close();
+        c2.close();
+
+        assertEquals(cacheManager.getSize(), 7);
+        assertEquals(cache.getSize(), 7);
+        ledger.close();
     }
 
     @Test(timeOut = 5000)

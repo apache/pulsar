@@ -1690,6 +1690,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
     private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
     @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Whether the cache eviction task should skip evict entries before the slowest cursor which means "
+                    + "the cache eviction task only evict entries by managedLedgerCacheEvictionTimeThresholdMillis")
+    private boolean managedLedgerCacheEvictionSkipSlowestCursor = false;
+    @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
                     + " and thus should be set as inactive.")
     private long managedLedgerCursorBackloggedThreshold = 1000;
