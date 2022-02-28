@@ -41,8 +41,6 @@ jobs:
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    env:
-      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
     strategy:
       fail-fast: false
       matrix:
