@@ -322,6 +322,7 @@ public class NamespaceBundleFactory {
             checkArgument(splitBoundaries.get(0) > targetBundle.getLowerEndpoint()
                             && splitBoundaries.get(splitBoundaries.size() - 1) < targetBundle.getUpperEndpoint(),
                     "The given fixed keys must between the key range of the %s bundle", targetBundle);
+            argNumBundles = splitBoundaries.size() + 1;
         }
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
