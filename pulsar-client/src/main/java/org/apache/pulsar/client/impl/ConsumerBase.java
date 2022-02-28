@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
@@ -67,6 +68,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T> {
+    protected static final int INITIAL_RECEIVER_QUEUE_SIZE = 1;
 
     protected final String subscription;
     protected final ConsumerConfigurationData<T> conf;
@@ -102,6 +104,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Getter
     protected volatile long consumerEpoch;
 
+    protected final AtomicBoolean scaleReceiverQueueHint = new AtomicBoolean(false);
+
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
@@ -125,7 +129,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
-        CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, receiverQueueSize);
         if (conf.getBatchReceivePolicy() != null) {
             BatchReceivePolicy userBatchReceivePolicy = conf.getBatchReceivePolicy();
             if (userBatchReceivePolicy.getMaxNumMessages() > this.maxReceiverQueueSize) {
@@ -159,6 +162,22 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,
                     batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
+        }
+
+        initReceiverQueueSize();
+    }
+
+
+    public abstract void initReceiverQueueSize();
+
+    protected void expectMoreIncomingMessages() {
+        if (!conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            return;
+        }
+        if (scaleReceiverQueueHint.compareAndSet(true, false)) {
+            int oldSize = getCurrentReceiverQueueSize();
+            int newSize = Math.min(maxReceiverQueueSize, oldSize * 2);
+            setCurrentReceiverQueueSize(newSize);
         }
     }
 
@@ -777,9 +796,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance
             // anymore, since for pooled messages, this instance was possibly already been released and recycled.
             INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+            updateAutoScaleReceiverQueueHint();
         }
         return hasEnoughMessagesForBatchReceive();
     }
+
+    protected abstract void updateAutoScaleReceiverQueueHint();
 
     protected boolean hasEnoughMessagesForBatchReceive() {
         if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumBytes() <= 0) {
@@ -1031,11 +1053,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void resetIncomingMessageSize() {
-        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+        long size = INCOMING_MESSAGES_SIZE_UPDATER.getAndSet(this, 0);
+        client.getMemoryLimitController().releaseMemory(size);
     }
 
     protected void decreaseIncomingMessageSize(final Message<?> message) {
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.size());
+        client.getMemoryLimitController().releaseMemory(message.size());
     }
 
     public long getIncomingMessageSize() {

@@ -338,9 +338,25 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void initReceiverQueueSize() {
+        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+            if (batchReceivePolicy.getMaxNumMessages() > 0) {
+                size = Math.max(size, batchReceivePolicy.getMaxNumMessages());
+            }
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
+        } else {
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+        }
+    }
+
+    @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         Message<T> message;
         try {
+            if (incomingMessages.isEmpty()) {
+                expectMoreIncomingMessages();
+            }
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
@@ -363,6 +379,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         long callTime = System.nanoTime();
         try {
+            if (incomingMessages.isEmpty()) {
+                expectMoreIncomingMessages();
+            }
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
                 decreaseIncomingMessageSize(message);
@@ -425,6 +444,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
                 result.complete(messages);
             } else {
+                expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
                 pendingBatchReceives.add(opBatchReceive);
                 cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
@@ -444,6 +464,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalPinnedExecutor.execute(() -> {
             Message<T> message = incomingMessages.poll();
             if (message == null) {
+                expectMoreIncomingMessages();
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
@@ -712,6 +733,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     .redeliverUnacknowledgedMessages(messageIds1.stream()
                         .map(mid -> mid.getInnerMessageId()).collect(Collectors.toSet())));
         resumeReceivingFromPausedConsumersIfNeeded();
+    }
+
+    @Override
+    protected void updateAutoScaleReceiverQueueHint() {
+        scaleReceiverQueueHint.set(incomingMessages.size() >= getCurrentReceiverQueueSize());
     }
 
     @Override
