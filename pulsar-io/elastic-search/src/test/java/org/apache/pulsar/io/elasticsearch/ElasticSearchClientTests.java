@@ -103,6 +103,22 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
             IndexRequest request = client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
             assertEquals(request.index(), topicName);
         }
+        String indexBase = "myindex-" + UUID.randomUUID();
+        index = indexBase + "-%{+yyyy-MM-dd}";
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index))) {
+            assertThrows(IllegalStateException.class, () -> {
+                client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
+            });
+        }
+        when (record.getEventTime()).thenReturn(Optional.of(1645182000000L));
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index))) {
+            IndexRequest request = client.makeIndexRequest(record, Pair.of("1", "{ \"a\":1}"));
+            assertEquals(request.index(), indexBase + "-2022-02-18");
+        }
     }
 
     @Test
@@ -121,6 +137,22 @@ public class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress()))) {
             DeleteRequest request = client.makeDeleteRequest(record, "1");
             assertEquals(request.index(), topicName);
+        }
+        String indexBase = "myindex-" + UUID.randomUUID();
+        index = indexBase + "-%{+yyyy-MM-dd}";
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index))) {
+            assertThrows(IllegalStateException.class, () -> {
+                client.makeDeleteRequest(record, "1");
+            });
+        }
+        when (record.getEventTime()).thenReturn(Optional.of(1645182000000L));
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index))) {
+            DeleteRequest request = client.makeDeleteRequest(record, "1");
+            assertEquals(request.index(), indexBase + "-2022-02-18");
         }
     }
 
