@@ -2274,10 +2274,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                 .getPulsarResources().getTopicResources()
                                                 .persistentTopicExists(topicName.getPartition(i)));
                                     }
-                                    return FutureUtil.waitForAll(persistentTopicExists)
+                                    List<CompletableFuture<Boolean>> unmodifiablePersistentTopicExists =
+                                            Collections.unmodifiableList(persistentTopicExists);
+                                    return FutureUtil.waitForAll(unmodifiablePersistentTopicExists)
                                             .thenCompose(unused -> {
                                                 // make sure all sub partitions were deleted after all future complete
-                                                Optional<Boolean> anyExistPartition = persistentTopicExists.stream()
+                                                Optional<Boolean> anyExistPartition = unmodifiablePersistentTopicExists
+                                                        .stream()
                                                         .map(CompletableFuture::join)
                                                         .filter(topicExist -> topicExist)
                                                         .findAny();
