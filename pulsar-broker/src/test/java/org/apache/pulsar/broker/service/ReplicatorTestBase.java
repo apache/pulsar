@@ -219,8 +219,8 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAdvertisedAddress("localhost");
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
-        config.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
+        config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
         config.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config.setBrokerDeleteInactiveTopicsFrequencySeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));

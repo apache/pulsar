@@ -36,6 +36,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface AuthenticationDataProvider extends Serializable {
+
+    String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
     /*
      * TLS
      */
