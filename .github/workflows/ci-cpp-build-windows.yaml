@@ -88,7 +88,7 @@ jobs:
             !${{ env.VCPKG_ROOT }}/packages
             !${{ env.VCPKG_ROOT }}/downloads
           key: |
-            ${{ hashFiles( 'pulsar-client-cpp/vcpkg.json' ) }}-${{ runner.os }}-${{ matrix.triplet}}-cache
+            ${{ matrix.os }}-${{ matrix.triplet}}-${{ hashFiles( 'pulsar-client-cpp/vcpkg.json' ) }}-cache
 
       - name: Install vcpkg packages
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
