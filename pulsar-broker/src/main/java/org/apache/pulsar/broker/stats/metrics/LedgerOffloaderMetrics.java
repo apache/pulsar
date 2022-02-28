@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats.metrics;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,19 +43,14 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     private boolean isTopicLevel;
     private String topicName;
     private String namespace;
-    private final double periodInSeconds;
 
     protected static final double[] WRITE_TO_STORAGE_BUCKETS_MS =
             new double[LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC.length];
-
-    private static final List<String> RATE_METRICS_KEYS = new ArrayList<>(2);
 
     static {
         for (int i = 0; i < LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC.length; i++) {
             WRITE_TO_STORAGE_BUCKETS_MS[i] = LedgerOffloaderMXBeanImpl.READ_ENTRY_LATENCY_BUCKETS_USEC[i] / 1000.0;
         }
-        RATE_METRICS_KEYS.add("brk_ledgeroffloader_writeRate");
-        RATE_METRICS_KEYS.add("brk_ledgeroffloader_readOffloadRate");
     }
 
     private static final Buckets WRITE_TO_STORAGE_BUCKETS =
@@ -71,9 +65,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
     private static final Buckets READ_OFFLOAD_DATA_LATENCY_BUCKETS =
             new Buckets("brk_readOffload_dataLatencyBuckets", WRITE_TO_STORAGE_BUCKETS_MS);
 
-    //when the offload metrics was collected
-    private static long collectedUtc = System.currentTimeMillis();
-
     public LedgerOffloaderMetrics(PulsarService pulsar, boolean isTopicLevel, String namespace, String topicName) {
         super(pulsar);
         this.metricsCollection = Lists.newArrayList();
@@ -81,7 +72,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         this.namespace = namespace;
         this.topicName = topicName;
         this.tempAggregatedMetricsMap = Maps.newHashMap();
-        this.periodInSeconds = (System.currentTimeMillis() - collectedUtc) / 1000D;
     }
 
     @Override
@@ -108,32 +98,39 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                 return;
             }
 
+            LedgerOffloaderMXBeanImpl impl = (LedgerOffloaderMXBeanImpl) mbean;
+            LedgerOffloaderMXBeanImpl.OffloadTopicMetrics topicMetrics = impl.removeMetricsByTopic(managedLedgerName);
+            if (topicMetrics == null) {
+                return;
+            }
+
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_offloadError",
-                    mbean.getOffloadErrors(managedLedgerName));
+                    topicMetrics.getOffloadErrorCount().sum());
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_writeRate",
-                    mbean.getOffloadBytes(managedLedgerName));
-            StatsBuckets statsBuckets = mbean.getReadLedgerLatencyBuckets(managedLedgerName);
+                    topicMetrics.getOffloadRate().getValueRate());
+
+            StatsBuckets statsBuckets = topicMetrics.getReadLedgerLatencyBuckets();
             if (statsBuckets != null) {
                 READ_LEDGER_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
                         statsBuckets.getBuckets(), 1);
             }
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_writeError",
-                    mbean.getWriteToStorageErrors(managedLedgerName));
+                    topicMetrics.getWriteStorageErrorCount().sum());
 
-            statsBuckets = mbean.getReadOffloadIndexLatencyBuckets(managedLedgerName);
+            statsBuckets = topicMetrics.getReadOffloadIndexLatencyBuckets();
             if (statsBuckets != null) {
                 READ_OFFLOAD_INDEX_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
                         statsBuckets.getBuckets(), 1);
             }
-            statsBuckets = mbean.getReadOffloadDataLatencyBuckets(managedLedgerName);
+            statsBuckets = topicMetrics.getReadOffloadDataLatencyBuckets();
             if (statsBuckets != null) {
                 READ_OFFLOAD_DATA_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
                         statsBuckets.getBuckets(), 1);
             }
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_readOffloadError",
-                    mbean.getReadOffloadErrors(managedLedgerName));
+                    topicMetrics.getReadOffloadErrorCount().sum());
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_readOffloadRate",
-                    mbean.getReadOffloadBytes(managedLedgerName));
+                    topicMetrics.getReadOffloadDataRate().getValueRate());
         } catch (Exception e) {
             log.error("aggregate ledger offload metrics for topic: {} managedLedgerName {} failed ",
                     topicName, managedLedgerName, e);
@@ -154,7 +151,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         dimensionMap.put("topic", topicName);
         Metrics metrics = createMetrics(dimensionMap);
         aggregate(tempAggregatedMetricsMap, topicName);
-        this.parseMetricsValue(metrics);
         metricsCollection.add(metrics);
         return metricsCollection;
     }
@@ -178,23 +174,7 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                 aggregate(tempAggregatedMetricsMap, topicName);
             });
         });
-        this.parseMetricsValue(metrics);
         metricsCollection.add(metrics);
         return metricsCollection;
-    }
-
-
-    private void parseMetricsValue(Metrics metrics) {
-        for (Map.Entry<String, Double> ma : tempAggregatedMetricsMap.entrySet()) {
-            String metricsKey = ma.getKey();
-            double value = ma.getValue();
-            value = RATE_METRICS_KEYS.contains(metricsKey) ? value / this.periodInSeconds : value;
-            metrics.put(metricsKey, value);
-        }
-    }
-
-
-    public static void resetCollectedUtc() {
-        collectedUtc = System.currentTimeMillis();
     }
 }

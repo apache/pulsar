@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.common.stats.Rate;
 
 
 /**
@@ -45,11 +46,11 @@ public interface LedgerOffloaderMXBean {
     long getOffloadErrors(String topic);
 
     /**
-     * Record the offloaded data in bytes.
+     * Record the offloaded data rate.
      *
      * @return offload rate per topic.
      */
-    long getOffloadBytes(String topic);
+    Rate getOffloadRate(String topic);
 
     /**
      * Record the read ledger latency.
@@ -80,11 +81,11 @@ public interface LedgerOffloaderMXBean {
     StatsBuckets getReadOffloadDataLatencyBuckets(String topic);
 
     /**
-     * Record the read offloaded data in bytes.
+     * Record the read offloaded data rate.
      *
      * @return read offload data rate.
      */
-    long getReadOffloadBytes(String topic);
+    Rate getReadOffloadRate(String topic);
 
     /**
      * Record read offload error count.

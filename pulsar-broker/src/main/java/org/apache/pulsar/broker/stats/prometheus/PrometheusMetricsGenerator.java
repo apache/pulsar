@@ -54,7 +54,6 @@ import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.eclipse.jetty.server.HttpOutput;
 
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
@@ -212,7 +211,6 @@ public class PrometheusMetricsGenerator {
                 }
             });
         }
-        LedgerOffloaderMetrics.resetCollectedUtc();
         if (metricList.size() > 0) {
             String clusterName = pulsar.getConfiguration().getClusterName();
             parseMetricsToPrometheusMetrics(metricList, clusterName, Collector.Type.GAUGE, stream);
