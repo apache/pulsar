@@ -41,6 +41,8 @@ jobs:
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    env:
+      VCPKG_ROOT: '${{ github.workspace }}/vcpkg'
     strategy:
       fail-fast: false
       matrix:
@@ -74,10 +76,33 @@ jobs:
         id: check_changes
         run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
-      - name: Restore artifacts
-        uses: lukka/run-vcpkg@v10.1
+      - name: Restore vcpkg and its artifacts.
+        uses: actions/cache@v2
+        id: vcpkg-cache
         with:
-          vcpkgJsonGlob: 'pulsar-client-cpp/vcpkg.json'
+          path: |
+            ${{ env.VCPKG_ROOT }}
+            pulsar-client-cpp/build/vcpkg_installed
+            !${{ env.VCPKG_ROOT }}/.git
+            !${{ env.VCPKG_ROOT }}/buildtrees
+            !${{ env.VCPKG_ROOT }}/packages
+            !${{ env.VCPKG_ROOT }}/downloads
+          key: |
+            ${{ hashFiles( 'pulsar-client-cpp/vcpkg.json' ) }}-${{ runner.os }}-${{ matrix.triplet}}
+
+      - name: Get vcpkg(windows)
+        if: ${{ runner.os == 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true' }}
+        run: |
+          cd ${{ github.workspace }}
+          mkdir build -force
+          git clone https://github.com/Microsoft/vcpkg.git
+          cd vcpkg
+          .\bootstrap-vcpkg.bat
+
+      - name: remove system vcpkg(windows)
+        if: runner.os == 'Windows'
+        run: rm -rf "$VCPKG_INSTALLATION_ROOT"
+        shell: bash
 
       - name: Install vcpkg packages
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
