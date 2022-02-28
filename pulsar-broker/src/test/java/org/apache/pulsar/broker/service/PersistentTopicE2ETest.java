@@ -96,8 +96,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        super.baseSetup();
         conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
+        super.baseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
