@@ -15,40 +15,6 @@ The number of contributors in an open-source project is meaningful because it si
 
 ![pulsar contributor history](https://imgur.com/a/ECFl6Pi)
 
-Since the Pulsar project gained its 400th contributor and surpassed Kafka for the total number of commits in June 2021, the Pulsar community has released major product updates and ecosystem enhancements to improve developer experience and lower the barrier to adoption. Recent product feature updates include:
-
-## Product Updates and Ecosystem Development
-
-The Apache Pulsar community released versions [2.8.0](https://pulsar.apache.org/blog/2021/09/23/Apache-Pulsar-2-8-1/) in June 2021, and [2.9.0](https://pulsar.apache.org/release-notes/#281-mdash-2021-09-10-a-id281a) in December 2021, which contain a number of new benefits, including: 
-
-1. **Enhanced support for protocol handlers** enables teams to integrate existing applications built on other technologies with Pulsar without code changes. Popular protocol handlers developed by the community including:
-   * [Kafka-on-Pulsar (KoP)](https://hub.streamnative.io/protocol-handlers/kop/2.8.1.2)
-   * [RabbitMQ (AoP)](https://hub.streamnative.io/protocol-handlers/aop/0.1.0)
-
-2. Developers can now utilize **Pulsar integrations** with multiple processing engines and databases, including [Flink](https://flink.apache.org/2021/01/07/pulsar-flink-connector-270.html), [Spark](https://github.com/streamnative/pulsar-spark), [DeltaLake](https://delta.io/uncategorized/pulsar-in-the-lakehouse-apache-pulsar-with-apache-spark-and-delta-lake/), [Druid](https://imply.io/blog/community-spotlight-apache-pulsar-and-apache-druid-get-close/)), [Trino](https://www.youtube.com/watch?v=Z77DqONXyi4), and [Pinot](https://github.com/apache/pinot/pull/7026). 
-
-3. **Cluster Failover** [[PIP-121]](https://github.com/apache/pulsar/pull/13316) provides an automatic cluster level recovery mechanism that automatically redirects all Pulsar clients to a standby cluster in the event of catastrophic cluster failure of the active Pulsar cluster. This helps minimize the downtime experienced by the client applications by allowing them to seamlessly transition from one Pulsar to the next without user intervention.
-
-4. **Improved multi-tenancy support with tenant and namespace rate limiting.** [[PIP-82]](https://github.com/apache/pulsar/pull/11918) This feature allows users to configure a namespace or tenant wide limit for producers and consumers, and have that enforced irrespective of the number of topics in the namespace, allowing control of the max rate across a given namespace. 
-
-5. **Simplified microservices development** with Pulsar’s high-level APIs is now possible. [Exclusive producers](https://www.youtube.com/watch?v=Chw8VBS9WfI) enable developers to build coordination and consensus mechanisms.
-
-6. The new [Transactions feature](https://streamnative.io/blog/release/2021-06-14-exactly-once-semantics-with-transactions-in-pulsar/) empowers organizations to use Pulsar as a system-of-record that enables event-based architectures, similar to those popular in finance and real-time systems. With this update, Pulsar's message delivery/processing semantic evolved from message deduplication on a single topic, to atomic produce and acknowledgment over multiple topics. 
-
-7. [Function Mesh for Apache Pulsar](https://www.youtube.com/watch?v=fAn1HZdb50k) is now available. With Function Mesh, teams can better manage functions, connectors, and applications composed of multiple functions directly in Kubernetes.
-
-## What’s Next? 
-
-This year you can expect to see more exciting updates in the Pulsar project, including:
-
-1. [Moving Toward a ZookKeeper-Less Apache Pulsar](https://streamnative.io/blog/release/2022-01-25-moving-toward-a-zookeeperless-apache-pulsar/) Since its inception, Pulsar has used ZooKeeper as its distributed coordinator to store critical metadata information. Pulsar Improvement Plan [[PIP-45]](https://github.com/apache/pulsar/wiki/PIP-45%3A-Pluggable-metadata-interface) eliminates the ZooKeeper dependency and replaces it with a pluggable framework. This plug-and-play framework enables you to reduce the infrastructure footprint of Pulsar by leveraging alternative metadata and coordination systems based upon your deployment environment, resulting in improved consistency, resilience, stability, and reducing the technical debt of deployment. The end result is that starting in version 2.10, you can now run Pulsar without ZooKeeper. 
-
-2. **Tiered storage improvement** that includes native offloading into lakehouse formats like Delta Lake, Apache Hudi, and Apache Iceberg is also expected in future releases. These technologies allow for data access patterns in addition to streams and enables Pulsar to offer more efficient batch access. 
- 
-3. **Expect improved developer experience** with features like **TableView**, [[PIP-104]](https://github.com/apache/pulsar/issues/12356) which will streamline and provide a snapshot of streaming data in applications. Currently, applications can use Pulsar consumers or readers to fetch updates from a topic to construct a map with the latest value of each. The addition of TableView will allow this access pattern to happen directly in the Pulsar client API, reducing the complexity of set up and increasing operational efficiency. 
- 
-4. **Additional quality-of-life features** are planned, including easier-to-use **REST API** [[PIP 64]](https://github.com/apache/pulsar/pull/8125). Presently, Pulsar provides a REST endpoint for managing resources, and for resource state queries within a Pulsar cluster. This improvement will introduce REST endpoints with the purpose of producing, consuming, and reading messages via the web service, easing the management of thousands of namespaces and topics, resulting in a more scalable and easy-to-manage solution. 
-
 ## Get Involved
 
 Community growth leads to additional adoption and project enhancement, and new contributors are an excellent way to track progress of the Pulsar project. Thank you to the community and contributors for your continued involvement! 
