@@ -42,6 +42,10 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
         return getProperty("metadataStoreUrl");
     }
 
+    String getZookeeperServers() {
+        return getProperty("zookeeperServers");
+    }
+
     String getPackagesManagementLedgerRootPath() {
         return getProperty("packagesManagementLedgerRootPath");
     }

@@ -93,14 +93,19 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
             ledgersRootPath = metadataServiceUri.getPath();
         } else {
             ledgersRootPath = configuration.getPackagesManagementLedgerRootPath();
-            ledgersStoreServers = configuration.getMetadataStoreUrl();
-            if (ledgersStoreServers.startsWith(ZK_SCHEME_IDENTIFIER)) {
-                ledgersStoreServers = ledgersStoreServers.substring(ZK_SCHEME_IDENTIFIER.length());
+            if (configuration.getMetadataStoreUrl() != null) {
+                ledgersStoreServers = configuration.getMetadataStoreUrl();
+                if (ledgersStoreServers.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                    ledgersStoreServers = ledgersStoreServers.substring(ZK_SCHEME_IDENTIFIER.length());
+                }
+            } else {
+                ledgersStoreServers = configuration.getZookeeperServers();
             }
         }
         BKDLConfig bkdlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
         URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages", ledgersStoreServers));
+        log.info("Tried to initial：{}", String.format("distributedlog://%s/pulsar/packages", ledgersStoreServers));
         try {
             dlMetadata.create(dlogURI);
         } catch (ZKException e) {
