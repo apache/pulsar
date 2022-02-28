@@ -108,7 +108,7 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
-          cd pulsar-client-cpp && ${{ env.VCPKG_ROOT }}/vcpkg install --triplet ${{ matrix.triplet }}
+          cd pulsar-client-cpp && ${{ env.VCPKG_ROOT }}/vcpkg.exe install --triplet ${{ matrix.triplet }}
 
       - name: Configure (default)
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
