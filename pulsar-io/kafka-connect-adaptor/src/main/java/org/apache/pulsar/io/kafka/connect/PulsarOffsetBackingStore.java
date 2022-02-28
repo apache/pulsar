@@ -157,6 +157,9 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         } catch (PulsarClientException e) {
             log.error("Failed to setup pulsar producer/reader to cluster", e);
             throw new RuntimeException("Failed to setup pulsar producer/reader to cluster ",  e);
+        } catch (Exception e) {
+            log.error("Failed to start PulsarOffsetBackingStore", e);
+            throw new RuntimeException("Failed to start PulsarOffsetBackingStore",  e);
         }
     }
 
