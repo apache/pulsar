@@ -1439,7 +1439,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
         CompletableFuture
-            .allOf(messageIdFutures.entrySet().stream().map(Map.Entry::getValue).toArray(CompletableFuture<?>[]::new))
+            .allOf(messageIdFutures.values().toArray(new CompletableFuture<?>[0]))
             .whenComplete((ignore, ex) -> {
                 Builder<String, MessageId> builder = ImmutableMap.builder();
                 messageIdFutures.forEach((key, future) -> {
