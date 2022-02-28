@@ -30,13 +30,14 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
     private String httpAuthToken;
     private String commandAuthToken;
-    private final Map<String, String> headers = new HashMap<>();
+    private Map<String, String> headers = new HashMap<>();
 
     public AuthenticationDataBasic(String userId, String password) {
         httpAuthToken = "Basic " + Base64.getEncoder().encodeToString((userId + ":" + password).getBytes());
         commandAuthToken = userId + ":" + password;
         headers.put(HTTP_HEADER_NAME, httpAuthToken);
         headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationBasic.AUTH_METHOD_NAME);
+        this.headers = Collections.unmodifiableMap(this.headers);
     }
 
     @Override
@@ -46,7 +47,7 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return Collections.unmodifiableMap(this.headers).entrySet();
+        return this.headers.entrySet();
     }
 
     @Override
