@@ -38,10 +38,6 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
         return Integer.parseInt(getProperty("packagesReplicas"));
     }
 
-    String getMetadataStoreUrl() {
-        return getProperty("metadataStoreUrl");
-    }
-
     String getZookeeperServers() {
         return getProperty("zookeeperServers");
     }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
-import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -51,7 +50,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         PackagesStorageProvider provider = PackagesStorageProvider
             .newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
-        configuration.setProperty("metadataStoreUrl", ZK_SCHEME_IDENTIFIER + zkUtil.getZooKeeperConnectString());
+        configuration.setProperty("zookeeperServers", zkUtil.getZooKeeperConnectString());
         configuration.setProperty("packagesReplicas", "1");
         configuration.setProperty("packagesManagementLedgerRootPath", "/ledgers");
         storage = provider.getStorage(configuration);
@@ -69,8 +68,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     public void testConfiguration() {
         assertTrue(storage instanceof BookKeeperPackagesStorage);
         BookKeeperPackagesStorage bkStorage = (BookKeeperPackagesStorage) storage;
-        assertEquals(bkStorage.configuration.getMetadataStoreUrl()
-                .substring(ZK_SCHEME_IDENTIFIER.length()), zkUtil.getZooKeeperConnectString());
+        assertEquals(bkStorage.configuration.getZookeeperServers(), zkUtil.getZooKeeperConnectString());
         assertEquals(bkStorage.configuration.getPackagesReplicas(), 1);
         assertEquals(bkStorage.configuration.getPackagesManagementLedgerRootPath(), "/ledgers");
     }
@@ -200,8 +198,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
                 .newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
         // set the unavailable bk cluster with mock zookeeper path
-        configuration.setProperty("metadataStoreUrl", ZK_SCHEME_IDENTIFIER + zkUtil.getZooKeeperConnectString() +
-                "/mock");
+        configuration.setProperty("zookeeperServers", zkUtil.getZooKeeperConnectString() + "/mock");
         configuration.setProperty("packagesReplicas", "1");
         configuration.setProperty("packagesManagementLedgerRootPath", "/ledgers");
         PackagesStorage storage1 = provider.getStorage(configuration);
@@ -224,7 +221,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         // set the available bk cluster with bookkeeperMetadataServiceUri using actual zookeeper path
         String bookkeeperMetadataServiceUri = String.format("zk+null://%s/ledgers", zkUtil.getZooKeeperConnectString());
         DefaultPackagesStorageConfiguration configuration2 = new DefaultPackagesStorageConfiguration();
-        configuration2.setProperty("metadataStoreUrl", ZK_SCHEME_IDENTIFIER + zkUtil.getZooKeeperConnectString());
+        configuration2.setProperty("zookeeperServers", zkUtil.getZooKeeperConnectString());
         configuration2.setProperty("bookkeeperMetadataServiceUri", bookkeeperMetadataServiceUri);
         configuration2.setProperty("packagesReplicas", "1");
         PackagesStorage storage2 = provider.getStorage(configuration2);
