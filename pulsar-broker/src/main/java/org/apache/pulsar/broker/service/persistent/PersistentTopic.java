@@ -515,7 +515,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
         } else {
-
             // fence topic when failed to write a message to BK
             fence();
             // close all producers
@@ -1668,9 +1667,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             try {
                 ((PersistentReplicator) replicator).updateCursorState();
             } catch (Exception e) {
-                log.warn("[{}] Failed to update cursro state ", topic, e);
+                log.warn("[{}] Failed to update cursor state ", topic, e);
             }
-
 
             // Update replicator stats
             ReplicatorStatsImpl rStat = replicator.getStats();
