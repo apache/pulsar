@@ -76,19 +76,10 @@ jobs:
         id: check_changes
         run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
-      - name: Cache vcpkg install
-        uses: actions/cache@v2
-        id: vcpkg-cache
+      - name: Restore artifacts
+        uses: lukka/run-vcpkg@v10.1
         with:
-          path: |
-            ${{ env.VCPKG_ROOT }}
-            pulsar-client-cpp/build/vcpkg_installed
-            !${{ env.VCPKG_ROOT }}/.git
-            !${{ env.VCPKG_ROOT }}/buildtrees
-            !${{ env.VCPKG_ROOT }}/packages
-            !${{ env.VCPKG_ROOT }}/downloads
-          key: |
-            ${{ matrix.os }}-${{ matrix.triplet}}-${{ hashFiles( 'pulsar-client-cpp/vcpkg.json' ) }}-cache
+          vcpkgJsonGlob: 'pulsar-client-cpp/vcpkg.json'
 
       - name: Install vcpkg packages
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
