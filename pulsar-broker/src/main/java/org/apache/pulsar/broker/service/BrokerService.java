@@ -2313,12 +2313,14 @@ public class BrokerService implements Closeable {
     private void updateReplicatorMessageDispatchRate() {
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic Replicator in Geo-replication
-            forEachTopic(topic ->
-                topic.getReplicators().forEach((name, persistentReplicator) -> {
-                    if (persistentReplicator.getRateLimiter().isPresent()) {
-                        persistentReplicator.getRateLimiter().get().updateDispatchRate();
+            forEachTopic(topic -> {
+                    if (topic instanceof AbstractTopic) {
+                        ((AbstractTopic) topic).updateBrokerReplicatorDispatchRate();
                     }
-                }));
+                    topic.getReplicators().forEach((name, persistentReplicator) ->
+                        persistentReplicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate));
+                }
+            );
         });
     }
 

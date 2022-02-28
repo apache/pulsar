@@ -173,6 +173,9 @@ public class DispatchRateLimiter {
             case SUBSCRIPTION:
                 updateDispatchRate(topic.getSubscriptionDispatchRate());
                 return;
+            case REPLICATOR:
+                updateDispatchRate(topic.getReplicatorDispatchRate());
+                return;
         }
 
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
