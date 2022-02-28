@@ -294,6 +294,16 @@ public class CLITest extends PulsarTestSuite {
         } catch (ContainerExecException e) {
             assertEquals(e.getResult().getStderr(), "rack name is invalid, it should not be null, empty or '/'\n\n");
         }
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "namespaces",
+                    "set-schema-autoupdate-strategy",
+                    namespace);
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "Either --compatibility or --disabled must be specified\n\n");
+        }
     }
 
     @Test
