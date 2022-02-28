@@ -23,6 +23,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.util.Objects;
+
 /**
  * Bookie information.
  */
@@ -32,4 +34,19 @@ import lombok.ToString;
 @ToString
 public class RawBookieInfo {
     private String bookieId;
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final RawBookieInfo other = (RawBookieInfo) obj;
+        return Objects.equals(this.bookieId, other.bookieId);
+    }
 }

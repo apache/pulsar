@@ -105,6 +105,7 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
+import org.apache.pulsar.broker.stats.prometheus.BookkeeperIsolationGroupsStats;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -810,6 +811,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     config.getClusterName(), config);
 
             state = State.Started;
+
+            new BookkeeperIsolationGroupsStats(pulsarResources, getBookKeeperClient(), config,
+                    managedLedgerClientFactory.getStatsProvider());
         } catch (Exception e) {
             LOG.error("Failed to start Pulsar service: {}", e.getMessage(), e);
             throw new PulsarServerException(e);

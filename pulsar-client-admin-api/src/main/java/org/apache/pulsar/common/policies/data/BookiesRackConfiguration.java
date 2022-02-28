@@ -26,7 +26,7 @@ import java.util.TreeMap;
 /**
  * The rack configuration map for bookies.
  */
-public class BookiesRackConfiguration extends TreeMap<String, Map<String, BookieInfo>> {
+public class BookiesRackConfiguration extends TreeMap<String/*rackGroup*/, Map<String/*address*/, BookieInfo>> {
 
     private static final long serialVersionUID = 0L;
 
