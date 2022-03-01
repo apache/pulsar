@@ -383,7 +383,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 if (ex instanceof PulsarClientException.AlreadyClosedException) {
                     log.error("Read more topic policies exception, close the read now!", ex);
                     cleanCacheAndCloseReader(
-                            reader.getSystemTopic().getTopicName().getNamespaceObject(), true);
+                            reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                 } else {
                     log.warn("Read more topic polices exception. jump to read next {}", ex.getMessage());
                     readMorePolicies(reader);
