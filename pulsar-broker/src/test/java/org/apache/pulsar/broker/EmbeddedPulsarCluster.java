@@ -110,7 +110,6 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setBookkeeperClientNumWorkerThreads(1);
         conf.setBookkeeperNumberOfChannelsPerBookie(1);
         conf.setManagedLedgerNumSchedulerThreads(1);
-        conf.setManagedLedgerNumWorkerThreads(1);
         conf.setWebSocketNumIoThreads(1);
         conf.setNumTransactionReplayThreadPoolSize(1);
         conf.setNumHttpServerThreads(4);
