@@ -107,8 +107,9 @@ public class TransactionMetadataStoreService {
         this.tbClient = tbClient;
         this.timeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this, timer);
         this.transactionOpRetryTimer = timer;
-        this.tcLoadSemaphores = new ConcurrentLongHashMap<>();
-        this.pendingConnectRequests = new ConcurrentLongHashMap<>();
+        this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
+        this.pendingConnectRequests =
+                ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
         this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 
