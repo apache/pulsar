@@ -107,6 +107,8 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
 
         config.setRunningStandalone(true);
+        config.getProperties().setProperty("metadataStoreUrl", metadataStoreUrl);
+        config.getProperties().setProperty("configurationMetadataStoreUrl", metadataStoreUrl);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
