@@ -276,8 +276,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                 .createTopicPoliciesSystemTopicClient(namespace);
         Backoff backoff = new Backoff(1, TimeUnit.SECONDS, 3, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
-        RetryUtil.retryAsynchronously(systemTopicClient::new
-                ReaderAsync, backoff, pulsarService.getExecutor(), result);
+        RetryUtil.retryAsynchronously(systemTopicClient::newReaderAsync, backoff, pulsarService.getExecutor(), result);
         return result;
     }
 
