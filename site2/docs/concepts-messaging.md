@@ -209,23 +209,35 @@ message = consumer.receive();
 consumer.acknowledge(message);
 ```
 
-> **Note**  
-> If batching is enabled, all messages in one batch are redelivered to the consumer.
-
-### Negative redelivery backoff
-
-It happens sometimes that consumers fail to process messages successfully. In this case, you can use [negative acknowledgement](#negative-acknowledgement) to redeliver the messages after consumption failures. For the Shared subscription type, the messages are redelivered to other consumers; for other subscription types, the messages are redelivered to the same consumer.
-
-But this is not flexible enough. A better way is to use the **redelivery backoff mechanism**. You can redeliver messages with different delays by setting the number of times the messages are retried.
+If you want a more flexible redelivery strategy, a better way is to use the **redelivery backoff mechanism**. You can redeliver messages with different delays by setting the number of times the messages are retried.
 
 Use the following API to enable `Negative Redelivery Backoff`.
 
 ```java
-consumer.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-        .minDelayMs(1000)
-        .maxDelayMs(60 * 1000)
-        .build())
+Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        .topic(topic)
+        .subscriptionName("sub-negative-ack")
+        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+        .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+            .minDelayMs(1000)
+            .maxDelayMs(60 * 1000)
+            .build())
+        .subscribe();
 ```
+The message redelivery behavior should be as follows.
+
+Redelivery count | Redelivery delay
+:--------------------|:-----------
+1 | 10 + 1 seconds
+2 | 10 + 2 seconds
+3 | 10 + 4 seconds
+4 | 10 + 8 seconds
+5 | 10 + 16 seconds
+6 | 10 + 32 seconds
+7 | 10 + 60 seconds
+8 | 10 + 60 seconds
+> **Note**  
+> If batching is enabled, all messages in one batch are redelivered to the consumer.
 
 ### Acknowledgement timeout
 
@@ -280,6 +292,77 @@ message = consumer.receive();
 consumer.acknowledge(message);
 ```
 
+### Retry letter topic
+
+Retry letter topic allows you to re-consuming message even some messages are not consumed successfully. The messages that are failed to be consumed are stored in a specific topic, you can custom retry delay time for the message to be retried, and subscribers will automatically subscribe to the retry letter topic and re-consume it, when the specified maximum number of retries is reached, the message will send to a dead letter topic for manual processing.
+
+By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
+
+Use the following API to consume messages from a retry letter topic.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .build())
+                .subscribe();
+```
+The default retry letter topic uses this format:
+```
+<topicname>-<subscriptionname>-RETRY
+```
+Use the Java client to specify the name of the retry letter topic.
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        .topic(topic)
+        .subscriptionName("my-subscription")
+        .subscriptionType(SubscriptionType.Shared)
+        .enableRetry(true)
+        .deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(maxRedeliveryCount)
+                .retryLetterTopic("your-topic-name")
+                .build())
+        .subscribe();
+```
+
+The messages in the retry letter topic contain some special properties that are automatically created by the client.
+
+Special property | Description
+:--------------------|:-----------
+`REAL_TOPIC` | The real topic name.
+`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
+`RECONSUMETIMES`   | The retry consume times.
+`DELAY_TIME`      | Message delay time.
+**Example**
+```
+REAL_TOPIC = persistent://public/default/my-topic
+ORIGIN_MESSAGE_ID = 1:0:-1:0
+RECONSUMETIMES = 6
+DELAY_TIME = 3000
+```
+
+Use the following API to store the messages in a retrial queue.
+
+```java
+consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
+```
+
+Use the following API to add custom properties for the `reconsumeLater` function, at the next re-consume, it can be get from message#getProperty.
+
+```java
+Map<String, String> customProperties = new HashMap<String, String>();
+customProperties.put("custom-key-1", "custom-value-1");
+customProperties.put("custom-key-2", "custom-value-2");
+consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
+```
+> **Note**    
+> *  Currently, retry letter topic is enabled in Shared subscription types.
+> *  Compared with negative acknowledgement, reconsumeLater suitable for scenarios that require a large number of retries and custom retry delay time.
+
 ### Dead letter topic
 
 Dead letter topic allows you to continue message consumption even some messages are not consumed successfully. The messages that are failed to be consumed are stored in a specific topic, which is called dead letter topic. You can decide how to handle the messages in the dead letter topic.
@@ -333,64 +416,11 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 
 ```
 
-Dead letter topic depends on message redelivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
+Dead letter topic depends on message redelivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [reconsumeLater](#retry-letter-topic) . If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > **Note**    
-> Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
-
-### Retry letter topic
-
-For many online business systems, a message is re-consumed when exception occurs in the business logic processing. To configure the delay time for re-consuming the failed messages, you can configure the producer to send messages to both the business topic and the retry letter topic, and enable automatic retry on the consumer. With this setting, the messages that are not consumed will be stored in the retry letter topic. After the specified delay time, the consumer automatically consumes these messages from the retry letter topic.
-
-By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
-
-Use the following API to consume messages from a retry letter topic.
-
-```java
-Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
-                .subscriptionName("my-subscription")
-                .subscriptionType(SubscriptionType.Shared)
-                .enableRetry(true)
-                .receiverQueueSize(100)
-                .deadLetterPolicy(DeadLetterPolicy.builder()
-                        .maxRedeliverCount(maxRedeliveryCount)
-                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
-                        .build())
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
-```
-
-The messages in the retry letter topic contain some special properties that are automatically created by the client.
-
-Special property | Description
-:--------------------|:-----------
-`REAL_TOPIC` | The real topic name.
-`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
-`RECONSUMETIMES`   | The retry consume times.
-`DELAY_TIME`      | Message delay timeMs.
-**Example**
-```
-REAL_TOPIC = persistent://public/default/my-topic
-ORIGIN_MESSAGE_ID = 1:0:-1:0
-RECONSUMETIMES = 6
-DELAY_TIME = 3000
-```
-
-Use the following API to store the messages in a retrial queue.
-
-```java
-consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
-```
-
-Use the following API to add custom properties for the `reconsumeLater` function.
-
-```java
-Map<String, String> customProperties = new HashMap<String, String>();
-customProperties.put("custom-key-1", "custom-value-1");
-customProperties.put("custom-key-2", "custom-value-2");
-consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
-```
+>  * Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
+>  * Compared with dead letter topic, retry letter topic is transparent to the user, automatically subscribed and reversed by consumers.
 
 ## Topics
 
@@ -718,7 +748,7 @@ To utilize message redelivery, you need to enable this mechanism before the brok
 
 - [Negative Acknowledgment](#negative-acknowledgement)
 - [Acknowledgement Timeout](#acknowledgement-timeout)
-- [Retry letter topic](#retry-letter-topic)
+- [reconsumeLater](#retry-letter-topic)
 
 
 ## Message retention and expiry
