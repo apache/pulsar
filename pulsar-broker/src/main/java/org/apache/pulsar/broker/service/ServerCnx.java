@@ -229,8 +229,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ServiceConfiguration conf = pulsar.getConfiguration();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
-        this.producers = new ConcurrentLongHashMap<>(8, 1);
-        this.consumers = new ConcurrentLongHashMap<>(8, 1);
+        this.producers = ConcurrentLongHashMap.<CompletableFuture<Producer>>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
+        this.consumers = ConcurrentLongHashMap.<CompletableFuture<Consumer>>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
