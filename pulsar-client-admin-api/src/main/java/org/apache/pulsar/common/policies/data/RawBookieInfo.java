@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-
-import java.util.Objects;
 
 /**
  * Bookie information.
