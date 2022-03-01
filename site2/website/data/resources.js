@@ -16,7 +16,7 @@ module.exports = {
       link: 'https://link.springer.com/book/10.1007/978-1-4842-7839-0'      
     },
     {
-      book: '深入解析 Apache Pulsar（Chinese Book)',
+      book: '深入解析 Apache Pulsar（Chinese Book, which means "Deep Dive into Apache Pulsar")',
       author: "Lin Lin",
       link: 'https://www.phei.com.cn/module/goods/wssd_content.jsp?bookid=59310'      
     }
