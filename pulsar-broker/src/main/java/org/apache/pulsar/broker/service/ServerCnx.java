@@ -205,6 +205,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private boolean autoReadDisabledPublishBufferLimiting = false;
     private final long maxPendingBytesPerThread;
     private final long resumeThresholdPendingBytesPerThread;
+    private final boolean autoShrink;
 
     // Number of bytes pending to be published from a single specific IO thread.
     private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
@@ -245,6 +246,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // This maps are not heavily contended since most accesses are within the cnx thread
         this.producers = new ConcurrentLongHashMap<>(8, 1);
         this.consumers = new ConcurrentLongHashMap<>(8, 1);
+        this.autoShrink = conf.isAutoShrink();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
@@ -1050,9 +1052,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .build();
                             if (schema != null) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                        .thenCompose(v -> topic.subscribe(option));
+                                        .thenCompose(v -> topic.subscribe(option, autoShrink));
                             } else {
-                                return topic.subscribe(option);
+                                return topic.subscribe(option, autoShrink);
                             }
                         })
                         .thenAccept(consumer -> {

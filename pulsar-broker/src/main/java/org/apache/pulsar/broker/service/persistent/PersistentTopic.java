@@ -663,6 +663,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch());
     }
 
+    @Override
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option, boolean autoShrink) {
+        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
+                option.getSubType(), option.getPriorityLevel(), option.getConsumerName(), option.isDurable(),
+                option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
+                option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
+                option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
+                option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch(),
+                autoShrink);
+    }
+
+    @Deprecated
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
                                                           long consumerId, SubType subType, int priorityLevel,
                                                           String consumerName, boolean isDurable,
@@ -674,6 +686,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
                                                           long consumerEpoch) {
+        return internalSubscribe(cnx, subscriptionName,
+                consumerId, subType, priorityLevel,
+                consumerName, isDurable,
+                startMessageId,
+                metadata, readCompacted,
+                initialPosition,
+                startMessageRollbackDurationSec,
+                replicatedSubscriptionStateArg,
+                keySharedMeta,
+                subscriptionProperties,
+                consumerEpoch,
+                false);
+    }
+
+    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
+                                                          long consumerId, SubType subType, int priorityLevel,
+                                                          String consumerName, boolean isDurable,
+                                                          MessageId startMessageId,
+                                                          Map<String, String> metadata, boolean readCompacted,
+                                                          InitialPosition initialPosition,
+                                                          long startMessageRollbackDurationSec,
+                                                          boolean replicatedSubscriptionStateArg,
+                                                          KeySharedMeta keySharedMeta,
+                                                          Map<String, String> subscriptionProperties,
+                                                          long consumerEpoch,
+                                                          boolean autoShrink) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -760,7 +798,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, initialPosition, keySharedMeta, startMessageId, consumerEpoch);
+                        readCompacted, initialPosition, keySharedMeta, startMessageId, consumerEpoch, autoShrink);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();

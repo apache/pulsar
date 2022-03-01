@@ -245,6 +245,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option, boolean autoShrink) {
+        return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
+                option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
+                option.isDurable(), option.getStartMessageId(), option.getMetadata(),
+                option.isReadCompacted(), option.getInitialPosition(),
+                option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
+                option.getKeySharedMeta(), autoShrink);
+    }
+
+    @Override
     public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
                                                  SubType subType, int priorityLevel, String consumerName,
                                                  boolean isDurable, MessageId startMessageId,
@@ -257,6 +267,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 replicateSubscriptionState, keySharedMeta);
     }
 
+    @Deprecated
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
                                                           long consumerId, SubType subType, int priorityLevel,
                                                           String consumerName, boolean isDurable,
@@ -265,6 +276,25 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           long resetStartMessageBackInSec,
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta) {
+        return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel,
+                consumerName, isDurable,
+                startMessageId, metadata,
+                readCompacted, initialPosition,
+                resetStartMessageBackInSec,
+                replicateSubscriptionState,
+                keySharedMeta,
+                false);
+    }
+
+    private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
+                                                          long consumerId, SubType subType, int priorityLevel,
+                                                          String consumerName, boolean isDurable,
+                                                          MessageId startMessageId, Map<String, String> metadata,
+                                                          boolean readCompacted, InitialPosition initialPosition,
+                                                          long resetStartMessageBackInSec,
+                                                          boolean replicateSubscriptionState,
+                                                          KeySharedMeta keySharedMeta,
+                                                          boolean autoShrink) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -308,7 +338,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta,
-                    MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+                    MessageId.latest, DEFAULT_CONSUMER_EPOCH, autoShrink);
 
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                 if (!cnx.isActive()) {
