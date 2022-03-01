@@ -282,19 +282,19 @@ public class ConcurrentLongLongPairHashMap {
      * @return a new list of all keys (makes a copy)
      */
     public List<LongPair> keys() {
-        List<LongPair> keys = Lists.newArrayList();
+        List<LongPair> keys = Lists.newArrayListWithExpectedSize((int) size());
         forEach((key1, key2, value1, value2) -> keys.add(new LongPair(key1, key2)));
         return keys;
     }
 
     public List<LongPair> values() {
-        List<LongPair> values = Lists.newArrayList();
+        List<LongPair> values = Lists.newArrayListWithExpectedSize((int) size());
         forEach((key1, key2, value1, value2) -> values.add(new LongPair(value1, value2)));
         return values;
     }
 
     public Map<LongPair, LongPair> asMap() {
-        Map<LongPair, LongPair> map = Maps.newHashMap();
+        Map<LongPair, LongPair> map = Maps.newHashMapWithExpectedSize((int) size());
         forEach((key1, key2, value1, value2) -> map.put(new LongPair(key1, key2), new LongPair(value1, value2)));
         return map;
     }
