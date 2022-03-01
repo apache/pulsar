@@ -161,16 +161,7 @@ public interface Topic {
      * @param option
      * @return
      */
-    @Deprecated
     CompletableFuture<Consumer> subscribe(SubscriptionOption option);
-
-    /**
-     * Subscribe a topic.
-     *
-     * @param autoShrink whether ConcurrentLongLongPairHashMap supports automatic shrinking.
-     * @return
-     */
-    CompletableFuture<Consumer> subscribe(SubscriptionOption option, boolean autoShrink);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);

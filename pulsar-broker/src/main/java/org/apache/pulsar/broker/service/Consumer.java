@@ -138,24 +138,11 @@ public class Consumer {
     @Setter
     private volatile long consumerEpoch;
 
-    @Deprecated
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch){
-        this(subscription, subType, topicName, consumerId,
-                priorityLevel, consumerName,
-                isDurable, cnx, appId,
-                metadata, readCompacted, subscriptionInitialPosition,
-                keySharedMeta, startMessageId, consumerEpoch, false);
-    }
-
-    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
-                    int priorityLevel, String consumerName,
-                    boolean isDurable, TransportCnx cnx, String appId,
-                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch, boolean autoShrink) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -200,7 +187,7 @@ public class Consumer {
 
         if (Subscription.isIndividualAckMode(subType)) {
             this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder()
-                    .autoShrink(autoShrink)
+                    .autoShrink(ServerCnx.autoShrinkForConsumerPendingAcksMap)
                     .expectedItems(256)
                     .concurrencyLevel(1)
                     .build();
