@@ -189,7 +189,8 @@ public class ClientDeduplicationFailureTest {
         }
     }
 
-    @Test(timeOut = 300000, groups = "quarantine")
+    // TODO: Test disabled since it results in a OOME
+    @Test(timeOut = 300000, groups = "quarantine", enabled = false)
     public void testClientDeduplicationCorrectnessWithFailure() throws Exception {
         final String namespacePortion = "dedup";
         final String replNamespace = tenant + "/" + namespacePortion;
