@@ -138,7 +138,7 @@ public class Consumer {
     @Setter
     private volatile long consumerEpoch;
 
-    private long negtiveUnackedMsgsCount;
+    private long negtiveUnackedMsgsTimestamp;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -949,9 +949,9 @@ public class Consumer {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }
-        if (unackedMsgs < 0 && ++negtiveUnackedMsgsCount % 10000 == 0) {
-            log.warn("unackedMsgs is : {}, ackedMessages : {}, negtiveUnackedMsgsCount : {}, consumer : {}",
-                    unackedMsgs, ackedMessages, negtiveUnackedMsgsCount, consumer);
+        if (unackedMsgs < 0 && System.currentTimeMillis() - negtiveUnackedMsgsTimestamp >= 10_000) {
+            negtiveUnackedMsgsTimestamp = System.currentTimeMillis();
+            log.warn("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
         }
         return unackedMsgs;
     }
