@@ -67,6 +67,7 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -708,7 +709,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         map.put(null, "value"); // null key is not allowed for JSON, it's only for test here
 
         // leave INT32 instance unchanged
-        final Schema<Integer> integerSchema = Schema.INT32.clone();
+        final Schema<Integer> integerSchema = DefaultImplementation.getDefaultImplementation().newIntSchema();
         ((SchemaInfoImpl) integerSchema.getSchemaInfo()).setProperties(map);
 
         final Consumer<Integer> consumer = pulsarClient.newConsumer(integerSchema).topic(topic)
