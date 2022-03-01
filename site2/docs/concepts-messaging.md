@@ -748,7 +748,7 @@ To utilize message redelivery, you need to enable this mechanism before the brok
 
 - [Negative Acknowledgment](#negative-acknowledgement)
 - [Acknowledgement Timeout](#acknowledgement-timeout)
-- [reconsumeLater](#retry-letter-topic)
+- [ReconsumeLater](#retry-letter-topic)
 
 
 ## Message retention and expiry
