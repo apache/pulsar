@@ -385,7 +385,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     cleanCacheAndCloseReader(
                             reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                 } else {
-                    log.warn("Read more topic polices exception. jump to read next {}", ex.getMessage());
+                    log.warn("Read more topic polices exception, read again. {}", ex.getMessage());
                     readMorePolicies(reader);
                 }
             }
