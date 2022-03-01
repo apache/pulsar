@@ -49,7 +49,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| `elasticSearchUrl` | String| true |" " (empty string)| The URL of elastic search cluster to which the connector connects. |
+| `elasticSearchUrl` | String| true |" " (empty string)| The index name to which the connector writes messages. The default value is the topic name. It accepts date formats in the name to support event time based index with the pattern `%{+<date-format>}`. For example, suppose the event time of the record is 1645182000000L, the indexName is `logs-%{+yyyy-MM-dd}`, then the formatted index name would be `logs-2022-02-18`. |
 | `indexName` | String| true |" " (empty string)| The index name to which the connector writes messages. |
 | `schemaEnable` | Boolean | false | false | Turn on the Schema Aware mode. |
 | `createIndexIfNeeded` | Boolean | false | false | Manage index if missing. |
