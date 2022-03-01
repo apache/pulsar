@@ -20,7 +20,7 @@ module.exports = {
       author: "Lin Lin",
       link: 'https://www.phei.com.cn/module/goods/wssd_content.jsp?bookid=59310'      
     }
-  ]
+  ],
   articles: [
   {
       forum: 'Pedro Silvestre',
