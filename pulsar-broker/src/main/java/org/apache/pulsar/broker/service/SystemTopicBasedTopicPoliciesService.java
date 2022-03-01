@@ -276,7 +276,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                 .createTopicPoliciesSystemTopicClient(namespace);
         Backoff backoff = new Backoff(1, TimeUnit.SECONDS, 3, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
-        RetryUtil.retryAsynchronously(systemTopicClient::newReaderAsync, backoff, pulsarService.getExecutor(), result);
+        RetryUtil.retryAsynchronously(systemTopicClient::new
+                ReaderAsync, backoff, pulsarService.getExecutor(), result);
         return result;
     }
 
@@ -363,14 +364,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private void cleanCacheAndCloseReader(NamespaceName namespace, boolean cleanOwnedBundlesCount) {
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
-        policyCacheInitMap.remove(namespace);
         policiesCache.entrySet().removeIf(entry -> entry.getKey().getNamespaceObject() == namespace);
         if (cleanOwnedBundlesCount) {
             ownedBundlesCountPerNamespace.remove(namespace);
         }
-        if (readerFuture != null) {
+        if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             readerFuture.thenAccept(SystemTopicClient.Reader::closeAsync);
         }
+        policyCacheInitMap.remove(namespace);
     }
 
     private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {
@@ -385,7 +386,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     cleanCacheAndCloseReader(
                             reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                 } else {
-                    log.warn("Read more topic polices exception, read again. {}", ex.getMessage());
+                    log.warn("Read more topic polices exception, read again.", ex);
                     readMorePolicies(reader);
                 }
             }
