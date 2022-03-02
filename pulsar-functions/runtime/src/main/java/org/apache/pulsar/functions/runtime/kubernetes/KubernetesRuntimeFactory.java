@@ -290,6 +290,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         String overriddenNamespace = manifestCustomizer.map((customizer) -> customizer.customizeNamespace(instanceConfig.getFunctionDetails(), jobNamespace)).orElse(jobNamespace);
         String overriddenName = manifestCustomizer.map((customizer) -> customizer.customizeName(instanceConfig.getFunctionDetails(), jobName)).orElse(jobName);
 
+        // pass metricsPort configured in functionRuntimeFactoryConfigs.metricsPort in functions_worker.yml
+        if (metricsPort != null) {
+            instanceConfig.setMetricsPort(metricsPort);
+        }
+
         return new KubernetesRuntime(
             appsClient,
             coreClient,
@@ -351,7 +356,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             if (k8Uri == null) {
                 log.info("k8Uri is null thus going by defaults");
                 ApiClient cli;
-                if (submittingInsidePod) {
+                if (submittingInsidePod != null && submittingInsidePod) {
                     log.info("Looks like we are inside a k8 pod ourselves. Initializing as cluster");
                     cli = Config.fromCluster();
                 } else {
