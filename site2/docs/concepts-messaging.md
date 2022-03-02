@@ -308,7 +308,7 @@ Use the following API to consume messages from a retry letter topic. When the va
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(my-topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
@@ -324,7 +324,7 @@ The default retry letter topic uses this format:
 Use the Java client to specify the name of the retry letter topic.
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-        .topic(my-topic)
+        .topic("my-topic")
         .subscriptionName("my-subscription")
         .subscriptionType(SubscriptionType.Shared)
         .enableRetry(true)
@@ -357,7 +357,7 @@ Use the following API to store the messages in a retrial queue.
 consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
 ```
 
-Use the following API to add custom properties for the `reconsumeLater` function, at the next re-consume, custom properties can be get from message#getProperty.
+Use the following API to add custom properties for the `reconsumeLater` function. In the next attempt to consume, custom properties can be get from message#getProperty.
 
 ```java
 Map<String, String> customProperties = new HashMap<String, String>();
@@ -368,7 +368,6 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 > **Note**    
 > *  Currently, retry letter topic is enabled in Shared subscription types.
 > *  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval.
-> *  Compared with dead letter topic, retry letter topic is transparent to the user, automatically subscribed and reversed by consumers.
 
 ### Dead letter topic
 
@@ -378,7 +377,7 @@ Enable dead letter topic in a Java client using the default dead letter topic.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(my-topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
@@ -396,7 +395,7 @@ Use the Java client to specify the name of the dead letter topic.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(my-topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
@@ -411,7 +410,7 @@ By default, there is no subscription during a DLQ topic creation. Without a just
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(my-topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
