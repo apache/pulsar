@@ -391,7 +391,7 @@ public class BrokersBase extends AdminResource {
     }
 
     /**
-     * Close producer and reader and then to re-check if this operation is the success.
+     * Close producer and reader and then to re-check if this operation is success.
      *
      * Re-check
      * - Producer: If close fails we will print error log to notify user.
