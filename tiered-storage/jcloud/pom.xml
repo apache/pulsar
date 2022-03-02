@@ -80,6 +80,12 @@
       <artifactId>jclouds-allblobstore</artifactId>
       <version>${jclouds.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>javax.xml.bind</groupId>
+          <artifactId>jaxb-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
@@ -102,6 +108,12 @@
       <artifactId>jclouds-blobstore</artifactId>
       <version>${jclouds.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>javax.xml.bind</groupId>
+          <artifactId>jaxb-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
