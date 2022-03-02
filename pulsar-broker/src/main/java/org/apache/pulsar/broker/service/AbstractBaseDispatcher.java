@@ -224,7 +224,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             int filtered = entriesToFiltered.size();
             Topic topic = subscription.getTopic();
             if (topic instanceof AbstractTopic) {
-                ((AbstractTopic) topic).addFilteredMsgCount(filtered);
+                ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
             }
         }
 

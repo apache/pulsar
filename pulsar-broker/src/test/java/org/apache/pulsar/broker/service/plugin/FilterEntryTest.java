@@ -200,7 +200,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         assertEquals(10, counter);
         AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
-        long filtered = abstractTopic.getMsgFilteredCount();
+        long filtered = abstractTopic.getFilteredEntriesCount();
         assertEquals(filtered, 10);
     }
 }
