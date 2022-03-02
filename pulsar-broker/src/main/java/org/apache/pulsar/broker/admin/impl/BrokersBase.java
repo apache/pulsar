@@ -23,7 +23,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -43,7 +41,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
@@ -52,9 +49,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -65,9 +60,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.compaction.Compactor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +70,6 @@ import org.slf4j.LoggerFactory;
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
-    private static final long HEATH_CHECK_FORCE_DELETE_TIME = 30_000;
 
     @GET
     @Path("/{cluster}")
@@ -344,9 +336,10 @@ public class BrokersBase extends AdminResource {
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
                 ? NamespaceService.getHeartbeatNamespaceV2(pulsar().getAdvertisedAddress(), pulsar().getConfiguration())
                 : NamespaceService.getHeartbeatNamespace(pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
-        String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+        final String topicName = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         LOG.info("[{}] Running healthCheck with topic={}", clientAppId(), topicName);
-        String messageStr = UUID.randomUUID().toString();
+        final String messageStr = UUID.randomUUID().toString();
+        final String subscriptionName = "healthCheck-" + messageStr;
         // create non-partitioned topic manually and close the previous reader if present.
         return pulsar().getBrokerService().getTopic(topicName, true)
                 .thenCompose(topicOptional -> {
@@ -360,57 +353,41 @@ public class BrokersBase extends AdminResource {
                         PulsarClient client = pulsar().getClient();
                         return client.newProducer(Schema.STRING).topic(topicName).createAsync()
                                 .thenCombine(client.newReader(Schema.STRING).topic(topicName)
+                                        .subscriptionName(subscriptionName)
                                         .startMessageId(MessageId.latest).createAsync(), (producer, reader) ->
-                                        producer.sendAsync(messageStr).thenCompose(__ ->
-                                                        healthCheckRecursiveReadNext(reader, messageStr))
-                                                .thenCompose(__ -> {
-                                                    List<CompletableFuture<Void>> closeFutures =
-                                                            new ArrayList<>();
+                                        producer.sendAsync(messageStr)
+                                                .thenCompose(__ -> healthCheckRecursiveReadNext(reader, messageStr))
+                                                .handle((unused, exception) -> {
+                                                    // no matter exception or success, we still need to
+                                                    // close producer/reader
+                                                    List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
                                                     closeFutures.add(producer.closeAsync());
                                                     closeFutures.add(reader.closeAsync());
-                                                    return FutureUtil.waitForAll(closeFutures);
+                                                    return FutureUtil.waitForAll(Collections.
+                                                            unmodifiableList(closeFutures))
+                                                            .handle((unused2, waitForAllException) -> {
+                                                                Subscription subscription = topicOptional.get()
+                                                                        .getSubscription(subscriptionName);
+                                                                // re-check subscription after reader close
+                                                                if (subscription != null) {
+                                                                    LOG.warn("[{}] Force delete subscription {} " +
+                                                                                    "when it still exists after the" +
+                                                                                    " reader is closed.", clientAppId(),
+                                                                            subscription);
+                                                                    subscription.deleteForcefully();
+                                                                }
+                                                                if (exception != null) {
+                                                                    return FutureUtil.failedFuture(exception);
+                                                                } else {
+                                                                    return CompletableFuture.completedFuture(null);
+                                                                }
+                                                            });
                                                 })
-                                ).thenCompose(ignore -> tryCleanPreviousSubscriptions(topicOptional.get()));
+                                ).thenApply(__ -> null);
                     } catch (PulsarServerException e) {
                         LOG.error("[{}] Fail to run health check while get client.", clientAppId());
                         throw new RestException(e);
                     }
-                });
-    }
-
-    private CompletableFuture<Void> tryCleanPreviousSubscriptions(Topic topic) {
-        // clean all subscriptions
-        return FutureUtil.waitForAll(topic.getSubscriptions().values()
-                .stream().filter(subscription ->
-                // All system topics are using compaction, even though is not explicitly set in the policies.
-                        !subscription.getName().equals(Compactor.COMPACTION_SUBSCRIPTION))
-                .map(Subscription::delete).collect(Collectors.toList()))
-                // we need to ignore exception when delete subscriptions.
-                .exceptionally(ex -> null)
-                .thenCompose(__ -> {
-                    // no matter we got error or not, we need to run deleteForce check.
-                    List<? extends Subscription> subscriptions = topic.getSubscriptions().values();
-                    List<CompletableFuture<?>> forceDeleteFutures = subscriptions.stream().map(sub -> {
-                        List<Consumer> consumers = sub.getConsumers();
-                        if (CollectionUtils.isEmpty(consumers)) {
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        List<Long> sortedConnectSinceTime = consumers.stream().map(consumer -> {
-                            String connectedSince = consumer.getStats().getConnectedSince();
-                            return DateFormatter.parse(connectedSince);
-                        }).sorted().collect(Collectors.toList());
-                        Long lastConnectTime = sortedConnectSinceTime.get(sortedConnectSinceTime.size() - 1);
-                        long currentTime = Instant.now().toEpochMilli();
-                        // If no new consumers have been connected for 30 seconds.
-                        if (lastConnectTime - currentTime >= HEATH_CHECK_FORCE_DELETE_TIME) {
-                            return sub.deleteForcefully();
-                        } else {
-                            return CompletableFuture.completedFuture(null);
-                        }
-                    }).collect(Collectors.toList());
-                    return FutureUtil.waitForAll(forceDeleteFutures)
-                            // we need to ignore exception when force delete subscriptions
-                            .exceptionally(exception -> null);
                 });
     }
 
