@@ -706,8 +706,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Whether ConcurrentLongLongPairHashMap supports automatic shrinking," +
-                    "the default is false, which means automatic shrinking is not supported.")
+            doc = "Whether ConcurrentLongLongPairHashMap supports automatic shrinking,"
+                    + "the default is false, which means automatic shrinking is not supported.")
     private boolean autoShrinkForConsumerPendingAcksMap = false;
 
     @FieldContext(
