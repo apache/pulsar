@@ -254,9 +254,9 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                     try {
                         final Path nicSpeedPath = getNicSpeedPath(nicPath);
                         if (!nicSpeedPath.toFile().exists()) {
-                            log.warn(String.format("Failed to read speed for nic %s, 'speed' file not found, " +
+                            log.warn("Failed to read speed for nic {}, 'speed' file not found, " +
                                     "maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] " +
-                                    "to override it.", nicPath));
+                                    "to override it.", nicPath);
                             return 0d;
                         }
                         return readDoubleFromPath(nicSpeedPath);
