@@ -710,8 +710,14 @@ public class PulsarClientImpl implements PulsarClient {
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        producers.forEach(p -> futures.add(p.closeAsync()));
-        consumers.forEach(c -> futures.add(c.closeAsync()));
+        producers.forEach(p -> futures.add(p.closeAsync().handle((__, t) -> {
+            log.error("Error closing producer {}", p, t);
+            return null;
+        })));
+        consumers.forEach(c -> futures.add(c.closeAsync().handle((__, t) -> {
+            log.error("Error closing consumer {}", c, t);
+            return null;
+        })));
 
         // Need to run the shutdown sequence in a separate thread to prevent deadlocks
         // If there are consumers or producers that need to be shutdown we cannot use the same thread
