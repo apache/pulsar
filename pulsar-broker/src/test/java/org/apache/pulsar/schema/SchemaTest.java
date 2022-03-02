@@ -707,7 +707,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         map.put("key", null);
         map.put(null, "value"); // null key is not allowed for JSON, it's only for test here
 
-        // leave INT32 instance unchanged
         final Schema<Integer> integerSchema = Schema.JSON(Integer.class);
         ((SchemaInfoImpl) integerSchema.getSchemaInfo()).setProperties(map);
 
