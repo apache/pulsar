@@ -865,12 +865,7 @@ public class PersistentSubscription implements Subscription {
             }
         }).exceptionally(exception -> {
             IS_FENCED_UPDATER.set(this, FALSE);
-            if (FutureUtil.unwrapCompletionException(exception) instanceof SubscriptionBusyException) {
-                log.warn("[{}][{}] Error deleting subscription, because subscription has active consumers",
-                        topicName, subName);
-            } else {
-                log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
-            }
+            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
             deleteFuture.completeExceptionally(exception);
             return null;
         });
