@@ -370,11 +370,17 @@ public class BrokersBase extends AdminResource {
                                                                         .getSubscription(subscriptionName);
                                                                 // re-check subscription after reader close
                                                                 if (subscription != null) {
-                                                                    LOG.warn("[{}] Force delete subscription {} " +
-                                                                                    "when it still exists after the" +
-                                                                                    " reader is closed.", clientAppId(),
-                                                                            subscription);
-                                                                    subscription.deleteForcefully();
+                                                                    LOG.warn("[{}] Force delete subscription {} "
+                                                                                    + "when it still exists after the"
+                                                                                    + " reader is closed.",
+                                                                            clientAppId(), subscription);
+                                                                    subscription.deleteForcefully()
+                                                                    .exceptionally(ex -> {
+                                                                        LOG.error("[{}] Force delete subscription fail"
+                                                                                        + " while health check",
+                                                                                clientAppId(), ex);
+                                                                        return null;
+                                                                    });
                                                                 }
                                                                 if (exception != null) {
                                                                     return FutureUtil.failedFuture(exception);
