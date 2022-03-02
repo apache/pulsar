@@ -22,8 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
@@ -32,10 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.*;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -159,4 +155,52 @@ public class FilterEntryTest extends BrokerTestBase {
 
     }
 
+
+    @Test
+    public void testFilteredMsgCount() throws Throwable{
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
+        String subName = "sub";
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName(subName).subscribe();
+        // mock entry filters
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription(subName);
+        Dispatcher dispatcher = subscription.getDispatcher();
+        Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+        field.setAccessible(true);
+        NarClassLoader narClassLoader = mock(NarClassLoader.class);
+        EntryFilter filter1 = new EntryFilterTest();
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilter filter2 = new EntryFilter2Test();
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        field.set(dispatcher, ImmutableList.of(loader1, loader2));
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topic).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send("test");
+        }
+
+        for (int i = 0; i < 10; i++) {
+            assertNotNull(producer.newMessage().property("REJECT", "").value("1").send());
+        }
+
+
+        int counter = 0;
+        while (true) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                counter++;
+                assertEquals(message.getValue(), "test");
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+
+        assertEquals(10, counter);
+        AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
+        long filtered = abstractTopic.getMsgFilteredCount();
+        assertEquals(filtered, 10);
+    }
 }
