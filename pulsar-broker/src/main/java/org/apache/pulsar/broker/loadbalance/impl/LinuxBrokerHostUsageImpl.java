@@ -253,16 +253,17 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                     // Nic speed is in Mbits/s, return kbits/s
                     try {
                         final Path nicSpeedPath = getNicSpeedPath(nicPath);
-                        if (!nicSpeedPath.toFile().exists()) {
-                            log.warn("Failed to read speed for nic {}, 'speed' file not found, " +
-                                    "maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] " +
-                                    "to override it.", nicPath);
-                            return 0d;
-                        }
                         return readDoubleFromPath(nicSpeedPath);
                     } catch (IOException e) {
-                        log.error(String.format("Failed to read speed for nic %s, maybe you can set broker"
-                                + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
+                        if ("Invalid argument".equals(e.getMessage())) {
+                            log.warn("Failed to read speed for nic {}, " +
+                                    "maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] " +
+                                    "to override it.", nicPath);
+                        } else {
+                            log.error(String.format("Failed to read speed for nic %s, maybe you can set broker"
+                                    + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
+                        }
+
                         return 0d;
                     }
                 }).sum() * 1024);
