@@ -252,7 +252,13 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                 .orElseGet(() -> nics.stream().mapToDouble(nicPath -> {
                     // Nic speed is in Mbits/s, return kbits/s
                     try {
-                        return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(nicPath))));
+                        final Path nicSpeedPath = getNicSpeedPath(nicPath);
+                        if (!nicSpeedPath.toFile().exists()) {
+                            log.warn(String.format("Failed to read speed for nic %s, 'speed' file not found, " +
+                                    "maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] " +
+                                    "to override it.", nicPath));
+                        }
+                        return readDoubleFromPath(nicSpeedPath);
                     } catch (IOException e) {
                         log.error(String.format("Failed to read speed for nic %s, maybe you can set broker"
                                 + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
@@ -272,7 +278,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private double getTotalNicUsageRxKb(List<String> nics) {
         return nics.stream().mapToDouble(s -> {
             try {
-                return Double.parseDouble(new String(Files.readAllBytes(getNicRxPath(s))));
+                return readDoubleFromPath(getNicRxPath(s));
             } catch (IOException e) {
                 log.error("Failed to read rx_bytes for NIC " + s, e);
                 return 0d;
@@ -283,7 +289,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private double getTotalNicUsageTxKb(List<String> nics) {
         return nics.stream().mapToDouble(s -> {
             try {
-                return Double.parseDouble(new String(Files.readAllBytes(getNicTxPath(s))));
+                return readDoubleFromPath(getNicTxPath(s));
             } catch (IOException e) {
                 log.error("Failed to read tx_bytes for NIC " + s, e);
                 return 0d;
@@ -293,5 +299,9 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     private static long readLongFromFile(String path) throws IOException {
         return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8).trim());
+    }
+
+    private static double readDoubleFromPath(Path path) throws IOException {
+        return Double.parseDouble(new String(Files.readAllBytes(path)));
     }
 }
