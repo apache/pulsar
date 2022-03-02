@@ -714,11 +714,15 @@ public class PulsarClientImpl implements PulsarClient {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         producers.forEach(p -> futures.add(p.closeAsync().handle((__, t) -> {
-            log.error("Error closing producer {}", p, t);
+            if (t != null) {
+                log.error("Error closing producer {}", p, t);
+            }
             return null;
         })));
         consumers.forEach(c -> futures.add(c.closeAsync().handle((__, t) -> {
-            log.error("Error closing consumer {}", c, t);
+            if (t != null) {
+                log.error("Error closing consumer {}", c, t);
+            }
             return null;
         })));
 
