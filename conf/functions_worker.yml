@@ -206,6 +206,7 @@ functionRuntimeFactoryConfigs:
 #    # The port inside the function pod which is used by the worker to communicate with the pod
 #    grpcPort: 9093
 #    # The port inside the function pod on which prometheus metrics are exposed
+#    # An empty value disables prometheus metrics.
 #    metricsPort: 9094
 #    # The directory inside the function pod where nar packages will be extracted
 #    narExtractionDirectory:

@@ -427,7 +427,11 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
-        return RuntimeUtils.getPrometheusMetrics(metricsPort);
+        if (metricsPort != null) {
+            return RuntimeUtils.getPrometheusMetrics(metricsPort);
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -975,10 +979,14 @@ public class KubernetesRuntime implements Runtime {
     }
 
     private Map<String, String> getPrometheusAnnotations() {
-        final Map<String, String> annotations = new HashMap<>();
-        annotations.put("prometheus.io/scrape", "true");
-        annotations.put("prometheus.io/port", String.valueOf(metricsPort));
-        return annotations;
+        if (metricsPort != null) {
+            final Map<String, String> annotations = new HashMap<>();
+            annotations.put("prometheus.io/scrape", "true");
+            annotations.put("prometheus.io/port", String.valueOf(metricsPort));
+            return annotations;
+        } else {
+            return Collections.emptyMap();
+        }
     }
 
     private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
