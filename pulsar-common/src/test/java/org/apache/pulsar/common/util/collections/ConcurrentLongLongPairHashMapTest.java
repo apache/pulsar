@@ -417,7 +417,7 @@ public class ConcurrentLongLongPairHashMapTest {
         lmap.put(2, 2, 22, 22);
         lmap.put(3, 3, 33, 33);
 
-        Map<LongPair, LongPair> map = Maps.newTreeMap();
+        Map<LongPair, LongPair> map = Maps.newHashMap();
         map.put(new LongPair(1, 1), new LongPair(11, 11));
         map.put(new LongPair(2, 2), new LongPair(22, 22));
         map.put(new LongPair(3, 3), new LongPair(33, 33));
