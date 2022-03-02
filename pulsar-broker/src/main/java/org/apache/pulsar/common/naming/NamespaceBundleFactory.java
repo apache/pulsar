@@ -308,8 +308,8 @@ public class NamespaceBundleFactory {
      * @param argNumBundles
      *            split into numBundles
      * @param splitBoundaries
-     *            split into 2 numBundles by the given split key. The given split key must between the key range of the
-     *            given split bundle.
+     *            split into multi numBundles by the given split boundaries. All these given split boundaries must
+     *            between the key range of the given split bundle.
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */

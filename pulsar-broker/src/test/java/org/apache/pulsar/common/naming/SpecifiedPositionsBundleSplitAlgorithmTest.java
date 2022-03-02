@@ -74,7 +74,7 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
                 .when(mockNamespaceService)
                 .getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
 
-        List<Long> positions = Arrays.asList(100L, 200L, 500L, 800L);
+        List<Long> positions = Arrays.asList(-1L, 0L, 1L, 100L, 200L, 500L, 800L, 1000L, 1100L);
         List<Long> splitPositions = algorithm.getSplitBoundary(
                 new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, positions)).join();
 

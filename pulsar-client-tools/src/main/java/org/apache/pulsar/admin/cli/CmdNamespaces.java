@@ -915,7 +915,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = { "--topic-list",  "-tl" },
-                description = "The list of topics to get posisions in this bunel",
+                description = "The list of topics(both non-partitioned topic and partitioned topic) "
+                        + "to get positions in this bundle",
                 required = false)
         private List<String> topicList;
 

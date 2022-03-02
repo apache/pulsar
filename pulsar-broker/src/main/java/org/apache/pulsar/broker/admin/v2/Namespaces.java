@@ -597,7 +597,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("topicList") List<String> topicList) {
             validateNamespaceName(tenant, namespace);
-            return internalGetTopicHashPositions(bundleRange, new ArrayList<>(topicList));
+            return internalGetTopicHashPositions(bundleRange, topicList);
     }
 
     @POST

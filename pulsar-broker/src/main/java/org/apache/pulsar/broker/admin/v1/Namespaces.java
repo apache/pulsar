@@ -666,17 +666,17 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{bundle}/topicHashPositions")
+    @Path("/{property}/{cluster}/{namespace}/{bundle}/topicHashPositions")
     @ApiOperation(value = "Get hash positions for topics")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
     public TopicHashPositions getTopicHashPositions(
-            @PathParam("tenant") String tenant,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundle,
             @QueryParam("topicList") List<String> topicList) {
-        validateNamespaceName(tenant, namespace);
+        validateNamespaceName(property, cluster, namespace);
         return internalGetTopicHashPositions(bundle, topicList);
     }
 
