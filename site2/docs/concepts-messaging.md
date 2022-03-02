@@ -299,6 +299,7 @@ Retry letter topic allows you to store the messages that failed to be consumed a
 
 The diagram below illustrates the concept of the retry letter topic.
 ![](assets/retry-letter-topic.svg)
+
 The intention of using retry letter topic is different from using [delayed message delivery](#delayed-message-delivery), even though both are aiming to consume a message later. Retry letter topic serves failure handling through message redelivery to ensure critical data is not lost, while delayed message delivery is intended to deliver a message with a specified time of delay.
 
 By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
