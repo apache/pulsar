@@ -554,7 +554,17 @@ public class TransactionMetadataStoreService {
         return Collections.unmodifiableMap(stores);
     }
 
-    public void close () {
+    public synchronized void close () {
         this.internalPinnedExecutor.shutdown();
+        stores.forEach((tcId, metadataStore) -> {
+            metadataStore.closeAsync().whenComplete((v, ex) -> {
+                if (ex != null) {
+                    LOG.error("Close transaction metadata store with id " + tcId, ex);
+                } else {
+                    LOG.info("Removed and closed transaction meta store {}", tcId);
+                }
+            });
+        });
+        stores.clear();
     }
 }
