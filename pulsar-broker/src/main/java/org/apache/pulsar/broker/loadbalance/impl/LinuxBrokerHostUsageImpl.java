@@ -255,9 +255,13 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                         final Path nicSpeedPath = getNicSpeedPath(nicPath);
                         return readDoubleFromPath(nicSpeedPath);
                     } catch (IOException e) {
-                        if ("Invalid argument".equals(e.getMessage())) {
-                            log.warn("Failed to read speed for nic {}, " +
-                                    "maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] " +
+                        // "speed" is not supported by all the types of NIC
+                        // https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-net
+                        // Linux raises "Invalid argument" message error in case "speed" file doesn't exist or
+                        // is not readable
+                        if (e.getCause() == null && "Invalid argument".equals(e.getMessage())) {
+                            log.warn("Failed to read speed for nic {}, the OS raised 'Invalid argument' error." +
+                                    "Maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] " +
                                     "to override it.", nicPath);
                         } else {
                             log.error(String.format("Failed to read speed for nic %s, maybe you can set broker"
@@ -300,10 +304,19 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private static long readLongFromFile(String path) throws IOException {
-        return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8).trim());
+        try {
+            return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8).trim());
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Error while converting file content", e);
+        }
     }
 
     private static double readDoubleFromPath(Path path) throws IOException {
-        return Double.parseDouble(new String(Files.readAllBytes(path)));
+        try {
+            return Double.parseDouble(new String(Files.readAllBytes(path)));
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Error while converting file content", e);
+        }
+
     }
 }
