@@ -120,6 +120,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
+    private final LongAdder msgFilteredCounter = new LongAdder();
 
     private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "publishRateLimitedTimes");
@@ -1191,5 +1192,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public void updateBrokerDispatchRate() {
         topicPolicies.getDispatchRate().updateBrokerValue(
             dispatchRateInBroker(brokerService.pulsar().getConfiguration()));
+    }
+
+    public void addFilteredMsgCount(int filtered) {
+        this.msgFilteredCounter.add(filtered);
+    }
+
+    public long getMsgFilteredCount() {
+        return this.msgFilteredCounter.longValue();
     }
 }
