@@ -443,7 +443,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (this.brokerService != null) {
                 CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
                 if (this.transactionMetadataStoreService != null) {
-                    asyncCloseFutures.add(brokerCloseFuture.thenAccept(__ -> {
+                    asyncCloseFutures.add(brokerCloseFuture.whenComplete((__, ___) -> {
                         // close transactionMetadataStoreService after the broker has been closed
                         this.transactionMetadataStoreService.close();
                         this.transactionMetadataStoreService = null;
