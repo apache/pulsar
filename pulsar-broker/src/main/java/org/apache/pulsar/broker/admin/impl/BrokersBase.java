@@ -365,7 +365,7 @@ public class BrokersBase extends AdminResource {
                                 .startMessageId(MessageId.latest)
                                 .createAsync().exceptionally(createException -> {
                                     producer.closeAsync().exceptionally(ex -> {
-                                        LOG.error("[{}] close producer fail while heath check.", clientAppId());
+                                        LOG.error("[{}] Close producer fail while heath check.", clientAppId());
                                         return null;
                                     });
                                     throw FutureUtil.wrapToCompletionException(createException);
@@ -414,7 +414,7 @@ public class BrokersBase extends AdminResource {
         return FutureUtil.waitForAll(Collections.unmodifiableList(futures))
                 .exceptionally(closeException -> {
                     if (readerFuture.isCompletedExceptionally()) {
-                        LOG.error("[{}] close reader fail while heath check.", clientAppId());
+                        LOG.error("[{}] Close reader fail while heath check.", clientAppId());
                         Subscription subscription =
                                 topic.getSubscription(subscriptionName);
                         // re-check subscription after reader close
@@ -433,7 +433,7 @@ public class BrokersBase extends AdminResource {
                         }
                     } else {
                         // producer future fail.
-                        LOG.error("[{}] close producer fail while heath check.", clientAppId());
+                        LOG.error("[{}] Close producer fail while heath check.", clientAppId());
                     }
                     return null;
                 });
