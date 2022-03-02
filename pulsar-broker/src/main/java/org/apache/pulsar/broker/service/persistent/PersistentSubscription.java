@@ -842,6 +842,7 @@ public class PersistentSubscription implements Subscription {
             this.close().thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
+                log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
                 closeSubscriptionFuture.completeExceptionally(exception);
                 return null;
             });
