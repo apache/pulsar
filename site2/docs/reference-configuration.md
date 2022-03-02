@@ -716,6 +716,8 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 
 |Name|Description|Default|
 |---|---|---|
+|zookeeperServers|  The quorum connection string for local metadata store. Use `metadataStoreUrl` instead.  |N/A|
+|configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
 |zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds. Use `metadataStoreOperationTimeoutSeconds` instead. |30|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead. |300|
 |zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
@@ -724,7 +726,7 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 
 |Name|Description|Default|
 |---|---|---|
-|configurationMetadataStoreUrl    |||
+|configurationMetadataStoreUrl |Configuration store connection string. |N/A|
 |metadataStoreSessionTimeoutMillis|Metadata store session timeout in milliseconds.  |30000|
 |metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |serviceUrl|||
@@ -754,6 +756,7 @@ The following parameters have been deprecated in the `conf/websocket.conf` file.
 |---|---|---|
 |zooKeeperSessionTimeoutMillis|The ZooKeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
+|configurationStoreServers| Configuration Store connection string. Use `configurationMetadataStoreUrl` instead.|N/A|
 
 ## Pulsar proxy
 

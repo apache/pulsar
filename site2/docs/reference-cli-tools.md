@@ -190,7 +190,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-cms`, `--configuration-metadata-store`|Configuration meta store connection string||
+|`-cms`, `--configuration-metadata-store`|Configuration metadata store connection string||
 |`-md` , `--metadata-store`|Metadata Store service url||
 
 Example
