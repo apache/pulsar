@@ -151,6 +151,9 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
         dimensionMap.put("topic", topicName);
         Metrics metrics = createMetrics(dimensionMap);
         aggregate(tempAggregatedMetricsMap, topicName);
+        for (Map.Entry<String, Double> ma : tempAggregatedMetricsMap.entrySet()) {
+            metrics.put(ma.getKey(), ma.getValue());
+        }
         metricsCollection.add(metrics);
         return metricsCollection;
     }
@@ -174,6 +177,9 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                 aggregate(tempAggregatedMetricsMap, topicName);
             });
         });
+        for (Map.Entry<String, Double> ma : tempAggregatedMetricsMap.entrySet()) {
+            metrics.put(ma.getKey(), ma.getValue());
+        }
         metricsCollection.add(metrics);
         return metricsCollection;
     }
