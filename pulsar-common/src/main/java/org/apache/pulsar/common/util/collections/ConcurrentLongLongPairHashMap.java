@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
 
 /**
@@ -137,22 +138,6 @@ public class ConcurrentLongLongPairHashMap {
      */
     public interface LongLongPairPredicate {
         boolean test(long key1, long key2, long value1, long value2);
-    }
-
-    @Deprecated
-    public ConcurrentLongLongPairHashMap() {
-        this(DefaultExpectedItems);
-    }
-
-    @Deprecated
-    public ConcurrentLongLongPairHashMap(int expectedItems) {
-        this(expectedItems, DefaultConcurrencyLevel);
-    }
-
-    @Deprecated
-    public ConcurrentLongLongPairHashMap(int expectedItems, int concurrencyLevel) {
-        this(expectedItems, concurrencyLevel, DefaultMapFillFactor, DefaultMapIdleFactor,
-                DefaultAutoShrink, DefaultExpandFactor, DefaultShrinkFactor);
     }
 
     private ConcurrentLongLongPairHashMap(int expectedItems, int concurrencyLevel,
@@ -307,6 +292,9 @@ public class ConcurrentLongLongPairHashMap {
 
         private volatile int capacity;
         private final int initCapacity;
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Section.class, "size");
+
         private volatile int size;
         private int usedBuckets;
         private int resizeThresholdUp;
@@ -419,7 +407,7 @@ public class ConcurrentLongLongPairHashMap {
                         table[bucket + 1] = key2;
                         table[bucket + 2] = value1;
                         table[bucket + 3] = value2;
-                        ++size;
+                        SIZE_UPDATER.incrementAndGet(this);
                         return true;
                     } else if (storedKey1 == DeletedKey) {
                         // The bucket contained a different deleted key
@@ -457,7 +445,7 @@ public class ConcurrentLongLongPairHashMap {
                     long storedValue2 = table[bucket + 3];
                     if (key1 == storedKey1 && key2 == storedKey2) {
                         if (value1 == ValueNotFound || (value1 == storedValue1 && value2 == storedValue2)) {
-                            --size;
+                            SIZE_UPDATER.decrementAndGet(this);
 
                             cleanBucket(bucket);
                             return true;
