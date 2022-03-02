@@ -357,8 +357,6 @@ public class BrokersBase extends AdminResource {
                         throw new RestException(Status.NOT_FOUND,
                                 String.format("Topic [%s] not found after create.", topicName));
                     }
-                    return tryCleanPreviousSubscriptions(topicOptional.get());
-                }).thenCompose(unused-> {
                     try {
                         PulsarClient client = pulsar().getClient();
                         return client.newProducer(Schema.STRING).topic(topicName).createAsync()
@@ -373,7 +371,7 @@ public class BrokersBase extends AdminResource {
                                                     closeFutures.add(reader.closeAsync());
                                                     return FutureUtil.waitForAll(closeFutures);
                                                 })
-                                ).thenAccept(ignore -> {});
+                                ).thenCompose(ignore -> tryCleanPreviousSubscriptions(topicOptional.get()));
                     } catch (PulsarServerException e) {
                         LOG.error("[{}] Fail to run health check while get client.", clientAppId());
                         throw new RestException(e);
@@ -388,14 +386,9 @@ public class BrokersBase extends AdminResource {
                 // All system topics are using compaction, even though is not explicitly set in the policies.
                         !subscription.getName().equals(Compactor.COMPACTION_SUBSCRIPTION))
                 .map(Subscription::delete).collect(Collectors.toList()))
-                .exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    // we need to ignore exception when force delete futures
-                    if (!(realCause instanceof BrokerServiceException.SubscriptionBusyException)) {
-                        LOG.warn("[{}] Got error while delete previous subscription.", clientAppId(), ex);
-                    }
-                    return null;
-                }).thenCompose(__ -> {
+                // we need to ignore exception when delete futures
+                .exceptionally(ex -> null)
+                .thenCompose(__ -> {
                     // no matter we got error or not, we need to run deleteForce check.
                     List<? extends Subscription> subscriptions = topic.getSubscriptions().values();
                     List<CompletableFuture<?>> forceDeleteFutures = subscriptions.stream().map(sub -> {
@@ -418,11 +411,7 @@ public class BrokersBase extends AdminResource {
                     }).collect(Collectors.toList());
                     return FutureUtil.waitForAll(forceDeleteFutures)
                             // we need to ignore exception when force delete futures
-                            .exceptionally(exception -> {
-                                LOG.warn("[{}] Got error while force delete previous subscription.",
-                                        clientAppId(), exception);
-                                return null;
-                            });
+                            .exceptionally(exception -> null);
                 });
     }
 
