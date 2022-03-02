@@ -19,10 +19,8 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -196,9 +194,9 @@ public class ConcurrentLongLongPairHashMap {
     }
 
     /**
-     *
-     * @param key
-     * @return the value or -1 if the key was not present
+     * @param key1
+     * @param key2
+     * @return the value or -1 if the key was not present.
      */
     public LongPair get(long key1, long key2) {
         checkBiggerEqualZero(key1);
@@ -227,8 +225,9 @@ public class ConcurrentLongLongPairHashMap {
     /**
      * Remove an existing entry if found.
      *
-     * @param key
-     * @return the value associated with the key or -1 if key was not present
+     * @param key1
+     * @param key2
+     * @return the value associated with the key or -1 if key was not present.
      */
     public boolean remove(long key1, long key2) {
         checkBiggerEqualZero(key1);
@@ -262,7 +261,7 @@ public class ConcurrentLongLongPairHashMap {
     }
 
     /**
-     * @return a new list of all keys (makes a copy)
+     * @return a new list of all keys (makes a copy).
      */
     public List<LongPair> keys() {
         List<LongPair> keys = Lists.newArrayListWithExpectedSize((int) size());
