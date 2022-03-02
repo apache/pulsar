@@ -260,12 +260,13 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                         // Linux raises "Invalid argument" message error in case "speed" file doesn't exist or
                         // is not readable
                         if (e.getCause() == null && "Invalid argument".equals(e.getMessage())) {
-                            log.warn("Failed to read speed for nic {}, the OS raised a 'Invalid argument' error." +
-                                    " Maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] " +
-                                    "to override it.", nicPath);
+                            log.warn("Failed to read speed for nic {}, the OS raised a 'Invalid argument' error."
+                                    + " Maybe you can set broker config [loadBalancerOverrideBrokerNicSpeedGbps] "
+                                    + "to override it.", nicPath);
                         } else {
-                            log.error(String.format("Failed to read speed for nic %s, maybe you can set broker"
-                                    + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
+                            log.error(String.format("Failed to read speed for nic %s: %s\nMaybe you can set broker"
+                                    + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath,
+                                    e.getMessage()), e);
                         }
 
                         return 0d;
