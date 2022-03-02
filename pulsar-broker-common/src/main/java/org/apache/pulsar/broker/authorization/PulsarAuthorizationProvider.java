@@ -228,6 +228,40 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
     }
 
+    private CompletableFuture<Boolean> allowConsumeOrProduceOpsAsync(NamespaceName namespaceName,
+                                                                     String role,
+                                                                     AuthenticationDataSource authenticationData) {
+        CompletableFuture<Boolean> finalResult = new CompletableFuture<>();
+        allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.consume)
+                .whenComplete((consumeAuthorized, e) -> {
+                    if (e == null) {
+                        if (consumeAuthorized) {
+                            finalResult.complete(consumeAuthorized);
+                            return;
+                        }
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Namespace [{}] Role [{}] exception occurred while trying to check Consume "
+                                    + "permission. {}", namespaceName, role, e.getCause());
+                        }
+                    }
+                    allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.produce)
+                            .whenComplete((produceAuthorized, ex) -> {
+                                if (ex == null) {
+                                    finalResult.complete(produceAuthorized);
+                                } else {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Namespace [{}] Role [{}] exception occurred while trying to check "
+                                                + "Produce permission. {}", namespaceName, role, ex.getCause());
+                                    }
+                                    finalResult.completeExceptionally(ex.getCause());
+                                }
+                            });
+                });
+
+        return finalResult;
+    }
+
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
                                                                        AuthenticationDataSource authenticationData,
                                                                        AuthAction authAction) {
@@ -550,6 +584,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                         namespaceName, role, authData, AuthAction.packages);
                             case GET_TOPIC:
                             case GET_TOPICS:
+                                return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
                             case UNSUBSCRIBE:
                             case CLEAR_BACKLOG:
                                 return allowTheSpecifiedActionOpsAsync(
