@@ -56,7 +56,6 @@ github:
           - cpp-tests
           - function-state
           - messaging
-          - owasp-dep-check
           - process
           - pulsar-ci-test (group1)
           - pulsar-ci-test (group2)
