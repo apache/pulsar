@@ -19,34 +19,31 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
+import com.google.common.annotations.VisibleForTesting;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.RequiredTypeException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.SignatureException;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
-
 import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-
-import com.google.common.annotations.VisibleForTesting;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.RequiredTypeException;
-import io.jsonwebtoken.JwtParser;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.SignatureException;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
@@ -135,9 +132,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
 
-        if (audienceClaim != null && audience == null ) {
+        if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
-                                               + "] configured, but Audience stands for this broker not.");
+                    + "] configured, but Audience stands for this broker not.");
         }
     }
 
@@ -157,7 +154,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
             return role;
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
+                    exception.getMessage());
             throw exception;
         }
     }
@@ -166,6 +164,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
             throws AuthenticationException {
         return new TokenAuthenticationState(this, authData, remoteAddress, sslSession);
+    }
+
+    @Override
+    public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
+        return new TokenAuthenticationState(this, request);
     }
 
     public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
@@ -226,7 +229,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             }
 
             if (jwt.getBody().getExpiration() != null) {
-                expiringTokenMinutesMetrics.observe((double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
+                expiringTokenMinutesMetrics.observe(
+                        (double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
             }
             return jwt;
         } catch (JwtException e) {
@@ -312,8 +316,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         private final AuthenticationProviderToken provider;
         private AuthenticationDataSource authenticationDataSource;
         private Jwt<?, Claims> jwt;
-        private final SocketAddress remoteAddress;
-        private final SSLSession sslSession;
         private long expiration;
 
         TokenAuthenticationState(
@@ -322,9 +324,24 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 SocketAddress remoteAddress,
                 SSLSession sslSession) throws AuthenticationException {
             this.provider = provider;
-            this.remoteAddress = remoteAddress;
-            this.sslSession = sslSession;
-            this.authenticate(authData);
+            String token = new String(authData.getBytes(), UTF_8);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
+            this.checkExpiration(token);
+        }
+
+        TokenAuthenticationState(
+                AuthenticationProviderToken provider,
+                HttpServletRequest request) throws AuthenticationException {
+            this.provider = provider;
+            String httpHeaderValue = request.getHeader(HTTP_HEADER_NAME);
+            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+                throw new AuthenticationException("Invalid HTTP Authorization header");
+            }
+
+            // Remove prefix
+            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            this.authenticationDataSource = new AuthenticationDataHttps(request);
+            this.checkExpiration(token);
         }
 
         @Override
@@ -332,21 +349,25 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             return provider.getPrincipal(jwt);
         }
 
+        /**
+         * @param authData Authentication data.
+         * @return null. Explanation of returning null values, {@link AuthenticationState#authenticateAsync(AuthData)}
+         * @throws AuthenticationException
+         */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            String token = new String(authData.getBytes(), UTF_8);
+            // There's no additional auth stage required
+            return null;
+        }
 
+        private void checkExpiration(String token) throws AuthenticationException {
             this.jwt = provider.authenticateToken(token);
-            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             if (jwt.getBody().getExpiration() != null) {
                 this.expiration = jwt.getBody().getExpiration().getTime();
             } else {
                 // Disable expiration
                 this.expiration = Long.MAX_VALUE;
             }
-
-            // There's no additional auth stage required
-            return null;
         }
 
         @Override

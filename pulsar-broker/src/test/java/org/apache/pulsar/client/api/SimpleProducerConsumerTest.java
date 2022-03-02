@@ -41,8 +41,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -77,6 +75,7 @@ import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -102,6 +101,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -977,13 +977,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(cacheField, cacheField.getModifiers() & ~Modifier.FINAL);
-        EntryCacheImpl entryCache = spy((EntryCacheImpl) cacheField.get(ledger));
-        cacheField.set(ledger, entryCache);
+        EntryCacheImpl entryCache = spy((EntryCacheImpl) Whitebox.getInternalState(ledger, "entryCache"));
+        Whitebox.setInternalState(ledger, "entryCache", entryCache);
 
         Message<byte[]> msg;
         // 2. Produce messages
@@ -2621,6 +2616,38 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testCryptoWithChunking() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testCryptoWithChunking" + System.currentTimeMillis();
+        final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
+
+        this.conf.setMaxMessageSize(1000);
+
+        @Cleanup
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .defaultCryptoKeyReader(ecdsaPrivateKeyFile).subscribe();
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic)
+                .enableChunking(true)
+                .enableBatching(false)
+                .addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader(ecdsaPublicKeyFile)
+                .create();
+
+        byte[] data = RandomUtils.nextBytes(5100);
+        MessageId id = producer1.send(data);
+        log.info("Message Id={}", id);
+
+        MessageImpl<byte[]> message;
+        message = (MessageImpl<byte[]>) consumer1.receive();
+        Assert.assertEquals(message.getData(), data);
+        Assert.assertEquals(message.getEncryptionCtx().get().getKeys().size(), 1);
+    }
+
+    @Test
     public void testDefaultCryptoKeyReader() throws Exception {
         final String topic = "persistent://my-property/my-ns/default-crypto-key-reader" + System.currentTimeMillis();
         final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
@@ -3168,7 +3195,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .create();
 
         // 1. produce 5 messages
@@ -3181,7 +3208,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .receiverQueueSize(receiverQueueSize)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .subscriptionName("test-multi-topic-consumer").subscribe();
 
         int counter = 0;
@@ -3196,7 +3223,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName, 3);
 
         // 4. wait for client to update partitions
-        Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() <= 1);
+        Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() == 3);
 
         // 5. produce 5 more messages
         for (int i = 5; i < 10; i++) {

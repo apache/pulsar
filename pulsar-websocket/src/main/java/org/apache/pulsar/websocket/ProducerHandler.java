@@ -23,10 +23,8 @@ import static java.lang.String.format;
 import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
-
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
@@ -36,9 +34,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
@@ -57,7 +53,6 @@ import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * Websocket end-point url handler to handle incoming message coming from client. Websocket end-point url handler to

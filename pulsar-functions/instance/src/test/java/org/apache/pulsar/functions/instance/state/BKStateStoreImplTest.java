@@ -18,18 +18,6 @@
  */
 package org.apache.pulsar.functions.instance.state;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.options.Options;
-import org.apache.bookkeeper.api.kv.result.DeleteResult;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
@@ -40,6 +28,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.options.Options;
+import org.apache.bookkeeper.api.kv.result.DeleteResult;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test {@link BKStateStoreImpl}.
@@ -58,8 +56,8 @@ public class BKStateStoreImplTest {
     public void setup() {
         this.mockTable = mock(Table.class);
         this.stateContext = new BKStateStoreImpl(
-            TENANT, NS, NAME,
-            mockTable);
+                TENANT, NS, NAME,
+                mockTable);
     }
 
     @Test

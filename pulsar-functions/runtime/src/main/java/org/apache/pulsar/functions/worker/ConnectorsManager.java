@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class ConnectorsManager {
@@ -38,7 +37,8 @@ public class ConnectorsManager {
     private volatile TreeMap<String, Connector> connectors;
 
     public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
+        this.connectors = ConnectorUtils
+                .searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 
     public Connector getConnector(String connectorType) {
@@ -50,7 +50,8 @@ public class ConnectorsManager {
     }
 
     public List<ConnectorDefinition> getConnectorDefinitions() {
-        return connectors.values().stream().map(connector -> connector.getConnectorDefinition()).collect(Collectors.toList());
+        return connectors.values().stream().map(connector -> connector.getConnectorDefinition())
+                .collect(Collectors.toList());
     }
 
     public Path getSourceArchive(String sourceType) {
@@ -70,6 +71,7 @@ public class ConnectorsManager {
     }
 
     public void reloadConnectors(WorkerConfig workerConfig) throws IOException {
-        connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
+        connectors = ConnectorUtils
+                .searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 }

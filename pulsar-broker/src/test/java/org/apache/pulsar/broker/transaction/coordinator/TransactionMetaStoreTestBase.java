@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import java.util.Optional;
 import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
@@ -69,14 +70,14 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             config.setAcknowledgmentAtBatchIndexLevelEnabled(true);
             config.setTransactionCoordinatorEnabled(true);
             configurations[i] = config;
 
-            pulsarServices[i] = Mockito.spy(new PulsarService(config));
+            pulsarServices[i] = spyWithClassAndConstructorArgs(PulsarService.class, config);
             pulsarServices[i].start();
 
             pulsarAdmins[i] = PulsarAdmin.builder()

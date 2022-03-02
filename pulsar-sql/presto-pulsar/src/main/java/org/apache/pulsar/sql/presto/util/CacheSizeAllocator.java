@@ -28,20 +28,20 @@ public interface CacheSizeAllocator {
      *
      * @return available cache size
      */
-    public long getAvailableCacheSize();
+    long getAvailableCacheSize();
 
     /**
      * Cost available cache.
      *
      * @param size allocate size
      */
-    public void allocate(long size);
+    void allocate(long size);
 
     /**
      * Release allocated cache size.
      *
      * @param size release size
      */
-    public void release(long size);
+    void release(long size);
 
 }

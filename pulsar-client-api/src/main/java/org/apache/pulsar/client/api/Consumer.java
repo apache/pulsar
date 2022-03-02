@@ -289,7 +289,7 @@ public interface Consumer<T> extends Closeable {
      *          consumer.acknowledge(msg);
      *     } catch (Throwable t) {
      *          log.warn("Failed to process message");
-     *          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+     *          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
      *     }
      * }
      * </code></pre>
@@ -322,7 +322,7 @@ public interface Consumer<T> extends Closeable {
      *          consumer.acknowledge(msg);
      *     } catch (Throwable t) {
      *          log.warn("Failed to process message");
-     *          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+     *          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
      *     }
      * }
      * </code></pre>
@@ -338,7 +338,9 @@ public interface Consumer<T> extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *              if the consumer was already closed
      */
-    void reconsumeLater(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) throws PulsarClientException;
+    void reconsumeLater(Message<?> message,
+                        Map<String, String> customProperties,
+                        long delayTime, TimeUnit unit) throws PulsarClientException;
 
     /**
      * reconsumeLater the consumption of {@link Messages}.
@@ -522,7 +524,9 @@ public interface Consumer<T> extends Closeable {
      *            the time unit for the delay
      * @return a future that can be used to track the completion of the operation
      */
-    CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit);
+    CompletableFuture<Void> reconsumeLaterAsync(Message<?> message,
+                                                Map<String, String> customProperties,
+                                                long delayTime, TimeUnit unit);
 
     /**
      * Asynchronously reconsumeLater the consumption of {@link Messages}.
@@ -593,7 +597,9 @@ public interface Consumer<T> extends Closeable {
      *            the time unit for the delay
      * @return a future that can be used to track the completion of the operation
      */
-    CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit);
+    CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message,
+                                                          Map<String, String> customProperties,
+                                                          long delayTime, TimeUnit unit);
 
     /**
      * Get statistics for the consumer.

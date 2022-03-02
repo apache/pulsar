@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.functions.worker.dlog;
 
-import org.apache.distributedlog.AppendOnlyStreamWriter;
-import org.apache.distributedlog.api.DistributedLogManager;
-
 import java.io.IOException;
 import java.io.OutputStream;
+import org.apache.distributedlog.AppendOnlyStreamWriter;
+import org.apache.distributedlog.api.DistributedLogManager;
 
 /**
  * DistributedLog Output Stream.

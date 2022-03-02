@@ -22,7 +22,6 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -68,7 +67,7 @@ public abstract class MockedBookKeeperTestCase {
     public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
         metadataStore = new FaultInjectionMetadataStore(
-                MetadataStoreExtended.create("memory://local", MetadataStoreConfig.builder().build()));
+                MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build()));
 
         try {
             // start bookkeeper service

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -371,14 +371,14 @@ public class WebServiceTest {
         config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
-        config.setZookeeperServers("localhost:2181");
+        config.setMetadataStoreUrl("zk:localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
         config.setDisableHttpDebugMethods(disableTrace);
         if (rateLimit > 0) {
             config.setHttpRequestsLimitEnabled(true);
             config.setHttpRequestsMaxPerSecond(rateLimit);
         }
-        pulsar = spy(new PulsarService(config));
+        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, config);
      // mock zk
         MockZooKeeper mockZooKeeper = MockedPulsarServiceBaseTest.createMockZooKeeper();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createConfigurationMetadataStore();

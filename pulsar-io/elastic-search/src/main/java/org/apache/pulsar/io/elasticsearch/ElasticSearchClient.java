@@ -35,7 +35,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,35 +71,37 @@ import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
-import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.delete.DeleteResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.client.Node;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.Requests;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.CreateIndexRequest;
-import org.elasticsearch.client.indices.CreateIndexResponse;
-import org.elasticsearch.client.indices.GetIndexRequest;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.opensearch.action.DocWriteRequest;
+import org.opensearch.action.DocWriteResponse;
+import org.opensearch.action.admin.indices.create.CreateIndexRequest;
+import org.opensearch.action.admin.indices.create.CreateIndexResponse;
+import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.opensearch.action.admin.indices.refresh.RefreshRequest;
+import org.opensearch.action.bulk.BulkItemResponse;
+import org.opensearch.action.bulk.BulkProcessor;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.action.delete.DeleteRequest;
+import org.opensearch.action.delete.DeleteResponse;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.support.master.AcknowledgedResponse;
+import org.opensearch.client.Node;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.Requests;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.RestClientBuilder;
+import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.client.indices.GetIndexRequest;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.unit.ByteSizeUnit;
+import org.opensearch.common.unit.ByteSizeValue;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.search.builder.SearchSourceBuilder;
 
 @Slf4j
 public class ElasticSearchClient implements AutoCloseable {
@@ -123,9 +124,15 @@ public class ElasticSearchClient implements AutoCloseable {
     final ConcurrentMap<DocWriteRequest<?>, Record> records = new ConcurrentHashMap<>();
     final AtomicReference<Exception> irrecoverableError = new AtomicReference<>();
     final ScheduledExecutorService executorService;
+    private final IndexNameFormatter indexNameFormatter;
 
     ElasticSearchClient(ElasticSearchConfig elasticSearchConfig) {
         this.config = elasticSearchConfig;
+        if (this.config.getIndexName() != null) {
+            this.indexNameFormatter = new IndexNameFormatter(this.config.getIndexName());
+        } else {
+            this.indexNameFormatter = null;
+        }
         this.configCallback = new ConfigCallback();
         this.backoffRetry = new RandomExponentialRetry(elasticSearchConfig.getMaxRetryTimeInSec());
         if (!config.isBulkEnabled()) {
@@ -252,7 +259,7 @@ public class ElasticSearchClient implements AutoCloseable {
     }
 
     IndexRequest makeIndexRequest(Record<GenericObject> record, Pair<String, String> idAndDoc) throws IOException {
-        IndexRequest indexRequest = Requests.indexRequest(indexName(record.getTopicName()));
+        IndexRequest indexRequest = Requests.indexRequest(indexName(record));
         if (!Strings.isNullOrEmpty(idAndDoc.getLeft())) {
             indexRequest.id(idAndDoc.getLeft());
         }
@@ -262,16 +269,16 @@ public class ElasticSearchClient implements AutoCloseable {
     }
 
     DeleteRequest makeDeleteRequest(Record<GenericObject> record, String id) throws IOException {
-        DeleteRequest deleteRequest = Requests.deleteRequest(indexName(record.getTopicName()));
+        DeleteRequest deleteRequest = Requests.deleteRequest(indexName(record));
         deleteRequest.id(id);
         deleteRequest.type(config.getTypeName());
         return deleteRequest;
     }
 
-    public void bulkIndex(Record record, Pair<String, String> idAndDoc) throws Exception {
+    public void bulkIndex(Record<GenericObject> record, Pair<String, String> idAndDoc) throws Exception {
         try {
             checkNotFailed();
-            checkIndexExists(record.getTopicName());
+            checkIndexExists(record);
             IndexRequest indexRequest = makeIndexRequest(record, idAndDoc);
             records.put(indexRequest, record);
             bulkProcessor.add(indexRequest);
@@ -292,7 +299,7 @@ public class ElasticSearchClient implements AutoCloseable {
     public boolean indexDocument(Record<GenericObject> record, Pair<String, String> idAndDoc) throws Exception {
         try {
             checkNotFailed();
-            checkIndexExists(record.getTopicName());
+            checkIndexExists(record);
             IndexResponse indexResponse = client.index(makeIndexRequest(record, idAndDoc), RequestOptions.DEFAULT);
             if (indexResponse.getResult().equals(DocWriteResponse.Result.CREATED)
                     || indexResponse.getResult().equals(DocWriteResponse.Result.UPDATED)) {
@@ -312,7 +319,7 @@ public class ElasticSearchClient implements AutoCloseable {
     public void bulkDelete(Record<GenericObject> record, String id) throws Exception {
         try {
             checkNotFailed();
-            checkIndexExists(record.getTopicName());
+            checkIndexExists(record);
             DeleteRequest deleteRequest = makeDeleteRequest(record, id);
             records.put(deleteRequest, record);
             bulkProcessor.add(deleteRequest);
@@ -333,7 +340,7 @@ public class ElasticSearchClient implements AutoCloseable {
     public boolean deleteDocument(Record<GenericObject> record, String id) throws Exception {
         try {
             checkNotFailed();
-            checkIndexExists(record.getTopicName());
+            checkIndexExists(record);
             DeleteResponse deleteResponse = client.delete(makeDeleteRequest(record, id), RequestOptions.DEFAULT);
             log.debug("delete result=" + deleteResponse.getResult());
             if (deleteResponse.getResult().equals(DocWriteResponse.Result.DELETED)
@@ -382,11 +389,11 @@ public class ElasticSearchClient implements AutoCloseable {
         }
     }
 
-    private void checkIndexExists(Optional<String> topicName) throws IOException {
+    private void checkIndexExists(Record<GenericObject> record) throws IOException {
         if (!config.isCreateIndexIfNeeded()) {
             return;
         }
-        String indexName = indexName(topicName);
+        String indexName = indexName(record);
         if (!indexCache.contains(indexName)) {
             synchronized (this) {
                 if (!indexCache.contains(indexName)) {
@@ -397,15 +404,15 @@ public class ElasticSearchClient implements AutoCloseable {
         }
     }
 
-    private String indexName(Optional<String> topicName) throws IOException {
-        if (config.getIndexName() != null) {
+    private String indexName(Record<GenericObject> record) throws IOException {
+        if (indexNameFormatter != null) {
             // Use the configured indexName if provided.
-            return config.getIndexName();
+            return indexNameFormatter.indexName(record);
         }
-        if (!topicName.isPresent()) {
+        if (!record.getTopicName().isPresent()) {
             throw new IOException("Elasticsearch index name configuration and topic name are empty");
         }
-        return topicToIndexName(topicName.get());
+        return topicToIndexName(record.getTopicName().get());
     }
 
     @VisibleForTesting
@@ -464,7 +471,7 @@ public class ElasticSearchClient implements AutoCloseable {
     }
 
     @VisibleForTesting
-    protected org.elasticsearch.action.search.SearchResponse search(String indexName) throws IOException {
+    protected SearchResponse search(String indexName) throws IOException {
         client.indices().refresh(new RefreshRequest(indexName), RequestOptions.DEFAULT);
         return client.search(
                 new SearchRequest()
@@ -474,7 +481,7 @@ public class ElasticSearchClient implements AutoCloseable {
     }
 
     @VisibleForTesting
-    protected org.elasticsearch.action.support.master.AcknowledgedResponse delete(String indexName) throws IOException {
+    protected AcknowledgedResponse delete(String indexName) throws IOException {
         return client.indices().delete(new DeleteIndexRequest(indexName), RequestOptions.DEFAULT);
     }
 

@@ -259,4 +259,8 @@ public abstract class AbstractReplicator {
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);
+
+    public State getState() {
+        return state;
+    }
 }

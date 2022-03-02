@@ -39,6 +39,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -240,13 +241,14 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
+
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                 (false).withSupportSchemaVersioning(true).
@@ -259,6 +261,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(true);
+        Policies policies = admin.namespaces().getPolicies(namespaceName.toString());
+        Assert.assertTrue(policies.is_allow_auto_update_schema);
+
         ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                         SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                         (false).withSupportSchemaVersioning(true).
@@ -320,7 +325,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -399,7 +404,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
-                SchemaCompatibilityStrategy.FULL);
+                SchemaCompatibilityStrategy.UNDEFINED);
         byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
                 .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
         SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();

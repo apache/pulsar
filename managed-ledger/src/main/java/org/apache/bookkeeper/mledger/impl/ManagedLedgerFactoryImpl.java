@@ -111,7 +111,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private volatile boolean closed;
 
     /**
-     * Keep a flag to indicate whether we're currently connected to the metadata service
+     * Keep a flag to indicate whether we're currently connected to the metadata service.
      */
     @Getter
     private boolean metadataServiceAvailable;
@@ -188,7 +188,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
-        this.statsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::refreshStats),
+        this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
                 config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);

@@ -231,4 +231,21 @@ ConsumerConfiguration& ConsumerConfiguration::setKeySharedPolicy(KeySharedPolicy
 
 KeySharedPolicy ConsumerConfiguration::getKeySharedPolicy() const { return impl_->keySharedPolicy; }
 
+ConsumerConfiguration& ConsumerConfiguration::setMaxPendingChunkedMessage(size_t maxPendingChunkedMessage) {
+    impl_->maxPendingChunkedMessage = maxPendingChunkedMessage;
+    return *this;
+}
+
+size_t ConsumerConfiguration::getMaxPendingChunkedMessage() const { return impl_->maxPendingChunkedMessage; }
+
+ConsumerConfiguration& ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQueueFull(
+    bool autoAckOldestChunkedMessageOnQueueFull) {
+    impl_->autoAckOldestChunkedMessageOnQueueFull = autoAckOldestChunkedMessageOnQueueFull;
+    return *this;
+}
+
+bool ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull() const {
+    return impl_->autoAckOldestChunkedMessageOnQueueFull;
+}
+
 }  // namespace pulsar

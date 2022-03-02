@@ -44,14 +44,6 @@ public class SystemResourceUsage {
         directMemory = new ResourceUsage(-1, -1);
     }
 
-    public void reset() {
-        bandwidthIn.reset();
-        bandwidthOut.reset();
-        cpu.reset();
-        memory.reset();
-        directMemory.reset();
-    }
-
     public ResourceUsage getBandwidthIn() {
         return bandwidthIn;
     }

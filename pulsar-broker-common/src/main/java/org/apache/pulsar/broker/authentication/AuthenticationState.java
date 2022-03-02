@@ -19,12 +19,10 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.util.FutureUtil;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for authentication state.
@@ -89,7 +87,7 @@ public interface AuthenticationState {
     boolean isComplete();
 
     /**
-     * Get AuthenticationState ID
+     * Get AuthenticationState ID.
      */
     default long getStateId() {
         return -1L;

@@ -49,6 +49,9 @@ in the `bookkeeper.conf` configuration file.
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
 | bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
 | bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookkeeper_server_BookieReadThreadPool_queue_{thread_id}|Gauge|The number of requests to be processed in a read thread queue.|
+| bookkeeper_server_BookieReadThreadPool_task_queued|Summary | The waiting time of a task to be processed in a read thread queue. |
+| bookkeeper_server_BookieReadThreadPool_task_execution|Summary | The execution time of a task in a read thread queue.|
 
 ### Journal metrics
 
@@ -60,6 +63,7 @@ in the `bookkeeper.conf` configuration file.
 | bookie_journal_JOURNAL_CB_QUEUE_SIZE | Gauge | The total number of callbacks pending in the callback queue. |
 | bookie_journal_JOURNAL_ADD_ENTRY | Summary | The summary of request latency of adding entries to the journal. |
 | bookie_journal_JOURNAL_SYNC | Summary | The summary of fsync latency of syncing data to the journal disk. |
+| bookie_journal_JOURNAL_CREATION_LATENCY| Summary | The latency created by a journal log file. |
 
 ### Storage metrics
 
@@ -71,6 +75,8 @@ in the `bookkeeper.conf` configuration file.
 | bookie_read_cache_size | Gauge | The bookie read cache size (in bytes). |
 | bookie_DELETED_LEDGER_COUNT | Counter | The total number of ledgers deleted since the bookie has started. |
 | bookie_ledger_writable_dirs | Gauge | The number of writable directories in the bookie. |
+| bookie_flush | Gauge| The table flush latency of bookie memory. |
+| bookie_throttled_write_requests | Counter | The number of write requests to be throttled. |
 
 ## Broker
 
@@ -109,6 +115,16 @@ The following metrics are available for broker:
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
 - [Pulsar transaction](#pulsar-transaction)
+
+### BookKeeper client metrics
+
+All the BookKeeper client metric are labelled with the following label:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_managedLedger_client_bookkeeper_client_BOOKIE_QUARANTINE | Counter | The number of bookie clients to be quarantined.<br /><br />If you want to expose this metric, set `bookkeeperClientExposeStatsToPrometheus` to `true` in the `broker.conf` file.|
 
 ### Namespace metrics
 
@@ -174,6 +190,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_consumers_count | Gauge | The number of active consumers of the topic connected to this broker. |
 | pulsar_rate_in | Gauge | The total message rate of the topic coming into this broker (messages/second). |
 | pulsar_rate_out | Gauge | The total message rate of the topic going out from this broker (messages/second). |
+| pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered. |
 | pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (bytes/second). |
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (bytes/second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
@@ -233,10 +250,10 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | Name | Type | Description |
 | --- | --- | --- |
 | pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
-| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second. |
-| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
-| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second |
-| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second on the broker side. |
+| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache on the broker side (in byte/s).  |
+| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second on the broker side. |
+| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is not retrieved from the cache on the broker side (in byte/s). |
 | pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
@@ -257,14 +274,16 @@ All the managedLedger metrics are labelled with the following labels:
 | pulsar_ml_AddEntryBytesRate | Gauge | The bytes/s rate of messages added |
 | pulsar_ml_AddEntryWithReplicasBytesRate | Gauge | The bytes/s rate of messages added with replicas |
 | pulsar_ml_AddEntryErrors | Gauge | The number of addEntry requests that failed |
-| pulsar_ml_AddEntryLatencyBuckets | Histogram | The add entry latency of a ledger with a given quantile (threshold).<br> Available quantile: <br><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
-| pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The add entry latency > 1s |
+| pulsar_ml_AddEntryLatencyBuckets | Histogram | The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side.<br> Available quantile: <br><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
+| pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The number of times the AddEntryLatency is longer than 1 second |
 | pulsar_ml_AddEntryMessagesRate | Gauge | The msg/s rate of messages added |
 | pulsar_ml_AddEntrySucceed | Gauge | The number of addEntry requests that succeeded |
-| pulsar_ml_EntrySizeBuckets | Histogram | The add entry size of a ledger with given quantile.<br> Available quantile: <br><ul><li>quantile="0.0_128.0" is EntrySize between (0byte, 128byte]</li><li>quantile="128.0_512.0" is EntrySize between (128byte, 512byte]</li><li>quantile="512.0_1024.0" is EntrySize between (512byte, 1KB]</li><li>quantile="1024.0_2048.0" is EntrySize between (1KB, 2KB]</li><li>quantile="2048.0_4096.0" is EntrySize between (2KB, 4KB]</li><li>quantile="4096.0_16384.0" is EntrySize between (4KB, 16KB]</li><li>quantile="16384.0_102400.0" is EntrySize between (16KB, 100KB]</li><li>quantile="102400.0_1232896.0" is EntrySize between (100KB, 1MB]</li></ul> |
-| pulsar_ml_EntrySizeBuckets_OVERFLOW |Gauge  | The add entry size > 1MB |
-| pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with given quantile. <br> Available quantile: <br><ul><li>quantile="0.0_0.5" is EntrySize between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is EntrySize between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is EntrySize between (1ms, 5ms]</li><li>quantile="5.0_10.0" is EntrySize between (5ms, 10ms]</li><li>quantile="10.0_20.0" is EntrySize between (10ms, 20ms]</li><li>quantile="20.0_50.0" is EntrySize between (20ms, 50ms]</li><li>quantile="50.0_100.0" is EntrySize between (50ms, 100ms]</li><li>quantile="100.0_200.0" is EntrySize between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is EntrySize between (200ms, 1000ms]</li></ul> |
-| pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | Gauge | The ledger switch latency > 1s |
+| pulsar_ml_EntrySizeBuckets | Histogram | The added entry size of a ledger with a given quantile.<br> Available quantile: <br><ul><li>quantile="0.0_128.0" is EntrySize between (0byte, 128byte]</li><li>quantile="128.0_512.0" is EntrySize between (128byte, 512byte]</li><li>quantile="512.0_1024.0" is EntrySize between (512byte, 1KB]</li><li>quantile="1024.0_2048.0" is EntrySize between (1KB, 2KB]</li><li>quantile="2048.0_4096.0" is EntrySize between (2KB, 4KB]</li><li>quantile="4096.0_16384.0" is EntrySize between (4KB, 16KB]</li><li>quantile="16384.0_102400.0" is EntrySize between (16KB, 100KB]</li><li>quantile="102400.0_1232896.0" is EntrySize between (100KB, 1MB]</li></ul> |
+| pulsar_ml_EntrySizeBuckets_OVERFLOW |Gauge  | The number of times the EntrySize is larger than 1MB |
+| pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with a given quantile. <br> Available quantile: <br><ul><li>quantile="0.0_0.5" is EntrySize between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is EntrySize between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is EntrySize between (1ms, 5ms]</li><li>quantile="5.0_10.0" is EntrySize between (5ms, 10ms]</li><li>quantile="10.0_20.0" is EntrySize between (10ms, 20ms]</li><li>quantile="20.0_50.0" is EntrySize between (20ms, 50ms]</li><li>quantile="50.0_100.0" is EntrySize between (50ms, 100ms]</li><li>quantile="100.0_200.0" is EntrySize between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is EntrySize between (200ms, 1000ms]</li></ul> |
+| pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | Gauge | The number of times the ledger switch latency is longer than 1 second |
+| pulsar_ml_LedgerAddEntryLatencyBuckets | Histogram | The latency for bookie client to persist a ledger entry from broker to BookKeeper service with a given quantile (threshold). <br /> Available quantile: <br /><ul><li> quantile="0.0_0.5" is LedgerAddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is LedgerAddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is LedgerAddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is LedgerAddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is LedgerAddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is LedgerAddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is LedgerAddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is LedgerAddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is LedgerAddEntryLatency between (200ms, 1s]</li></ul>|
+| pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW | Gauge | The number of times the LedgerAddEntryLatency is longer than 1 second |
 | pulsar_ml_MarkDeleteRate | Gauge | The rate of mark-delete ops/s |
 | pulsar_ml_NumberOfMessagesInBacklog | Gauge | The number of backlog messages for all the consumers |
 | pulsar_ml_ReadEntriesBytesRate | Gauge | The bytes/s rate of messages read |
@@ -287,14 +306,14 @@ All the cursor acknowledgment state metrics are labelled with the following labe
 
 Name	|Type	|Description
 |---|---|---
-brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to a ledger.|
-brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.|
-brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
-brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.
-brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of non-contiguous deleted messages ranges.
-brk_ml_cursor_writeLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger.
-brk_ml_cursor_writeLedgerLogicalSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger (accounting for without replicas).
-brk_ml_cursor_readLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of read from ledger.
+brk_ml_cursor_persistLedgerSucceed|Gauge|The number of acknowledgment states that is persistent to a ledger.|
+brk_ml_cursor_persistLedgerErrors|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.|
+brk_ml_cursor_persistZookeeperSucceed|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
+brk_ml_cursor_persistZookeeperErrors|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.
+brk_ml_cursor_nonContiguousDeletedMessagesRange|Gauge|The number of non-contiguous deleted messages ranges.
+brk_ml_cursor_writeLedgerSize|Gauge|The size of write to ledger.
+brk_ml_cursor_writeLedgerLogicalSize|Gauge|The size of write to ledger (accounting for without replicas).
+brk_ml_cursor_readLedgerSize|Gauge|The size of read from ledger.
 
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:
@@ -334,7 +353,7 @@ All the bundle metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
 - bundle: bundle=${bundle}. ${bundle} is the bundle range on this broker
-- metric: metric="loadBalancing".
+- metric: metric="bundle".
 
 | Name | Type | Description |
 | --- | --- | --- |

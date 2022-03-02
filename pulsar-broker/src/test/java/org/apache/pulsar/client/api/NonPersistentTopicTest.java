@@ -938,8 +938,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setClusterName(configClusterName);
             config1.setAdvertisedAddress("localhost");
             config1.setWebServicePort(Optional.of(0));
-            config1.setZookeeperServers("127.0.0.1:" + bkEnsemble1.getZookeeperPort());
-            config1.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+            config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble1.getZookeeperPort());
+            config1.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
             config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config1.setBrokerDeleteInactiveTopicsFrequencySeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -964,8 +964,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setClusterName("r2");
             config2.setWebServicePort(Optional.of(0));
             config2.setAdvertisedAddress("localhost");
-            config2.setZookeeperServers("127.0.0.1:" + bkEnsemble2.getZookeeperPort());
-            config2.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+            config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble2.getZookeeperPort());
+            config2.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
             config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config2.setBrokerDeleteInactiveTopicsFrequencySeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -990,8 +990,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setClusterName("r3");
             config3.setWebServicePort(Optional.of(0));
             config3.setAdvertisedAddress("localhost");
-            config3.setZookeeperServers("127.0.0.1:" + bkEnsemble3.getZookeeperPort());
-            config3.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+            config3.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble3.getZookeeperPort());
+            config3.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
             config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config3.setBrokerDeleteInactiveTopicsFrequencySeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));

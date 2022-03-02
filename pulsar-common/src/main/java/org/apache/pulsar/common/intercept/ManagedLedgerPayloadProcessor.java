@@ -23,7 +23,7 @@ import io.netty.buffer.ByteBuf;
 public interface ManagedLedgerPayloadProcessor {
     interface Processor {
         /**
-         * Process the input payload and return a new payload
+         * Process the input payload and return a new payload.
          * NOTE: If this processor returns a different ByteBuf instance than the passed one
          *       DO THE FOLLOWING to avoid memory leaks
          *       1. Call inputPayload.release() to release a reference
@@ -45,7 +45,7 @@ public interface ManagedLedgerPayloadProcessor {
         void release(ByteBuf processedPayload);
     }
     /**
-     * Used by ManagedLedger for pre-processing payload before storing in bookkeeper ledger
+     * Used by ManagedLedger for pre-processing payload before storing in bookkeeper ledger.
      * @return Handle to Processor instance
      */
     default Processor inputProcessor() {
@@ -53,7 +53,7 @@ public interface ManagedLedgerPayloadProcessor {
     }
 
     /**
-     * Used by ManagedLedger for processing payload after reading from bookkeeper ledger
+     * Used by ManagedLedger for processing payload after reading from bookkeeper ledger.
      * @return Handle to Processor instance
      */
     default Processor outputProcessor() {

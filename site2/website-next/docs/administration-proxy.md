@@ -64,8 +64,9 @@ To start the proxy:
 ```bash
 
 $ cd /path/to/pulsar/directory
-$ bin/pulsar proxy
-
+$ bin/pulsar proxy \
+  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 > You can run multiple instances of the Pulsar proxy in a cluster.

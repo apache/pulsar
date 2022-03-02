@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -105,10 +106,10 @@ public class SimpleLoadManagerImplTest {
         bkEnsemble.start();
 
         // Start broker 1
-        ServiceConfiguration config1 = spy(new ServiceConfiguration());
+        ServiceConfiguration config1 = spy(ServiceConfiguration.class);
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
-        config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config1.setBrokerShutdownTimeoutMs(0L);
         config1.setBrokerServicePort(Optional.of(0));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -127,7 +128,7 @@ public class SimpleLoadManagerImplTest {
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
-        config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setBrokerServicePort(Optional.of(0));
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -333,7 +334,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
-        SimpleLoadManagerImpl loadManager = spy(new SimpleLoadManagerImpl(pulsar1));
+        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgs(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
@@ -472,8 +473,6 @@ public class SimpleLoadManagerImplTest {
         double usageLimit = 10.0;
         usage.setBandwidthIn(new ResourceUsage(usageLimit, usageLimit));
         assertEquals(usage.getBandwidthIn().usage, usageLimit);
-        usage.reset();
-        assertNotEquals(usage.getBandwidthIn().usage, usageLimit);
     }
 
 }

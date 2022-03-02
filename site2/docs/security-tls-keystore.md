@@ -156,13 +156,12 @@ Optional settings that may worth consider:
     [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
 3. tlsProtocols=[TLSv1.3,TLSv1.2] (list out the TLS protocols that you are going to accept from clients).
     By default, it is not set.
-```
 ### Configuring Clients
 
-This is similar to [TLS encryption configuing for client with PEM type](security-tls-transport.md#Client configuration).
-For a a minimal configuration, user need to provide the TrustStore information.
+This is similar to [TLS encryption configuing for client with PEM type](security-tls-transport.md#client-configuration).
+For a minimal configuration, you need to provide the TrustStore information.
 
-e.g. 
+For example:
 1. for [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
     ```properties
@@ -189,14 +188,16 @@ e.g.
     ```
 
 1. for java admin client
-```java
-    PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl("https://broker.example.com:8443")
-                .useKeyStoreTls(true)
-                .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
-                .tlsTrustStorePassword("clientpw")
-                .allowTlsInsecureConnection(false)
-                .build();
-```
+    ```java
+        PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl("https://broker.example.com:8443")
+            .useKeyStoreTls(true)
+            .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
+            .tlsTrustStorePassword("clientpw")
+            .allowTlsInsecureConnection(false)
+            .build();
+    ```
+
+> **Note:** Please configure `tlsTrustStorePath` when you set `useKeyStoreTls` to `true`.
 
 ## TLS authentication with KeyStore configure
 
@@ -245,7 +246,7 @@ webSocketServiceEnabled=false
 
 Besides the TLS encryption configuring. The main work is configuring the KeyStore, which contains a valid CN as client role, for client.
 
-e.g. 
+For example:
 1. for [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
     ```properties
@@ -288,6 +289,8 @@ e.g.
                    "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
             .build();
     ```
+
+> **Note:** Please configure `tlsTrustStorePath` when you set `useKeyStoreTls` to `true`.
 
 ## Enabling TLS Logging
 

@@ -22,10 +22,13 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
@@ -34,6 +37,7 @@ import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -51,10 +55,10 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
-    private static final String LEDGERS_DEFAULT_ROOT_PATH = "/ledgers";
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
+    private List<BookieId> bookieAddressListLastTime = new ArrayList<>();
 
     private volatile BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private volatile Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
@@ -64,7 +68,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         super.setConf(conf);
         Object storeProperty = conf.getProperty(METADATA_STORE_INSTANCE);
         if (storeProperty == null) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " configuration was not set in the BK client configuration");
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " configuration was not set in the BK client "
+                    + "configuration");
         }
 
         if (!(storeProperty instanceof MetadataStore)) {
@@ -75,6 +80,20 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
         bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).join();
+        try {
+            for (Map<String, BookieInfo> bookieMapping : bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+                    .map(Map::values).orElse(Collections.emptyList())) {
+                for (String address : bookieMapping.keySet()) {
+                    bookieAddressListLastTime.add(BookieId.parse(address));
+                }
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
+                            bookieAddressListLastTime);
+                }
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
+        }
         store.registerListener(this::handleUpdates);
 
         // A previous version of this code tried to eagerly load the cache. However, this is invalid
@@ -158,7 +177,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
         }
 
-        if (bi != null) {
+        if (bi != null
+                && !StringUtils.isEmpty(bi.getRack())
+                && !bi.getRack().trim().equals("/")) {
             String rack = bi.getRack();
             if (!rack.startsWith("/")) {
                 rack = "/" + rack;
@@ -197,7 +218,14 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                                 bookieAddressList.add(BookieId.parse(addr));
                             }
                         }
-                        rackawarePolicy.onBookieRackChange(bookieAddressList);
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
+                                    bookieAddressList);
+                        }
+                        Set<BookieId> bookieIdSet = new HashSet<>(bookieAddressList);
+                        bookieIdSet.addAll(bookieAddressListLastTime);
+                        bookieAddressListLastTime = bookieAddressList;
+                        rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
                     });
         }
     }

@@ -141,9 +141,10 @@ public class ModularLoadManagerImplTest {
         // Start broker 1
         ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config1.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
-        config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
 
         config1.setAdvertisedAddress("localhost");
         config1.setBrokerShutdownTimeoutMs(0L);
@@ -160,9 +161,10 @@ public class ModularLoadManagerImplTest {
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config2.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
-        config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setAdvertisedAddress("localhost");
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setBrokerServicePort(Optional.of(0));
@@ -342,7 +344,7 @@ public class ModularLoadManagerImplTest {
         // 80% is below overload threshold: verify nothing is unloaded.
         verify(namespacesSpy1, Mockito.times(0)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
 
-        localBrokerData.getCpu().usage = 90;
+        localBrokerData.setCpu(new ResourceUsage(90, 100));
         primaryLoadManager.doLoadShedding();
         // Most expensive bundle will be unloaded.
         verify(namespacesSpy1, Mockito.times(1)).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
@@ -412,17 +414,13 @@ public class ModularLoadManagerImplTest {
         assert (!needUpdate.get());
 
         // Minimally test other absolute values to ensure they are included.
-        lastData.getCpu().usage = 100;
-        lastData.getCpu().limit = 1000;
-        currentData.getCpu().usage = 106;
-        currentData.getCpu().limit = 1000;
+        lastData.setCpu(new ResourceUsage(100, 1000));
+        currentData.setCpu(new ResourceUsage(106, 1000));
         assert (!needUpdate.get());
 
         // Minimally test other absolute values to ensure they are included.
-        lastData.getCpu().usage = 100;
-        lastData.getCpu().limit = 1000;
-        currentData.getCpu().usage = 206;
-        currentData.getCpu().limit = 1000;
+        lastData.setCpu(new ResourceUsage(100, 1000));
+        currentData.setCpu(new ResourceUsage(206, 1000));
         assert (needUpdate.get());
 
         lastData.setCpu(new ResourceUsage());
@@ -588,7 +586,7 @@ public class ModularLoadManagerImplTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         PulsarService pulsar = new PulsarService(config);

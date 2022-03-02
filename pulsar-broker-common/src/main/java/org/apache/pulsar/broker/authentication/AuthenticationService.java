@@ -28,15 +28,15 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Authentication service
+ * Authentication service.
  *
  */
 public class AuthenticationService implements Closeable {
@@ -85,10 +85,10 @@ public class AuthenticationService implements Closeable {
         }
     }
 
-    public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
+    public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData)
+            throws AuthenticationException {
         AuthenticationException authenticationException = null;
-        AuthenticationDataSource authData = new AuthenticationDataHttps(request);
-        String authMethodName = request.getHeader("X-Pulsar-Auth-Method-Name");
+        String authMethodName = request.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
 
         if (authMethodName != null) {
             AuthenticationProvider providerToUse = providers.get(authMethodName);
@@ -97,10 +97,16 @@ public class AuthenticationService implements Closeable {
                         String.format("Unsupported authentication method: [%s].", authMethodName));
             }
             try {
+                if (authData == null) {
+                    AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
+                    authData = authenticationState.getAuthDataSource();
+                }
+                // Backward compatible, the authData value was null in the previous implementation
                 return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + ": " + e.getMessage(), e);
+                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
+                            + e.getMessage(), e);
                 }
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = e;
@@ -109,10 +115,12 @@ public class AuthenticationService implements Closeable {
         } else {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
-                    return provider.authenticate(authData);
+                    AuthenticationState authenticationState = provider.newHttpAuthState(request);
+                    return provider.authenticate(authenticationState.getAuthDataSource());
                 } catch (AuthenticationException e) {
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": " + e.getMessage(), e);
+                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
+                                + e.getMessage(), e);
                     }
                     // Ignore the exception because we don't know which authentication method is expected here.
                 }
@@ -134,6 +142,15 @@ public class AuthenticationService implements Closeable {
             // No authentication required
             return "<none>";
         }
+    }
+
+    /**
+     * Mark this function as deprecated, it is recommended to use a method with the AuthenticationDataSource
+     * signature to implement it.
+     */
+    @Deprecated
+    public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
+        return authenticateHttpRequest(request, null);
     }
 
     public AuthenticationProvider getAuthenticationProvider(String authMethodName) {

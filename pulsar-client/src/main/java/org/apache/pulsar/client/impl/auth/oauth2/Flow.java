@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import java.io.Serializable;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
 /**
  * An OAuth 2.0 authorization flow.

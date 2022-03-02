@@ -23,10 +23,8 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BRO
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,7 +34,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;

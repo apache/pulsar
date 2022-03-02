@@ -735,6 +735,19 @@ public class Namespaces extends NamespacesBase {
         return internalGetSubscriptionDispatchRate();
     }
 
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Delete subscription dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void deleteSubscriptionDispatchRate(@PathParam("property") String property,
+                                               @PathParam("cluster") String cluster,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalDeleteSubscriptionDispatchRate();
+    }
+
     @POST
     @Path("/{tenant}/{cluster}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
@@ -991,7 +1004,8 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{property}/{cluster}/{namespace}/{bundle}/unsubscribe/{subscription}")
     @ApiOperation(hidden = true, value = "Unsubscribes the given subscription on all topics on a namespace bundle.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin or operate permission on the namespace"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public void unsubscribeNamespaceBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,

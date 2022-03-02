@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import com.google.common.collect.Lists;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -68,6 +69,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
+    private final Timeout timeout;
 
     @Override
     public void run(Timeout timeout) throws Exception {
@@ -100,6 +102,8 @@ public class TransactionImpl implements Transaction , TimerTask {
 
         this.sendFutureList = new ArrayList<>();
         this.ackFutureList = new ArrayList<>();
+        this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
+
     }
 
     // register the topics that will be modified by this transaction
@@ -161,6 +165,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public CompletableFuture<Void> commit() {
+        timeout.cancel();
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
@@ -189,6 +194,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public CompletableFuture<Void> abort() {
+        timeout.cancel();
         return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;

@@ -42,6 +42,16 @@ public class PublishRate {
         this.publishThrottlingRateInByte = dispatchThrottlingRateInByte;
     }
 
+    public static PublishRate normalize(PublishRate publishRate) {
+        if (publishRate != null
+            && (publishRate.publishThrottlingRateInMsg > 0
+            || publishRate.publishThrottlingRateInByte > 0)) {
+            return publishRate;
+        } else {
+            return null;
+        }
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(publishThrottlingRateInMsg, publishThrottlingRateInByte);

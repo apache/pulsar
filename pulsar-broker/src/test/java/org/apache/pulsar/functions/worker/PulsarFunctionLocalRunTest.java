@@ -74,6 +74,7 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -190,7 +191,7 @@ public class PulsarFunctionLocalRunTest {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
-        config = spy(new ServiceConfiguration());
+        config = spy(ServiceConfiguration.class);
         config.setClusterName(CLUSTER);
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
@@ -660,7 +661,7 @@ public class PulsarFunctionLocalRunTest {
             }
         }, 20, 150);
 
-        //change the schema ,the function should not run, resulting in no messages to consume
+        //change the schema, the function should not run, resulting in no messages to consume
         schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"false\",\"__alwaysAllowNull\":\"false\"}}");
         localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
@@ -1120,7 +1121,11 @@ public class PulsarFunctionLocalRunTest {
 
     private void runWithNarClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try (NarClassLoader classLoader = NarClassLoader.getFromArchive(getPulsarIODataGeneratorNar(), Collections.emptySet(), originalClassLoader, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR)) {
+        try (NarClassLoader classLoader = NarClassLoaderBuilder.builder()
+                .narFile(getPulsarIODataGeneratorNar())
+                .parentClassLoader(originalClassLoader)
+                .extractionDirectory(NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR)
+                .build()) {
             try {
                 Thread.currentThread().setContextClassLoader(classLoader);
                 throwingRunnable.run();

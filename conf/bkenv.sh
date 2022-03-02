@@ -18,6 +18,8 @@
 # under the License.
 #
 
+# NOTE: this script is intentionally not executable. It is only meant to be sourced for environment variables.
+
 # Set JAVA_HOME here to override the environment setting
 # JAVA_HOME=
 

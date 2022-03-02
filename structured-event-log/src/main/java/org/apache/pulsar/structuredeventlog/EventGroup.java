@@ -21,7 +21,7 @@ package org.apache.pulsar.structuredeventlog;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-@Retention(value=RetentionPolicy.RUNTIME)
+@Retention(value = RetentionPolicy.RUNTIME)
 public @interface EventGroup {
     String component();
 }

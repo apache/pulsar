@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -82,12 +83,13 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
-    private static final int TOPIC_PARTITION = 3;
-    private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
-    private static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
-    private static final int NUM_PARTITIONS = 16;
+    protected static final int TOPIC_PARTITION = 3;
+    protected static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
+    protected static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
+    protected static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }
@@ -97,16 +99,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void noBatchProduceCommitTest() throws Exception {
-        produceCommitTest(false);
+    @DataProvider(name = "enableBatch")
+    public Object[][] enableBatch() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @Test
-    public void batchProduceCommitTest() throws Exception {
-        produceCommitTest(true);
-    }
-
+    @Test(dataProvider="enableBatch")
     private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient
@@ -249,6 +247,63 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         log.info("finished test partitionAbortTest");
     }
 
+    @Test(dataProvider="enableBatch")
+    private void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
+
+        final int messageCount = 50;
+        final String subName = "testAckWithTransactionReduceUnAckMessageCount";
+        final String topicName = NAMESPACE1 + "/testAckWithTransactionReduceUnAckMessageCount-" + enableBatch;
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
+                .subscribe();
+        Awaitility.await().until(consumer::isConnected);
+
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topicName)
+                .enableBatching(enableBatch)
+                .batchingMaxMessages(10)
+                .create();
+
+        CountDownLatch countDownLatch = new CountDownLatch(messageCount);
+        for (int i = 0; i < messageCount; i++) {
+            producer.sendAsync((i + "").getBytes()).thenRun(countDownLatch::countDown);
+        }
+
+        countDownLatch.await();
+
+        Transaction txn = getTxn();
+
+        for (int i = 0; i < messageCount / 2; i++) {
+            Message<byte[]> message = consumer.receive();
+            consumer.acknowledgeAsync(message.getMessageId(), txn).get();
+        }
+
+        txn.commit().get();
+        boolean flag = false;
+        String topic = TopicName.get(topicName).toString();
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            CompletableFuture<Optional<Topic>> topicFuture = getPulsarServiceList().get(i)
+                    .getBrokerService().getTopic(topic, false);
+
+            if (topicFuture != null) {
+                Optional<Topic> topicOptional = topicFuture.get();
+                if (topicOptional.isPresent()) {
+                    PersistentSubscription persistentSubscription =
+                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+                    flag = true;
+                }
+            }
+        }
+        assertTrue(flag);
+    }
+
     @Test
     public void txnIndividualAckTestNoBatchAndSharedSub() throws Exception {
         txnAckTest(false, 1, SubscriptionType.Shared);
@@ -269,7 +324,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txnAckTest(true, 200, SubscriptionType.Failover);
     }
 
-    private void txnAckTest(boolean batchEnable, int maxBatchSize,
+    protected void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 

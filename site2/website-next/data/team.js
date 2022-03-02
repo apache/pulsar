@@ -46,6 +46,11 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'David Kjerrumgaard',
+      apacheId: 'david-streamlio',
+      roles: 'Committer'
+    },
+    {
       name: 'Enrico Olivelli',
       apacheId: 'eolivelli',
       roles: 'Committer, PMC'
@@ -63,6 +68,12 @@ module.exports = {
     {
       name: 'Guangning E',
       apacheId: 'guangning',
+      roles: 'Committer'
+    },
+    {
+      name: 'Guo Jiwei',
+      apacheId: 'technoboy',
+      org: 'StreamNative',
       roles: 'Committer'
     },
     {
@@ -155,6 +166,12 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Michael Marshall',
+      apacheId: 'mmarshall',
+      org: 'DataStax',
+      roles: 'Committer'
+    },
+    {
       name: 'Nozomi Kurihara',
       apacheId: 'nkurihar',
       org: 'Yahoo Japan Corporation',
@@ -234,7 +251,7 @@ module.exports = {
       name: 'Yu Liu',
       apacheId: 'liuyu',
       org: 'StreamNative',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Yuki Shiga',

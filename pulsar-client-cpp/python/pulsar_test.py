@@ -167,6 +167,15 @@ class PulsarTest(TestCase):
         self.assertEqual(msg_id, msg.message_id())
         client.close()
 
+    def test_producer_is_connected(self):
+        client = Client(self.serviceUrl)
+        topic = "test_producer_is_connected"
+        producer = client.create_producer(topic)
+        self.assertTrue(producer.is_connected())
+        producer.close()
+        self.assertFalse(producer.is_connected())
+        client.close()
+
     def test_producer_consumer(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe("my-python-topic-producer-consumer", "my-sub", consumer_type=ConsumerType.Shared)
@@ -467,6 +476,16 @@ class PulsarTest(TestCase):
         self.assertEqual(received_messages[2].data(), b"hello-3")
         client.close()
 
+    def test_consumer_is_connected(self):
+        client = Client(self.serviceUrl)
+        topic = "test_consumer_is_connected"
+        sub = "sub"
+        consumer = client.subscribe(topic, sub)
+        self.assertTrue(consumer.is_connected())
+        consumer.close()
+        self.assertFalse(consumer.is_connected())
+        client.close()
+
     def test_reader_simple(self):
         client = Client(self.serviceUrl)
         reader = client.create_reader("my-python-topic-reader-simple", MessageId.earliest)
@@ -564,6 +583,15 @@ class PulsarTest(TestCase):
 
         reader1.close()
         reader2.close()
+        client.close()
+
+    def test_reader_is_connected(self):
+        client = Client(self.serviceUrl)
+        topic = "test_reader_is_connected"
+        reader = client.create_reader(topic, MessageId.earliest)
+        self.assertTrue(reader.is_connected())
+        reader.close()
+        self.assertFalse(reader.is_connected())
         client.close()
 
     def test_producer_sequence_after_reconnection(self):

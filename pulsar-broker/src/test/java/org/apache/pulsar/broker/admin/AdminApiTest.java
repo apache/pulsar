@@ -142,7 +142,7 @@ import org.testng.annotations.Test;
 
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
@@ -533,7 +533,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // (2) try to update non-dynamic field
         try {
-            admin.brokers().updateDynamicConfiguration("zookeeperServers", "test-zk:1234");
+            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
@@ -736,6 +736,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.bundles = PoliciesUtil.defaultBundle();
         policies.auth_policies.getNamespaceAuthentication().put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.allOf(AuthAction.class));
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.getNamespaceAuthentication());
@@ -746,6 +747,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().revokePermissionsOnNamespace("prop-xyz/ns1", "my-role");
         policies.auth_policies.getNamespaceAuthentication().remove("spiffe://developer/passport-role");
         policies.auth_policies.getNamespaceAuthentication().remove("my-role");
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
 
         assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), null);
