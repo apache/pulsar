@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.WorkerConfig;
@@ -50,7 +51,7 @@ import org.apache.pulsar.client.api.Schema;
 @Slf4j
 public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
-    private ConcurrentHashMap<ByteBuffer, ByteBuffer> data;
+    private final Map<ByteBuffer, ByteBuffer> data = new ConcurrentHashMap<>();
     private PulsarClient client;
     private String topic;
     private Producer<byte[]> producer;
@@ -66,7 +67,6 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
     public void configure(WorkerConfig workerConfig) {
         this.topic = workerConfig.getString(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG);
         checkArgument(!isBlank(topic), "Offset storage topic must be specified");
-        this.data = new ConcurrentHashMap<>();
 
         log.info("Configure offset backing store on pulsar topic {}", topic);
     }
@@ -153,11 +153,11 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
             CompletableFuture<Void> endFuture = new CompletableFuture<>();
             readToEnd(endFuture);
-            endFuture.join();
+            endFuture.get();
         } catch (PulsarClientException e) {
             log.error("Failed to setup pulsar producer/reader to cluster", e);
             throw new RuntimeException("Failed to setup pulsar producer/reader to cluster ",  e);
-        } catch (Exception e) {
+        } catch (ExecutionException | InterruptedException e) {
             log.error("Failed to start PulsarOffsetBackingStore", e);
             throw new RuntimeException("Failed to start PulsarOffsetBackingStore",  e);
         }
@@ -187,6 +187,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             }
             reader = null;
         }
+        data.clear();
 
         // do not close the client, it is provided by the sink context
     }
