@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -443,15 +445,24 @@ public class MLTransactionMetadataStore
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return transactionLog.closeAsync().thenCompose(v -> {
-            txnMetaMap.clear();
-            this.timeoutTracker.close();
-            if (!this.changeToCloseState()) {
-                return FutureUtil.failedFuture(
-                        new IllegalStateException("Managed ledger transaction metadata store state to close error!"));
-            }
+        if (changeToClosingState()) {
+            // Disable new tasks from being submitted
+            internalPinnedExecutor.shutdown();
+            return transactionLog.closeAsync().thenCompose(v -> {
+                txnMetaMap.clear();
+                this.timeoutTracker.close();
+                if (!this.changeToCloseState()) {
+                    return FutureUtil.failedFuture(
+                            new IllegalStateException(
+                                    "Managed ledger transaction metadata store state to close error!"));
+                }
+                // Shutdown the ExecutorService
+                MoreExecutors.shutdownAndAwaitTermination(internalPinnedExecutor, Duration.ofSeconds(5L));
+                return CompletableFuture.completedFuture(null);
+            });
+        } else {
             return CompletableFuture.completedFuture(null);
-        });
+        }
     }
 
     @Override
