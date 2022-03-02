@@ -385,7 +385,7 @@ public class BrokersBase extends AdminResource {
                 // All system topics are using compaction, even though is not explicitly set in the policies.
                         !subscription.getName().equals(Compactor.COMPACTION_SUBSCRIPTION))
                 .map(Subscription::delete).collect(Collectors.toList()))
-                // we need to ignore exception when delete futures
+                // we need to ignore exception when delete subscriptions.
                 .exceptionally(ex -> null)
                 .thenCompose(__ -> {
                     // no matter we got error or not, we need to run deleteForce check.
@@ -409,7 +409,7 @@ public class BrokersBase extends AdminResource {
                         }
                     }).collect(Collectors.toList());
                     return FutureUtil.waitForAll(forceDeleteFutures)
-                            // we need to ignore exception when force delete futures
+                            // we need to ignore exception when force delete subscriptions
                             .exceptionally(exception -> null);
                 });
     }
