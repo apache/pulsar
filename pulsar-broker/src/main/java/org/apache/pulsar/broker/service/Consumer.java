@@ -187,7 +187,8 @@ public class Consumer {
 
         if (Subscription.isIndividualAckMode(subType)) {
             this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder()
-                    .autoShrink(ServerCnx.autoShrinkForConsumerPendingAcksMap)
+                    .autoShrink(subscription.getTopic().getBrokerService()
+                            .getPulsar().getConfiguration().isAutoShrinkForConsumerPendingAcksMap())
                     .expectedItems(256)
                     .concurrencyLevel(1)
                     .build();

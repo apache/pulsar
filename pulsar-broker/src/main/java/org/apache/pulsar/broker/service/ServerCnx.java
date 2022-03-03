@@ -205,7 +205,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private boolean autoReadDisabledPublishBufferLimiting = false;
     private final long maxPendingBytesPerThread;
     private final long resumeThresholdPendingBytesPerThread;
-    public static boolean autoShrinkForConsumerPendingAcksMap;
 
     // Number of bytes pending to be published from a single specific IO thread.
     private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
@@ -242,7 +241,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.listenerName = listenerName;
         this.state = State.Start;
         ServiceConfiguration conf = pulsar.getConfiguration();
-        autoShrinkForConsumerPendingAcksMap = conf.isAutoShrinkForConsumerPendingAcksMap();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
         this.producers = new ConcurrentLongHashMap<>(8, 1);
