@@ -393,6 +393,7 @@ public class MLTransactionMetadataStore
                                 txnMetaMap.remove(txnID.getLeastSigBits());
                                 completableFuture.complete(null);
                             });
+                            return;
                         }
                         completableFuture.complete(null);
                     } catch (InvalidTxnStatusException e) {
