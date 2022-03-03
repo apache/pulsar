@@ -243,8 +243,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ServiceConfiguration conf = pulsar.getConfiguration();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
-        this.producers = new ConcurrentLongHashMap<>(8, 1);
-        this.consumers = new ConcurrentLongHashMap<>(8, 1);
+        this.producers = ConcurrentLongHashMap.<CompletableFuture<Producer>>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
+        this.consumers = ConcurrentLongHashMap.<CompletableFuture<Consumer>>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
@@ -1273,6 +1279,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             if (!Strings.isNullOrEmpty(initialSubscriptionName)
                                     && topic.isPersistent()
                                     && !topic.getSubscriptions().containsKey(initialSubscriptionName)) {
+                                if (!this.getBrokerService().isAllowAutoSubscriptionCreation(topicName)) {
+                                    String msg =
+                                            "Could not create the initial subscription due to the auto subscription "
+                                                    + "creation is not allowed.";
+                                    if (producerFuture.completeExceptionally(
+                                            new BrokerServiceException.NotAllowedException(msg))) {
+                                        log.warn("[{}] {} initialSubscriptionName: {}, topic: {}",
+                                                remoteAddress, msg, initialSubscriptionName, topicName);
+                                        commandSender.sendErrorResponse(requestId,
+                                                ServerError.NotAllowedError, msg);
+                                    }
+                                    producers.remove(producerId, producerFuture);
+                                    return;
+                                }
                                 createInitSubFuture =
                                         topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
                                                 false);

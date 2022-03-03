@@ -38,6 +38,16 @@ public class SubscribeRate {
         this.ratePeriodInSecond = ratePeriodInSecond;
     }
 
+    public static SubscribeRate normalize(SubscribeRate subscribeRate) {
+        if (subscribeRate != null
+            && subscribeRate.subscribeThrottlingRatePerConsumer > 0
+            && subscribeRate.ratePeriodInSecond > 0) {
+            return subscribeRate;
+        } else {
+            return null;
+        }
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(subscribeThrottlingRatePerConsumer, ratePeriodInSecond);

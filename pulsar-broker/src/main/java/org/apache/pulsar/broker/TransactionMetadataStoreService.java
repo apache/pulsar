@@ -105,8 +105,9 @@ public class TransactionMetadataStoreService {
         this.tbClient = tbClient;
         this.timeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this, timer);
         this.transactionOpRetryTimer = timer;
-        this.tcLoadSemaphores = new ConcurrentLongHashMap<>();
-        this.pendingConnectRequests = new ConcurrentLongHashMap<>();
+        this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
+        this.pendingConnectRequests =
+                ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
         this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 
@@ -554,7 +555,17 @@ public class TransactionMetadataStoreService {
         return Collections.unmodifiableMap(stores);
     }
 
-    public void close () {
+    public synchronized void close () {
         this.internalPinnedExecutor.shutdown();
+        stores.forEach((tcId, metadataStore) -> {
+            metadataStore.closeAsync().whenComplete((v, ex) -> {
+                if (ex != null) {
+                    LOG.error("Close transaction metadata store with id " + tcId, ex);
+                } else {
+                    LOG.info("Removed and closed transaction meta store {}", tcId);
+                }
+            });
+        });
+        stores.clear();
     }
 }

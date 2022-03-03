@@ -82,29 +82,29 @@ public class FieldParserTest {
     public void testUpdateObject() {
         final ServiceConfiguration config = new ServiceConfiguration();
         final String nameSpace = "ns1,ns2";
-        final String zk = "localhost:2184";
+        final String zk = "zk:localhost:2184";
         final Map<String, String> properties = new HashMap<String, String>() {
             {
                 put("bootstrapNamespaces", nameSpace);
-                put("zookeeperServers", zk);
+                put("metadataStoreUrl", zk);
             }
         };
         update(properties, config);
-        assertEquals(config.getZookeeperServers(), zk);
+        assertEquals(config.getMetadataStoreUrl(), zk);
         assertEquals(config.getBootstrapNamespaces().get(1), "ns2");
     }
 
     static class ServiceConfiguration {
 
-        private String zookeeperServers;
+        private String metadataStoreUrl;
         private List<String> bootstrapNamespaces = new ArrayList<>();
 
-        public String getZookeeperServers() {
-            return zookeeperServers;
+        public String getMetadataStoreUrl() {
+            return metadataStoreUrl;
         }
 
-        public void setZookeeperServers(String zookeeperServers) {
-            this.zookeeperServers = zookeeperServers;
+        public void setMetadataStoreUrl(String metadataStoreUrl) {
+            this.metadataStoreUrl = metadataStoreUrl;
         }
 
         public List<String> getBootstrapNamespaces() {

@@ -217,4 +217,13 @@ public class ConsumerImplTest {
 
         Assert.assertTrue(consumer.paused);
     }
+
+    @Test
+    public void testMaxReceiverQueueSize() {
+        int size = consumer.getCurrentReceiverQueueSize();
+        int permits = consumer.getAvailablePermits();
+        consumer.setCurrentReceiverQueueSize(size + 100);
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), size + 100);
+        Assert.assertEquals(consumer.getAvailablePermits(), permits + 100);
+    }
 }

@@ -191,6 +191,37 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     }
 
     @Override
+    public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
+        final List<AuthenticationState> states = new ArrayList<>(providers.size());
+
+        AuthenticationException authenticationException = null;
+        try {
+            applyAuthProcessor(
+                    providers,
+                    provider -> {
+                        AuthenticationState state = provider.newHttpAuthState(request);
+                        states.add(state);
+                        return state;
+                    }
+            );
+        } catch (AuthenticationException ae) {
+            authenticationException = ae;
+        }
+        if (states.isEmpty()) {
+            log.debug("Failed to initialize a new http auth state from {}",
+                    request.getRemoteHost(), authenticationException);
+            if (authenticationException != null) {
+                throw authenticationException;
+            } else {
+                throw new AuthenticationException(
+                        "Failed to initialize a new http auth state from " + request.getRemoteHost());
+            }
+        } else {
+            return new AuthenticationListState(states);
+        }
+    }
+
+    @Override
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         Boolean authenticated = applyAuthProcessor(
             providers,

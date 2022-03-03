@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -190,5 +191,11 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                     subscription, consumerName)));
             return null;
         });
+    }
+
+    @Override
+    protected void setCurrentReceiverQueueSize(int newSize) {
+        //receiver queue size is fixed as 0.
+        throw new NotImplementedException("Receiver queue size can't be changed in ZeroQueueConsumerImpl");
     }
 }

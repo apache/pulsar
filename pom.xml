@@ -220,7 +220,6 @@ flexible messaging model and an intuitive client API.</description>
     <docker-java.version>3.2.8</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
-    <junit4.version>4.13.1</junit4.version>
     <mockito.version>3.12.4</mockito.version>
     <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
@@ -296,12 +295,6 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>hamcrest</artifactId>
         <version>${hamcrest.version}</version>
         <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>${junit4.version}</version>
       </dependency>
 
       <dependency>
@@ -1285,8 +1278,6 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>kotlin-stdlib-jdk8</artifactId>
         <version>${kotlin-stdlib.version}</version>
       </dependency>
-
-
     </dependencies>
   </dependencyManagement>
 
@@ -1418,7 +1409,7 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>${testJacocoAgentArgument} -Xmx1G -XX:+UseG1GC
+          <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:+UseG1GC
             -Dpulsar.allocator.pooled=true
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false

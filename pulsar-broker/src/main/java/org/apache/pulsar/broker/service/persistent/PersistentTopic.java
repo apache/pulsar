@@ -367,10 +367,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 && DispatchRateLimiter.isDispatchRateEnabled(topicPolicies.getDispatchRate().get())) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
-            boolean isDispatchRateNeeded = SubscribeRateLimiter.isDispatchRateNeeded(brokerService, policies, topic);
-            if (!subscribeRateLimiter.isPresent() && isDispatchRateNeeded) {
-                this.subscribeRateLimiter = Optional.of(new SubscribeRateLimiter(this));
-            } else if (!isDispatchRateNeeded) {
+
+            if (SubscribeRateLimiter.isSubscribeRateEnabled(getSubscribeRate())) {
+                this.subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
+            } else {
                 this.subscribeRateLimiter = Optional.empty();
             }
 
@@ -384,7 +384,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             // dispatch rate limiter for each replicator
             replicators.forEach((name, replicator) ->
-                replicator.initializeDispatchRateLimiterIfNeeded(policies));
+                replicator.initializeDispatchRateLimiterIfNeeded());
         }
     }
 
@@ -515,7 +515,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
         } else {
-
             // fence topic when failed to write a message to BK
             fence();
             // close all producers
@@ -1668,9 +1667,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             try {
                 ((PersistentReplicator) replicator).updateCursorState();
             } catch (Exception e) {
-                log.warn("[{}] Failed to update cursro state ", topic, e);
+                log.warn("[{}] Failed to update cursor state ", topic, e);
             }
-
 
             // Update replicator stats
             ReplicatorStatsImpl rStat = replicator.getStats();
@@ -2268,42 +2266,48 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
         TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
-        try {
-            PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
-                    .getNamespaceResources()
-                    .getPartitionedTopicResources();
-            if (topicName.isPartitioned() && !partitionedTopicResources.partitionedTopicExists(topicName)) {
-                return CompletableFuture.completedFuture(null);
-            }
-            CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
-            getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
-                    .thenAccept((metadata -> {
-                        // make sure all sub partitions were deleted
-                        for (int i = 0; i < metadata.partitions; i++) {
-                            if (brokerService.getPulsar().getPulsarResources().getTopicResources()
-                                    .persistentTopicExists(topicName.getPartition(i)).join()) {
-                                throw new UnsupportedOperationException();
-                            }
-                        }
-                    }))
-                    .thenAccept((res) -> partitionedTopicResources.deletePartitionedTopicAsync(topicName)
-                            .thenAccept((r) -> {
-                        deleteMetadataFuture.complete(null);
-                    }).exceptionally(ex -> {
-                        deleteMetadataFuture.completeExceptionally(ex.getCause());
-                        return null;
-                    }))
-                    .exceptionally((e) -> {
-                        if (!(e.getCause() instanceof UnsupportedOperationException)) {
-                            log.error("delete metadata fail", e);
-                        }
-                        deleteMetadataFuture.complete(null);
-                        return null;
-                    });
-            return deleteMetadataFuture;
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
+        PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources();
+        return partitionedTopicResources.partitionedTopicExistsAsync(topicName)
+                .thenCompose(partitionedTopicExist -> {
+                    if (!partitionedTopicExist) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return getBrokerService()
+                                .fetchPartitionedTopicMetadataAsync(topicName)
+                                .thenCompose((metadata -> {
+                                    List<CompletableFuture<Boolean>> persistentTopicExists =
+                                            new ArrayList<>(metadata.partitions);
+                                    for (int i = 0; i < metadata.partitions; i++) {
+                                        persistentTopicExists.add(brokerService.getPulsar()
+                                                .getPulsarResources().getTopicResources()
+                                                .persistentTopicExists(topicName.getPartition(i)));
+                                    }
+                                    List<CompletableFuture<Boolean>> unmodifiablePersistentTopicExists =
+                                            Collections.unmodifiableList(persistentTopicExists);
+                                    return FutureUtil.waitForAll(unmodifiablePersistentTopicExists)
+                                            .thenCompose(unused -> {
+                                                // make sure all sub partitions were deleted after all future complete
+                                                Optional<Boolean> anyExistPartition = unmodifiablePersistentTopicExists
+                                                        .stream()
+                                                        .map(CompletableFuture::join)
+                                                        .filter(topicExist -> topicExist)
+                                                        .findAny();
+                                                if (anyExistPartition.isPresent()) {
+                                                    log.error("[{}] Delete topic metadata failed because"
+                                                            + " another partition exist.", topicName);
+                                                    throw new UnsupportedOperationException(
+                                                            String.format("Another partition exists for [%s].",
+                                                                    topicName));
+                                                } else {
+                                                    return partitionedTopicResources
+                                                            .deletePartitionedTopicAsync(topicName);
+                                                }
+                                            });
+                                }));
+                    }
+                });
     }
 
     @Override
@@ -2430,7 +2434,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // update rate-limiter if policies updated
                 dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
                 if (this.subscribeRateLimiter.isPresent()) {
-                    subscribeRateLimiter.get().onPoliciesUpdate(data);
+                    subscribeRateLimiter.get().onSubscribeRateUpdate(getSubscribeRate());
                 }
 
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
@@ -3041,7 +3045,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
             if (this.subscribeRateLimiter.isPresent()) {
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
-                        subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
+                        subscribeRateLimiter.onSubscribeRateUpdate(getSubscribeRate()));
             }
             replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                     .ifPresent(DispatchRateLimiter::updateDispatchRate));

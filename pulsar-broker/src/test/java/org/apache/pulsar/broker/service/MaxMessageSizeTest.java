@@ -59,7 +59,7 @@ public class MaxMessageSizeTest {
             bkEnsemble.startStandalone(conf, false);
 
             configuration = new ServiceConfiguration();
-            configuration.setZookeeperServers("127.0.0.1:" + bkEnsemble.getZookeeperPort());
+            configuration.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             configuration.setAdvertisedAddress("localhost");
             configuration.setWebServicePort(Optional.of(0));
             configuration.setClusterName("max_message_test");

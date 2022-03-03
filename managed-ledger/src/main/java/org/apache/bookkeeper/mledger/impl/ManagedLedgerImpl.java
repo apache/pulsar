@@ -155,8 +155,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected Map<String, String> propertiesMap;
     protected final MetaStore store;
 
-    final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache = new ConcurrentLongHashMap<>(
-            16 /* initial capacity */, 1 /* number of sections */);
+    final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache =
+            ConcurrentLongHashMap.<CompletableFuture<ReadHandle>>newBuilder()
+                    .expectedItems(16) // initial capacity
+                    .concurrencyLevel(1) // number of sections
+                    .build();
     protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
     private volatile Stat ledgersStat;
 
@@ -3252,8 +3255,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     totalEntriesInCurrentLedger = 0;
                 }
             } else {
-                totalEntriesInCurrentLedger = ledgers.get(currentLedgerId).getEntries();
+                LedgerInfo ledgerInfo = ledgers.get(currentLedgerId);
+                totalEntriesInCurrentLedger = ledgerInfo != null ? ledgerInfo.getEntries() : 0;
             }
+
 
             long unreadEntriesInCurrentLedger = totalEntriesInCurrentLedger - currentEntryId;
 
