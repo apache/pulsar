@@ -636,7 +636,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds", name,
                     cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
-        } else if(exception instanceof ManagedLedgerException.NonRecoverableLedgerException){
+        } else if (exception instanceof ManagedLedgerException.NonRecoverableLedgerException) {
             log.error("[{}] Error reading entries at {} : {}, Read Type {} - No such entry, skip to next entry!", name,
                     cursor.getReadPosition(), exception.getMessage(), readType);
             Position nextPosition = cursor.getMarkDeletedPosition().getNext();
