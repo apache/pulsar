@@ -39,51 +39,73 @@ import javax.management.ObjectName;
 public class ThreadDumpUtil {
     private static final String INDENT = "    ";
 
+    public interface DiagnosticProcessor {
+        void processThreadStackTrace(Map.Entry<Thread, StackTraceElement[]> e);
+        void processThreadInfo(boolean firstThread, ThreadInfo ti);
+    }
+
+    public static String getStackTraceString(Map.Entry<Thread, StackTraceElement[]> e) {
+        StringBuilder dump = new StringBuilder();
+
+        Thread thread = e.getKey();
+        dump.append('\n');
+        dump.append(String.format("\"%s\" %s prio=%d tid=%d %s%njava.lang.Thread.State: %s", thread.getName(),
+                (thread.isDaemon() ? "daemon" : ""), thread.getPriority(), thread.getId(),
+                Thread.State.WAITING.equals(thread.getState()) ? "in Object.wait()" : thread.getState().name(),
+                Thread.State.WAITING.equals(thread.getState()) ? "WAITING (on object monitor)"
+                        : thread.getState()));
+        for (StackTraceElement stackTraceElement : e.getValue()) {
+            dump.append("\n        at ");
+            dump.append(stackTraceElement);
+        }
+        dump.append("\n");
+        return dump.toString();
+    }
     public static String buildThreadDiagnosticString() {
         StringWriter sw = new StringWriter();
         PrintWriter output = new PrintWriter(sw);
 
-        output.println(buildThreadDump());
+        DiagnosticProcessor processor = new DiagnosticProcessor() {
+            @Override
+            public void processThreadStackTrace(Map.Entry<Thread, StackTraceElement[]> e) {
+                output.println(getStackTraceString(e));
+            }
 
-        String deadlocksInfo = buildDeadlockInfo();
-        if (deadlocksInfo != null) {
-            output.println("====> DEADLOCKS DETECTED <====");
-            output.println();
-            output.println(deadlocksInfo);
+            @Override
+            public void processThreadInfo(boolean firstThread, ThreadInfo ti) {
+                if (firstThread) {
+                    output.println("====> DEADLOCKS DETECTED <====");
+                    output.println();
+                }
+                printThreadInfo(ti, output);
+                printLockInfo(ti.getLockedSynchronizers(), output);
+                output.println();
+            }
+        };
+
+        try {
+            output.println(callDiagnosticCommand("threadPrint", "-l"));
+        } catch (Exception ignore) {
+            // fallback to using JMX for creating the thread dump
+            output.println(String.format("Timestamp: %s",
+                    DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDateTime.now())));
+            getThreadDump(processor);
         }
-
+        getDeadlockInfo(processor);
         return sw.toString();
     }
 
-    static String buildThreadDump() {
-        try {
-            // first attempt to use jcmd to do the thread dump, similar output to jstack
-            return callDiagnosticCommand("threadPrint", "-l");
-        } catch (Exception ignore) {
-        }
+    public static void getThreadDiagnostic(DiagnosticProcessor processor) {
+        getThreadDump(processor);
+        getDeadlockInfo(processor);
+    }
 
-        // fallback to using JMX for creating the thread dump
-        StringBuilder dump = new StringBuilder();
-
-        dump.append(String.format("Timestamp: %s", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDateTime.now())));
-        dump.append("\n\n");
+    static void getThreadDump(DiagnosticProcessor processor) {
 
         Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
         for (Map.Entry<Thread, StackTraceElement[]> e : stackTraces.entrySet()) {
-            Thread thread = e.getKey();
-            dump.append('\n');
-            dump.append(String.format("\"%s\" %s prio=%d tid=%d %s%njava.lang.Thread.State: %s", thread.getName(),
-                    (thread.isDaemon() ? "daemon" : ""), thread.getPriority(), thread.getId(),
-                    Thread.State.WAITING.equals(thread.getState()) ? "in Object.wait()" : thread.getState().name(),
-                    Thread.State.WAITING.equals(thread.getState()) ? "WAITING (on object monitor)"
-                            : thread.getState()));
-            for (StackTraceElement stackTraceElement : e.getValue()) {
-                dump.append("\n        at ");
-                dump.append(stackTraceElement);
-            }
-            dump.append("\n");
+            processor.processThreadStackTrace(e);
         }
-        return dump.toString();
     }
 
     /**
@@ -100,28 +122,20 @@ public class ThreadDumpUtil {
                         operationName, new Object[]{args}, new String[]{String[].class.getName()});
     }
 
-    static String buildDeadlockInfo() {
+    static void getDeadlockInfo(DiagnosticProcessor processor) {
         ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
         long[] threadIds = threadBean.findMonitorDeadlockedThreads();
         if (threadIds != null && threadIds.length > 0) {
-            StringWriter stringWriter = new StringWriter();
-            PrintWriter out = new PrintWriter(stringWriter);
-
             ThreadInfo[] infos = threadBean.getThreadInfo(threadIds, true, true);
+            boolean firstThread = true;
             for (ThreadInfo ti : infos) {
-                printThreadInfo(ti, out);
-                printLockInfo(ti.getLockedSynchronizers(), out);
-                out.println();
+                processor.processThreadInfo(firstThread, ti);
+                firstThread = false;
             }
-
-            out.close();
-            return stringWriter.toString();
-        } else {
-            return null;
         }
     }
 
-    private static void printThreadInfo(ThreadInfo ti, PrintWriter out) {
+    public static void printThreadInfo(ThreadInfo ti, PrintWriter out) {
         // print thread information
         printThread(ti, out);
 
@@ -158,12 +172,11 @@ public class ThreadDumpUtil {
         }
     }
 
-    private static void printLockInfo(LockInfo[] locks, PrintWriter out) {
+    public static void printLockInfo(LockInfo[] locks, PrintWriter out) {
         out.println(INDENT + "Locked synchronizers: count = " + locks.length);
         for (LockInfo li : locks) {
             out.println(INDENT + "  - " + li);
         }
         out.println();
     }
-
 }
