@@ -113,7 +113,7 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
 
     @Override
     public void incrCounter(String key, long amount) {
-        incrCounterAsync(key, amount);
+        incrCounterAsync(key, amount).join();
     }
 
     @Override

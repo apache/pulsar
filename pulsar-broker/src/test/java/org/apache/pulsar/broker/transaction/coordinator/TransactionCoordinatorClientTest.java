@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -89,6 +90,21 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
         } catch (TransactionCoordinatorClientException ignore) {
            // Ok here
+        }
+    }
+
+    @Test
+    public void testTransactionCoordinatorExceptionUnwrap() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(new TransactionCoordinatorClientException
+                .InvalidTxnStatusException("test"));
+        try {
+            completableFuture.get();
+            Assert.fail();
+        } catch (InterruptedException | ExecutionException exception) {
+            Assert.assertTrue(exception instanceof ExecutionException);
+            Assert.assertTrue(TransactionCoordinatorClientException.unwrap(exception)
+                    instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
         }
     }
 }
