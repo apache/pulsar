@@ -30,6 +30,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -52,6 +53,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -292,6 +294,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     @VisibleForTesting
     Map<String, byte[]> createdLedgerCustomMetadata;
+
+    final ConcurrentHashMap<Long, ListenableFuture<?>> executorOffloadTasks = new ConcurrentHashMap<>();
+    final ConcurrentHashMap<Long, ScheduledFuture<?>> schedulerOffloadTasks = new ConcurrentHashMap<>();
+    static final AtomicLongFieldUpdater<ManagedLedgerImpl> OFFLOAD_ID_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(ManagedLedgerImpl.class, "offloadId");
+    private volatile long offloadId = 0;
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
@@ -2311,18 +2319,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader().getOffloadPolicies() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
-            executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
+            long id = OFFLOAD_ID_UPDATER.incrementAndGet(this);
+            executorOffloadTasks.put(id, executor.submitOrdered(name.hashCode(), () -> {
+                maybeOffload(id, promise);
+                return promise;
+            }));
         }
     }
 
-    private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
+    private void maybeOffload(long id, CompletableFuture<PositionImpl> finalPromise) {
         if (!offloadMutex.tryLock()) {
-            scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
-                                       100, TimeUnit.MILLISECONDS);
+            schedulerOffloadTasks.put(id, scheduledExecutor.schedule(safeRun(() -> maybeOffload(id, finalPromise)),
+                                       100, TimeUnit.MILLISECONDS));
         } else {
             CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
             unlockingPromise.whenComplete((res, ex) -> {
                     offloadMutex.unlock();
+                    schedulerOffloadTasks.remove(id);
+                    executorOffloadTasks.remove(id);
                     if (ex != null) {
                         finalPromise.completeExceptionally(ex);
                     } else {
@@ -2363,13 +2377,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     + ", total size = {}, already offloaded = {}, to offload = {}",
                             name, toOffload.stream().map(LedgerInfo::getLedgerId).collect(Collectors.toList()),
                             sizeSummed, alreadyOffloadedSize, toOffloadSize);
+                    offloadLoop(unlockingPromise, toOffload, PositionImpl.LATEST, Optional.empty());
                 } else {
                     // offloadLoop will complete immediately with an empty list to offload
                     log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
                             name, sizeSummed, alreadyOffloadedSize, threshold);
                 }
-
-                offloadLoop(unlockingPromise, toOffload, PositionImpl.LATEST, Optional.empty());
             }
         }
     }
@@ -4092,6 +4105,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (this.checkLedgerRollTask != null) {
             this.checkLedgerRollTask.cancel(false);
         }
+        this.executorOffloadTasks.values().forEach(v -> v.cancel(true));
+        this.schedulerOffloadTasks.values().forEach(v -> v.cancel(true));
+        this.executorOffloadTasks.clear();
+        this.schedulerOffloadTasks.clear();
     }
 
     @Override

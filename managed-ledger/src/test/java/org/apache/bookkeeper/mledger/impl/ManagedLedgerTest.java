@@ -38,6 +38,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -54,7 +55,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -121,6 +124,7 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -3423,6 +3427,22 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger2.delete();
         assertTrue(timeoutTask2.isCancelled());
         assertTrue(checkLedgerRollTask2.isCancelled());
+
+        ManagedLedgerImpl ledger3 = (ManagedLedgerImpl) factory.open("my_test_ledger_3");
+        Field fieldExecutorOffloadTasks = ManagedLedgerImpl.class.getDeclaredField("executorOffloadTasks");
+        fieldExecutorOffloadTasks.setAccessible(true);
+        ConcurrentHashMap<Long, ListenableFuture<?>> executorOffloadTasks
+                = (ConcurrentHashMap<Long, ListenableFuture<?>>) fieldExecutorOffloadTasks.get(ledger3);
+
+        Field fieldSchedulerOffloadTasks = ManagedLedgerImpl.class.getDeclaredField("schedulerOffloadTasks");
+        fieldSchedulerOffloadTasks.setAccessible(true);
+        ConcurrentHashMap<Long, ScheduledFuture<?>> schedulerOffloadTasks
+                = (ConcurrentHashMap<Long, ScheduledFuture<?>>) fieldSchedulerOffloadTasks.get(ledger3);
+        schedulerOffloadTasks.put(1L, mock(ScheduledFuture.class));
+        executorOffloadTasks.put(1L, mock(ListenableFuture.class));
+        ledger3.close();
+        assertTrue(executorOffloadTasks.isEmpty());
+        assertTrue(schedulerOffloadTasks.isEmpty());
     }
 
     @Test
@@ -3447,6 +3467,53 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledgers.size(), totalAddEntries);
         ledger.close();
         factory.shutdown();
+    }
+
+    @Test
+    public void testOffloadTaskCancelled() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
+        offloadPolicies.setManagedLedgerOffloadDriver("mock");
+        offloadPolicies.setManagedLedgerOffloadThresholdInBytes(0L);
+        LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
+        Mockito.when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
+        Mockito.when(ledgerOffloader.getOffloadDriverName()).thenReturn(offloadPolicies.getManagedLedgerOffloadDriver());
+        config.setLedgerOffloader(ledgerOffloader);
+
+        CompletableFuture<ReadHandle> readHandle = new CompletableFuture<>();
+        readHandle.complete(mock(ReadHandle.class));
+
+        CompletableFuture<Void> offloadFuture = new CompletableFuture<>();
+        offloadFuture.complete(null);
+        Mockito.when(ledgerOffloader.offload(any(ReadHandle.class), any(UUID.class), any(Map.class))).thenReturn(offloadFuture);
+
+        final ManagedLedgerImpl ledgerInit = (ManagedLedgerImpl) factory.open("test-offload-task-close", config);
+        final ManagedLedgerImpl ledger = spy(ledgerInit);
+        long ledgerId = 3L;
+        doReturn(readHandle).when(ledger).getLedgerHandle(ledgerId);
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-3".getBytes(Encoding));
+
+        Field fieldExecutorOffloadTasks = ManagedLedgerImpl.class.getDeclaredField("executorOffloadTasks");
+        fieldExecutorOffloadTasks.setAccessible(true);
+        ConcurrentHashMap<Long, ListenableFuture<?>> executorOffloadTasks
+                = (ConcurrentHashMap<Long, ListenableFuture<?>>) fieldExecutorOffloadTasks.get(ledger);
+
+        Field fieldSchedulerOffloadTasks = ManagedLedgerImpl.class.getDeclaredField("schedulerOffloadTasks");
+        fieldSchedulerOffloadTasks.setAccessible(true);
+        ConcurrentHashMap<Long, ScheduledFuture<?>> schedulerOffloadTasks
+                = (ConcurrentHashMap<Long, ScheduledFuture<?>>) fieldSchedulerOffloadTasks.get(ledger);
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<LedgerInfo> ledgerInfo = ledger.getLedgerInfo(ledgerId);
+            Assert.assertTrue(ledgerInfo.get(100, TimeUnit.MILLISECONDS).getOffloadContext().getComplete());
+            Assert.assertTrue(executorOffloadTasks.isEmpty());
+            Assert.assertTrue(schedulerOffloadTasks.isEmpty());
+        });
     }
 
 }
