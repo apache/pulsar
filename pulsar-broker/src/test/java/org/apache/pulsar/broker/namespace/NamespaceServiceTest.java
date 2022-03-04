@@ -579,7 +579,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             consumers[i].close();
         }
 
-        admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.LARGEST.toString(), false, null, null);
+        admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.LARGEST.toString(), false, null);
 
         for (NamespaceBundle bundle : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
             assertNotEquals(bundle.getBundleRange(), maxBundle);
@@ -640,7 +640,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             consumers[i].close();
         }
 
-        admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.HOT.toString(), false, null, null);
+        admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.HOT.toString(), false, null);
 
         for (NamespaceBundle b : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
             assertNotEquals(b.getBundleRange(), hotBundle);

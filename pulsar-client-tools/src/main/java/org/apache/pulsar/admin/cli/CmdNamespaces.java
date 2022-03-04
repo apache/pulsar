@@ -915,10 +915,10 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = { "--topic-list",  "-tl" },
-                description = "The list of topics(both non-partitioned topic and partitioned topic) "
-                        + "to get positions in this bundle",
+                description = "The list of topics(both non-partitioned topic and partitioned topic) to get positions "
+                        + "in this bundle, if none topic provided, will get the positions of all topics in this bundle",
                 required = false)
-        private List<String> topicList;
+        private List<String> topics;
 
         @Override
         void run() throws PulsarAdminException {
@@ -926,10 +926,10 @@ public class CmdNamespaces extends CmdBase {
             if (StringUtils.isBlank(bundle)) {
                 throw new ParameterException("Must pass one of the params: --bundle ");
             }
-            if (topicList == null || topicList.size() == 0) {
+            if (topics == null || topics.size() == 0) {
                 throw new ParameterException("Must pass one of the params: --topic-list ");
             }
-            print(getAdmin().namespaces().getTopicHashPositions(namespace, bundle, topicList));
+            print(getAdmin().namespaces().getTopicHashPositions(namespace, bundle, topics));
         }
     }
 

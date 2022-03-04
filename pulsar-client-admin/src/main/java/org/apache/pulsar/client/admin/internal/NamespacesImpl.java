@@ -56,6 +56,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.util.Codec;
 
 public class NamespacesImpl extends BaseResource implements Namespaces {
 
@@ -1107,6 +1108,18 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
+                                     String splitAlgorithmName) throws PulsarAdminException {
+        splitNamespaceBundle(namespace, bundle, unloadSplitBundles, splitAlgorithmName, null);
+    }
+
+    @Override
+    public CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle,
+                                                             boolean unloadSplitBundles, String splitAlgorithmName) {
+        return splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName, null);
+    }
+
+    @Override
+    public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
             String splitAlgorithmName, List<Long> splitBoundaries)
             throws PulsarAdminException {
         sync(() ->
@@ -1128,17 +1141,19 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public TopicHashPositions getTopicHashPositions(String namespace, String bundle, List<String> topicList)
+    public TopicHashPositions getTopicHashPositions(String namespace, String bundle, List<String> topics)
             throws PulsarAdminException {
-        return sync(() -> getTopicHashPositionsAsync(namespace, bundle, topicList));
+        return sync(() -> getTopicHashPositionsAsync(namespace, bundle, topics));
     }
 
     @Override
     public CompletableFuture<TopicHashPositions>
-    getTopicHashPositionsAsync(String namespace, String bundle, List<String> topicList) {
+    getTopicHashPositionsAsync(String namespace, String bundle, List<String> topics) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path =
-                namespacePath(ns, bundle, "topicHashPositions").queryParam("topicList", topicList.toArray());
+        WebTarget path = namespacePath(ns, bundle, "topicHashPositions");
+        if (topics != null && topics.size() > 0) {
+            path = path.queryParam("topics", topics.stream().map(Codec::encode).toArray());
+        }
         final CompletableFuture<TopicHashPositions> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TopicHashPositions>() {

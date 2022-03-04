@@ -77,7 +77,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
                 .bookkeeperAffinityGroupPrimary("test")
                 .build();
         admin.namespaces().setBookieAffinityGroup(namespaceName, bookieAffinityGroup);
-        admin.namespaces().splitNamespaceBundle(namespaceName, bundle, false, null, null);
+        admin.namespaces().splitNamespaceBundle(namespaceName, bundle, false, null);
         assertNotNull(admin.namespaces().getBookieAffinityGroup(namespaceName));
         producer.close();
     }

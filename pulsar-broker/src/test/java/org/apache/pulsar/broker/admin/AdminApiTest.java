@@ -1386,7 +1386,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null, null);
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1424,7 +1424,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
-                    NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE, null);
+                    NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1501,7 +1501,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // test non-exist topic
         topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
                 bundleRange, Collections.singletonList(topic + "no-exist"));
-        assertNull(topicHashPositions);
+        assertEquals(topicHashPositions.getTopicHashPositions().size(), 0);
+
+        // test topics is null
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, null);
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // test topics is empty
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, new ArrayList<>());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
     }
 
 
@@ -1599,7 +1623,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/ns1";
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
-                    "invalid_test", null);
+                    "invalid_test");
             fail("unsupported namespace bundle split algorithm");
         } catch (PulsarAdminException ignored) {
         }
@@ -1628,7 +1652,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertTrue(admin.topics().getList(namespace).containsAll(topicNames));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null, null);
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1659,7 +1683,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList(namespace), Lists.newArrayList(topicName));
 
         try {
-            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null, null);
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
@@ -1677,11 +1701,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             List<Future<Void>> futures = executorService.invokeAll(Arrays.asList(() -> {
                 log.info("split 2 bundles at the same time. spilt: 0x00000000_0x7fffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false, null, null);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 2 bundles at the same time. spilt: 0x7fffffff_0xffffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false, null, null);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false, null);
                 return null;
             }));
 
@@ -1704,19 +1728,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             List<Future<Void>> futures = executorService.invokeAll(Arrays.asList(() -> {
                 log.info("split 4 bundles at the same time. spilt: 0x00000000_0x3fffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false, null, null);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 4 bundles at the same time. spilt: 0x3fffffff_0x7fffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x3fffffff_0x7fffffff", false, null, null);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x3fffffff_0x7fffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 4 bundles at the same time. spilt: 0x7fffffff_0xbfffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xbfffffff", false, null, null);
+                admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xbfffffff", false, null);
                 return null;
             }, () -> {
                 log.info("split 4 bundles at the same time. spilt: 0xbfffffff_0xffffffff ");
-                admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false, null, null);
+                admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false, null);
                 return null;
             }));
 

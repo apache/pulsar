@@ -2062,6 +2062,29 @@ public interface Namespaces {
      * @param bundle range of bundle to split
      * @param unloadSplitBundles
      * @param splitAlgorithmName
+     * @throws PulsarAdminException
+     */
+    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName)
+            throws PulsarAdminException;
+
+    /**
+     * Split namespace bundle asynchronously.
+     *
+     * @param namespace
+     * @param bundle range of bundle to split
+     * @param unloadSplitBundles
+     * @param splitAlgorithmName
+     */
+    CompletableFuture<Void> splitNamespaceBundleAsync(
+            String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName);
+
+    /**
+     * Split namespace bundle.
+     *
+     * @param namespace
+     * @param bundle range of bundle to split
+     * @param unloadSplitBundles
+     * @param splitAlgorithmName
      * @param splitBoundaries
      * @throws PulsarAdminException
      */
@@ -2085,24 +2108,24 @@ public interface Namespaces {
      *
      * @param namespace
      * @param bundle range of bundle
-     * @param topicList
+     * @param topics
      * @return hash positions for all topics in topicList
      * @throws PulsarAdminException
      */
     TopicHashPositions getTopicHashPositions(String namespace,
-                                             String bundle, List<String> topicList) throws PulsarAdminException;
+                                             String bundle, List<String> topics) throws PulsarAdminException;
 
     /**
      * Get positions for topic list in a bundle.
      *
      * @param namespace
      * @param bundle range of bundle
-     * @param topicList
+     * @param topics
      * @return hash positions for all topics in topicList
      * @throws PulsarAdminException
      */
     CompletableFuture<TopicHashPositions> getTopicHashPositionsAsync(String namespace,
-                                                                     String bundle, List<String> topicList);
+                                                                     String bundle, List<String> topics);
 
     /**
      * Set message-publish-rate (topics under this namespace can publish this many messages per second).

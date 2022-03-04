@@ -69,7 +69,6 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
-import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -590,13 +589,14 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
-    public TopicHashPositions getTopicHashPositions(
+    public void getTopicHashPositions(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
-            @QueryParam("topicList") List<String> topicList) {
+            @QueryParam("topics") List<String> topics,
+            @Suspended AsyncResponse asyncResponse) {
             validateNamespaceName(tenant, namespace);
-            return internalGetTopicHashPositions(bundleRange, topicList);
+            internalGetTopicHashPositions(asyncResponse, bundleRange, topics);
     }
 
     @POST

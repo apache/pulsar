@@ -35,7 +35,7 @@ public class SpecifiedPositionsBundleSplitAlgorithm implements NamespaceBundleSp
         NamespaceBundle bundle = bundleSplitOption.getBundle();
         List<Long> positions = bundleSplitOption.getPositions();
         if (positions == null || positions.size() == 0) {
-            return CompletableFuture.completedFuture(null);
+            throw new IllegalArgumentException("SplitBoundaries can't be empty");
         }
         // sort all positions
         Collections.sort(positions);
