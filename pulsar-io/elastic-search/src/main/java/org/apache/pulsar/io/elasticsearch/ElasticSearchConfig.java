@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -50,7 +49,11 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The index name that the connector writes messages to, the default is the topic name"
+        help = "The index name to which the connector writes messages. The default value is the topic name."
+                + " It accepts date formats in the name to support event time based index with"
+                + " the pattern %{+<date-format>}. For example, suppose the event time of the record"
+                + " is 1645182000000L, the indexName is \"logs-%{+yyyy-MM-dd}\", then the formatted"
+                + " index name would be \"logs-2022-02-18\"."
     )
     private String indexName;
 
@@ -273,9 +276,8 @@ public class ElasticSearchConfig implements Serializable {
 
         if (StringUtils.isNotEmpty(indexName) && createIndexIfNeeded) {
             // see https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
-            if (!indexName.toLowerCase(Locale.ROOT).equals(indexName)) {
-                throw new IllegalArgumentException("indexName should be lowercase only.");
-            }
+            // date format may contain upper cases, so we need to valid against parsed index name
+            IndexNameFormatter.validate(indexName);
             if (indexName.startsWith("-") || indexName.startsWith("_") || indexName.startsWith("+")) {
                 throw new IllegalArgumentException("indexName start with an invalid character.");
             }

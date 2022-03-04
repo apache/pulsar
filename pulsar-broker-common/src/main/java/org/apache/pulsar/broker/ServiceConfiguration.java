@@ -599,6 +599,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> subscriptionTypesEnabled =
             Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
@@ -1176,7 +1177,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         + " With \"shutdown\", the broker will be restarted.\n\n"
         + " With \"reconnect\", the broker will keep serving the topics, while attempting to recreate a new session."
     )
-    private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.shutdown;
+    private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.reconnect;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1646,6 +1647,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
         )
+    @ToString.Exclude
     private String managedLedgerPassword = "";
 
     @FieldContext(
@@ -2486,6 +2488,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore password for broker"
     )
+    @ToString.Exclude
     private String tlsKeyStorePassword = null;
 
     @FieldContext(
@@ -2504,6 +2507,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore password for broker, null means empty password."
     )
+    @ToString.Exclude
     private String tlsTrustStorePassword = null;
 
     /**** --- KeyStore TLS config variables used for internal client/admin to auth with other broker. --- ****/
@@ -2535,6 +2539,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "TLS TrustStore password for internal client, "
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
+    @ToString.Exclude
     private String brokerClientTlsTrustStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,

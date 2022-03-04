@@ -224,7 +224,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // The last active time (Unix time, milliseconds) of the cursor
     private long lastActive;
 
-    enum State {
+    public enum State {
         Uninitialized, // Cursor is being initialized
         NoLedger, // There is no metadata ledger open for writing
         Open, // Metadata ledger is ready
@@ -1134,7 +1134,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void asyncResetCursor(Position newPos, AsyncCallbacks.ResetCursorCallback callback) {
+    public void asyncResetCursor(Position newPos, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback) {
         checkArgument(newPos instanceof PositionImpl);
         final PositionImpl newPosition = (PositionImpl) newPos;
 
@@ -1144,7 +1144,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (!ledger.isValidPosition(actualPosition)
                     && !actualPosition.equals(PositionImpl.EARLIEST)
-                    && !actualPosition.equals(PositionImpl.LATEST)) {
+                    && !actualPosition.equals(PositionImpl.LATEST)
+                    && !forceReset) {
                 actualPosition = ledger.getNextValidPosition(actualPosition);
 
                 if (actualPosition == null) {
@@ -1167,7 +1168,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         final Result result = new Result();
         final CountDownLatch counter = new CountDownLatch(1);
 
-        asyncResetCursor(newPos, new AsyncCallbacks.ResetCursorCallback() {
+        asyncResetCursor(newPos, false, new AsyncCallbacks.ResetCursorCallback() {
             @Override
             public void resetComplete(Object ctx) {
                 counter.countDown();
@@ -3094,6 +3095,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private boolean isCompactionCursor() {
         return COMPACTION_CURSOR_NAME.equals(name);
+    }
+
+    @VisibleForTesting
+    public void setState(State state) {
+        this.state = state;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

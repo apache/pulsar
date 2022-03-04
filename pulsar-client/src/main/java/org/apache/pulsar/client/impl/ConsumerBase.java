@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.collect.Queues;
 import io.netty.util.Timeout;
 import java.nio.charset.StandardCharsets;
@@ -34,11 +35,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -53,6 +58,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -74,7 +80,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
-    protected int maxReceiverQueueSize;
+    protected final int maxReceiverQueueSize;
+    private volatile int currentReceiverQueueSize;
+    protected static final AtomicIntegerFieldUpdater<ConsumerBase> CURRENT_RECEIVER_QUEUE_SIZE_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "currentReceiverQueueSize");
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
     protected final BatchReceivePolicy batchReceivePolicy;
@@ -85,6 +94,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
     private volatile boolean isListenerHandlingMessage = false;
+
+    protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
+            AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
+
+    @Setter
+    @Getter
+    protected volatile long consumerEpoch;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
@@ -108,6 +124,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
+        CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, receiverQueueSize);
         if (conf.getBatchReceivePolicy() != null) {
             BatchReceivePolicy userBatchReceivePolicy = conf.getBatchReceivePolicy();
             if (userBatchReceivePolicy.getMaxNumMessages() > this.maxReceiverQueueSize) {
@@ -174,7 +191,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
-        if (conf.getReceiverQueueSize() == 0) {
+        if (getCurrentReceiverQueueSize() == 0) {
             throw new PulsarClientException.InvalidConfigurationException(
                     "Can't use receive with timeout, if the queue size is 0");
         }
@@ -710,10 +727,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 + '}';
     }
 
-    protected void setMaxReceiverQueueSize(int newSize) {
-        this.maxReceiverQueueSize = newSize;
-    }
-
     protected Message<T> beforeConsume(Message<T> message) {
         if (interceptors != null) {
             return interceptors.beforeConsume(this, message);
@@ -800,7 +813,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             throw new PulsarClientException.InvalidConfigurationException(
                 "Cannot use receive() when a listener has been set");
         }
-        if (conf.getReceiverQueueSize() == 0) {
+        if (getCurrentReceiverQueueSize() == 0) {
             throw new PulsarClientException.InvalidConfigurationException(
                 "Can't use batch receive, if the queue size is 0");
         }
@@ -1034,6 +1047,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         resetIncomingMessageSize();
     }
 
+    /**
+     * Update the size of the consumer receive queue.
+     * See {@link ConsumerBuilder#receiverQueueSize(int)}.
+     * @param newSize new size of the receiver queue.
+     */
+    protected abstract void setCurrentReceiverQueueSize(int newSize);
+
+    public int getCurrentReceiverQueueSize() {
+        return CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.get(this);
+    }
+
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
 
     private ExecutorService getExternalExecutor(Message<T> msg) {
@@ -1052,6 +1076,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 ? receivedConsumer.internalPinnedExecutor
                 : internalPinnedExecutor;
         return executor;
+    }
+
+    // If message consumer epoch is smaller than consumer epoch present that
+    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
+    // so we should release this message and receive again
+    protected boolean isValidConsumerEpoch(MessageImpl<T> message) {
+        if ((getSubType() == CommandSubscribe.SubType.Failover
+                || getSubType() == CommandSubscribe.SubType.Exclusive)
+                && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
+                && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
+            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], consumerEpoch : [{}]",
+                    topic, message.getMessageId(), consumerEpoch);
+            message.release();
+            message.recycle();
+            return false;
+        }
+        return true;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);

@@ -43,7 +43,8 @@ public class ResourceConfigUtils {
         }
         if (newResources.getCpu() != null) {
             mergedResources.setCpu(newResources.getCpu());
-        }if (newResources.getRam() != null) {
+        }
+        if (newResources.getRam() != null) {
             mergedResources.setRam(newResources.getRam());
         }
         if (newResources.getDisk() != null) {

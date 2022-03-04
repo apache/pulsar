@@ -37,45 +37,126 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Sinks<W extends WorkerService> extends Component<W> {
 
-    void registerSink(final String tenant,
-                      final String namespace,
-                      final String sinkName,
-                      final InputStream uploadedInputStream,
-                      final FormDataContentDisposition fileDetail,
-                      final String sinkPkgUrl,
-                      final SinkConfig sinkConfig,
-                      final String clientRole,
-                      AuthenticationDataHttps clientAuthenticationDataHttps);
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Sink
+     * @param namespace The namespace of a Pulsar Sink
+     * @param sinkName The name of a Pulsar Sink
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sinkPkgUrl URL path of the Pulsar Sink package
+     * @param sinkConfig Configuration of Pulsar Sink
+     * @param clientRole Client role for running the Pulsar Sink
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     */
+    void registerSink(String tenant,
+                      String namespace,
+                      String sinkName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sinkPkgUrl,
+                      SinkConfig sinkConfig,
+                      String clientRole,
+                      AuthenticationDataSource clientAuthenticationDataHttps);
 
-    void updateSink(final String tenant,
-                    final String namespace,
-                    final String sinkName,
-                    final InputStream uploadedInputStream,
-                    final FormDataContentDisposition fileDetail,
-                    final String sinkPkgUrl,
-                    final SinkConfig sinkConfig,
-                    final String clientRole,
-                    AuthenticationDataHttps clientAuthenticationDataHttps,
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
+    @Deprecated
+    default void registerSink(String tenant,
+                      String namespace,
+                      String sinkName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sinkPkgUrl,
+                      SinkConfig sinkConfig,
+                      String clientRole,
+                      AuthenticationDataHttps clientAuthenticationDataHttps) {
+        registerSink(
+                tenant,
+                namespace,
+                sinkName,
+                uploadedInputStream,
+                fileDetail,
+                sinkPkgUrl,
+                sinkConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
+
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Sink
+     * @param namespace The namespace of a Pulsar Sink
+     * @param sinkName The name of a Pulsar Sink
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sinkPkgUrl URL path of the Pulsar Sink package
+     * @param sinkConfig Configuration of Pulsar Sink
+     * @param clientRole Client role for running the Pulsar Sink
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param updateOptions Options while updating the sink
+     */
+    void updateSink(String tenant,
+                    String namespace,
+                    String sinkName,
+                    InputStream uploadedInputStream,
+                    FormDataContentDisposition fileDetail,
+                    String sinkPkgUrl,
+                    SinkConfig sinkConfig,
+                    String clientRole,
+                    AuthenticationDataSource clientAuthenticationDataHttps,
                     UpdateOptionsImpl updateOptions);
 
-    SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
-                                                 final String namespace,
-                                                 final String sinkName,
-                                                 final String instanceId,
-                                                 final URI uri,
-                                                 final String clientRole,
-                                                 final AuthenticationDataSource clientAuthenticationDataHttps);
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
+    @Deprecated
+    default void updateSink(String tenant,
+                    String namespace,
+                    String sinkName,
+                    InputStream uploadedInputStream,
+                    FormDataContentDisposition fileDetail,
+                    String sinkPkgUrl,
+                    SinkConfig sinkConfig,
+                    String clientRole,
+                    AuthenticationDataHttps clientAuthenticationDataHttps,
+                    UpdateOptionsImpl updateOptions) {
+        updateSink(
+                tenant,
+                namespace,
+                sinkName,
+                uploadedInputStream,
+                fileDetail,
+                sinkPkgUrl,
+                sinkConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps,
+                updateOptions);
+    }
 
-    SinkStatus getSinkStatus(final String tenant,
-                             final String namespace,
-                             final String componentName,
-                             final URI uri,
-                             final String clientRole,
-                             final AuthenticationDataSource clientAuthenticationDataHttps);
+    SinkInstanceStatusData getSinkInstanceStatus(String tenant,
+                                                 String namespace,
+                                                 String sinkName,
+                                                 String instanceId,
+                                                 URI uri,
+                                                 String clientRole,
+                                                 AuthenticationDataSource clientAuthenticationDataHttps);
 
-    SinkConfig getSinkInfo(final String tenant,
-                           final String namespace,
-                           final String componentName);
+    SinkStatus getSinkStatus(String tenant,
+                             String namespace,
+                             String componentName,
+                             URI uri,
+                             String clientRole,
+                             AuthenticationDataSource clientAuthenticationDataHttps);
+
+    SinkConfig getSinkInfo(String tenant,
+                           String namespace,
+                           String componentName);
 
     List<ConnectorDefinition> getSinkList();
 

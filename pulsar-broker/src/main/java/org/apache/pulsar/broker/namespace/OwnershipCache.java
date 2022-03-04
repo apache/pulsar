@@ -177,7 +177,8 @@ public class OwnershipCache {
     }
 
     /**
-     * Method to get the current owner of the <code>ServiceUnit</code> or set the local broker as the owner if absent.
+     * Method to get the current owner of the <code>NamespaceBundle</code>
+     * or set the local broker as the owner if absent.
      *
      * @param bundle
      *            the <code>NamespaceBundle</code>
@@ -187,12 +188,12 @@ public class OwnershipCache {
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle bundle) throws Exception {
         if (!refreshSelfOwnerInfo()) {
             return FutureUtil.failedFuture(
-                    new RuntimeException("Namespace service does not ready for acquiring ownership"));
+                    new RuntimeException("Namespace service is not ready for acquiring ownership"));
         }
 
         LOG.info("Trying to acquire ownership of {}", bundle);
 
-        // Doing a get() on the ownedBundlesCache will trigger an async metatada write to acquire the lock over the
+        // Doing a get() on the ownedBundlesCache will trigger an async metadata write to acquire the lock over the
         // service unit
         return ownedBundlesCache.get(bundle)
                 .thenApply(namespaceBundle -> {

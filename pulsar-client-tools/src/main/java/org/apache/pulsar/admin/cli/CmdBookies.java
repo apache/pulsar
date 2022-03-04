@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.common.base.Strings;
 import java.util.function.Supplier;
@@ -88,13 +89,22 @@ public class CmdBookies extends CmdBase {
         @Parameter(names = { "-r", "--rack" }, description = "Bookie rack name. "
                 + "If you set a bookie rack name to slash (/) "
                 + "or an empty string (\"\"): "
-                + "if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2, "
-                + "an an exception is thrown; "
-                + "if you use Pulsar later than 2.7.5, 2.8.3, and 2.9.2, "
-                + "it falls back to /default-rack or /default-region/default-rack.", required = true)
+                + "when using Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2, "
+                + "an exception is thrown; "
+                + "if you use Pulsar 2.7.5, 2.8.3, 2.9.2 or later versions, "
+                + "it falls back to /default-rack or /default-region/default-rack."
+                + "When `RackawareEnsemblePlacementPolicy` is enabled, "
+                + "the rack name is not allowed to contain slash (/) "
+                + "except for the beginning and end of the rack name string. "
+                + "For example, rack name like /rack0 is okay, but /rack/0 is not allowed. "
+                + "When `RegionawareEnsemblePlacementPolicy` is enabled, "
+                + "the rack name can only contain one slash (/) "
+                + "except for the beginning and end of the rack name string. "
+                + "For example, rack name like /region0/rack0 is okay, "
+                + "but /region0rack0 and /region0/rack/0 are not allowed.", required = true)
         private String bookieRack;
 
-        @Parameter(names = { "--hostname" }, description = "Bookie host name", required = false)
+        @Parameter(names = {"-hn", "--hostname"}, description = "Bookie host name", required = false)
         private String bookieHost;
 
         @Override
@@ -111,7 +121,7 @@ public class CmdBookies extends CmdBase {
 
         private void checkArgument(boolean expression, @NonNull Object errorMessage) {
             if (!expression) {
-                throw new IllegalArgumentException(String.valueOf(errorMessage));
+                throw new ParameterException(String.valueOf(errorMessage));
             }
         }
     }

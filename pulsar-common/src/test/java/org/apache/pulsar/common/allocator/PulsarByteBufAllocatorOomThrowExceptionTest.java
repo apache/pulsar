@@ -26,6 +26,7 @@ import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -62,9 +63,9 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
             assertTrue(called.get());
         } finally {
             System.clearProperty("pulsar.allocator.out_of_memory_policy");
+            Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
+                    PulsarByteBufAllocator.createByteBufAllocator());
         }
-
-
     }
 
 }

@@ -89,7 +89,7 @@ public class BacklogQuotaManagerTest {
 
             // start pulsar service
             config = new ServiceConfiguration();
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
@@ -1126,6 +1126,8 @@ public class BacklogQuotaManagerTest {
         }
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         // publish should work now
+        producer.close();
+        producer = createProducer(client, topic1);
         Exception sendException = null;
         gotException = false;
         try {

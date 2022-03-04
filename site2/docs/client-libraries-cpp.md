@@ -14,7 +14,15 @@ Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
-## System requirements
+
+## Linux
+
+> **Note**   
+> You can choose one of the following installation methods based on your needs: Compilation, Install RPM or Install Debian.
+
+### Compilation 
+
+#### System requirements
 
 You need to install the following components before using the C++ client:
 
@@ -23,10 +31,6 @@ You need to install the following components before using the C++ client:
 * [Protocol Buffers](https://developers.google.com/protocol-buffers/) >= 3
 * [libcurl](https://curl.se/libcurl/)
 * [Google Test](https://github.com/google/googletest)
-
-## Linux
-
-### Compilation 
 
 1. Clone the Pulsar repository.
 
@@ -125,10 +129,21 @@ The `libpulsarwithdeps.a` does not include library openssl related libraries `li
 $ rpm -ivh apache-pulsar-client*.rpm
 ```
 
-After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory.
+After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory，for example：
+```bash
+lrwxrwxrwx 1 root root 18 Dec 30 22:21 libpulsar.so -> libpulsar.so.2.9.1
+lrwxrwxrwx 1 root root 23 Dec 30 22:21 libpulsarnossl.so -> libpulsarnossl.so.2.9.1
+```
 
 > **Note**  
 > If you get the error that `libpulsar.so: cannot open shared object file: No such file or directory` when starting Pulsar client, you may need to run `ldconfig` first.
+
+2. Install the GCC and g++ using the following command, otherwise errors would occur in installing Node.js.
+
+```bash
+$ sudo yum -y install gcc automake autoconf libtool make
+$ sudo yum -y install gcc-c++
+```
 
 ### Install Debian
 

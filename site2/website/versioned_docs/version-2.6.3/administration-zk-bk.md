@@ -203,6 +203,9 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
  
 
+> **Note**
+> Set `journalDirectory` and `ledgerDirectories` carefully. It is difficilt to change them later.
+
 ```properties
 
 # Change to point to journal disk mount point
@@ -214,9 +217,14 @@ ledgerDirectories=data/bookkeeper/ledgers
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 
+<<<<<<< HEAD
 #This parameter best be set, otherwise，the Bookkeeper can't start normally in special environment
 advertisedAddress=localhost or hostname or 127.0.0.1
 
+=======
+#It is recommended to set this parameter. Otherwise, BookKeeper can't start normally in certain environments (for example, Huawei Cloud).
+advertisedAddress=
+>>>>>>> 06ccd07d7751809fb43c98bd803db0bfc39e8da2
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.

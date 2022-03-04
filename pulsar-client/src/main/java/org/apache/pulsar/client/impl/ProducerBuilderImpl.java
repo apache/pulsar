@@ -325,6 +325,21 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    /**
+     * Use this config to automatically create an initial subscription when creating the topic.
+     * If this field is not set, the initial subscription will not be created.
+     * If this field is set but the broker's `allowAutoSubscriptionCreation` is disabled, the producer will fail to
+     * be created.
+     * This method is limited to internal use. This method will only be used when the consumer creates the dlq producer.
+     *
+     * @param initialSubscriptionName Name of the initial subscription of the topic.
+     * @return the producer builder implementation instance
+     */
+    public ProducerBuilderImpl<T> initialSubscriptionName(String initialSubscriptionName) {
+        conf.setInitialSubscriptionName(initialSubscriptionName);
+        return this;
+    }
+
     private void setMessageRoutingMode() throws PulsarClientException {
         if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);

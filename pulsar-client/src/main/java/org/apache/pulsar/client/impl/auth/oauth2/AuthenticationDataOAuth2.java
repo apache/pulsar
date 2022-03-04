@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -30,11 +31,13 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
     public static final String HTTP_HEADER_NAME = "Authorization";
 
     private final String accessToken;
-    private final Set<Map.Entry<String, String>> headers;
+    private Map<String, String> headers = new HashMap<>();
 
     public AuthenticationDataOAuth2(String accessToken) {
         this.accessToken = accessToken;
-        this.headers = Collections.singletonMap(HTTP_HEADER_NAME, "Bearer " + accessToken).entrySet();
+        headers.put(HTTP_HEADER_NAME, "Bearer " + accessToken);
+        headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationOAuth2.AUTH_METHOD_NAME);
+        this.headers = Collections.unmodifiableMap(this.headers);
     }
 
     @Override
@@ -44,7 +47,7 @@ class AuthenticationDataOAuth2 implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return this.headers;
+        return this.headers.entrySet();
     }
 
     @Override

@@ -38,7 +38,6 @@
     <airlift.version>0.170</airlift.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
-    <guice.version>4.2.0</guice.version>
     <jackson.version>2.12.6</jackson.version>
     <!--fix Security Vulnerabilities-->
     <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
@@ -100,6 +99,10 @@
           <groupId>javax.activation</groupId>
           <artifactId>activation</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.google.inject.extensions</groupId>
+          <artifactId>guice-multibindings</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -135,13 +138,6 @@
       <groupId>com.twitter.common</groupId>
       <artifactId>objectsize</artifactId>
       <version>${objectsize.version}</version>
-    </dependency>
-
-    <!-- make sure guice is set to the correct version -->
-    <dependency>
-      <groupId>com.google.inject.extensions</groupId>
-      <artifactId>guice-multibindings</artifactId>
-      <version>${guice.version}</version>
     </dependency>
 
     <!-- jackson dependencies -->

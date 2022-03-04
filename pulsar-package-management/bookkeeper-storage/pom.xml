@@ -83,12 +83,6 @@
             <artifactId>testmocks</artifactId>
             <version>${project.version}</version>
         </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
 </project>

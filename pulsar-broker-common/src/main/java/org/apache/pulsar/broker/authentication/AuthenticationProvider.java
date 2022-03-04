@@ -102,6 +102,14 @@ public interface AuthenticationProvider extends Closeable {
     }
 
     /**
+     * Create an http authentication data State use passed in AuthenticationDataSource.
+     */
+    default AuthenticationState newHttpAuthState(HttpServletRequest request)
+            throws AuthenticationException {
+        return new OneStageAuthenticationState(request, this);
+    }
+
+    /**
      * Validate the authentication for the given credentials with the specified authentication data.
      *
      * <p>Warning: the calling thread is an IO thread. Any implementations that rely on blocking behavior

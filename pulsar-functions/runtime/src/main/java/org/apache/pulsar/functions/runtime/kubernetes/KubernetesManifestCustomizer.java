@@ -36,7 +36,7 @@ public interface KubernetesManifestCustomizer extends RuntimeCustomizer {
     default String customizeNamespace(Function.FunctionDetails funcDetails, String currentNamespace) {
         return currentNamespace;
     }
-    
+
     default String customizeName(Function.FunctionDetails funcDetails, String currentName) {
         return currentName;
     }

@@ -75,7 +75,9 @@ public class JavaInstance implements AutoCloseable {
 
     @VisibleForTesting
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
-        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
+        return handleMessage(record, input, (rec, result) -> {
+        }, cause -> {
+        });
     }
 
     public JavaExecutionResult handleMessage(Record<?> record, Object input,
@@ -155,8 +157,22 @@ public class JavaInstance implements AutoCloseable {
 
     }
 
+    public void initialize() throws Exception {
+        if (function != null) {
+            function.initialize(context);
+        }
+    }
+
     @Override
     public void close() {
+        if (function != null) {
+            try {
+                function.close();
+            } catch (Exception e) {
+                log.error("function closeResource occurred exception", e);
+            }
+        }
+
         context.close();
         executor.shutdown();
     }
