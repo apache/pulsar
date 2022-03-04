@@ -30,13 +30,9 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class SpecifiedPositionsBundleSplitAlgorithmTest {
-    @Test
-    public void testNullBoundaries() throws Exception {
-        SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm();
-        assertNull(algorithm.getSplitBoundary(new BundleSplitOption()).get());
-    }
 
     @Test
     public void testTotalTopicsSizeLessThan1() {
@@ -54,10 +50,21 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
         SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm();
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
         NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
-        assertNull(algorithm.getSplitBoundary(
-                new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join());
-        assertNull(algorithm.getSplitBoundary(
-                new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, new ArrayList<>())).join());
+        try {
+            assertNull(algorithm.getSplitBoundary(
+                    new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, null)).join());
+            fail("Should fail since split boundaries is null");
+        } catch (IllegalArgumentException e) {
+            // ignore
+        }
+
+        try {
+            assertNull(algorithm.getSplitBoundary(
+                    new BundleSplitOption(mockNamespaceService, mockNamespaceBundle, new ArrayList<>())).join());
+            fail("Should fail since split boundaries is empty");
+        } catch (IllegalArgumentException e) {
+            // ignore
+        }
     }
 
     @SuppressWarnings("UnstableApiUsage")

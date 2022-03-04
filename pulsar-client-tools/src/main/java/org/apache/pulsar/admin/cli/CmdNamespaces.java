@@ -897,8 +897,13 @@ public class CmdNamespaces extends CmdBase {
                 throw new ParameterException("--bundle and --bundle-type are mutually exclusive");
             }
             bundle = bundleType != null ? bundleType.toString() : bundle;
-            getAdmin().namespaces().splitNamespaceBundle(
-                    namespace, bundle, unload, splitAlgorithmName, splitBoundaries);
+            if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                getAdmin().namespaces().splitNamespaceBundle(
+                        namespace, bundle, unload, splitAlgorithmName);
+            } else {
+                getAdmin().namespaces().splitNamespaceBundle(
+                        namespace, bundle, unload, splitAlgorithmName, splitBoundaries);
+            }
         }
     }
 
