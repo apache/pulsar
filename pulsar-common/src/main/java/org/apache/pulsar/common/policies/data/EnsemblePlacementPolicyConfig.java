@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class EnsemblePlacementPolicyConfig {
@@ -48,6 +49,23 @@ public class EnsemblePlacementPolicyConfig {
 
     public Map<String, Object> getProperties() {
         return properties;
+    }
+
+    public String getPropertyString() {
+        StringBuilder builder = new StringBuilder();
+        AtomicBoolean firstItem = new AtomicBoolean(true);
+        properties.forEach((k, v) -> {
+            if (!firstItem.get()) {
+                builder.append(",");
+            } else {
+                firstItem.set(false);
+            }
+            builder.append(k)
+                .append("=")
+                .append(v);
+        });
+
+        return builder.toString();
     }
 
     @Override

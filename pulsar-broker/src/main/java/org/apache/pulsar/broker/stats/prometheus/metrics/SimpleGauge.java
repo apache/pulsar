@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
+import java.util.Map;
 import org.apache.bookkeeper.stats.Gauge;
 
 /**
@@ -26,12 +27,18 @@ import org.apache.bookkeeper.stats.Gauge;
 public class SimpleGauge<T extends Number> {
 
     private final Gauge<T> gauge;
+    private final Map<String, String> labels;
 
-    public SimpleGauge(final Gauge<T> gauge) {
+    public SimpleGauge(final Gauge<T> gauge, Map<String, String> labels) {
         this.gauge = gauge;
+        this.labels = labels;
     }
 
     public Number getSample() {
         return gauge.getSample();
+    }
+
+    public Map<String, String> getLabels() {
+        return labels;
     }
 }

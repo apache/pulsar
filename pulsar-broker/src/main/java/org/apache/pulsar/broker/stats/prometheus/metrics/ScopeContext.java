@@ -19,50 +19,38 @@
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import java.util.Map;
-import java.util.concurrent.atomic.LongAdder;
-import org.apache.bookkeeper.stats.Counter;
+import java.util.Objects;
 
 /**
- * {@link Counter} implementation based on {@link LongAdder}.
- *
- * <p>LongAdder keeps a counter per-thread and then aggregates to get the result, in order to avoid contention between
- * multiple threads.
+ * Holder for a scope and a set of associated labels.
  */
-public class LongAdderCounter implements Counter {
-    private final LongAdder counter = new LongAdder();
-
+public class ScopeContext {
+    private final String scope;
     private final Map<String, String> labels;
 
-    public LongAdderCounter(Map<String, String> labels) {
+    public ScopeContext(String scope, Map<String, String> labels) {
+        this.scope = scope;
         this.labels = labels;
     }
 
-    @Override
-    public void clear() {
-        counter.reset();
+    public String getScope() {
+        return scope;
     }
 
     @Override
-    public void inc() {
-        counter.increment();
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ScopeContext that = (ScopeContext) o;
+        return Objects.equals(scope, that.scope) && Objects.equals(labels, that.labels);
     }
 
     @Override
-    public void dec() {
-        counter.decrement();
-    }
-
-    @Override
-    public void add(long delta) {
-        counter.add(delta);
-    }
-
-    @Override
-    public Long get() {
-        return counter.sum();
-    }
-
-    public Map<String, String> getLabels() {
-        return labels;
+    public int hashCode() {
+        return Objects.hash(scope, labels);
     }
 }
