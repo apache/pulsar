@@ -4094,7 +4094,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (this.checkLedgerRollTask != null) {
             this.checkLedgerRollTask.cancel(false);
         }
-
     }
 
     @Override
