@@ -926,9 +926,6 @@ public class CmdNamespaces extends CmdBase {
             if (StringUtils.isBlank(bundle)) {
                 throw new ParameterException("Must pass one of the params: --bundle ");
             }
-            if (topics == null || topics.size() == 0) {
-                throw new ParameterException("Must pass one of the params: --topic-list ");
-            }
             print(getAdmin().namespaces().getTopicHashPositions(namespace, bundle, topics));
         }
     }
