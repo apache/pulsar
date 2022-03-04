@@ -27,7 +27,7 @@ If you can't download,please try it by configure [CDN accelerated proxy]( https:
 
 Once installed locally, you can import it into your project:
 
-```go 
+```go
 import "github.com/apache/pulsar-client-go/pulsar"
 ```
 
