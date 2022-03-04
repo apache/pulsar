@@ -145,9 +145,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
                     ? entryWrapper.get()[entryWrapperIndex].getMetadata()
                     : null;
-            msgMetadata = msgMetadata == null
-                    ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
-                    : msgMetadata;
+            if (msgMetadata == null) {
+                msgMetadata = new MessageMetadata();
+                msgMetadata.copyFrom(Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
+            }
             if (CollectionUtils.isNotEmpty(entryFilters)) {
                 fillContext(filterContext, msgMetadata, subscription);
                 if (EntryFilter.FilterResult.REJECT == getFilterResult(filterContext, entry, entryFilters)) {

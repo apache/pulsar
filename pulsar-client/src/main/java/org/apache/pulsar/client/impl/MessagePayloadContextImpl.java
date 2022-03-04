@@ -45,7 +45,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
 
     private final Recycler.Handle<MessagePayloadContextImpl> recyclerHandle;
     private BrokerEntryMetadata brokerEntryMetadata;
-    private MessageMetadata messageMetadata;
+    private final MessageMetadata messageMetadata = new MessageMetadata();
     private SingleMessageMetadata singleMessageMetadata;
     private MessageIdImpl messageId;
     private ConsumerImpl<?> consumer;
@@ -68,7 +68,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
         final MessagePayloadContextImpl context = RECYCLER.get();
         context.consumerEpoch = consumerEpoch;
         context.brokerEntryMetadata = brokerEntryMetadata;
-        context.messageMetadata = messageMetadata;
+        context.messageMetadata.copyFrom(messageMetadata);
         context.singleMessageMetadata = new SingleMessageMetadata();
         context.messageId = messageId;
         context.consumer = consumer;
@@ -82,7 +82,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
 
     public void recycle() {
         brokerEntryMetadata = null;
-        messageMetadata = null;
+        messageMetadata.clear();
         singleMessageMetadata = null;
         messageId = null;
         consumer = null;

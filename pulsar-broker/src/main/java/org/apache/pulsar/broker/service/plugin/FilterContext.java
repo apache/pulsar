@@ -25,12 +25,23 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 @Data
 public class FilterContext {
     private Subscription subscription;
-    private MessageMetadata msgMetadata;
+    private final MessageMetadata msgMetadata = new MessageMetadata();
+
+    public FilterContext() {
+    }
 
     public void reset() {
         subscription = null;
-        msgMetadata = null;
+        msgMetadata.clear();
     }
 
     public static final FilterContext FILTER_CONTEXT_DISABLED = new FilterContext();
+
+    public MessageMetadata getMsgMetadata() {
+        return this.msgMetadata;
+    }
+
+    public void setMsgMetadata(MessageMetadata msgMetadata) {
+        this.msgMetadata.copyFrom(msgMetadata);
+    }
 }
