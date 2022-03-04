@@ -31,6 +31,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.text.DateFormat;
@@ -45,6 +46,7 @@ import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -195,6 +197,10 @@ public class PulsarBrokerStarter {
             } else {
                 workerConfig = null;
                 functionsWorkerService = null;
+            }
+
+            if (StringUtils.isEmpty(brokerConfig.getMetricsHostname())) {
+                brokerConfig.setMetricsHostname(InetAddress.getLocalHost().getHostName());
             }
 
             // init pulsar service

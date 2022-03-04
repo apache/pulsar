@@ -101,11 +101,12 @@ public class PrometheusMetricsGenerator {
         boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel, OutputStream out,
         List<PrometheusRawMetricsProvider> metricsProviders)
         throws IOException {
+        final String metricsHostname = pulsar.getConfiguration().getMetricsHostname();
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
-            generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
+            generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName(), metricsHostname);
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
                     includeProducerMetrics, splitTopicAndPartitionIndexLabel, stream);
@@ -135,33 +136,35 @@ public class PrometheusMetricsGenerator {
 
     private static void generateBrokerBasicMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
         String clusterName = pulsar.getConfiguration().getClusterName();
+        final String metricsHostname = pulsar.getConfiguration().getMetricsHostname();
+        final long currentTime = System.currentTimeMillis();
         // generate managedLedgerCache metrics
         parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+                clusterName, Collector.Type.GAUGE, stream, metricsHostname, currentTime);
 
         if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
             // generate managedLedger metrics
             parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+                clusterName, Collector.Type.GAUGE, stream, metricsHostname, currentTime);
         }
 
         if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
             // generate managedCursor metrics
             parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+                clusterName, Collector.Type.GAUGE, stream, metricsHostname, currentTime);
         }
 
         parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
                 .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
-                clusterName, Collector.Type.GAUGE, stream);
+                clusterName, Collector.Type.GAUGE, stream, metricsHostname, currentTime);
 
         // generate loadBalance metrics
         parseMetricsToPrometheusMetrics(pulsar.getLoadManager().get().getLoadBalancingMetrics(),
-                clusterName, Collector.Type.GAUGE, stream);
+                clusterName, Collector.Type.GAUGE, stream, metricsHostname, currentTime);
     }
 
     private static void parseMetricsToPrometheusMetrics(Collection<Metrics> metrics, String cluster,
-                                                        Collector.Type metricType, SimpleTextOutputStream stream) {
+                                                        Collector.Type metricType, SimpleTextOutputStream stream, String metricsHostname, long currentTime) {
         Set<String> names = new HashSet<>();
         for (Metrics metrics1 : metrics) {
             for (Map.Entry<String, Object> entry : metrics1.getMetrics().entrySet()) {
@@ -199,9 +202,10 @@ public class PrometheusMetricsGenerator {
                     stream.write(name.replace("brk_", "pulsar_"))
                             .write("{cluster=\"").write(cluster).write('"');
                 }
+                stream.write(",instance=\"").write(metricsHostname).write("\"");
 
                 for (Map.Entry<String, String> metric : metrics1.getDimensions().entrySet()) {
-                    if (metric.getKey().isEmpty() || "cluster".equals(metric.getKey())) {
+                    if (metric.getKey().isEmpty() || "cluster".equals(metric.getKey()) || "instance".equals(metric.getKey())) {
                         continue;
                     }
                     stream.write(", ").write(metric.getKey()).write("=\"").write(metric.getValue()).write('"');
@@ -210,7 +214,7 @@ public class PrometheusMetricsGenerator {
                     }
                 }
                 stream.write("} ").write(String.valueOf(entry.getValue()))
-                        .write(' ').write(System.currentTimeMillis()).write("\n");
+                        .write(' ').write(currentTime).write("\n");
             }
         }
     }
@@ -230,7 +234,7 @@ public class PrometheusMetricsGenerator {
         }
     }
 
-    private static void generateSystemMetrics(SimpleTextOutputStream stream, String cluster) {
+    private static void generateSystemMetrics(SimpleTextOutputStream stream, String cluster, String metricsHostname) {
         Enumeration<MetricFamilySamples> metricFamilySamples = CollectorRegistry.defaultRegistry.metricFamilySamples();
         while (metricFamilySamples.hasMoreElements()) {
             MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
@@ -243,6 +247,7 @@ public class PrometheusMetricsGenerator {
                 Sample sample = metricFamily.samples.get(i);
                 stream.write(sample.name);
                 stream.write("{cluster=\"").write(cluster).write('"');
+                stream.write(",instance=\"").write(metricsHostname).write('"');
                 for (int j = 0; j < sample.labelNames.size(); j++) {
                     String labelValue = sample.labelValues.get(j);
                     if (labelValue != null) {

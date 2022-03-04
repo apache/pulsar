@@ -207,6 +207,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Hostname or IP address the metrics generator used, for monitor continuity."
+    )
+    private String metricsHostname;
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Used to specify multiple advertised listeners for the broker."
                     + " The value must format as <listener_name>:pulsar://<host>:<port>,"
