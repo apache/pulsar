@@ -203,12 +203,12 @@ public class FilterEntryTest extends BrokerTestBase {
             }
         }
 
+        producer.close();
+        consumer.close();
+
         assertEquals(10, counter);
         AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
         long filtered = abstractTopic.getFilteredEntriesCount();
         assertEquals(filtered, 10);
-
-        producer.close();
-        consumer.close();
     }
 }
