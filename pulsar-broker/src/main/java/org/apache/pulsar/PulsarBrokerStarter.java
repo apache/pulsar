@@ -202,7 +202,6 @@ public class PulsarBrokerStarter {
             if (StringUtils.isEmpty(brokerConfig.getMetricsHostname())) {
                 brokerConfig.setMetricsHostname(InetAddress.getLocalHost().getHostName());
             }
-
             // init pulsar service
             pulsarService = new PulsarService(brokerConfig,
                                               workerConfig,
