@@ -42,6 +42,6 @@ public class FilterContext {
     }
 
     public void setMsgMetadata(MessageMetadata msgMetadata) {
-        this.msgMetadata.copyFrom(msgMetadata);
+        this.msgMetadata.clear().copyFrom(msgMetadata);
     }
 }
