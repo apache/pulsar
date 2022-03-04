@@ -22,7 +22,8 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.AssertJUnit.*;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
@@ -31,7 +32,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.*;
+import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
+import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -188,7 +193,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         int counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 assertEquals(message.getValue(), "test");
@@ -202,5 +207,8 @@ public class FilterEntryTest extends BrokerTestBase {
         AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
         long filtered = abstractTopic.getFilteredEntriesCount();
         assertEquals(filtered, 10);
+
+        producer.close();
+        consumer.close();
     }
 }
