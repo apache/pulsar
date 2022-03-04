@@ -165,8 +165,6 @@ public class FilterEntryTest extends BrokerTestBase {
     public void testFilteredMsgCount() throws Throwable{
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
-                .subscriptionName(subName).subscribe();
         // mock entry filters
         PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                 .getTopicReference(topic).get().getSubscription(subName);
@@ -180,35 +178,35 @@ public class FilterEntryTest extends BrokerTestBase {
         EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
         field.set(dispatcher, ImmutableList.of(loader1, loader2));
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topic).create();
-        for (int i = 0; i < 10; i++) {
-            producer.send("test");
-        }
-
-        for (int i = 0; i < 10; i++) {
-            assertNotNull(producer.newMessage().property("REJECT", "").value("1").send());
-        }
-
-
-        int counter = 0;
-        while (true) {
-            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
-            if (message != null) {
-                counter++;
-                assertEquals(message.getValue(), "test");
-                consumer.acknowledge(message);
-            } else {
-                break;
+             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                     .subscriptionName(subName).subscribe()) {
+            for (int i = 0; i < 10; i++) {
+                producer.send("test");
             }
+
+            for (int i = 0; i < 10; i++) {
+                assertNotNull(producer.newMessage().property("REJECT", "").value("1").send());
+            }
+
+
+            int counter = 0;
+            while (true) {
+                Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+                if (message != null) {
+                    counter++;
+                    assertEquals(message.getValue(), "test");
+                    consumer.acknowledge(message);
+                } else {
+                    break;
+                }
+            }
+
+            assertEquals(10, counter);
+            AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
+            long filtered = abstractTopic.getFilteredEntriesCount();
+            assertEquals(filtered, 10);
         }
-
-        producer.close();
-        consumer.close();
-
-        assertEquals(10, counter);
-        AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
-        long filtered = abstractTopic.getFilteredEntriesCount();
-        assertEquals(filtered, 10);
     }
 }
