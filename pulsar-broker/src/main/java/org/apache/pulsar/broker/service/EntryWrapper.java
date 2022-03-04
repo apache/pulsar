@@ -24,7 +24,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 public class EntryWrapper {
     private Entry entry = null;
-    private MessageMetadata metadata = new MessageMetadata();
+    private final MessageMetadata metadata = new MessageMetadata();
     private boolean hasMetadata = false;
 
     public static EntryWrapper get(Entry entry, MessageMetadata metadata) {
