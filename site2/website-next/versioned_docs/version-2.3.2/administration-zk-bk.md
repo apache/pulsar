@@ -195,10 +195,8 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
 The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 
-> **Note**  
-> The configuration of journalDirectory and ledgerDirectories needs to be considered clearly, and it is very troublesome to change later.
-
- 
+> **Note**
+> Set `journalDirectory` and `ledgerDirectories` carefully. It is difficilt to change them later.
 
 ```properties
 
