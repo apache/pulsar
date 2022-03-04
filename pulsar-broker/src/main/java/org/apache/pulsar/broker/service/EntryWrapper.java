@@ -34,7 +34,6 @@ public class EntryWrapper {
             entryWrapper.hasMetadata = true;
             entryWrapper.metadata.copyFrom(metadata);
         }
-        entryWrapper.metadata.copyFrom(metadata);
         return entryWrapper;
     }
 
