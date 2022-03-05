@@ -129,7 +129,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     public int getLength() {
-        return data.readableBytes();
+        return data != null ? data.readableBytes() : 0;
     }
 
     @Override
