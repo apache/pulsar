@@ -36,13 +36,13 @@ import org.apache.bookkeeper.stats.OpStatsLogger;
  */
 public class DataSketchesOpStatsLogger implements OpStatsLogger {
 
-    /**
+    /*
      * Use 2 rotating thread local accessor so that we can safely swap them.
      */
     private volatile ThreadLocalAccessor current;
     private volatile ThreadLocalAccessor replacement;
 
-    /**
+    /*
      * These are the sketches where all the aggregated results are published.
      */
     private volatile DoublesSketch successResult;
@@ -54,9 +54,12 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     private final LongAdder successSumAdder = new LongAdder();
     private final LongAdder failSumAdder = new LongAdder();
 
-    public DataSketchesOpStatsLogger() {
+    private final Map<String, String> labels;
+
+    public DataSketchesOpStatsLogger(Map<String, String> labels) {
         this.current = new ThreadLocalAccessor();
         this.replacement = new ThreadLocalAccessor();
+        this.labels = labels;
     }
 
     @Override
@@ -170,6 +173,10 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     public double getQuantileValue(boolean success, double quantile) {
         DoublesSketch s = success ? successResult : failResult;
         return s != null ? s.getQuantile(quantile) : Double.NaN;
+    }
+
+    public Map<String, String> getLabels() {
+        return labels;
     }
 
     private static class LocalData {
