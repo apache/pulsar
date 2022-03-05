@@ -36,13 +36,13 @@ import org.apache.bookkeeper.stats.OpStatsLogger;
  */
 public class DataSketchesOpStatsLogger implements OpStatsLogger {
 
-    /*
+    /**
      * Use 2 rotating thread local accessor so that we can safely swap them.
      */
     private volatile ThreadLocalAccessor current;
     private volatile ThreadLocalAccessor replacement;
 
-    /*
+    /**
      * These are the sketches where all the aggregated results are published.
      */
     private volatile DoublesSketch successResult;
