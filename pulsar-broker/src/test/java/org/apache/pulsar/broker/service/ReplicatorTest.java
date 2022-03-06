@@ -1428,13 +1428,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
     @Test
-    public void testTopicPoliciesEnabled() throws Exception {
-        log.info("--- testTopicPoliciesEnabled ---");
+    public void testWhenUpdateReplicationCluster() throws Exception {
+        log.info("--- testWhenUpdateReplicationCluster ---");
         String namespace = "pulsar/ns2";
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         final TopicName dest = TopicName.get(
-                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testTopicPoliciesEnabled"));
+                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWhenUpdateReplicationCluster"));
 
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
