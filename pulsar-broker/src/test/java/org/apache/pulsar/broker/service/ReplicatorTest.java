@@ -1435,7 +1435,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         final TopicName dest = TopicName.get(
                 BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWhenUpdateReplicationCluster"));
-
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
         log.info("--- Starting producer --- " + url1);

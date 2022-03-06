@@ -3020,8 +3020,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
                         subscribeRateLimiter.onSubscribeRateUpdate(getSubscribeRate()));
             }
-            replicators.forEach((name, replicator) -> replicator.getRateLimiter()
-                    .ifPresent(DispatchRateLimiter::updateDispatchRate));
+            checkReplicator();
 
             if (policies.getReplicationClusters() != null) {
                 checkReplicationAndRetryOnFailure();
@@ -3038,6 +3037,27 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.error("[{}] update topic policy error: {}", topic, t.getMessage(), t);
             return null;
         });
+    }
+
+    private CompletableFuture<Void> checkReplicator() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        for (String cluster : configuredClusters) {
+            if (cluster.equals(localCluster)) {
+                continue;
+            }
+            if (!replicators.containsKey(cluster)) {
+                futures.add(startReplicator(cluster));
+            }
+        }
+        replicators.forEach((name, replicator) -> {
+            replicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate);
+            if (!configuredClusters.contains(name)) {
+                futures.add(removeReplicator(name));
+            }
+        });
+        return FutureUtil.waitForAll(futures);
     }
 
     private Optional<Policies> getNamespacePolicies() {
