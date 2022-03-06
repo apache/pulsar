@@ -27,7 +27,6 @@ import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
@@ -623,28 +622,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public CompletableFuture<Void> startReplProducers() {
         // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
-        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenAccept(optPolicies -> {
-                    if (optPolicies.isPresent()) {
-                        if (optPolicies.get().replication_clusters != null) {
-                            Set<String> configuredClusters = Sets.newTreeSet(optPolicies.get().replication_clusters);
-                            replicators.forEach((region, replicator) -> {
-                                if (configuredClusters.contains(region)) {
-                                    replicator.startProducer();
-                                }
-                            });
-                        }
-                    } else {
-                        replicators.forEach((region, replicator) -> replicator.startProducer());
-                    }
-                }).exceptionally(ex -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies while starting repl-producers {}", topic, ex.getMessage());
+        List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        replicators.forEach((region, replicator) -> {
+            if (configuredClusters.contains(region)) {
+                replicator.startProducer();
             }
-            replicators.forEach((region, replicator) -> replicator.startProducer());
-            return null;
         });
+        return CompletableFuture.completedFuture(null);
     }
 
     public CompletableFuture<Void> stopReplProducers() {
@@ -3036,8 +3020,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
                         subscribeRateLimiter.onSubscribeRateUpdate(getSubscribeRate()));
             }
-            replicators.forEach((name, replicator) -> replicator.getRateLimiter()
-                    .ifPresent(DispatchRateLimiter::updateDispatchRate));
+            checkReplicator();
 
             checkDeduplicationStatus();
 
@@ -3050,6 +3033,27 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.error("[{}] update topic policy error: {}", topic, t.getMessage(), t);
             return null;
         });
+    }
+
+    private CompletableFuture<Void> checkReplicator() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        for (String cluster : configuredClusters) {
+            if (cluster.equals(localCluster)) {
+                continue;
+            }
+            if (!replicators.containsKey(cluster)) {
+                futures.add(startReplicator(cluster));
+            }
+        }
+        replicators.forEach((name, replicator) -> {
+            replicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate);
+            if (!configuredClusters.contains(name)) {
+                futures.add(removeReplicator(name));
+            }
+        });
+        return FutureUtil.waitForAll(futures);
     }
 
     private Optional<Policies> getNamespacePolicies() {

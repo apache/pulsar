@@ -1427,4 +1427,33 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
+    @Test
+    public void testTopicPoliciesEnabled() throws Exception {
+        log.info("--- testTopicPoliciesEnabled ---");
+        String namespace = "pulsar/ns2";
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        final TopicName dest = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testTopicPoliciesEnabled"));
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+        log.info("--- Starting producer --- " + url1);
+
+        producer1.produce(2);
+
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(dest.toString(), false)
+                .getNow(null).get();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(topic.getReplicators().containsKey("r2"));
+        });
+
+        admin1.topics().setReplicationClusters(dest.toString(), Lists.newArrayList("r1"));
+
+        Awaitility.await().untilAsserted(() -> {
+            Set<String> replicationClusters = admin1.topics().getReplicationClusters(dest.toString(), false);
+            assertTrue(replicationClusters != null && replicationClusters.size() == 1);
+            assertTrue(topic.getReplicators().isEmpty());
+        });
+    }
 }
