@@ -493,6 +493,8 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
             msgMetadata.set_total_chunk_msg_size(compressedSize);
         }
 
+        std::shared_ptr<ProducerChunkedMessageCtx> chunkedMessageCtxPtr;
+        if (totalChunks > 1) chunkedMessageCtxPtr = std::make_shared<ProducerChunkedMessageCtx>();
         int beginIndex = 0;
         for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
             if (sendChunks) {
@@ -510,7 +512,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
 
             sendMessage(OpSendMsg{msgMetadata, encryptedPayload,
                                   (chunkId == totalChunks - 1) ? callback : nullptr, producerId_, sequenceId,
-                                  conf_.getSendTimeout(), 1, uncompressedSize});
+                                  conf_.getSendTimeout(), 1, uncompressedSize, chunkedMessageCtxPtr});
         }
     }
 }
@@ -856,7 +858,21 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         lastSequenceIdPublished_ = sequenceId + op.messagesCount_ - 1;
 
         pendingMessagesQueue_.pop_front();
-
+        int totalChunks = op.metadata_.num_chunks_from_msg();
+        if (totalChunks > 1) {
+            if (op.metadata_.chunk_id() == 0) {
+                op.chunkedMessageCtxPtr_->firstChunkMessageIdImplPtr_ = std::make_shared<MessageIdImpl>
+                                                (partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
+            } 
+            else if (op.metadata_.chunk_id() == totalChunks - 1) {
+                op.chunkedMessageCtxPtr_->lastChunkMessageIdImplPtr_ = std::make_shared<MessageIdImpl>
+                                                (partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
+                
+                auto firMsgIdIpPtr = op.chunkedMessageCtxPtr_->lastChunkMessageIdImplPtr_;
+                messageId = MessageId(firMsgIdIpPtr->partition_, firMsgIdIpPtr->ledgerId_, firMsgIdIpPtr->entryId_, firMsgIdIpPtr->batchIndex_,
+                                partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),rawMessageId.batchIndex());
+            }
+        }
         lock.unlock();
         try {
             op.complete(ResultOk, messageId);

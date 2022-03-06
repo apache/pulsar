@@ -32,6 +32,7 @@ class MessageIdImpl {
           partition_(partition),
           batchIndex_(batchIndex),
           topicName_() {}
+    virtual ~MessageIdImpl() = default;
     const int64_t ledgerId_;
     const int64_t entryId_;
     const int32_t partition_;

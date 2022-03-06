@@ -469,6 +469,19 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, int64_t ledgerId, int64_t entryId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::SEEK);
+    CommandSeek* commandSeek = cmd.mutable_seek();
+    commandSeek->set_consumer_id(consumerId);
+    commandSeek->set_request_id(requestId);
+
+    MessageIdData& messageIdData = *commandSeek->mutable_message_id();
+    messageIdData.set_ledgerid(ledgerId);
+    messageIdData.set_entryid(entryId);
+    return writeMessageWithSize(cmd);
+}
+
 SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SEEK);

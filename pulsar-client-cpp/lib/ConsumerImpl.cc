@@ -29,6 +29,7 @@
 #include "AckGroupingTracker.h"
 #include "AckGroupingTrackerEnabled.h"
 #include "AckGroupingTrackerDisabled.h"
+#include "ChunkMessageIdImpl.h"
 #include <exception>
 #include <algorithm>
 
@@ -373,12 +374,7 @@ Optional<SharedBuffer> ConsumerImpl::processMessageChunk(const SharedBuffer& pay
         increaseAvailablePermits(cnx);
         return Optional<SharedBuffer>::empty();
     }
-
-    LOG_DEBUG("Chunked message completed chunkId: " << chunkId << ", ChunkedMessageCtx: " << chunkedMsgCtx
-                                                    << ", sequenceId: " << metadata.sequence_id());
-
     auto wholePayload = chunkedMsgCtx.getBuffer();
-    chunkedMessageCache_.remove(uuid);
     if (uncompressMessageIfNeeded(cnx, messageIdData, metadata, wholePayload, false)) {
         return Optional<SharedBuffer>::of(wholePayload);
     } else {
@@ -415,7 +411,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
             return;
         }
     }
-
+    std::shared_ptr<MessageId> chunkMessageId;
     // Only a non-batched messages can be a chunk
     if (!metadata.has_num_messages_in_batch() && isChunkedMessage) {
         const auto& messageIdData = msg.message_id();
@@ -423,13 +419,29 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
                             messageIdData.batch_index());
         auto optionalPayload = processMessageChunk(payload, metadata, messageId, messageIdData, cnx);
         if (optionalPayload.is_present()) {
+            auto& chunkedMsgCtx = chunkedMessageCache_.find(metadata.uuid())->second;
+            LOG_DEBUG("Chunked message completed chunkId: " << metadata.chunk_id() << ", ChunkedMessageCtx: " << chunkedMsgCtx
+                                                    << ", sequenceId: " << metadata.sequence_id());
+            if (chunkedMsgCtx.numChunks() > 0) {
+                auto firstMsgIdImplPtr = chunkedMsgCtx.getChunkedMessageIds()[0].impl_;
+                auto lastMsgIdImplPtr = chunkedMsgCtx.getChunkedMessageIds()[chunkedMsgCtx.numChunks() - 1].impl_;
+                chunkMessageId = std::make_shared<MessageId>
+                            (firstMsgIdImplPtr->partition_, firstMsgIdImplPtr->ledgerId_, firstMsgIdImplPtr->entryId_, -1,
+                             lastMsgIdImplPtr->partition_, lastMsgIdImplPtr->ledgerId_, lastMsgIdImplPtr->entryId_, -1);
+            }
+            chunkedMessageCache_.remove(metadata.uuid());
             payload = optionalPayload.value();
         } else {
             return;
         }
     }
-
-    Message m(msg, metadata, payload, partitionIndex_);
+    Message m;
+    if (chunkMessageId){
+        m = Message(*chunkMessageId, metadata, payload, partitionIndex_);
+    }
+    else{
+        m = Message(msg, metadata, payload, partitionIndex_);
+    }
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
     m.impl_->setRedeliveryCount(msg.redelivery_count());
@@ -1228,8 +1240,11 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
         uint64_t requestId = client->newRequestId();
         LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
                             << requestId);
-        Future<Result, ResponseData> future =
-            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
+        Future<Result, ResponseData> future = msgId.isChunkMessageid()?
+                        cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId,
+                                            std::dynamic_pointer_cast<ChunkMessageIdImpl>(msgId.impl_)->getFirstChunkMessageIdImpl()->ledgerId_,
+                                            std::dynamic_pointer_cast<ChunkMessageIdImpl>(msgId.impl_)->getFirstChunkMessageIdImpl()->entryId_), requestId):
+                        cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
 
         if (callback) {
             future.addListener(

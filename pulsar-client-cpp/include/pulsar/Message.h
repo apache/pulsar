@@ -175,6 +175,8 @@ class PULSAR_PUBLIC Message {
     Message(MessageImplPtr& impl);
     Message(const proto::CommandMessage& msg, proto::MessageMetadata& data, SharedBuffer& payload,
             int32_t partition);
+    Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
+            int32_t partition);
     /// Used for Batch Messages
     Message(const MessageId& messageId, proto::MessageMetadata& metadata, SharedBuffer& payload,
             proto::SingleMessageMetadata& singleMetadata, const std::string& topicName);

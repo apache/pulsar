@@ -17,13 +17,30 @@
  * under the License.
  */
 #include <pulsar/MessageId.h>
+#include "MessageIdImpl.h"
 #include "PulsarApi.pb.h"
 
 namespace pulsar {
+class MessageIdImpl;
+typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
 
 inline MessageId toMessageId(const proto::MessageIdData& messageIdData) {
     return MessageId{messageIdData.partition(), static_cast<int64_t>(messageIdData.ledgerid()),
                      static_cast<int64_t>(messageIdData.entryid()), messageIdData.batch_index()};
+}
+/**
+* wirte the message_id_impl into a MessageIdData
+*/
+inline void writeMessageIdData(const MessageIdImplPtr impl, proto::MessageIdData* idData) {
+    idData->set_ledgerid(impl->ledgerId_);
+    idData->set_entryid(impl->entryId_);
+    if (impl->partition_ != -1) {
+        idData->set_partition(impl->partition_);
+    }
+
+    if (impl->batchIndex_ != -1) {
+        idData->set_batch_index(impl->batchIndex_);
+    }
 }
 
 namespace internal {

@@ -255,13 +255,12 @@ class ConsumerImpl : public ConsumerImplBase,
                       << ctx.chunkedMsgBuffer_.writerIndex() << " bytes, " << ctx.numChunks() << " of "
                       << ctx.totalChunks_ << " chunks";
         }
+        int numChunks() const noexcept { return static_cast<int>(chunkedMessageIds_.size()); }
 
        private:
         const int totalChunks_;
         SharedBuffer chunkedMsgBuffer_;
         std::vector<MessageId> chunkedMessageIds_;
-
-        int numChunks() const noexcept { return static_cast<int>(chunkedMessageIds_.size()); }
     };
 
     const size_t maxPendingChunkedMessage_;

@@ -35,6 +35,7 @@
 #include "BatchMessageContainerBase.h"
 #include "PendingFailures.h"
 #include "Semaphore.h"
+#include "ChunkMessageIdImpl.h"
 
 using namespace pulsar;
 
