@@ -6,7 +6,7 @@ original_id: deploy-dcos
 ---
 
 > **Tips**  
-> To enable all built-in [Pulsar IO](io-overview.md) connectors in your Pulsar deploymente, we recommend you use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image; the former has already bundled [all built-in connectors](io-overview.md#working-with-connectors).
+> To enable all built-in [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, we recommend you use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image; the former has already bundled [all built-in connectors](io-overview.md#working-with-connectors).
 
 [DC/OS](https://dcos.io/) (the <strong>D</strong>ata<strong>C</strong>enter <strong>O</strong>perating <strong>S</strong>ystem) is a distributed operating system for deploying and managing applications and systems on [Apache Mesos](http://mesos.apache.org/). DC/OS is an open-source tool created and maintained by [Mesosphere](https://mesosphere.com/).
 
