@@ -101,7 +101,7 @@ public final class FieldParser {
         if (to.isEnum()) {
             // Converting string to enum
             EnumResolver r = EnumResolver.constructUsingToString((Class<Enum<?>>) to, ANNOTATION_INTROSPECTOR);
-            T value = (T) r.findEnum((String) from);
+            T value = (T) r.findEnum(trim((String) from));
             if (value == null) {
                 throw new RuntimeException("Invalid value '" + from + "' for enum " + to);
             }
@@ -141,7 +141,7 @@ public final class FieldParser {
                     f.setAccessible(true);
                     String v = properties.get(f.getName());
                     if (!StringUtils.isBlank(v)) {
-                        f.set(obj, value(trim(v), f));
+                        f.set(obj, value(v, f));
                     } else {
                         setEmptyValue(v, f, obj);
                     }
@@ -274,7 +274,12 @@ public final class FieldParser {
      * @return The converted Long value.
      */
     public static Long stringToLong(String val) {
-        return Long.valueOf(trim(val));
+        String v = trim(val);
+        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+            return null;
+        } else {
+            return Long.valueOf(v);
+        }
     }
 
     /**
@@ -301,7 +306,12 @@ public final class FieldParser {
      * @return The converted Double value.
      */
     public static Float stringToFloat(String val) {
-        return Float.valueOf(trim(val));
+        String v = trim(val);
+        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+            return null;
+        } else {
+            return Float.valueOf(v);
+        }
     }
 
     /**
@@ -384,7 +394,12 @@ public final class FieldParser {
      * @return The converted Boolean value.
      */
     public static Boolean stringToBoolean(String value) {
-        return Boolean.valueOf(value);
+        String v = trim(value);
+        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+            return null;
+        } else {
+            return Boolean.valueOf(v);
+        }
     }
 
     // implement more converter methods here.
