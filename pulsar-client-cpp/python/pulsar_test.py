@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-
+import resource
 from unittest import TestCase, main
 import time
 import os
@@ -1227,6 +1226,16 @@ class PulsarTest(TestCase):
         first_encode = schema.encode(record)
         second_encode = schema.encode(record)
         self.assertEqual(first_encode, second_encode)
+
+    def test_garbage_collection(self):
+        oldrlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (15, 15))
+            for i in range(100):
+                client = pulsar.Client(service_url=self.serviceUrl)
+                con = client.subscribe(topic='mytopic', subscription_name=f'mysub-{i}')
+        finally:
+            resource.setrlimit(oldrlimit)
 
     def _check_value_error(self, fun):
         with self.assertRaises(ValueError):
