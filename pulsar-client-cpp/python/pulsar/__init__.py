@@ -100,6 +100,9 @@ To install the Python bindings:
 """
 
 import logging
+from abc import ABC
+from weakref import WeakSet
+
 import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
@@ -343,7 +346,27 @@ class AuthenticationOauth2(Authentication):
         _check_type(str, auth_params_string, 'auth_params_string')
         self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
 
-class Client:
+
+class _ClientHandle(ABC):
+    def __init__(self, handle, schema, ref_tracker):
+        self._handle = handle
+        self._schema = schema
+        self._ref_tracker = ref_tracker
+        self._ref_tracker.add(self)
+
+    def close(self):
+        self._handle.close()
+        self._ref_tracker.discard(self)
+
+    def is_connected(self):
+        return self in self._ref_tracker and self._handle.is_connected()
+
+    def __del__(self):
+        if self in self._ref_tracker:
+            self.close()
+
+
+class Client(_ClientHandle):
     """
     The Pulsar client. A single client instance can be used to create producers
     and consumers on multiple topics.
@@ -447,8 +470,7 @@ class Client:
             conf.tls_trust_certs_file_path(certifi.where())
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
         conf.tls_validate_hostname(tls_validate_hostname)
-        self._client = _pulsar.Client(service_url, conf)
-        self._consumers = []
+        super(Client, self).__init__(_pulsar.Client(service_url, conf), None, WeakSet())
 
     def create_producer(self, topic,
                         producer_name=None,
@@ -599,11 +621,7 @@ class Client:
         if crypto_key_reader:
             conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
-        p = Producer()
-        p._producer = self._client.create_producer(topic, conf)
-        p._schema = schema
-        p._client = self._client
-        return p
+        return Producer(self._handle.create_producer(topic, conf), schema, self._ref_tracker)
 
     def subscribe(self, topic, subscription_name,
                   consumer_type=ConsumerType.Exclusive,
@@ -720,7 +738,7 @@ class Client:
         conf.consumer_type(consumer_type)
         conf.read_compacted(is_read_compacted)
         if message_listener:
-            conf.message_listener(_listener_wrapper(message_listener, schema))
+            conf.message_listener(_listener_wrapper(message_listener, schema, self._ref_tracker))
         conf.receiver_queue_size(receiver_queue_size)
         conf.max_total_receiver_queue_size_across_partitions(max_total_receiver_queue_size_across_partitions)
         if consumer_name:
@@ -742,23 +760,18 @@ class Client:
 
         conf.replicate_subscription_state_enabled(replicate_subscription_state_enabled)
 
-        c = Consumer()
         if isinstance(topic, str):
             # Single topic
-            c._consumer = self._client.subscribe(topic, subscription_name, conf)
+            consumer = self._handle.subscribe(topic, subscription_name, conf)
         elif isinstance(topic, list):
             # List of topics
-            c._consumer = self._client.subscribe_topics(topic, subscription_name, conf)
+            consumer = self._handle.subscribe_topics(topic, subscription_name, conf)
         elif isinstance(topic, _retype):
             # Regex pattern
-            c._consumer = self._client.subscribe_pattern(topic.pattern, subscription_name, conf)
+            consumer = self._handle.subscribe_pattern(topic.pattern, subscription_name, conf)
         else:
             raise ValueError("Argument 'topic' is expected to be of a type between (str, list, re.pattern)")
-
-        c._client = self
-        c._schema = schema
-        self._consumers.append(c)
-        return c
+        return Consumer(consumer, schema, self._ref_tracker)
 
     def create_reader(self, topic, start_message_id,
                       schema=schema.BytesSchema(),
@@ -832,7 +845,7 @@ class Client:
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
-            conf.reader_listener(_listener_wrapper(reader_listener, schema))
+            conf.reader_listener(_listener_wrapper(reader_listener, schema, self._ref_tracker))
         conf.receiver_queue_size(receiver_queue_size)
         if reader_name:
             conf.reader_name(reader_name)
@@ -843,12 +856,7 @@ class Client:
         if crypto_key_reader:
             conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
-        c = Reader()
-        c._reader = self._client.create_reader(topic, start_message_id, conf)
-        c._client = self
-        c._schema = schema
-        self._consumers.append(c)
-        return c
+        return Reader(self._handle.create_reader(topic, start_message_id, conf), schema, self._ref_tracker)
 
     def get_topic_partitions(self, topic):
         """
@@ -863,7 +871,7 @@ class Client:
         :return: a list of partition name
         """
         _check_type(str, topic, 'topic')
-        return self._client.get_topic_partitions(topic)
+        return self._handle.get_topic_partitions(topic)
 
     def shutdown(self):
         """
@@ -872,16 +880,22 @@ class Client:
         Release all resources and close all producer, consumer, and readers without waiting
         for ongoing operations to complete.
         """
-        self._client.shutdown()
+        self._handle.shutdown()
 
     def close(self):
         """
         Close the client and all the associated producers and consumers
         """
-        self._client.close()
+        super(Client, self).close()
+        while len(self._ref_tracker):
+            child = self._ref_tracker.pop()
+            child._closed = True
+
+    def is_connected(self):
+        return not self in self._ref_tracker
 
 
-class Producer:
+class Producer(_ClientHandle):
     """
     The Pulsar message producer, used to publish messages on a topic.
     """
@@ -890,14 +904,14 @@ class Producer:
         """
         Return the topic which producer is publishing to
         """
-        return self._producer.topic()
+        return self._handle.topic()
 
     def producer_name(self):
         """
         Return the producer name which could have been assigned by the
         system or specified by the client
         """
-        return self._producer.producer_name()
+        return self._handle.producer_name()
 
     def last_sequence_id(self):
         """
@@ -910,7 +924,7 @@ class Producer:
         last message that was published in the previous producer session, or -1 if
         there no message was ever published.
         """
-        return self._producer.last_sequence_id()
+        return self._handle.last_sequence_id()
 
     def send(self, content,
              properties=None,
@@ -961,7 +975,7 @@ class Producer:
         msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication, event_timestamp,
                               deliver_at, deliver_after)
-        return MessageId.deserialize(self._producer.send(msg))
+        return MessageId.deserialize(self._handle.send(msg))
 
     def send_async(self, content, callback,
                    properties=None,
@@ -1023,7 +1037,7 @@ class Producer:
         msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication, event_timestamp,
                               deliver_at, deliver_after)
-        self._producer.send_async(msg, callback)
+        self._handle.send_async(msg, callback)
 
 
     def flush(self):
@@ -1031,14 +1045,7 @@ class Producer:
         Flush all the messages buffered in the client and wait until all messages have been
         successfully persisted
         """
-        self._producer.flush()
-
-
-    def close(self):
-        """
-        Close the producer.
-        """
-        self._producer.close()
+        self._handle.flush()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication, event_timestamp,
@@ -1077,14 +1084,8 @@ class Producer:
 
         return mb.build()
 
-    def is_connected(self):
-        """
-        Check if the producer is connected or not.
-        """
-        return self._producer.is_connected()
 
-
-class Consumer:
+class Consumer(_ClientHandle):
     """
     Pulsar consumer.
     """
@@ -1093,13 +1094,13 @@ class Consumer:
         """
         Return the topic this consumer is subscribed to.
         """
-        return self._consumer.topic()
+        return self._handle.topic()
 
     def subscription_name(self):
         """
         Return the subscription name.
         """
-        return self._consumer.subscription_name()
+        return self._handle.subscription_name()
 
     def unsubscribe(self):
         """
@@ -1111,7 +1112,7 @@ class Consumer:
 
         This consumer object cannot be reused.
         """
-        return self._consumer.unsubscribe()
+        return self._handle.unsubscribe()
 
     def receive(self, timeout_millis=None):
         """
@@ -1127,10 +1128,10 @@ class Consumer:
           available within the timeout.
         """
         if timeout_millis is None:
-            msg = self._consumer.receive()
+            msg = self._handle.receive()
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
-            msg = self._consumer.receive(timeout_millis)
+            msg = self._handle.receive(timeout_millis)
 
         m = Message()
         m._message = msg
@@ -1150,9 +1151,9 @@ class Consumer:
           The received message or message id.
         """
         if isinstance(message, Message):
-            self._consumer.acknowledge(message._message)
+            self._handle.acknowledge(message._message)
         else:
-            self._consumer.acknowledge(message)
+            self._handle.acknowledge(message)
 
     def acknowledge_cumulative(self, message):
         """
@@ -1168,9 +1169,9 @@ class Consumer:
           The received message or message id.
         """
         if isinstance(message, Message):
-            self._consumer.acknowledge_cumulative(message._message)
+            self._handle.acknowledge_cumulative(message._message)
         else:
-            self._consumer.acknowledge_cumulative(message)
+            self._handle.acknowledge_cumulative(message)
 
     def negative_acknowledge(self, message):
         """
@@ -1188,16 +1189,16 @@ class Consumer:
           The received message or message id.
         """
         if isinstance(message, Message):
-            self._consumer.negative_acknowledge(message._message)
+            self._handle.negative_acknowledge(message._message)
         else:
-            self._consumer.negative_acknowledge(message)
+            self._handle.negative_acknowledge(message)
 
     def pause_message_listener(self):
         """
         Pause receiving messages via the `message_listener` until
         `resume_message_listener()` is called.
         """
-        self._consumer.pause_message_listener()
+        self._handle.pause_message_listener()
 
     def resume_message_listener(self):
         """
@@ -1205,7 +1206,7 @@ class Consumer:
         Asynchronously receive all the messages enqueued from the time
         `pause_message_listener()` was called.
         """
-        self._consumer.resume_message_listener()
+        self._handle.resume_message_listener()
 
     def redeliver_unacknowledged_messages(self):
         """
@@ -1216,7 +1217,7 @@ class Consumer:
         doesn't throw an exception. In case the connection breaks, the messages
         are redelivered after reconnect.
         """
-        self._consumer.redeliver_unacknowledged_messages()
+        self._handle.redeliver_unacknowledged_messages()
 
     def seek(self, messageid):
         """
@@ -1230,24 +1231,10 @@ class Consumer:
         * `message`:
           The message id for seek, OR an integer event time to seek to
         """
-        self._consumer.seek(messageid)
-
-    def close(self):
-        """
-        Close the consumer.
-        """
-        self._consumer.close()
-        self._client._consumers.remove(self)
-
-    def is_connected(self):
-        """
-        Check if the consumer is connected or not.
-        """
-        return self._consumer.is_connected()
+        self._handle.seek(messageid)
 
 
-
-class Reader:
+class Reader(_ClientHandle):
     """
     Pulsar topic reader.
     """
@@ -1256,7 +1243,7 @@ class Reader:
         """
         Return the topic this reader is reading from.
         """
-        return self._reader.topic()
+        return self._handle.topic()
 
     def read_next(self, timeout_millis=None):
         """
@@ -1272,10 +1259,10 @@ class Reader:
           available within the timeout.
         """
         if timeout_millis is None:
-            msg = self._reader.read_next()
+            msg = self._handle.read_next()
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
-            msg = self._reader.read_next(timeout_millis)
+            msg = self._handle.read_next(timeout_millis)
 
         m = Message()
         m._message = msg
@@ -1286,7 +1273,7 @@ class Reader:
         """
         Check if there is any message available to read from the current position.
         """
-        return self._reader.has_message_available();
+        return self._handle.has_message_available();
 
     def seek(self, messageid):
         """
@@ -1300,20 +1287,7 @@ class Reader:
         * `message`:
           The message id for seek, OR an integer event time to seek to
         """
-        self._reader.seek(messageid)
-
-    def close(self):
-        """
-        Close the reader.
-        """
-        self._reader.close()
-        self._client._consumers.remove(self)
-
-    def is_connected(self):
-        """
-        Check if the reader is connected or not.
-        """
-        return self._reader.is_connected()
+        self._handle.seek(messageid)
 
 
 class CryptoKeyReader:
@@ -1345,10 +1319,9 @@ def _check_type_or_none(var_type, var, name):
                          % (name, var_type.__name__))
 
 
-def _listener_wrapper(listener, schema):
+def _listener_wrapper(listener, schema, ref_tracker):
     def wrapper(consumer, msg):
-        c = Consumer()
-        c._consumer = consumer
+        c = Consumer(consumer, schema, ref_tracker)
         m = Message()
         m._message = msg
         m._schema = schema
