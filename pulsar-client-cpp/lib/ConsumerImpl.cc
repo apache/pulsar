@@ -426,8 +426,8 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
                 auto firstMsgIdImplPtr = chunkedMsgCtx.getChunkedMessageIds()[0].impl_;
                 auto lastMsgIdImplPtr = chunkedMsgCtx.getChunkedMessageIds()[chunkedMsgCtx.numChunks() - 1].impl_;
                 chunkMessageId = std::make_shared<MessageId>
-                            (firstMsgIdImplPtr->partition_, firstMsgIdImplPtr->ledgerId_, firstMsgIdImplPtr->entryId_, -1,
-                             lastMsgIdImplPtr->partition_, lastMsgIdImplPtr->ledgerId_, lastMsgIdImplPtr->entryId_, -1);
+                        (firstMsgIdImplPtr->partition_, firstMsgIdImplPtr->ledgerId_, firstMsgIdImplPtr->entryId_, firstMsgIdImplPtr->batchIndex_,
+                         lastMsgIdImplPtr->partition_, lastMsgIdImplPtr->ledgerId_, lastMsgIdImplPtr->entryId_, firstMsgIdImplPtr->batchIndex_);
             }
             chunkedMessageCache_.remove(metadata.uuid());
             payload = optionalPayload.value();
