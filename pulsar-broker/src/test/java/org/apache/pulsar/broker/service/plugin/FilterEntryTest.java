@@ -162,26 +162,28 @@ public class FilterEntryTest extends BrokerTestBase {
 
 
     @Test
-    public void testFilteredMsgCount() throws Throwable{
+    public void testFilteredMsgCount() throws Throwable {
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
-        // mock entry filters
-        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
-        Dispatcher dispatcher = subscription.getDispatcher();
-        Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
-        field.setAccessible(true);
-        NarClassLoader narClassLoader = mock(NarClassLoader.class);
-        EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
-        EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
-        field.set(dispatcher, ImmutableList.of(loader1, loader2));
 
         try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topic).create();
              Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                      .subscriptionName(subName).subscribe()) {
+
+            // mock entry filters
+            PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                    .getTopicReference(topic).get().getSubscription(subName);
+            Dispatcher dispatcher = subscription.getDispatcher();
+            Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+            field.setAccessible(true);
+            NarClassLoader narClassLoader = mock(NarClassLoader.class);
+            EntryFilter filter1 = new EntryFilterTest();
+            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            EntryFilter filter2 = new EntryFilter2Test();
+            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+            field.set(dispatcher, ImmutableList.of(loader1, loader2));
+
             for (int i = 0; i < 10; i++) {
                 producer.send("test");
             }
