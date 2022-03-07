@@ -2368,6 +2368,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // offloadLoop will complete immediately with an empty list to offload
                     log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
                             name, sizeSummed, alreadyOffloadedSize, threshold);
+                    unlockingPromise.complete(PositionImpl.LATEST);
                 }
             }
         }
@@ -2932,6 +2933,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void offloadLoop(CompletableFuture<PositionImpl> promise, Queue<LedgerInfo> ledgersToOffload,
             PositionImpl firstUnoffloaded, Optional<Throwable> firstError) {
         if (getState() == State.Closed) {
+            promise.completeExceptionally(new ManagedLedgerAlreadyClosedException(
+                    String.format("managed ledger [%s] has already closed", name)));
             return;
         }
         LedgerInfo info = ledgersToOffload.poll();
