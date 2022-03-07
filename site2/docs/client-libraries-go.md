@@ -31,7 +31,7 @@ Once installed locally, you can import it into your project:
 import "github.com/apache/pulsar-client-go/pulsar"
 ```
 
-Online download(for example):
+Use with go module:
 
 ```bash
 $ mkdir test_dir && cd test_dir 
