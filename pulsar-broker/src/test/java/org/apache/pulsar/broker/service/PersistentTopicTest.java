@@ -1794,7 +1794,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // try to start replicator again
         topic.startReplProducers().join();
         // verify: replicator.startProducer is not invoked
-        verify(replicator, Mockito.times(1)).startProducer();
+        verify(replicator, Mockito.times(0)).startProducer();
 
         // step-3 : complete the callback to remove replicator from the list
         ArgumentCaptor<DeleteCursorCallback> captor = ArgumentCaptor.forClass(DeleteCursorCallback.class);
