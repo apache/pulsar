@@ -2317,7 +2317,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
         if (!offloadMutex.tryLock()) {
-            scheduledExecutor.schedule(safeRun(() -> maybeOffload(finalPromise)),
+            scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
                                        100, TimeUnit.MILLISECONDS);
         } else {
             CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
