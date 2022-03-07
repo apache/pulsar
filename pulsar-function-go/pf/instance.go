@@ -284,11 +284,11 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 			return nil, err
 		}
 
-		log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topicName.Name, subscriptionName)
+		log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topicName.NameWithoutPartition(), subscriptionName)
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:     topicName.Name,
+					TopicsPattern:     topicName.NameWithoutPartition(),
 					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
 					SubscriptionName:  subscriptionName,
 					Properties:        properties,
@@ -297,7 +297,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:             topicName.Name,
+					Topic:             topicName.NameWithoutPartition(),
 					SubscriptionName:  subscriptionName,
 					Properties:        properties,
 					Type:              subscriptionType,
@@ -308,7 +308,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:    topicName.Name,
+					TopicsPattern:    topicName.NameWithoutPartition(),
 					SubscriptionName: subscriptionName,
 					Properties:       properties,
 					Type:             subscriptionType,
@@ -316,7 +316,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:            topicName.Name,
+					Topic:            topicName.NameWithoutPartition(),
 					SubscriptionName: subscriptionName,
 					Properties:       properties,
 					Type:             subscriptionType,
@@ -392,8 +392,20 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 
 // ackInputMessage doesn't produce any result, or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
-	log.Debugf("ack input message topic name is: %s", inputMessage.Topic())
-	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
+
+	var (
+		topicName *TopicName
+		err       error
+	)
+
+	// parse topic into struct to retrieve name without partition, if any
+	topicName, err = ParseTopicName(inputMessage.Topic())
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+	log.Debugf("ack input message topic name is: %s", topicName.NameWithoutPartition())
+	gi.consumers[topicName.NameWithoutPartition()].Ack(inputMessage)
 }
 
 func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
