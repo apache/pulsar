@@ -160,6 +160,7 @@ You can control the allowable size and/or time of backlogs, at the namespace lev
 
 The diagram below illustrates the concept of backlog quota.
 ![](assets/backlog-quota.svg)
+![](assets/backlog-quota.png)
 
 Setting a backlog quota involves setting:
 
@@ -386,7 +387,7 @@ The entry log rollover period is configurable, but is purely based on the entry 
 
 - **Garbage collection interval**: because entry logs have interleaved ledgers, to free up space, the entry logs need to be rewritten. The garbage collection interval is how often BookKeeper performs garbage collection. which is related to minor compaction and major compaction of entry logs. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-compaction-settings).
 
-The diagram below illustrates one of the cases that the consumed storage size is larger than the given limits for backlog and retention, because messages over the retention limit are kept because other messages in the same segment are still within retention period.
+The diagram below illustrates one of the cases that the consumed storage size is larger than the given limits for backlog and retention. Messages over the retention limit are kept because other messages in the same segment are still within retention period.
 ![](assets/retention-storage-size.svg)
 
 If you do not have any retention period and that you never have much of a backlog, the upper limit for retained messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).
