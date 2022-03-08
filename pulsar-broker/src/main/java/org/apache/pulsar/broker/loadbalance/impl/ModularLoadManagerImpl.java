@@ -475,15 +475,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         if (log.isDebugEnabled()) {
             log.debug("Updating broker and bundle data for loadreport");
         }
+        cleanupDeadBrokersData();
         updateAllBrokerData();
         updateBundleData();
         // broker has latest load-report: check if any bundle requires split
         checkNamespaceBundleSplit();
     }
 
-    // As the leader broker, update the broker data map in loadData by querying metadata store for the broker data put
-    // there by each broker via updateLocalBrokerData.
-    private void updateAllBrokerData() {
+    private void cleanupDeadBrokersData() {
         final Set<String> activeBrokers = getAvailableBrokers();
         Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokers);
         knownBrokers.addAll(newBrokers);
@@ -493,7 +492,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
         }
+    }
 
+    // As the leader broker, update the broker data map in loadData by querying metadata store for the broker data put
+    // there by each broker via updateLocalBrokerData.
+    private void updateAllBrokerData() {
+        final Set<String> activeBrokers = getAvailableBrokers();
         final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
         for (String broker : activeBrokers) {
             try {
