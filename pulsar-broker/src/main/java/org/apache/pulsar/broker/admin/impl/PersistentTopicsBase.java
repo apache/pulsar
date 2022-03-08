@@ -309,12 +309,12 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopicForcefully(boolean authoritative, boolean deleteSchema) {
+    protected void internalDeleteTopicForcefully(boolean authoritative) {
         validateTopicOwnership(topicName, authoritative);
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), true).get();
         } catch (Exception e) {
             if (isManagedLedgerNotFoundException(e)) {
                 log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
@@ -581,7 +581,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
-                                                  boolean force, boolean deleteSchema) {
+                                                  boolean force) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                         NamespaceOperation.DELETE_TOPIC))
@@ -591,14 +591,6 @@ public class PersistentTopicsBase extends AdminResource {
                             final int numPartitions = partitionedMeta.partitions;
                             if (numPartitions < 1){
                                 return CompletableFuture.completedFuture(null);
-                            }
-                            if (deleteSchema) {
-                                return pulsar().getBrokerService()
-                                        .deleteSchemaStorage(topicName.getPartition(0).toString())
-                                        .thenCompose(unused ->
-                                                internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions))
-                                        .thenCompose(unused2 ->
-                                                internalRemovePartitionsTopicAsync(numPartitions, force));
                             }
                             return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
@@ -1015,20 +1007,20 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
+    protected void internalDeleteTopic(boolean authoritative, boolean force) {
         if (force) {
-            internalDeleteTopicForcefully(authoritative, deleteSchema);
+            internalDeleteTopicForcefully(authoritative);
         } else {
-            internalDeleteTopic(authoritative, deleteSchema);
+            internalDeleteTopic(authoritative);
         }
     }
 
-    protected void internalDeleteTopic(boolean authoritative, boolean deleteSchema) {
+    protected void internalDeleteTopic(boolean authoritative) {
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
         validateTopicOwnership(topicName, authoritative);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), false, deleteSchema).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), false).get();
             log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
         } catch (Exception e) {
             Throwable t = e.getCause();
