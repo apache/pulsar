@@ -444,5 +444,15 @@
         <cve>CVE-2019-10174</cve>
         <cve>CVE-2020-25711</cve>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: mariadb-java-client-2.7.5.jar
+       ]]></notes>
+        <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
+        <cve>CVE-2020-28912</cve>
+        <cve>CVE-2021-46669</cve>
+        <cve>CVE-2021-46666</cve>
+        <cve>CVE-2021-46667</cve>
+    </suppress>
 
 </suppressions>
