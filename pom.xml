@@ -2448,6 +2448,16 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </releases>
     </repository>
+    <repository>
+      <id>public-datastax-releases</id>
+      <url>https://repo.datastax.com/datastax-public-releases-local</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </repository>
   </repositories>
 
   <distributionManagement>
