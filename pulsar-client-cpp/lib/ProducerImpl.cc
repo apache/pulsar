@@ -868,7 +868,7 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
                 op.chunkedMessageCtxPtr_->lastChunkMessageIdImplPtr_ = std::make_shared<MessageIdImpl>
                                                 (partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
                 
-                auto firMsgIdIpPtr = op.chunkedMessageCtxPtr_->lastChunkMessageIdImplPtr_;
+                auto firMsgIdIpPtr = op.chunkedMessageCtxPtr_->firstChunkMessageIdImplPtr_;
                 messageId = MessageId(firMsgIdIpPtr->partition_, firMsgIdIpPtr->ledgerId_, firMsgIdIpPtr->entryId_, firMsgIdIpPtr->batchIndex_,
                                 partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),rawMessageId.batchIndex());
             }
