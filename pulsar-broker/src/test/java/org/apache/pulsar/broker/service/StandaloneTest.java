@@ -23,6 +23,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.testng.annotations.Test;
 
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
 @Test(groups = "broker")
@@ -36,6 +37,15 @@ public class StandaloneTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
 
+    }
+
+    @Test
+    public void testWithoutMetadataStoreUrlInConfFile() throws Exception {
+        String args[] = new String[]{"--config",
+                "../conf/standalone.conf"};
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
+        assertNotNull(standalone.getConfig().getProperties().getProperty("metadataStoreUrl"));
+        assertNotNull(standalone.getConfig().getProperties().getProperty("configurationMetadataStoreUrl"));
     }
 
     @Test
