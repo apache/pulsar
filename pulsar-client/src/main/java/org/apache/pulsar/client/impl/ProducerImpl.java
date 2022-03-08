@@ -116,6 +116,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
+    private final CompletableFuture<MessageId> lastSendFutureEmpty = CompletableFuture.completedFuture(null);
+    private volatile boolean lastSendFutureResponse = false;
+
 
     // Globally unique producer name
     private String producerName;
@@ -621,6 +624,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         // batch size and/or max message size
                         boolean isBatchFull = batchMessageContainer.add(msg, callback);
                         lastSendFuture = callback.getFuture();
+                        lastSendFutureResponse = false;
                         payload.release();
                         if (isBatchFull) {
                             batchMessageAndSend();
@@ -663,6 +667,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             op.chunkedMessageCtx = chunkedMessageCtx;
             lastSendFuture = callback.getFuture();
+            lastSendFutureResponse = false;
             processOpSendMsg(op);
         }
     }
@@ -816,6 +821,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             batchMessageAndSend();
             batchMessageContainer.add(msg, callback);
             lastSendFuture = callback.getFuture();
+            lastSendFutureResponse = false;
         } finally {
             payload.release();
         }
@@ -1975,8 +1981,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (isBatchMessagingEnabled()) {
                 batchMessageAndSend();
             }
-            lastSendFuture = this.lastSendFuture;
+            if (lastSendFutureResponse) {
+                lastSendFuture = this.lastSendFutureEmpty;
+            } else {
+                lastSendFuture = this.lastSendFuture;
+                lastSendFuture.exceptionally(ignored -> {
+                    lastSendFutureResponse = true;
+                    return null;
+                });
+            }
         }
+
         return lastSendFuture.thenApply(ignored -> null);
     }
 
@@ -2207,6 +2222,27 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     boolean isErrorStat() {
         return errorState;
+    }
+
+    @VisibleForTesting
+    CompletableFuture<Void> getLastSendFuture() {
+        CompletableFuture<MessageId> lastSendFuture;
+        if (lastSendFutureResponse) {
+            lastSendFuture = this.lastSendFutureEmpty;
+        } else {
+            lastSendFuture = this.lastSendFuture;
+            lastSendFuture.exceptionally(ignored -> {
+                lastSendFutureResponse = true;
+                return null;
+            });
+        }
+
+        return lastSendFuture.thenApply(ignored -> null);
+    }
+
+    @VisibleForTesting
+    void setLastSendFuture(CompletableFuture<MessageId> lastSendFuture) {
+        this.lastSendFuture = lastSendFuture;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);
