@@ -23,11 +23,11 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
-import org.junit.AfterClass;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -42,13 +42,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 
-public class ElasticSearchSinkRawDataTests {
-
-    public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
+public class ElasticSearchSinkRawDataTests extends ElasticSearchTestBase {
 
     private static ElasticsearchContainer container;
 
@@ -67,11 +62,11 @@ public class ElasticSearchSinkRawDataTests {
 
     @BeforeClass
     public static final void initBeforeClass() {
-        container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
+        container = createElasticsearchContainer();
         schema = Schema.BYTES;
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
     }
