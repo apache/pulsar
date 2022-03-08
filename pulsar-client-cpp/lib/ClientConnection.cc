@@ -180,7 +180,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         connectTimeoutTask_ = std::make_shared<PeriodicTask>(executor_->getIOService(),
                                                              clientConfiguration.getConnectionTimeout());
         consumerStatsRequestTimer_ = executor_->createDeadlineTimer();
-    } catch (std::exception& e) {
+    } catch (const boost::system::system_error& e) {
         LOG_ERROR("Failed to initialize connection: " << e.what());
         close();
         return;
