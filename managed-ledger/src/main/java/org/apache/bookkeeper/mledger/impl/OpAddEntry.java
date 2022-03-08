@@ -307,7 +307,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         finalMl.getExecutor().executeOrdered(finalMl.getName(), SafeRun.safeRun(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
-            finalMl.ledgerClosed(lh);
+            if (finalMl != null) {
+                finalMl.ledgerClosed(lh);
+            }
         }));
     }
 
