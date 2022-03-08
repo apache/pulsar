@@ -108,7 +108,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     public void testLargeMessage(boolean ackReceiptEnabled) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(5);
+        this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
@@ -125,7 +125,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         List<String> publishedMessages = Lists.newArrayList();
         for (int i = 0; i < totalMessages; i++) {
-            String message = createMessagePayload(i * 10);
+            String message = createMessagePayload(i * 100);
             publishedMessages.add(message);
             producer.send(message.getBytes());
         }
@@ -171,7 +171,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     @Test
     public void testChunkingWithOrderingKey() throws Exception {
-        this.conf.setMaxMessageSize(5);
+        this.conf.setMaxMessageSize(100);
 
         final String topicName = "persistent://my-property/my-ns/testChunkingWithOrderingKey";
 
@@ -183,8 +183,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableChunking(true)
                 .enableBatching(false).create();
 
-        byte[] data = RandomUtils.nextBytes(20);
-        byte[] ok = RandomUtils.nextBytes(10);
+        byte[] data = RandomUtils.nextBytes(200);
+        byte[] ok = RandomUtils.nextBytes(50);
         producer.newMessage().value(data).orderingKey(ok).send();
 
         Message<byte[]> msg = consumer.receive();
@@ -196,7 +196,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     public void testLargeMessageAckTimeOut(boolean ackReceiptEnabled) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(5);
+        this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
@@ -213,7 +213,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         List<String> publishedMessages = Lists.newArrayList();
         for (int i = 0; i < totalMessages; i++) {
-            String message = createMessagePayload(i * 10);
+            String message = createMessagePayload(i * 100);
             publishedMessages.add(message);
             producer.send(message.getBytes());
         }
@@ -263,7 +263,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     @Test
     public void testPublishWithFailure() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(5);
+        this.conf.setMaxMessageSize(50);
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
@@ -274,7 +274,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         stopBroker();
 
         try {
-            producer.send(createMessagePayload(100).getBytes());
+            producer.send(createMessagePayload(1000).getBytes());
             fail("should have failed with timeout exception");
         } catch (PulsarClientException.TimeoutException e) {
             // Ok
@@ -403,7 +403,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     public void testChunksEnqueueFailed() throws Exception {
         final String topicName = "persistent://my-property/my-ns/test-chunks-enqueue-failed";
         log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(5);
+        this.conf.setMaxMessageSize(50);
 
         final MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
         assertEquals(controller.currentUsage(), 0);
@@ -423,7 +423,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertEquals(semaphore.availablePermits(), maxPendingMessages);
         producer.send(createMessagePayload(1).getBytes());
         try {
-            producer.send(createMessagePayload(100).getBytes(StandardCharsets.UTF_8));
+            producer.send(createMessagePayload(1000).getBytes(StandardCharsets.UTF_8));
             fail("It should fail with ProducerQueueIsFullError");
         } catch (PulsarClientException e) {
             assertTrue(e instanceof PulsarClientException.ProducerQueueIsFullError);
@@ -440,7 +440,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     @Test
     public void testSeekChunkMessages() throws PulsarClientException {
         log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(5);
+        this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
         final String topicName = "persistent://my-property/my-ns/test-seek-chunk";
 
@@ -463,7 +463,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .subscribe();
 
         for (int i = 0; i < totalMessages; i++) {
-            String message = createMessagePayload(10);
+            String message = createMessagePayload(100);
             producer.send(message.getBytes());
         }
 
