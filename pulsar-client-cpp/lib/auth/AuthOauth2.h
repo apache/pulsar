@@ -20,6 +20,7 @@
 #pragma once
 
 #include <pulsar/Authentication.h>
+#include <chrono>
 #include <string>
 
 namespace pulsar {
@@ -67,13 +68,15 @@ class ClientCredentialFlow : public Oauth2Flow {
 
 class Oauth2CachedToken : public CachedToken {
    public:
+    using Clock = std::chrono::high_resolution_clock;
+
     Oauth2CachedToken(Oauth2TokenResultPtr token);
     ~Oauth2CachedToken();
     bool isExpired();
     AuthenticationDataPtr getAuthData();
 
    private:
-    int64_t expiresAt_;
+    std::chrono::time_point<Clock> expiresAt_;
     Oauth2TokenResultPtr latest_;
     AuthenticationDataPtr authData_;
 };
