@@ -47,11 +47,12 @@ MessageId& MessageId::operator=(const MessageId& m) {
 MessageId::MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex)
     : impl_(std::make_shared<MessageIdImpl>(partition, ledgerId, entryId, batchIndex)) {}
 
-MessageId::MessageId(int32_t firstPartition, int64_t firstLedgerId, int64_t firstEntryId, int32_t firstBatchIndex,
-                     int32_t lastPartition, int64_t lastLedgerId, int64_t lastEntryId, int32_t lastBatchIndex) {
-    impl_ = std::make_shared<ChunkMessageIdImpl>(firstPartition, firstLedgerId, firstEntryId, firstBatchIndex,
-                                                 lastPartition, lastLedgerId, lastEntryId, lastBatchIndex)
-                                                            ->getLastChunkMessageIdImpl();
+MessageId::MessageId(const MessageId& firstMessageId, const MessageId& lastMessageId) {
+    auto firstImpl = firstMessageId.impl_, lastImpl = lastMessageId.impl_;
+    impl_ = std::make_shared<ChunkMessageIdImpl>(
+                firstImpl->partition_, firstImpl->ledgerId_, firstImpl->entryId_, firstImpl->batchIndex_,
+                lastImpl->partition_, lastImpl->ledgerId_, lastImpl->entryId_, lastImpl->batchIndex_)
+                ->getLastChunkMessageIdImpl();
 }
 
 const MessageId& MessageId::earliest() {
@@ -65,7 +66,7 @@ const MessageId& MessageId::latest() {
     return _latest;
 }
 
-bool MessageId::isChunkMessageid() const{
+bool MessageId::isChunkMessageid() const {
     if (std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_) != nullptr) {
         return true;
     }
@@ -77,7 +78,8 @@ void MessageId::serialize(std::string& result) const {
     writeMessageIdData(impl_, &idData);
     if (isChunkMessageid() == true) {
         auto chunkMsgIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_);
-        writeMessageIdData(chunkMsgIdImpl->getFirstChunkMessageIdImpl(), idData.mutable_first_chunk_message_id());
+        writeMessageIdData(chunkMsgIdImpl->getFirstChunkMessageIdImpl(),
+                           idData.mutable_first_chunk_message_id());
     }
     idData.SerializeToString(&result);
 }
@@ -92,8 +94,9 @@ MessageId MessageId::deserialize(const std::string& serializedMessageId) {
     }
     if (idData.has_first_chunk_message_id()) {
         auto firData = idData.first_chunk_message_id();
-        return MessageId(firData.partition(), firData.ledgerid(), firData.entryid(), firData.batch_index(),
-                         idData.partition(), idData.ledgerid(), idData.entryid(), idData.batch_index());
+        return MessageId(
+            MessageId(firData.partition(), firData.ledgerid(), firData.entryid(), firData.batch_index()),
+            MessageId(idData.partition(), idData.ledgerid(), idData.entryid(), idData.batch_index()));
     }
     return MessageId(idData.partition(), idData.ledgerid(), idData.entryid(), idData.batch_index());
 }
@@ -107,17 +110,16 @@ int32_t MessageId::batchIndex() const { return impl_->batchIndex_; }
 int32_t MessageId::partition() const { return impl_->partition_; }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
-    std::function<void(std::ostream&, const MessageIdImplPtr)> printMsgIdImpl 
-                                                = [](std::ostream& s, const MessageIdImplPtr impl){
-        s << '(' << impl->ledgerId_ << ',' << impl->entryId_ << ','
-          << impl->partition_ << ',' << impl->batchIndex_ << ')';
-    };
-    if (messageId.isChunkMessageid() == false){
+    std::function<void(std::ostream&, const MessageIdImplPtr)> printMsgIdImpl =
+        [](std::ostream& s, const MessageIdImplPtr impl) {
+            s << '(' << impl->ledgerId_ << ',' << impl->entryId_ << ',' << impl->partition_ << ','
+              << impl->batchIndex_ << ')';
+        };
+    if (messageId.isChunkMessageid() == false) {
         printMsgIdImpl(s, messageId.impl_);
-    }
-    else {
-        auto firstMessageidImplPtr = std::dynamic_pointer_cast<ChunkMessageIdImpl>(messageId.impl_)
-                                                                        ->getFirstChunkMessageIdImpl();
+    } else {
+        auto firstMessageidImplPtr =
+            std::dynamic_pointer_cast<ChunkMessageIdImpl>(messageId.impl_)->getFirstChunkMessageIdImpl();
         printMsgIdImpl(s, firstMessageidImplPtr);
         s << "->";
         printMsgIdImpl(s, messageId.impl_);

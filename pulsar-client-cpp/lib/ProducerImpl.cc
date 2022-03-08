@@ -861,16 +861,17 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         int totalChunks = op.metadata_.num_chunks_from_msg();
         if (totalChunks > 1) {
             if (op.metadata_.chunk_id() == 0) {
-                op.chunkedMessageCtxPtr_->firstChunkMessageIdImplPtr_ = std::make_shared<MessageIdImpl>
-                                                (partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
-            } 
-            else if (op.metadata_.chunk_id() == totalChunks - 1) {
-                op.chunkedMessageCtxPtr_->lastChunkMessageIdImplPtr_ = std::make_shared<MessageIdImpl>
-                                                (partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
-                
+                op.chunkedMessageCtxPtr_->firstChunkMessageIdImplPtr_ = std::make_shared<MessageIdImpl>(
+                    partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
+            } else if (op.metadata_.chunk_id() == totalChunks - 1) {
+                op.chunkedMessageCtxPtr_->lastChunkMessageIdImplPtr_ = std::make_shared<MessageIdImpl>(
+                    partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
+
                 auto firMsgIdIpPtr = op.chunkedMessageCtxPtr_->firstChunkMessageIdImplPtr_;
-                messageId = MessageId(firMsgIdIpPtr->partition_, firMsgIdIpPtr->ledgerId_, firMsgIdIpPtr->entryId_, firMsgIdIpPtr->batchIndex_,
-                                partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),rawMessageId.batchIndex());
+                messageId = MessageId(MessageId(firMsgIdIpPtr->partition_, firMsgIdIpPtr->ledgerId_,
+                                                firMsgIdIpPtr->entryId_, firMsgIdIpPtr->batchIndex_),
+                                      MessageId(partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),
+                                                rawMessageId.batchIndex()));
             }
         }
         lock.unlock();

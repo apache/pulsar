@@ -33,12 +33,12 @@ struct ProducerChunkedMessageCtx {
    public:
     ProducerChunkedMessageCtx() = default;
 
-    ProducerChunkedMessageCtx(MessageIdImplPtr firstChunkMessageId, MessageIdImplPtr lastChunkMessageId) :
-                                    firstChunkMessageIdImplPtr_(firstChunkMessageId), lastChunkMessageIdImplPtr_(lastChunkMessageId) {}
+    ProducerChunkedMessageCtx(MessageIdImplPtr firstChunkMessageId, MessageIdImplPtr lastChunkMessageId)
+        : firstChunkMessageIdImplPtr_(firstChunkMessageId), lastChunkMessageIdImplPtr_(lastChunkMessageId) {}
 
     MessageIdImplPtr getChunkMessageId() {
         return std::make_shared<ChunkMessageIdImpl>(*firstChunkMessageIdImplPtr_, *lastChunkMessageIdImplPtr_)
-                                                                            ->getLastChunkMessageIdImpl();
+            ->getLastChunkMessageIdImpl();
     }
 
     MessageIdImplPtr firstChunkMessageIdImplPtr_;
@@ -60,7 +60,7 @@ struct OpSendMsg {
 
     OpSendMsg(const proto::MessageMetadata& metadata, const SharedBuffer& payload,
               const SendCallback& sendCallback, uint64_t producerId, uint64_t sequenceId, int sendTimeoutMs,
-              uint32_t messagesCount, uint64_t messagesSize, 
+              uint32_t messagesCount, uint64_t messagesSize,
               std::shared_ptr<ProducerChunkedMessageCtx> chunkedMessageCtxPtr)
         : metadata_(metadata),  // the copy happens here because OpSendMsg of chunks are constructed with the
                                 // a shared metadata object

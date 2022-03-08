@@ -21,16 +21,14 @@
 #include "PulsarApi.pb.h"
 
 namespace pulsar {
-class MessageIdImpl;
-typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
 
 inline MessageId toMessageId(const proto::MessageIdData& messageIdData) {
     return MessageId{messageIdData.partition(), static_cast<int64_t>(messageIdData.ledgerid()),
                      static_cast<int64_t>(messageIdData.entryid()), messageIdData.batch_index()};
 }
 /**
-* wirte the message_id_impl into a MessageIdData
-*/
+ * wirte the message_id_impl into a MessageIdData
+ */
 inline void writeMessageIdData(const MessageIdImplPtr impl, proto::MessageIdData* idData) {
     idData->set_ledgerid(impl->ledgerId_);
     idData->set_entryid(impl->entryId_);

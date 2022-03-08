@@ -47,4 +47,6 @@ class MessageIdImpl {
     friend class MultiTopicsConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
 };
+
+typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
 }  // namespace pulsar

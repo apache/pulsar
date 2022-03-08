@@ -95,11 +95,6 @@ TEST_P(MessageChunkingSeekTest, testSeek) {
     Producer producer;
     createProducer(topic, producer);
 
-    MessageId a(1,1,1,1,2,2,2,2);
-    std::string b;
-    a.serialize(b);
-    MessageId c;
-    c.deserialize(b);
     constexpr int numMessages = 20;
 
     std::vector<MessageId> receiveMessageIds;
@@ -114,7 +109,7 @@ TEST_P(MessageChunkingSeekTest, testSeek) {
         consumer.receive(msg, 3000);
         receiveMessageIds.push_back(msg.getMessageId());
     }
-    
+
     consumer.seek(receiveMessageIds[1]);
     for (int i = 1; i < numMessages; i++) {
         consumer.receive(msg, 3000);
