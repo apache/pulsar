@@ -3020,7 +3020,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
                         subscribeRateLimiter.onSubscribeRateUpdate(getSubscribeRate()));
             }
-
             replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                     .ifPresent(DispatchRateLimiter::updateDispatchRate));
 
