@@ -178,6 +178,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             sequenceNumber++;
         }
         for (Producer<Long> producer : producers) {
+            producer.flush();
             producer.close();
         }
 

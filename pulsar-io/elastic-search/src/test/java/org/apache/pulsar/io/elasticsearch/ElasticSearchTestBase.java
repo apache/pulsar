@@ -16,37 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.io.elasticsearch;
 
-import lombok.experimental.UtilityClass;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-@UtilityClass
-public class MathUtils {
-    /**
-     * Compute sign safe mod.
-     *
-     * @param dividend
-     * @param divisor
-     * @return
-     */
-    public static int signSafeMod(long dividend, int divisor) {
-        int mod = (int) (dividend % divisor);
+import java.util.Optional;
 
-        if (mod < 0) {
-            mod += divisor;
-        }
+public class ElasticSearchTestBase {
 
-        return mod;
+    private static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
+
+    protected static ElasticsearchContainer createElasticsearchContainer() {
+        return new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
+
     }
 
-    /**
-     * Ceil version of Math.floorDiv().
-     * @param x the dividend
-     * @param y the divisor
-     * @return the smallest value that is larger than or equal to the algebraic quotient.
-     *
-     */
-    public static int ceilDiv(int x, int y) {
-        return -Math.floorDiv(-x, y);
-    }
 }
