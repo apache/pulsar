@@ -83,7 +83,7 @@ You can use one of the following methods to create a configuration file.
         database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
         database.history.pulsar.topic: "history-topic"
         database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
-
+        pulsar.service.url: "pulsar://127.0.0.1:6650"
         ## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG
         key.converter: "org.apache.kafka.connect.json.JsonConverter"
         value.converter: "org.apache.kafka.connect.json.JsonConverter"
