@@ -16,37 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.client.util;
 
-import lombok.experimental.UtilityClass;
 
-@UtilityClass
-public class MathUtils {
-    /**
-     * Compute sign safe mod.
-     *
-     * @param dividend
-     * @param divisor
-     * @return
-     */
-    public static int signSafeMod(long dividend, int divisor) {
-        int mod = (int) (dividend % divisor);
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-        if (mod < 0) {
-            mod += divisor;
-        }
+public class MathUtilsTest {
 
-        return mod;
-    }
+    @Test
+    public void testCeilDiv() {
+        Assert.assertEquals(MathUtils.ceilDiv(0, 1024), 0);
+        Assert.assertEquals(MathUtils.ceilDiv(1, 1024), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(1023, 1024), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(1024, 1024), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(1025, 1024), 2);
 
-    /**
-     * Ceil version of Math.floorDiv().
-     * @param x the dividend
-     * @param y the divisor
-     * @return the smallest value that is larger than or equal to the algebraic quotient.
-     *
-     */
-    public static int ceilDiv(int x, int y) {
-        return -Math.floorDiv(-x, y);
+        Assert.assertEquals(MathUtils.ceilDiv(0, Integer.MAX_VALUE), 0);
+        Assert.assertEquals(MathUtils.ceilDiv(1, Integer.MAX_VALUE), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE - 1, Integer.MAX_VALUE), 1);
+        Assert.assertEquals(MathUtils.ceilDiv(Integer.MAX_VALUE, Integer.MAX_VALUE), 1);
     }
 }
