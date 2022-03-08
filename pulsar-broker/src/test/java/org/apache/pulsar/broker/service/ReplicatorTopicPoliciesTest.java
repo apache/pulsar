@@ -677,12 +677,12 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
         init(namespace, persistentTopicName);
-        // Not global
+        // local
         admin1.topicPolicies().setMaxSubscriptionsPerTopic(persistentTopicName, 1024);
         untilRemoteClustersAsserted(
                 admin -> assertNull(admin.topicPolicies().getMaxSubscriptionsPerTopic(persistentTopicName)));
 
-        //set max subscriptions per topic
+        // global
         admin1.topicPolicies(true).setMaxSubscriptionsPerTopic(persistentTopicName, 1024);
 
         //get max subscriptions per topic
@@ -705,7 +705,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         OffloadPoliciesImpl offloadPolicies =
                 OffloadPoliciesImpl.create("s3", "region", "bucket", "endpoint", null, null, null, null,
                 8, 9, 10L, null, OffloadedReadPriority.BOOKKEEPER_FIRST);
-        // Not global
+        // local
         try {
             admin1.topicPolicies().setOffloadPolicies(persistentTopicName, offloadPolicies);
         } catch (Exception exception){
@@ -716,7 +716,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin2.topicPolicies().getOffloadPolicies(persistentTopicName)));
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies().getOffloadPolicies(persistentTopicName)));
-        // set offload policies
+        // global
         try{
             admin1.topicPolicies(true).setOffloadPolicies(persistentTopicName, offloadPolicies);
         }catch (Exception exception){
