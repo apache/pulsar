@@ -35,7 +35,7 @@ Use with go module:
 ```bash
 $ mkdir test_dir && cd test_dir 
 ```
-Write a sample script in 'test_dir' directory , such as ‘test_example.go’,and write ‘package main’ at the beginning of the file.
+Write a sample script in the `test_dir` directory (such as `test_example.go`) and write `package main` at the beginning of the file.
 
 ```bash
 $ go mod init test_dir 
