@@ -18,6 +18,8 @@
 # under the License.
 #
 
+shopt -s nullglob
+
 function fail {
   echo $1 >&2
   exit 1
@@ -30,6 +32,11 @@ function retry {
   while true; do
     "$@" && break || {
       if [[ $n -lt $max ]]; then
+        if [[ -n "$CHANGED_TESTS" ]]; then
+          if grep -q -F -f <(printf "$CHANGED_TESTS" | sed 's/,/\n/g' | sed -E 's|.*src/test/java/(.*)\.java$|\1|' | sed 's|/|.|g') */*/*/target/surefire-reports/testng-failed.xml */*/target/surefire-reports/testng-failed.xml */target/surefire-reports/testng-failed.xml; then
+            fail "Not retrying since one of the changed tests failed."
+          fi
+        fi
         ((n++))
         echo "Command failed. Attempt $n/$max:"
         sleep $delay;
