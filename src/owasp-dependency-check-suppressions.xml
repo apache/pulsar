@@ -42,6 +42,14 @@
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
 
+    <suppress>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-1.4.32.jar
+   ]]></notes>
+        <sha1>461367948840adbb0839c51d91ed74ef4a9ccb52</sha1>
+        <cve>CVE-2022-24329</cve>
+    </suppress>
+
     <!-- see https://github.com/alibaba/canal/issues/4010 -->
     <suppress>
         <notes><![CDATA[
