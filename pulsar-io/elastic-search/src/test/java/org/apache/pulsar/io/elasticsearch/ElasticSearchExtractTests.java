@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import com.google.common.collect.ImmutableList;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import com.google.common.collect.ImmutableMap;
+import java.util.Optional;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -31,33 +33,18 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.Collection;
-import java.util.Optional;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-
-@RunWith(Parameterized.class)
 public class ElasticSearchExtractTests {
 
-    SchemaType schemaType;
-
-    @Parameters
-    public static Collection schemaTypes() {
-        return ImmutableList.of(SchemaType.JSON, SchemaType.AVRO);
+    @DataProvider(name = "schemaType")
+    public Object[] schemaType() {
+        return new Object[]{SchemaType.JSON, SchemaType.AVRO};
     }
 
-    public ElasticSearchExtractTests(SchemaType schemaType) {
-        this.schemaType = schemaType;
-    }
-
-    @Test
-    public void testGenericRecord() throws Exception {
+    @Test(dataProvider = "schemaType")
+    public void testGenericRecord(SchemaType schemaType) throws Exception {
         RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
         valueSchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
         valueSchemaBuilder.field("d").type(SchemaType.INT32).optional().defaultValue(null);
@@ -154,8 +141,8 @@ public class ElasticSearchExtractTests {
         assertNull(pair4.getRight());
     }
 
-    @Test
-    public void testKeyValueGenericRecord() throws Exception {
+    @Test(dataProvider = "schemaType")
+    public void testKeyValueGenericRecord(SchemaType schemaType) throws Exception {
         RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("key");
         keySchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);
         keySchemaBuilder.field("b").type(SchemaType.INT32).optional().defaultValue(null);
