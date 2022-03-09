@@ -116,7 +116,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private volatile long producerDeadline = 0; // gets set on first successful connection
 
     private final BatchMessageContainerBase batchMessageContainer;
-    private LastSendFutureWrapper lastSendFuture = LastSendFutureWrapper.create(CompletableFuture.completedFuture(null));
+    private LastSendFutureWrapper lastSendFuture = LastSendFutureWrapper
+            .create(CompletableFuture.completedFuture(null));
 
     // Globally unique producer name
     private String producerName;
