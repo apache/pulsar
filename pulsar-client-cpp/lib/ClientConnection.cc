@@ -161,7 +161,6 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       serverProtocolVersion_(ProtocolVersion_MIN),
       executor_(executor),
       resolver_(executor_->createTcpResolver()),
-      socket_(executor_->createSocket()),
 #if BOOST_VERSION >= 107000
       strand_(boost::asio::make_strand(executor_->getIOService().get_executor())),
 #elif BOOST_VERSION >= 106600
@@ -173,11 +172,19 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       physicalAddress_(physicalAddress),
       cnxString_("[<none> -> " + physicalAddress + "] "),
       incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-      connectTimeoutTask_(std::make_shared<PeriodicTask>(executor_->getIOService(),
-                                                         clientConfiguration.getConnectionTimeout())),
       outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-      consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
       maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()) {
+
+    try {
+        socket_ = executor_->createSocket();
+        connectTimeoutTask_ = std::make_shared<PeriodicTask>(executor_->getIOService(),
+                                                             clientConfiguration.getConnectionTimeout());
+        consumerStatsRequestTimer_ = executor_->createDeadlineTimer();
+    } catch (const boost::system::system_error& e) {
+        LOG_ERROR("Failed to initialize connection: " << e.what());
+        close();
+        return;
+    }
 
     LOG_INFO(cnxString_ << "Create ClientConnection, timeout=" << clientConfiguration.getConnectionTimeout());
     if (clientConfiguration.isUseTls()) {
@@ -1480,9 +1487,11 @@ void ClientConnection::close(Result result) {
     }
     state_ = Disconnected;
     boost::system::error_code err;
-    socket_->close(err);
-    if (err) {
-        LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+    if (socket_) {
+        socket_->close(err);
+        if (err) {
+            LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+        }
     }
 
     if (tlsSocket_) {
@@ -1517,7 +1526,10 @@ void ClientConnection::close(Result result) {
         consumerStatsRequestTimer_.reset();
     }
 
-    connectTimeoutTask_->stop();
+    if (connectTimeoutTask_) {
+        connectTimeoutTask_->stop();
+        connectTimeoutTask_.reset();
+    }
 
     lock.unlock();
     LOG_INFO(cnxString_ << "Connection closed");
