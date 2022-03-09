@@ -347,12 +347,16 @@ flexible messaging model and an intuitive client API.</description>
         <version>${zookeeper.version}</version>
         <exclusions>
           <exclusion>
-            <artifactId>slf4j-log4j12</artifactId>
-            <groupId>org.slf4j</groupId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
           </exclusion>
           <exclusion>
-            <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -393,12 +397,16 @@ flexible messaging model and an intuitive client API.</description>
         <version>${zookeeper.version}</version>
         <exclusions>
           <exclusion>
-            <artifactId>slf4j-log4j12</artifactId>
-            <groupId>org.slf4j</groupId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
           </exclusion>
           <exclusion>
-            <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-tcnative</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
