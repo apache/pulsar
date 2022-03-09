@@ -564,6 +564,8 @@ Producer<byte[]> producer = client.newProducer()
         .enableBatching(false)
         .create();
 ```
+
+By default, producer chunks the large message based on max message size (`maxMessageSize`) configured at broker (eg: 5MB). However, client can also configure max chunked size using producer configuration `chunkMaxMessageSize`.
 > **Note:** To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
 
 ## Consumer
