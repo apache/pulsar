@@ -78,8 +78,7 @@ public class FutureUtil {
     }
 
     /**
-     * If the future is cancelled or times out, the cancel action will be
-     * invoked
+     * If the future is cancelled or times out, the cancel action will be invoked.
      *
      * The action is executed once if the future completes with
      * {@link java.util.concurrent.CancellationException} or {@link TimeoutException}
@@ -202,5 +201,19 @@ public class FutureUtil {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Wrap throwable exception to CompletionException if that exception is not an instance of CompletionException.
+     *
+     * @param throwable Exception
+     * @return CompletionException
+     */
+    public static CompletionException wrapToCompletionException(Throwable throwable) {
+        if (throwable instanceof CompletionException) {
+            return (CompletionException) throwable;
+        } else {
+            return new CompletionException(throwable);
+        }
     }
 }
