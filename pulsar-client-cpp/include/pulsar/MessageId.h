@@ -65,7 +65,7 @@ class PULSAR_PUBLIC MessageId {
     bool isChunkMessageid() const;
 
     /**
-     * Serialize the message id into a binary string for string
+     * Serialize the message id into a binary string for storing
      */
     void serialize(std::string& result) const;
 
