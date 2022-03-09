@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -29,6 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +50,10 @@ import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -74,6 +78,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
@@ -99,6 +104,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     protected Field uriField;
     protected UriInfo uriInfo;
     private NonPersistentTopics nonPersistentTopic;
+    private NamespaceResources namespaceResources;
+    private PulsarResources pulsarResources;
 
     @BeforeClass
     public void initPersistentTopics() throws Exception {
@@ -125,6 +132,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         nonPersistentTopic = spy(NonPersistentTopics.class);
         nonPersistentTopic.setServletContext(new MockServletContext());
         nonPersistentTopic.setPulsar(pulsar);
+        pulsarResources = mock(PulsarResources.class);
+        namespaceResources = mock(NamespaceResources.class);
         doReturn(mockZooKeeper).when(nonPersistentTopic).localZk();
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
         doReturn(null).when(nonPersistentTopic).originalPrincipal();
@@ -372,6 +381,43 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         PartitionedTopicMetadata metadata = persistentTopics.getPartitionedMetadata(
                 testTenant, testNamespace, topicName, true, true);
         Assert.assertEquals(metadata.partitions, 0);
+    }
+
+    @Test
+    public void testCreateTopicWithReplicationCluster() {
+        final String topicName = "test-topic-ownership";
+        NamespaceName namespaceName = NamespaceName.get(testTenant, testNamespace);
+        CompletableFuture<Optional<Policies>> policyFuture = new CompletableFuture<>();
+        Policies policies = new Policies();
+        policyFuture.complete(Optional.of(policies));
+        when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+        when(pulsar.getPulsarResources().getNamespaceResources()).thenReturn(namespaceResources);
+        NamespaceResources.PartitionedTopicResources partitionedTopicResources = mock(NamespaceResources.PartitionedTopicResources.class);
+        when(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()).thenReturn(partitionedTopicResources);
+        when(partitionedTopicResources.createAsync(any(String.class), any(PartitionedTopicMetadata.class))).thenReturn(new CompletableFuture<>());
+        String prefix = "/admin/policies/";
+        ConfigurationCacheService configurationCacheService = spy(pulsar.getConfigurationCache());
+        when(pulsar.getConfigurationCache()).thenReturn(configurationCacheService);
+        ZooKeeperDataCache<Policies> policiesZooKeeperDataCache = spy(pulsar.getConfigurationCache().policiesCache());
+        when(pulsar.getConfigurationCache().policiesCache()).thenReturn(policiesZooKeeperDataCache);
+        doReturn(policyFuture).when(policiesZooKeeperDataCache).getAsync(any(String.class));
+        doReturn(policyFuture).when(namespaceResources).getAsync(prefix + namespaceName.toString());
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        Assert.assertTrue(errCaptor.getValue().getMessage().contains("Namespace does not have any clusters configured"));
+        // Test policy not exist and return 'Namespace not found'
+        CompletableFuture<Optional<Policies>> policyFuture2 = new CompletableFuture<>();
+        policyFuture2.complete(Optional.empty());
+        doReturn(policyFuture2).when(policiesZooKeeperDataCache).getAsync(any(String.class));
+        response = mock(AsyncResponse.class);
+        errCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+        Assert.assertTrue(errCaptor.getValue().getMessage().contains("Namespace not found"));
     }
 
     @Test(expectedExceptions = RestException.class)
