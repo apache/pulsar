@@ -37,8 +37,8 @@
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
     <suppress>
-        <notes>Suppress Zookeeper 3.6.2 vulnerabilities</notes>
-        <gav regex="true">org\.apache\.zookeeper:.*:3\.6\.2</gav>
+        <notes>Suppress Zookeeper 3.8.0 vulnerabilities</notes>
+        <gav regex="true">org\.apache\.zookeeper:.*:3\.8\.0</gav>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
 
