@@ -1562,7 +1562,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         schemaInfo = schema.getSchemaInfo();
                     }
                 } else if (schema.getSchemaInfo().getType() == SchemaType.BYTES
-                    || schema.getSchemaInfo().getType() == SchemaType.NONE) {
+                        || schema.getSchemaInfo().getType() == SchemaType.NONE) {
                     // don't set schema info for Schema.BYTES
                     schemaInfo = null;
                 } else {
