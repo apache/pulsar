@@ -34,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
@@ -159,6 +160,10 @@ public class HttpLookupService implements LookupService {
         String schemaName = topicName.getSchemaName();
         String path = String.format("admin/v2/schemas/%s/schema", schemaName);
         if (version != null) {
+            if (version.length == 0) {
+                future.completeExceptionally(new SchemaSerializationException("Empty schema version"));
+                return future;
+            }
             path = String.format("admin/v2/schemas/%s/schema/%s",
                     schemaName,
                     ByteBuffer.wrap(version).getLong());
