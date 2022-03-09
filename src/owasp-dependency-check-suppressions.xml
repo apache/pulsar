@@ -36,11 +36,6 @@
         <gav>org.apache.thrift:libthrift:0.12.0</gav>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
-    <suppress>
-        <notes>Suppress Zookeeper 3.8.0 vulnerabilities</notes>
-        <gav regex="true">org\.apache\.zookeeper:.*:3\.8\.0</gav>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
-    </suppress>
 
     <!-- see https://github.com/alibaba/canal/issues/4010 -->
     <suppress>
