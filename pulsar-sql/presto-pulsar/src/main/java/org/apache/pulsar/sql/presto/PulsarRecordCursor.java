@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
 import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -42,7 +41,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -104,6 +105,7 @@ public class PulsarRecordCursor implements RecordCursor {
     private final long splitSize;
     private long entriesProcessed = 0;
     private int partition = -1;
+    private volatile Throwable deserializingError;
 
 
     private PulsarSqlSchemaInfoProvider schemaInfoProvider;
@@ -228,102 +230,115 @@ public class PulsarRecordCursor implements RecordCursor {
     }
 
     @VisibleForTesting
-    class DeserializeEntries implements Runnable {
+    class DeserializeEntries extends Thread {
 
-        protected boolean isRunning = false;
+        private final AtomicBoolean isRunning;
 
-        private final Thread thread;
+        private final CompletableFuture<Void> closeHandle;
 
         public DeserializeEntries() {
-            this.thread = new Thread(this, "derserialize-thread-split-" + pulsarSplit.getSplitId());
+            super("deserialize-thread-split-" + pulsarSplit.getSplitId());
+            this.isRunning = new AtomicBoolean(false);
+            this.closeHandle = new CompletableFuture<>();
         }
 
-        public void interrupt() {
-            isRunning = false;
-            thread.interrupt();
-        }
-
+        @Override
         public void start() {
-            this.thread.start();
+            if (isRunning.compareAndSet(false, true)) {
+                super.start();
+            }
+        }
+
+        public CompletableFuture<Void> close() {
+            if (isRunning.compareAndSet(true, false)) {
+                super.interrupt();
+            }
+            return closeHandle;
         }
 
         @Override
         public void run() {
-            isRunning = true;
-            while (isRunning) {
+            try {
+                while (isRunning.get()) {
 
-                 int read = entryQueue.drain(new MessagePassingQueue.Consumer<Entry>() {
-                    @Override
-                    public void accept(Entry entry) {
-
-                        try {
-                            entryQueueCacheSizeAllocator.release(entry.getLength());
-
-                            long bytes = entry.getDataBuffer().readableBytes();
-                            completedBytes += bytes;
-                            // register stats for bytes read
-                            metricsTracker.register_BYTES_READ(bytes);
-
-                            // check if we have processed all entries in this split
-                            if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0) {
-                                return;
-                            }
-
-                            // set start time for time deserializing entries for stats
-                            metricsTracker.start_ENTRY_DESERIALIZE_TIME();
+                    int read = entryQueue.drain(new MessagePassingQueue.Consumer<Entry>() {
+                        @Override
+                        public void accept(Entry entry) {
 
                             try {
-                                MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(),
-                                        entry.getDataBuffer(), (message) -> {
-                                            try {
-                                                // start time for message queue read
-                                                metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
+                                entryQueueCacheSizeAllocator.release(entry.getLength());
 
-                                                while (true) {
-                                                    if (!haveAvailableCacheSize(
-                                                            messageQueueCacheSizeAllocator, messageQueue)
-                                                            || !messageQueue.offer(message)) {
-                                                        Thread.sleep(1);
-                                                    } else {
-                                                        messageQueueCacheSizeAllocator.allocate(
-                                                                message.getData().readableBytes());
-                                                        break;
+                                long bytes = entry.getDataBuffer().readableBytes();
+                                completedBytes += bytes;
+                                // register stats for bytes read
+                                metricsTracker.register_BYTES_READ(bytes);
+
+                                // check if we have processed all entries in this split
+                                if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0) {
+                                    return;
+                                }
+
+                                // set start time for time deserializing entries for stats
+                                metricsTracker.start_ENTRY_DESERIALIZE_TIME();
+
+                                try {
+                                    MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(),
+                                            entry.getDataBuffer(), (message) -> {
+                                                try {
+                                                    // start time for message queue read
+                                                    metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
+
+                                                    while (true) {
+                                                        if (!haveAvailableCacheSize(
+                                                                messageQueueCacheSizeAllocator, messageQueue)
+                                                                || !messageQueue.offer(message)) {
+                                                            Thread.sleep(1);
+                                                        } else {
+                                                            messageQueueCacheSizeAllocator.allocate(
+                                                                    message.getData().readableBytes());
+                                                            break;
+                                                        }
                                                     }
+
+                                                    // stats for how long a read from message queue took
+                                                    metricsTracker.end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
+                                                    // stats for number of messages read
+                                                    metricsTracker.incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
+
+                                                } catch (InterruptedException e) {
+                                                    //no-op
                                                 }
+                                            }, pulsarConnectorConfig.getMaxMessageSize());
+                                } catch (IOException e) {
+                                    log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
+                                    throw new RuntimeException(e);
+                                }
+                                // stats for time spend deserializing entries
+                                metricsTracker.end_ENTRY_DESERIALIZE_TIME();
 
-                                                // stats for how long a read from message queue took
-                                                metricsTracker.end_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
-                                                // stats for number of messages read
-                                                metricsTracker.incr_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
+                                // stats for num messages per entry
+                                metricsTracker.end_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
 
-                                            } catch (InterruptedException e) {
-                                                //no-op
-                                            }
-                                        }, pulsarConnectorConfig.getMaxMessageSize());
-                            } catch (IOException e) {
-                                log.error(e, "Failed to parse message from pulsar topic %s", topicName.toString());
-                                throw new RuntimeException(e);
+                            } finally {
+                                entriesProcessed++;
+                                entry.release();
                             }
-                            // stats for time spend deserializing entries
-                            metricsTracker.end_ENTRY_DESERIALIZE_TIME();
+                        }
+                    });
 
-                            // stats for num messages per entry
-                            metricsTracker.end_NUM_MESSAGES_DESERIALIZED_PER_ENTRY();
-
-                        } finally {
-                            entriesProcessed++;
-                            entry.release();
+                    if (read <= 0) {
+                        try {
+                            Thread.sleep(1);
+                        } catch (InterruptedException e) {
+                            return;
                         }
                     }
-                });
-
-                if (read <= 0) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        return;
-                    }
                 }
+                closeHandle.complete(null);
+            } catch (Throwable ex) {
+                log.error(ex, "Stop running DeserializeEntries");
+                closeHandle.completeExceptionally(ex);
+                throw ex;
             }
         }
     }
@@ -442,6 +457,9 @@ public class PulsarRecordCursor implements RecordCursor {
         if (readEntries == null) {
             // start deserialize thread
             deserializeEntries = new DeserializeEntries();
+            deserializeEntries.setUncaughtExceptionHandler((t, ex) -> {
+                deserializingError = ex;
+            });
             deserializeEntries.start();
 
             readEntries = new ReadEntries();
@@ -466,6 +484,8 @@ public class PulsarRecordCursor implements RecordCursor {
             if (currentMessage != null) {
                 messageQueueCacheSizeAllocator.release(currentMessage.getData().readableBytes());
                 break;
+            } else if (deserializingError != null) {
+                throw new RuntimeException(deserializingError);
             } else {
                 try {
                     Thread.sleep(1);
@@ -477,7 +497,7 @@ public class PulsarRecordCursor implements RecordCursor {
             }
         }
 
-        //start time for deseralizing record
+        //start time for deserializing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
         SchemaInfo schemaInfo = getSchemaInfo(pulsarSplit);
@@ -693,7 +713,11 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         if (deserializeEntries != null) {
-            deserializeEntries.interrupt();
+            deserializeEntries.close().whenComplete((r, t) -> {
+                if (entryQueue != null) {
+                    entryQueue.drain(Entry::release);
+                }
+            });
         }
 
         if (this.cursor != null) {
