@@ -36,6 +36,7 @@ import com.google.api.client.util.Lists;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
@@ -80,12 +81,12 @@ public class PartitionedProducerImplTest {
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
-        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any()))
+        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocationOnMock -> {
             return new ProducerImpl<>(client, invocationOnMock.getArgument(0),
                     invocationOnMock.getArgument(2), invocationOnMock.getArgument(5),
                     invocationOnMock.getArgument(1), invocationOnMock.getArgument(3),
-                    invocationOnMock.getArgument(4));
+                    invocationOnMock.getArgument(4), invocationOnMock.getArgument(6));
         });
     }
 
@@ -259,7 +260,7 @@ public class PartitionedProducerImplTest {
         String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
         ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
         ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName, producerConfDataNonPartitioned,
-                null, 0, null, null);
+                null, 0, null, null, Optional.empty());
         assertEquals(producerImpl.getNumOfPartitions(), 0);
     }
 

@@ -101,6 +101,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private SortedMap<String, String> properties = new TreeMap<>();
 
+    private String initialSubscriptionName = null;
+
     /**
      *
      * Returns true if encryption keys are added.

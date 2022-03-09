@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -52,6 +53,7 @@ import org.apache.curator.shaded.com.google.common.util.concurrent.RateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -99,7 +101,7 @@ public class PerformanceTransaction {
         @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = {"--conf-file"}, description = "Configuration file")
+        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
         @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
@@ -116,6 +118,16 @@ public class PerformanceTransaction {
                 + "Increasing the number of threads increases the parallelism of the performance test, "
                 + "thereby increasing the intensity of the stress test.")
         public int numTestThreads = 1;
+
+        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
+        public String authPluginClassName;
+
+        @Parameter(
+                names = { "--auth-params" },
+                description = "Authentication parameters, whose format is determined by the implementation "
+                        + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+        public String authParams;
 
         @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
@@ -206,7 +218,6 @@ public class PerformanceTransaction {
             PerfClientUtils.exit(-1);
         }
 
-
         if (arguments.confFile != null) {
             Properties prop = new Properties(System.getProperties());
             prop.load(new FileInputStream(arguments.confFile));
@@ -230,6 +241,14 @@ public class PerformanceTransaction {
             if (arguments.adminURL == null) {
                 arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
             }
+
+            if (arguments.authPluginClassName == null) {
+                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
+            }
+
+            if (arguments.authParams == null) {
+                arguments.authParams = prop.getProperty("authParams", null);
+            }
         }
 
 
@@ -248,6 +267,11 @@ public class PerformanceTransaction {
         if (arguments.partitions != null) {
             PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
                     .serviceHttpUrl(arguments.adminURL);
+
+            if (isNotBlank(arguments.authPluginClassName)) {
+                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+            }
+
             try (PulsarAdmin client = clientBuilder.build()) {
                 for (String topic : arguments.producerTopic) {
                     log.info("Creating  produce partitioned topic {} with {} partitions", topic, arguments.partitions);
@@ -270,13 +294,18 @@ public class PerformanceTransaction {
             }
         }
 
-        PulsarClient client =
+        ClientBuilder clientBuilder =
                 PulsarClient.builder().enableTransaction(!arguments.isDisableTransaction)
                         .serviceUrl(arguments.serviceURL)
                         .connectionsPerBroker(arguments.maxConnections)
                         .statsInterval(0, TimeUnit.SECONDS)
-                        .ioThreads(arguments.ioThreads)
-                        .build();
+                        .ioThreads(arguments.ioThreads);
+
+        if (isNotBlank(arguments.authPluginClassName)) {
+            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        PulsarClient client = clientBuilder.build();
 
         ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
                 arguments.numTestThreads,

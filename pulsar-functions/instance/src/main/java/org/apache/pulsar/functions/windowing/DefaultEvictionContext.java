@@ -21,22 +21,22 @@ package org.apache.pulsar.functions.windowing;
 public class DefaultEvictionContext implements EvictionContext {
 
     /**
-     * Current timestamp
+     * Current timestamp.
      */
     private final Long referenceTime;
 
     /**
-     * Current event count in window
+     * Current event count in window.
      */
     private final Long currentCount;
 
     /**
-     * User set sliding window count
+     * User set sliding window count.
      */
     private final Long slidingCount;
 
     /**
-     * User set sliding window interval
+     * User set sliding window interval.
      */
     private final Long slidingInterval;
 

@@ -283,7 +283,6 @@ This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1.
 
     ![](assets/FileSystem-1.png)
 
-
     1. At the top navigation bar, click **Datanodes** to check DataNode information.
 
         ![](assets/FileSystem-2.png)

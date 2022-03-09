@@ -39,7 +39,6 @@
       "version-2.1.1-incubating-deploy-kubernetes",
       "version-2.1.1-incubating-deploy-bare-metal",
       "version-2.1.1-incubating-deploy-bare-metal-multi-cluster",
-      "version-2.1.1-incubating-deploy-dcos",
       "version-2.1.1-incubating-deploy-monitoring"
     ],
     "Administration": [

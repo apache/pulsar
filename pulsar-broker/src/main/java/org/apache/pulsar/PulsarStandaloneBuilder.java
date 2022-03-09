@@ -21,6 +21,7 @@ package org.apache.pulsar;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 public final class PulsarStandaloneBuilder {
 
@@ -114,8 +115,10 @@ public final class PulsarStandaloneBuilder {
         }
 
         // Set ZK server's host to localhost
-        pulsarStandalone.getConfig().setZookeeperServers(zkServers + ":" + pulsarStandalone.getZkPort());
-        pulsarStandalone.getConfig().setConfigurationStoreServers(zkServers + ":" + pulsarStandalone.getZkPort());
+        final String metadataStoreUrl =
+                ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zkServers + ":" + pulsarStandalone.getZkPort();
+        pulsarStandalone.getConfig().setMetadataStoreUrl(metadataStoreUrl);
+        pulsarStandalone.getConfig().setConfigurationMetadataStoreUrl(metadataStoreUrl);
         pulsarStandalone.getConfig().setRunningStandalone(true);
         return pulsarStandalone;
     }

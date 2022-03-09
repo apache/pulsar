@@ -215,6 +215,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		ProxyConfiguration proxyConfig = new ProxyConfiguration();
 		proxyConfig.setAuthenticationEnabled(true);
 		proxyConfig.setServicePort(Optional.of(0));
+		proxyConfig.setBrokerProxyAllowedTargetPorts("*");
 		proxyConfig.setWebServicePort(Optional.of(0));
 		proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
 

@@ -14,7 +14,15 @@ Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
-## System requirements
+
+## Linux
+
+> **Note**   
+> You can choose one of the following installation methods based on your needs: Compilation, Install RPM or Install Debian.
+
+### Compilation 
+
+#### System requirements
 
 You need to install the following components before using the C++ client:
 
@@ -23,10 +31,6 @@ You need to install the following components before using the C++ client:
 * [Protocol Buffers](https://developers.google.com/protocol-buffers/) >= 3
 * [libcurl](https://curl.se/libcurl/)
 * [Google Test](https://github.com/google/googletest)
-
-## Linux
-
-### Compilation 
 
 1. Clone the Pulsar repository.
 
@@ -125,10 +129,21 @@ The `libpulsarwithdeps.a` does not include library openssl related libraries `li
 $ rpm -ivh apache-pulsar-client*.rpm
 ```
 
-After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory.
+After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory，for example：
+```bash
+lrwxrwxrwx 1 root root 18 Dec 30 22:21 libpulsar.so -> libpulsar.so.2.9.1
+lrwxrwxrwx 1 root root 23 Dec 30 22:21 libpulsarnossl.so -> libpulsarnossl.so.2.9.1
+```
 
 > **Note**  
 > If you get the error that `libpulsar.so: cannot open shared object file: No such file or directory` when starting Pulsar client, you may need to run `ldconfig` first.
+
+2. Install the GCC and g++ using the following command, otherwise errors would occur in installing Node.js.
+
+```bash
+$ sudo yum -y install gcc automake autoconf libtool make
+$ sudo yum -y install gcc-c++
+```
 
 ### Install Debian
 
@@ -290,104 +305,6 @@ If you use TLS authentication, you need to add `ssl`, and the default port is `6
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
-## Create a consumer
-
-To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer:
-- [Blocking style](#blocking-example): synchronously calling `receive(msg)`.
-- [Non-blocking](#consumer-with-a-message-listener) (event based) style: using a message listener.
-
-### Blocking example
-
-The benefit of this approach is that it is the simplest code. Simply keeps calling `receive(msg)` which blocks until a message is received.
-
-This example starts a subscription at the earliest offset and consumes 100 messages.
-
-```c++
-#include <pulsar/Client.h>
-
-using namespace pulsar;
-
-int main() {
-    Client client("pulsar://localhost:6650");
-
-    Consumer consumer;
-    ConsumerConfiguration config;
-    config.setSubscriptionInitialPosition(InitialPositionEarliest);
-    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", config, consumer);
-    if (result != ResultOk) {
-        std::cout << "Failed to subscribe: " << result << std::endl;
-        return -1;
-    }
-
-    Message msg;
-    int ctr = 0;
-    // consume 100 messages
-    while (ctr < 100) {
-        consumer.receive(msg);
-        std::cout << "Received: " << msg
-            << "  with payload '" << msg.getDataAsString() << "'" << std::endl;
-
-        consumer.acknowledge(msg);
-        ctr++;
-    }
-
-    std::cout << "Finished consuming synchronously!" << std::endl;
-
-    client.close();
-    return 0;
-}
-```
-
-### Consumer with a message listener
-
-You can avoid  running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
-
-This example starts a subscription at the earliest offset and consumes 100 messages.
-
-```c++
-#include <pulsar/Client.h>
-#include <atomic>
-#include <thread>
-
-using namespace pulsar;
-
-std::atomic<uint32_t> messagesReceived;
-
-void handleAckComplete(Result res) {
-    std::cout << "Ack res: " << res << std::endl;
-}
-
-void listener(Consumer consumer, const Message& msg) {
-    std::cout << "Got message " << msg << " with content '" << msg.getDataAsString() << "'" << std::endl;
-    messagesReceived++;
-    consumer.acknowledgeAsync(msg.getMessageId(), handleAckComplete);
-}
-
-int main() {
-    Client client("pulsar://localhost:6650");
-
-    Consumer consumer;
-    ConsumerConfiguration config;
-    config.setMessageListener(listener);
-    config.setSubscriptionInitialPosition(InitialPositionEarliest);
-    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", config, consumer);
-    if (result != ResultOk) {
-        std::cout << "Failed to subscribe: " << result << std::endl;
-        return -1;
-    }
-
-    // wait for 100 messages to be consumed
-    while (messagesReceived < 100) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    std::cout << "Finished consuming asynchronously!" << std::endl;
-
-    client.close();
-    return 0;
-}
-```
-
 ## Create a producer
 
 To use Pulsar as a producer, you need to create a producer on the C++ client. There are two main ways of using a producer:
@@ -513,6 +430,133 @@ Note that there can be extra latency for the first message sent. If you set a lo
 ProducerConfiguration producerConf;
 producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
 producerConf.setLazyStartPartitionedProducers(true);
+```
+
+### Enable chunking
+
+Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side. 
+
+The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.
+
+```c++
+ProducerConfiguration conf;
+conf.setBatchingEnabled(false);
+conf.setChunkingEnabled(true);
+Producer producer;
+client.createProducer("my-topic", conf, producer);
+```
+> **Note:** To enable chunking, you need to disable batching (`setBatchingEnabled`=`false`) concurrently.
+
+## Create a consumer
+
+To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer:
+- [Blocking style](#blocking-example): synchronously calling `receive(msg)`.
+- [Non-blocking](#consumer-with-a-message-listener) (event based) style: using a message listener.
+
+### Blocking example
+
+The benefit of this approach is that it is the simplest code. Simply keeps calling `receive(msg)` which blocks until a message is received.
+
+This example starts a subscription at the earliest offset and consumes 100 messages.
+
+```c++
+#include <pulsar/Client.h>
+
+using namespace pulsar;
+
+int main() {
+    Client client("pulsar://localhost:6650");
+
+    Consumer consumer;
+    ConsumerConfiguration config;
+    config.setSubscriptionInitialPosition(InitialPositionEarliest);
+    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", config, consumer);
+    if (result != ResultOk) {
+        std::cout << "Failed to subscribe: " << result << std::endl;
+        return -1;
+    }
+
+    Message msg;
+    int ctr = 0;
+    // consume 100 messages
+    while (ctr < 100) {
+        consumer.receive(msg);
+        std::cout << "Received: " << msg
+            << "  with payload '" << msg.getDataAsString() << "'" << std::endl;
+
+        consumer.acknowledge(msg);
+        ctr++;
+    }
+
+    std::cout << "Finished consuming synchronously!" << std::endl;
+
+    client.close();
+    return 0;
+}
+```
+
+### Consumer with a message listener
+
+You can avoid running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
+
+This example starts a subscription at the earliest offset and consumes 100 messages.
+
+```c++
+#include <pulsar/Client.h>
+#include <atomic>
+#include <thread>
+
+using namespace pulsar;
+
+std::atomic<uint32_t> messagesReceived;
+
+void handleAckComplete(Result res) {
+    std::cout << "Ack res: " << res << std::endl;
+}
+
+void listener(Consumer consumer, const Message& msg) {
+    std::cout << "Got message " << msg << " with content '" << msg.getDataAsString() << "'" << std::endl;
+    messagesReceived++;
+    consumer.acknowledgeAsync(msg.getMessageId(), handleAckComplete);
+}
+
+int main() {
+    Client client("pulsar://localhost:6650");
+
+    Consumer consumer;
+    ConsumerConfiguration config;
+    config.setMessageListener(listener);
+    config.setSubscriptionInitialPosition(InitialPositionEarliest);
+    Result result = client.subscribe("persistent://public/default/my-topic", "consumer-1", config, consumer);
+    if (result != ResultOk) {
+        std::cout << "Failed to subscribe: " << result << std::endl;
+        return -1;
+    }
+
+    // wait for 100 messages to be consumed
+    while (messagesReceived < 100) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    std::cout << "Finished consuming asynchronously!" << std::endl;
+
+    client.close();
+    return 0;
+}
+```
+
+### Configure chunking
+
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `setMaxPendingChunkedMessage` and `setAutoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. 
+
+The following is an example of how to configure message chunking.
+
+```c++
+ConsumerConfiguration conf;
+conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
+conf.setMaxPendingChunkedMessage(100);
+Consumer consumer;
+client.subscribe("my-topic", "my-sub", conf, consumer);
 ```
 
 ## Enable authentication in connection URLs

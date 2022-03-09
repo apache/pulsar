@@ -40,8 +40,8 @@ Installation via PyPi is available for the following Python versions:
 
 Platform | Supported Python versions
 :--------|:-------------------------
-MacOS <br />  10.13 (High Sierra), 10.14 (Mojave) <br /> | 2.7, 3.7
-Linux | 2.7, 3.4, 3.5, 3.6, 3.7, 3.8
+MacOS <br />  10.13 (High Sierra), 10.14 (Mojave) <br /> | 2.7, 3.7, 3.8, 3.9
+Linux | 2.7, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9
 
 ### Install from source
 
@@ -97,7 +97,7 @@ while True:
         print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
         # Acknowledge successful processing of the message
         consumer.acknowledge(msg)
-    except:
+    except Exception:
         # Message failed to be processed
         consumer.negative_acknowledge(msg)
 
@@ -161,7 +161,7 @@ while True:
         print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
         # Acknowledge successful processing of the message
         consumer.acknowledge(msg)
-    except:
+    except Exception:
         # Message failed to be processed
         consumer.negative_acknowledge(msg)
 client.close()
@@ -297,7 +297,7 @@ while True:
         print("Received message a={} b={} c={}".format(ex.a, ex.b, ex.c))
         # Acknowledge successful processing of the message
         consumer.acknowledge(msg)
-    except:
+    except Exception:
         # Message failed to be processed
         consumer.negative_acknowledge(msg)
 ```

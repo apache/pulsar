@@ -128,9 +128,10 @@ The **Pulsar proxy** provides a solution to this problem by acting as a single g
 Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and instance-wide configuration store clusters. Here's an example:
 
 ```bash
+$ cd /path/to/pulsar/directory
 $ bin/pulsar proxy \
-  --zookeeper-servers zk-0,zk-1,zk-2 \
-  --configuration-store-servers zk-0,zk-1,zk-2
+  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 > #### Pulsar proxy docs

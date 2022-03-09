@@ -341,7 +341,7 @@ The Apache Software License, Version 2.0
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
  * Apache Commons
-    - commons-cli-commons-cli-1.2.jar
+    - commons-cli-commons-cli-1.5.0.jar
     - commons-codec-commons-codec-1.15.jar
     - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.10.jar
@@ -352,26 +352,26 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.73.Final.jar
-    - io.netty-netty-codec-4.1.73.Final.jar
-    - io.netty-netty-codec-dns-4.1.73.Final.jar
-    - io.netty-netty-codec-http-4.1.73.Final.jar
-    - io.netty-netty-codec-http2-4.1.73.Final.jar
-    - io.netty-netty-codec-socks-4.1.73.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.73.Final.jar
-    - io.netty-netty-common-4.1.73.Final.jar
-    - io.netty-netty-handler-4.1.73.Final.jar
-    - io.netty-netty-handler-proxy-4.1.73.Final.jar
-    - io.netty-netty-resolver-4.1.73.Final.jar
-    - io.netty-netty-resolver-dns-4.1.73.Final.jar
-    - io.netty-netty-transport-4.1.73.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.73.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.73.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.73.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.73.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.73.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.46.Final.jar
-    - io.netty-netty-tcnative-classes-2.0.46.Final.jar
+    - io.netty-netty-buffer-4.1.74.Final.jar
+    - io.netty-netty-codec-4.1.74.Final.jar
+    - io.netty-netty-codec-dns-4.1.74.Final.jar
+    - io.netty-netty-codec-http-4.1.74.Final.jar
+    - io.netty-netty-codec-http2-4.1.74.Final.jar
+    - io.netty-netty-codec-socks-4.1.74.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.74.Final.jar
+    - io.netty-netty-common-4.1.74.Final.jar
+    - io.netty-netty-handler-4.1.74.Final.jar
+    - io.netty-netty-handler-proxy-4.1.74.Final.jar
+    - io.netty-netty-resolver-4.1.74.Final.jar
+    - io.netty-netty-resolver-dns-4.1.74.Final.jar
+    - io.netty-netty-transport-4.1.74.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.74.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.74.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.74.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.74.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.74.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.48.Final.jar
+    - io.netty-netty-tcnative-classes-2.0.48.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -531,6 +531,8 @@ The Apache Software License, Version 2.0
   * Jetcd
     - io.etcd-jetcd-common-0.5.11.jar
     - io.etcd-jetcd-core-0.5.11.jar
+  * IPAddress
+    - com.github.seancfoley-ipaddress-5.3.3.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library

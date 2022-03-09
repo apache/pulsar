@@ -21,10 +21,11 @@
 
 FROM apachepulsar/pulsar:latest as pulsar-function-go
 
+# Use root for builder
 USER root
 
 RUN rm -rf /var/lib/apt/lists/* && apt-get update
-RUN apt-get install -y procps curl git
+RUN apt-get install -y procps curl git build-essential
 
 ENV GOLANG_VERSION 1.13.3
 
@@ -54,6 +55,16 @@ FROM apachepulsar/pulsar-all:latest as pulsar-all
 ###### Main image build
 ########################################
 FROM apachepulsar/pulsar:latest
+
+# Switch to run as the root user to simplify building container and then running
+# supervisord. Each of the pulsar components are spawned by supervisord and their
+# process configuration files specify that the process will be run with UID 10000.
+# However, any processes exec'ing into the containers will run as root, by default.
+USER root
+
+# We need to define the user in order for supervisord to work correctly
+# We don't need a user defined in the public docker image, though.
+RUN adduser -u 10000 --gid 0 --disabled-login --disabled-password --gecos '' pulsar
 
 RUN rm -rf /var/lib/apt/lists/* && apt update
 

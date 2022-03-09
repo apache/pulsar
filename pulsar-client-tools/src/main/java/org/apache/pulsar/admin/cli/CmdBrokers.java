@@ -52,7 +52,7 @@ public class CmdBrokers extends CmdBase {
     private class Namespaces extends CliCommand {
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        @Parameter(names = "--url", description = "broker-url", required = true)
+        @Parameter(names = {"-u", "--url"}, description = "broker-url", required = true)
         private String brokerUrl;
 
         @Override
@@ -64,9 +64,9 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "Update dynamic-serviceConfiguration of broker")
     private class UpdateConfigurationCmd extends CliCommand {
-        @Parameter(names = "--config", description = "service-configuration name", required = true)
+        @Parameter(names = {"-c", "--config"}, description = "service-configuration name", required = true)
         private String configName;
-        @Parameter(names = "--value", description = "service-configuration value", required = true)
+        @Parameter(names = {"-v", "--value"}, description = "service-configuration value", required = true)
         private String configValue;
 
         @Override
@@ -77,7 +77,7 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "Delete dynamic-serviceConfiguration of broker")
     private class DeleteConfigurationCmd extends CliCommand {
-        @Parameter(names = "--config", description = "service-configuration name", required = true)
+        @Parameter(names = {"-c", "--config"}, description = "service-configuration name", required = true)
         private String configName;
 
         @Override
@@ -126,13 +126,32 @@ public class CmdBrokers extends CmdBase {
     @Parameters(commandDescription = "Run a health check against the broker")
     private class HealthcheckCmd extends CliCommand {
 
-        @Parameter(names = "--topic-version", description = "topic version V1 is default")
+        @Parameter(names = {"-tv", "--topic-version"}, description = "topic version V1 is default")
         private TopicVersion topicVersion;
 
         @Override
         void run() throws Exception {
             getAdmin().brokers().healthcheck(topicVersion);
             System.out.println("ok");
+        }
+
+    }
+
+    @Parameters(commandDescription = "Shutdown broker gracefully.")
+    private class ShutDownBrokerGracefully extends CliCommand {
+
+        @Parameter(names = {"--max-concurrent-unload-per-sec", "-m"},
+                description = "Max concurrent unload per second, "
+                        + "if the value absent(value=0) means no concurrent limitation")
+        private int maxConcurrentUnloadPerSec;
+
+        @Parameter(names = {"--forced-terminate-topic", "-f"}, description = "Force terminate all topics on Broker")
+        private boolean forcedTerminateTopic;
+
+        @Override
+        void run() throws Exception {
+            getAdmin().brokers().shutDownBrokerGracefully(maxConcurrentUnloadPerSec, forcedTerminateTopic);
+            System.out.println("Successfully trigger broker shutdown gracefully");
         }
 
     }
@@ -171,5 +190,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
         jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
         jcommander.addCommand("version", new PulsarVersion());
+        jcommander.addCommand("shutdown", new ShutDownBrokerGracefully());
     }
 }

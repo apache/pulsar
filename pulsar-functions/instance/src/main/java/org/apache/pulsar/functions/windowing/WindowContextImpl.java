@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.WindowContext;
-import org.slf4j.Logger;
-
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.WindowContext;
+import org.slf4j.Logger;
 
 public class WindowContextImpl implements WindowContext {
 
@@ -132,7 +131,7 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
-    public <O> CompletableFuture<Void> publish(String topicName, O object) {
+    public <T> CompletableFuture<Void> publish(String topicName, T object) {
         return this.context.publish(topicName, object);
     }
 

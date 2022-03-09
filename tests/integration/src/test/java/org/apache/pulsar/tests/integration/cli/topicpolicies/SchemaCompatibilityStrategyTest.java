@@ -19,67 +19,71 @@
 
 package org.apache.pulsar.tests.integration.cli.topicpolicies;
 
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.suites.PulsarCliTestSuite;
 import org.awaitility.Awaitility;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class SchemaCompatibilityStrategyTest extends PulsarTestSuite {
+public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
+    @BeforeClass(alwaysRun = true)
     @Override
-    public void setupCluster() throws Exception {
-        super.setupCluster();
+    public void before() throws Exception {
+        enableTopicPolicies();
+        super.before();
     }
 
+    @BeforeClass(alwaysRun = true)
     @Override
-    public void tearDownCluster() throws Exception {
-        super.tearDownCluster();
+    public void after() throws Exception {
+        super.after();
     }
 
     @Test
-    public void testSchemaCompatibilityCmd() throws Exception {
-        String topicName = generateTopicName("",true);
+    public void testSchemaCompatibilityStrategyCmd() throws Exception {
+        String topicName = generateTopicName("test-schema-compatibility-strategy", true);
         pulsarAdmin.topics().createNonPartitionedTopic(topicName);
 
-        Awaitility.await().untilAsserted(()->{
-            ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics get-schema-compatibility-strategy " + topicName);
-            assertTrue(result.getStdout().contentEquals("UNDEFINED"));
-        });
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies",
+                "get-schema-compatibility-strategy", topicName);
+        assertEquals(result.getStdout().trim(), "null");
 
-        Awaitility.await().untilAsserted(()->{
-            ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics get-schema-compatibility-strategy --applied " + topicName);
-            assertTrue(result.getStdout().contentEquals("FULL"));
-        });
+        result = pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies", "get-schema-compatibility-strategy",
+                "--applied", topicName);
+        assertEquals(result.getStdout().trim(), SchemaCompatibilityStrategy.FULL.name());
 
         pulsarAdmin.topicPolicies().removeSchemaCompatibilityStrategy(topicName);
-        Awaitility.await().untilAsserted(()->{
-            ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics get-schema-compatibility-strategy " + topicName);
-            assertTrue(result.getStdout().contentEquals("UNDEFINED"));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies",
+                    "get-schema-compatibility-strategy", topicName).getStdout().trim(), "null");
         });
     }
 
     @Test
-    public void testSchemaCompatibilityCmdWithNamespaceLevel() throws Exception {
-        String topicName = generateTopicName("",true);
-        pulsarAdmin.namespaces()
-                .setSchemaCompatibilityStrategy("public/default", SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+    public void testSchemaCompatibilityStrategyCmdWithNamespaceLevel() throws Exception {
+        String ns = generateNamespaceName();
+        String fullNS = "public/" + ns;
+        pulsarAdmin.namespaces().createNamespace("public/"+ns);
+
+        String topicName = generateTopicName(ns, "test-schema-compatibility-strategy",
+                true);
+        pulsarAdmin.namespaces().setSchemaCompatibilityStrategy(fullNS, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
         pulsarAdmin.topics().createNonPartitionedTopic(topicName);
 
-        Awaitility.await().untilAsserted(()->{
-            ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics get-schema-compatibility-strategy " + topicName);
-            assertTrue(result.getStdout().contentEquals("UNDEFINED"));
-        });
-        Awaitility.await().untilAsserted(()->{
-            ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics get-schema-compatibility-strategy --applied " + topicName);
-            assertTrue(result.getStdout().contentEquals("ALWAYS_INCOMPATIBLE"));
-        });
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies",
+                "get-schema-compatibility-strategy", topicName);
+        assertEquals(result.getStdout().trim(), "null");
+
+        result = pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies",
+                "get-schema-compatibility-strategy", "--applied", topicName);
+        assertEquals(result.getStdout().trim(), SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE.name());
 
         pulsarAdmin.namespaces()
-                .setSchemaCompatibilityStrategy("public/default", SchemaCompatibilityStrategy.UNDEFINED);
-        Awaitility.await().untilAsserted(()->{
-            ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics get-schema-compatibility-strategy " + topicName);
-            assertTrue(result.getStdout().contentEquals("UNDEFINED"));
-        });
+                .setSchemaCompatibilityStrategy(fullNS, SchemaCompatibilityStrategy.UNDEFINED);
+        result = pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies", "get-schema-compatibility-strategy",
+                topicName);
+        assertEquals(result.getStdout().trim(), "null");
     }
 }

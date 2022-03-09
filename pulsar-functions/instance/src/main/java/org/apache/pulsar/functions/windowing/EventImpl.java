@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.windowing;
 
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-
 import org.apache.pulsar.functions.api.Record;
 
 @ToString

@@ -20,7 +20,7 @@ Cluster mode | The function runs *inside of* your Pulsar cluster, on the same ma
 In order to deploy and manage Pulsar Functions, you need to have a Pulsar cluster running. There are several options for this:
 
 * You can run a [standalone cluster](getting-started-standalone.md) locally on your own machine
-* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), [DC/OS](deploy-dcos.md), and more
+* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), [DC/OS](https://dcos.io/), and more
 
 If you're running a non-[standalone](reference-terminology.md#standalone) cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
 

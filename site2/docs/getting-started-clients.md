@@ -6,13 +6,21 @@ sidebar_label: Overview
 
 Pulsar supports the following client libraries:
 
-- [Java client](client-libraries-java.md)
-- [Go client](client-libraries-go.md)
-- [Python client](client-libraries-python.md)
-- [C++ client](client-libraries-cpp.md)
-- [Node.js client](client-libraries-node.md)
-- [WebSocket client](client-libraries-websocket.md)
-- [C# client](client-libraries-dotnet.md)
+|Language|Documentation|Release note|Code repo
+|---|---|---|---
+Java |- [User doc](client-libraries-java.md) <br /><br />- [API doc](https://pulsar.apache.org/api/client/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client) 
+C++ | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](https://pulsar.apache.org/api/cpp/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp) 
+Python | - [User doc](client-libraries-python.md) <br /><br />- [API doc](https://pulsar.apache.org/api/python/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 
+WebSocket| [User doc](client-libraries-websocket.md) | [Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket) 
+Go client|[User doc](client-libraries-go.md)|[Here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG.md) |[Here](https://github.com/apache/pulsar-client-go) 
+Node.js|[User doc](client-libraries-node.md)|[Here](https://github.com/apache/pulsar-client-node/releases) |[Here](https://github.com/apache/pulsar-client-node) 
+C# |[User doc](client-libraries-dotnet.md)| [Here](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md)|[Here](https://github.com/apache/pulsar-dotpulsar) 
+
+> **Note**
+> 
+> - The code repos of **Java, C++, Python,** and **WebSocket** clients are hosted in the [Pulsar main repo](https://github.com/apache/pulsar) and these clients are released with Pulsar, so their release notes are parts of [Pulsar release note](https://pulsar.apache.org/release-notes/).
+> 
+> - The code repos of **Go, Node.js,** and **C#** clients are hosted outside of the [Pulsar main repo](https://github.com/apache/pulsar) and these clients are not released with Pulsar, so they have independent release notes.
 
 ## Feature matrix
 Pulsar client feature matrix for different languages is listed on [Pulsar Feature Matrix (Client and Function)](https://docs.google.com/spreadsheets/d/1YHYTkIXR8-Ql103u-IMI18TXLlGStK8uJjDsOOA0T20/edit#gid=1784579914) page.

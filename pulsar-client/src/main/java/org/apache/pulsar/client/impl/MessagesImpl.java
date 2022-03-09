@@ -44,6 +44,10 @@ public class MessagesImpl<T> implements Messages<T> {
     }
 
     protected boolean canAdd(Message<T> message) {
+        if (currentNumberOfMessages == 0) {
+            // It's ok to add at least one message into a batch.
+            return true;
+        }
         if (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 > maxNumberOfMessages) {
             return false;
         }
