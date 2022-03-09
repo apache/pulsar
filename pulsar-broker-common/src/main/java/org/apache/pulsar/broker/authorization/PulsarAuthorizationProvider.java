@@ -396,7 +396,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     return policies;
                 }).whenComplete((__, throwable) -> {
                     if (throwable != null) {
-                        log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles,
+                        log.error("[{}] Failed to set permissions for role {} on namespace {}", subscriptionName, roles,
                                 namespace, throwable);
                     } else {
                         log.info("[{}] Successfully granted access for role {} for sub = {}", namespace,
