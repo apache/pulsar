@@ -29,10 +29,10 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.api.client.util.Lists;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import com.google.api.client.util.Lists;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -263,4 +263,5 @@ public class PartitionedProducerImplTest {
                 null, 0, null, null, Optional.empty());
         assertEquals(producerImpl.getNumOfPartitions(), 0);
     }
+
 }
