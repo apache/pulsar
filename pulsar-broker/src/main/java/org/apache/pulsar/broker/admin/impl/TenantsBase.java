@@ -116,7 +116,8 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 409, message = "Tenant already exists"),
             @ApiResponse(code = 412, message = "Tenant name is not valid"),
             @ApiResponse(code = 412, message = "Clusters can not be empty"),
-            @ApiResponse(code = 412, message = "Clusters do not exist")})
+            @ApiResponse(code = 412, message = "Clusters do not exist"),
+            @ApiResponse(code = 412, message = "Exceed the maximum number of tenants")})
     public void createTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl tenantInfo) {

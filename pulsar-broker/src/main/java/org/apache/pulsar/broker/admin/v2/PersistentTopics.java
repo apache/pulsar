@@ -219,7 +219,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412,
                     message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
             @ApiResponse(code = 500, message = "Internal server error"),
-            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
+            @ApiResponse(code = 412, message = "Exceed maximum number of topics in namespace")
     })
     public void createPartitionedTopic(
             @Suspended final AsyncResponse asyncResponse,

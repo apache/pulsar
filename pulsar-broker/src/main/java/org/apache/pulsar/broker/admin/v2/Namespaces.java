@@ -132,7 +132,8 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace already exists"),
-            @ApiResponse(code = 412, message = "Namespace name is not valid") })
+            @ApiResponse(code = 412, message = "Namespace name is not valid") },
+            @ApiResponse(code = 412, message = "Exceed the maximum number of namespace in tenant"))
     public void createNamespace(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @ApiParam(value = "Policies for the namespace") Policies policies) {
         validateNamespaceName(tenant, namespace);
