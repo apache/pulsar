@@ -622,9 +622,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         // handle boundary cases where message being added would exceed
                         // batch size and/or max message size
                         boolean isBatchFull = batchMessageContainer.add(msg, callback);
-                        LastSendFutureWrapper lastSendFutureTmp = lastSendFuture;
                         lastSendFuture = LastSendFutureWrapper.create(callback.getFuture());
-                        lastSendFutureTmp.recycle();
                         payload.release();
                         if (isBatchFull) {
                             batchMessageAndSend();
@@ -666,9 +664,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.chunkId = chunkId;
             }
             op.chunkedMessageCtx = chunkedMessageCtx;
-            LastSendFutureWrapper lastSendFutureTmp = lastSendFuture;
             lastSendFuture = LastSendFutureWrapper.create(callback.getFuture());
-            lastSendFutureTmp.recycle();
             processOpSendMsg(op);
         }
     }
@@ -821,9 +817,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         try {
             batchMessageAndSend();
             batchMessageContainer.add(msg, callback);
-            LastSendFutureWrapper lastSendFutureTmp = lastSendFuture;
             lastSendFuture = LastSendFutureWrapper.create(callback.getFuture());
-            lastSendFutureTmp.recycle();
         } finally {
             payload.release();
         }
@@ -944,55 +938,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private static final class LastSendFutureWrapper {
-        private CompletableFuture<MessageId> lastSendFuture;
-        private AtomicBoolean onceHandle;
-
+        private final CompletableFuture<MessageId> lastSendFuture;
+        private final AtomicBoolean throwOnce = new AtomicBoolean(false);
+        private LastSendFutureWrapper(CompletableFuture<MessageId> lastSendFuture) {
+            this.lastSendFuture = lastSendFuture;
+        }
         static LastSendFutureWrapper create(CompletableFuture<MessageId> lastSendFuture) {
-            LastSendFutureWrapper lastSendFutureWrapper = RECYCLER.get();
-            lastSendFutureWrapper.lastSendFuture = lastSendFuture;
-            lastSendFutureWrapper.onceHandle = new AtomicBoolean(false);
-
-            return lastSendFutureWrapper;
+            return new LastSendFutureWrapper(lastSendFuture);
         }
-
         public CompletableFuture<Void> handleOnce() {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            if (onceHandle.compareAndSet(false, true)) {
-                lastSendFuture.handle((ignore, throwable) -> {
-                    if (throwable == null) {
-                        future.complete(null);
-                    } else {
-                        future.completeExceptionally(throwable);
-                    }
-                    return null;
-                });
-
-                return future;
-            }
-
-            future.complete(null);
-
-            return future;
+            return lastSendFuture.handle((ignore, t) -> {
+                if (t != null && throwOnce.compareAndSet(false, true)) {
+                    throw FutureUtil.wrapToCompletionException(t);
+                }
+                return null;
+            });
         }
-
-        private void recycle() {
-            lastSendFuture = null;
-            onceHandle = null;
-            recyclerHandle.recycle(this);
-        }
-
-        private final Handle<LastSendFutureWrapper> recyclerHandle;
-
-        private LastSendFutureWrapper(Handle<LastSendFutureWrapper> recyclerHandle) {
-            this.recyclerHandle = recyclerHandle;
-        }
-
-        private static final Recycler<LastSendFutureWrapper> RECYCLER = new Recycler<LastSendFutureWrapper>() {
-            @Override
-            protected LastSendFutureWrapper newObject(Handle<LastSendFutureWrapper> handle) {
-                return new LastSendFutureWrapper(handle);
-            }
-        };
     }
 
 
@@ -2269,17 +2230,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     boolean isErrorStat() {
         return errorState;
-    }
-
-    @VisibleForTesting
-    CompletableFuture<Void> getLastSendFuture() {
-        LastSendFutureWrapper lastSendFuture = this.lastSendFuture;
-        return lastSendFuture.handleOnce();
-    }
-
-    @VisibleForTesting
-    void setLastSendFuture(CompletableFuture<MessageId> lastSendFuture) {
-        this.lastSendFuture = LastSendFutureWrapper.create(lastSendFuture);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);

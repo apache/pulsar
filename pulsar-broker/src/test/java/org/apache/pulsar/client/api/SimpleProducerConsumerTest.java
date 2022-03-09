@@ -606,6 +606,61 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test(dataProvider = "batch")
+    public void testSendTimeoutAndRecover(int batchMessageDelayMs) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic5")
+                .subscriptionName("my-subscriber-name").subscribe();
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
+
+        if (batchMessageDelayMs != 0) {
+            producerBuilder.enableBatching(true);
+            producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
+            producerBuilder.batchingMaxMessages(5);
+        }
+        Producer<byte[]> producer = producerBuilder.create();
+        final String message = "my-message";
+
+        // 1. Trigger the send timeout
+        stopBroker();
+
+        producer.sendAsync(message.getBytes());
+
+        try {
+            // 2. execute flush to get results,
+            // it should be failed because step 1
+            producer.flush();
+            Assert.fail("Send operation should have failed");
+        } catch (PulsarClientException e) {
+            // Expected
+        }
+
+        // 3. execute flush to get results,
+        // it shouldn't fail because we already handled the exception in the step 2, unless we keep sending data.
+        producer.flush();
+
+        startBroker();
+
+        // 4. We should not have received any message
+        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        Assert.assertNull(msg);
+
+        // 5. We keep sending data after connection reconnected.
+        producer.sendAsync(message.getBytes());
+        // 6. This flush operation must succeed.
+        producer.flush();
+
+        // 7. We should have received message
+        msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        Assert.assertNotNull(msg);
+        Assert.assertEquals(new String(msg.getData()), message);
+
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
     @Test
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
