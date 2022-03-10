@@ -18,7 +18,7 @@ You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to cr
 
 You can get the `pulsar` library by using `go get` or use it with `go module`.  
 
-Download to local:
+Download the library of Go client to local environment:
 
 ```bash
 $ go get -u "github.com/apache/pulsar-client-go/pulsar"
