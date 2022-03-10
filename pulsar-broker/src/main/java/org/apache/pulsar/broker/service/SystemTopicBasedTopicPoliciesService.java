@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,8 @@ import org.slf4j.LoggerFactory;
 public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
 
     private final PulsarService pulsarService;
+    private final HashSet localCluster;
+    private final String clusterName;
     private volatile NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
     @VisibleForTesting
@@ -80,6 +83,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
+        this.clusterName = pulsarService.getConfiguration().getClusterName();
+        this.localCluster = Sets.newHashSet(clusterName);
     }
 
     @Override
@@ -143,7 +148,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
         if (policies == null || !policies.isGlobalPolicies()) {
             // we don't need to replicate local policies to remote cluster, so set `replicateTo` to empty.
-            builder.replicateTo(new HashSet<>());
+            builder.replicateTo(localCluster);
         }
         return builder
                 .actionType(actionType)
@@ -454,9 +459,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
-    private static boolean hasReplicateTo(Message<?> message) {
+    private boolean hasReplicateTo(Message<?> message) {
         if (message instanceof MessageImpl) {
-            return ((MessageImpl<?>) message).hasReplicateTo();
+            return ((MessageImpl<?>) message).hasReplicateTo()
+                    ? (((MessageImpl<?>) message).getReplicateTo().size() == 1
+                        ? !((MessageImpl<?>) message).getReplicateTo().contains(clusterName) : true)
+                    : false;
         }
         if (message instanceof TopicMessageImpl) {
             return hasReplicateTo(((TopicMessageImpl<?>) message).getMessage());
