@@ -483,7 +483,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     @VisibleForTesting
     public CompletableFuture<Void> getOriginalLastSendFuture() {
         return CompletableFuture.allOf(
-                producers.values().stream().map(ProducerImpl::getOriginalLastSendFuture).toArray(CompletableFuture[]::new));
+                producers.values().stream().map(ProducerImpl::getOriginalLastSendFuture)
+                        .toArray(CompletableFuture[]::new));
     }
 
     @Override
