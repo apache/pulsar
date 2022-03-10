@@ -235,8 +235,7 @@ public class PersistentSubscription implements Subscription {
                                                 topic, cursor, this)
                                         : new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                                 dispatcher.registerAutoSkipNonRecoverableDataListener((skipPositions) -> {
-                                    acknowledgeMessage((List<Position>) skipPositions, AckType.Individual,
-                                            Collections.emptyMap());
+                                    acknowledgeMessage(skipPositions, AckType.Individual, Collections.emptyMap());
                                 });
                             }
                             break;
@@ -267,8 +266,7 @@ public class PersistentSubscription implements Subscription {
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                         topic.getBrokerService().getPulsar().getConfiguration(), ksm);
                                 dispatcher.registerAutoSkipNonRecoverableDataListener((skipPositions) -> {
-                                    acknowledgeMessage((List<Position>) skipPositions, AckType.Individual,
-                                            Collections.emptyMap());
+                                    acknowledgeMessage(skipPositions, AckType.Individual, Collections.emptyMap());
                                 });
                             }
                             break;
