@@ -26,9 +26,9 @@ import org.apache.pulsar.io.elasticsearch.testcontainers.ChaosContainer;
 import org.awaitility.Awaitility;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.junit.AfterClass;
 import org.mockito.Mockito;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -36,29 +36,28 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.verify;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 
 @Slf4j
-public class ElasticSearchClientTests {
-
-    public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
+public class ElasticSearchClientTests extends ElasticSearchTestBase {
 
     static ElasticsearchContainer container;
 
     @BeforeClass
     public static final void initBeforeClass() throws IOException {
-        container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
+        container = createElasticsearchContainer();
         container.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
     }

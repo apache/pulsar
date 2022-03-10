@@ -54,10 +54,7 @@ import org.testng.annotations.Test;
 import java.util.Locale;
 import static org.testng.Assert.assertNull;
 
-public class ElasticSearchSinkTests {
-
-    public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
+public class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     private static ElasticsearchContainer container;
 
@@ -76,7 +73,7 @@ public class ElasticSearchSinkTests {
 
     @BeforeClass
     public static final void initBeforeClass() {
-        container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
+        container = createElasticsearchContainer();
 
         valueSchema = Schema.JSON(UserProfile.class);
         genericSchema = Schema.generic(valueSchema.getSchemaInfo());
@@ -89,7 +86,7 @@ public class ElasticSearchSinkTests {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
     }
