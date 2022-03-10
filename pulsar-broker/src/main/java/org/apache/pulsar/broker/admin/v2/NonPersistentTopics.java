@@ -415,25 +415,19 @@ public class NonPersistentTopics extends PersistentTopics {
         }
 
         final List<String> topics = Lists.newArrayList();
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            for (int i = 0; i < futures.size(); i++) {
-                try {
-                    if (futures.get(i).isDone() && futures.get(i).get() != null) {
-                        topics.addAll(futures.get(i).get());
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    log.error("[{}] Failed to get list of topics under namespace {}", clientAppId(), namespaceName, e);
-                    asyncResponse.resume(new RestException(e instanceof ExecutionException ? e.getCause() : e));
-                    return null;
+        FutureUtil.waitForAll(futures).whenComplete((result, ex) -> {
+            if (ex != null) {
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+            } else {
+                for (int i = 0; i < futures.size(); i++) {
+                    topics.addAll(futures.get(i).join());
                 }
+                final List<String> nonPersistentTopics =
+                        topics.stream()
+                                .filter(name -> !TopicName.get(name).isPersistent())
+                                .collect(Collectors.toList());
+                asyncResponse.resume(nonPersistentTopics);
             }
-
-            final List<String> nonPersistentTopics =
-                    topics.stream()
-                            .filter(name -> !TopicName.get(name).isPersistent())
-                            .collect(Collectors.toList());
-            asyncResponse.resume(nonPersistentTopics);
-            return null;
         });
     }
 
