@@ -315,11 +315,14 @@ TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
         multiTopicsConsumerImplPtr->unAckedMessageTrackerPtr_.get());
     ASSERT_EQ(numOfMessages * 3, multiTopicsTracker->size());
     ASSERT_FALSE(multiTopicsTracker->isEmpty());
-    for (auto iter = multiTopicsConsumerImplPtr->consumers_.begin();
-         iter != multiTopicsConsumerImplPtr->consumers_.end(); ++iter) {
-        auto subConsumerPtr = iter->second;
-        auto tracker =
-            static_cast<UnAckedMessageTrackerEnabled*>(subConsumerPtr->unAckedMessageTrackerPtr_.get());
+
+    std::vector<UnAckedMessageTrackerEnabled*> trackers;
+    multiTopicsConsumerImplPtr->consumers_.forEach(
+        [&trackers](const std::string& name, const ConsumerImplPtr& consumer) {
+            trackers.emplace_back(
+                static_cast<UnAckedMessageTrackerEnabled*>(consumer->unAckedMessageTrackerPtr_.get()));
+        });
+    for (const auto& tracker : trackers) {
         ASSERT_EQ(0, tracker->size());
         ASSERT_TRUE(tracker->isEmpty());
     }
