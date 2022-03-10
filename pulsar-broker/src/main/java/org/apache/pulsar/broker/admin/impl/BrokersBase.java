@@ -24,9 +24,12 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -47,9 +50,10 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -300,102 +304,133 @@ public class BrokersBase extends PulsarWebResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")})
-    public void healthcheck(@Suspended AsyncResponse asyncResponse) throws Exception {
+    public void healthcheck(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccess();
+        internalRunHealthCheck()
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully run health check.", clientAppId());
+                    asyncResponse.resume("ok");
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    private CompletableFuture<Void> internalRunHealthCheck() {
         String topic;
         PulsarClient client;
         try {
-            validateSuperUserAccess();
             String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(
                     pulsar().getAdvertisedAddress(), pulsar().getConfiguration());
             topic = String.format("persistent://%s/%s", heartbeatNamespace, HEALTH_CHECK_TOPIC_SUFFIX);
             LOG.info("Running healthCheck with topic={}", topic);
             client = pulsar().getClient();
-        } catch (Exception e) {
-            LOG.error("Error getting heathcheck topic info", e);
-            throw new PulsarServerException(e);
+        } catch (PulsarServerException e) {
+            LOG.error("[{}] Fail to run health check while get client.", clientAppId());
+            throw new RestException(e);
         }
         String messageStr = UUID.randomUUID().toString();
+        final String subscriptionName = "healthCheck-" + messageStr;
         // create non-partitioned topic manually and close the previous reader if present.
-        try {
-            pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
-                t.getSubscriptions().forEach((__, value) -> {
-                    try {
-                        value.deleteForcefully();
-                    } catch (Exception e) {
-                        LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
-                    }
-                });
-            });
-        } catch (Exception e) {
-            LOG.warn("Failed to try to delete subscriptions for health check", e);
-        }
-        CompletableFuture<Producer<String>> producerFuture =
-            client.newProducer(Schema.STRING).topic(topic).createAsync();
-        CompletableFuture<Reader<String>> readerFuture = client.newReader(Schema.STRING)
-            .topic(topic).startMessageId(MessageId.latest).createAsync();
-
-        CompletableFuture<Void> completePromise = new CompletableFuture<>();
-
-        CompletableFuture.allOf(producerFuture, readerFuture).whenComplete(
-                (ignore, exception) -> {
-                    if (exception != null) {
-                        completePromise.completeExceptionally(exception);
-                    } else {
-                        producerFuture.thenCompose((producer) -> producer.sendAsync(messageStr))
-                            .whenComplete((ignore2, exception2) -> {
-                                    if (exception2 != null) {
-                                        completePromise.completeExceptionally(exception2);
-                                    }
+        return pulsar().getBrokerService().getTopic(topic, true).thenCompose(topicOptional -> {
+            if (!topicOptional.isPresent()) {
+                LOG.error("[{}] Fail to run health check while get topic {}. because get null value.",
+                        clientAppId(), topic);
+                throw new RestException(Status.NOT_FOUND,
+                        String.format("Topic [%s] not found after create.", topic));
+            }
+            CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+            client.newProducer(Schema.STRING).topic(topic).createAsync()
+                    .thenCompose(producer -> client.newReader(Schema.STRING)
+                            .topic(topic)
+                            .subscriptionName(subscriptionName)
+                            .startMessageId(MessageId.latest)
+                            .createAsync()
+                            .exceptionally(createException -> {
+                                producer.closeAsync().exceptionally(ex -> {
+                                    LOG.error("[{}] Close producer fail while heath check.", clientAppId());
+                                    return null;
                                 });
-
-                        healthcheckReadLoop(readerFuture, completePromise, messageStr);
-
-                        // timeout read loop after 10 seconds
-                        FutureUtil.addTimeoutHandling(completePromise,
-                                HEALTHCHECK_READ_TIMEOUT, pulsar().getExecutor(),
-                                () -> FutureUtil.createTimeoutException("Timed out reading", getClass(),
-                                        "healthcheck(...)"));
-                    }
-                });
-
-        completePromise.whenComplete((ignore, exception) -> {
-                producerFuture.thenAccept((producer) -> {
-                        producer.closeAsync().whenComplete((ignore2, exception2) -> {
-                                if (exception2 != null) {
-                                    LOG.warn("Error closing producer for healthcheck", exception2);
-                                }
-                            });
+                                throw FutureUtil.wrapToCompletionException(createException);
+                            })
+                            .thenCompose(reader -> producer.sendAsync(messageStr)
+                                    .thenCompose(__ -> healthCheckRecursiveReadNext(reader, messageStr))
+                                    .whenComplete((__, ex) -> {
+                                        closeAndReCheck(producer, reader, topicOptional.get(), subscriptionName)
+                                                .whenComplete((unused, innerEx) -> {
+                                                    if (ex != null) {
+                                                        resultFuture.completeExceptionally(ex);
+                                                    } else {
+                                                        resultFuture.complete(null);
+                                                    }
+                                                });
+                                    }))
+                    ).exceptionally(ex -> {
+                        resultFuture.completeExceptionally(ex);
+                        return null;
                     });
-                readerFuture.thenAccept((reader) -> {
-                        reader.closeAsync().whenComplete((ignore2, exception2) -> {
-                                if (exception2 != null) {
-                                    LOG.warn("Error closing reader for healthcheck", exception2);
-                                }
-                            });
-                    });
-                if (exception != null) {
-                    asyncResponse.resume(new RestException(exception));
-                } else {
-                    asyncResponse.resume("ok");
-                }
-            });
+            return resultFuture;
+        });
     }
 
-    private void healthcheckReadLoop(CompletableFuture<Reader<String>> readerFuture,
-                                     CompletableFuture<?> completablePromise,
-                                     String messageStr) {
-        readerFuture.thenAccept((reader) -> {
-                CompletableFuture<Message<String>> readFuture = reader.readNextAsync()
-                    .whenComplete((m, exception) -> {
-                            if (exception != null) {
-                                completablePromise.completeExceptionally(exception);
-                            } else if (m.getValue().equals(messageStr)) {
-                                completablePromise.complete(null);
-                            } else {
-                                healthcheckReadLoop(readerFuture, completablePromise, messageStr);
-                            }
-                        });
-            });
+    private CompletableFuture<Void> healthCheckRecursiveReadNext(Reader<String> reader, String content) {
+        return reader.readNextAsync()
+                .thenCompose(msg -> {
+                    if (!Objects.equals(content, msg.getValue())) {
+                        return healthCheckRecursiveReadNext(reader, content);
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
+    }
+
+    /**
+     * Close producer and reader and then to re-check if this operation is success.
+     *
+     * Re-check
+     * - Producer: If close fails we will print error log to notify user.
+     * - Consumer: If close fails we will force delete subscription.
+     *
+     * @param producer Producer
+     * @param reader Reader
+     * @param topic  Topic
+     * @param subscriptionName  Subscription name
+     */
+    private CompletableFuture<Void> closeAndReCheck(Producer<String> producer, Reader<String> reader,
+                                                    Topic topic, String subscriptionName) {
+        // no matter exception or success, we still need to
+        // close producer/reader
+        CompletableFuture<Void> producerFuture = producer.closeAsync();
+        CompletableFuture<Void> readerFuture = reader.closeAsync();
+        List<CompletableFuture<Void>> futures = new ArrayList<>(2);
+        futures.add(producerFuture);
+        futures.add(readerFuture);
+        return FutureUtil.waitForAll(Collections.unmodifiableList(futures))
+                .exceptionally(closeException -> {
+                    if (readerFuture.isCompletedExceptionally()) {
+                        LOG.error("[{}] Close reader fail while heath check.", clientAppId());
+                        Subscription subscription =
+                                topic.getSubscription(subscriptionName);
+                        // re-check subscription after reader close
+                        if (subscription != null) {
+                            LOG.warn("[{}] Force delete subscription {} "
+                                            + "when it still exists after the"
+                                            + " reader is closed.",
+                                    clientAppId(), subscription);
+                            subscription.deleteForcefully()
+                                    .exceptionally(ex -> {
+                                        LOG.error("[{}] Force delete subscription fail"
+                                                        + " while health check",
+                                                clientAppId(), ex);
+                                        return null;
+                                    });
+                        }
+                    } else {
+                        // producer future fail.
+                        LOG.error("[{}] Close producer fail while heath check.", clientAppId());
+                    }
+                    return null;
+                });
     }
 
     private synchronized void deleteDynamicConfigurationOnZk(String configName) {

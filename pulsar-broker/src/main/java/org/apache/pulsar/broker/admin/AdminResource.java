@@ -40,10 +40,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
@@ -778,19 +776,6 @@ public abstract class AdminResource extends PulsarWebResource {
                     future.complete(null);
                 });
         return future;
-    }
-
-    protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
-        Throwable realCause = FutureUtil.unwrapCompletionException(throwable);
-        if (realCause instanceof WebApplicationException) {
-            asyncResponse.resume(realCause);
-        } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
-            asyncResponse.resume(new RestException(Status.CONFLICT, realCause));
-        } else if (realCause instanceof PulsarAdminException) {
-            asyncResponse.resume(new RestException(((PulsarAdminException) realCause)));
-        } else {
-            asyncResponse.resume(new RestException(realCause));
-        }
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
