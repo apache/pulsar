@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -44,6 +45,9 @@ public interface Dispatcher {
 
     boolean canUnsubscribe(Consumer consumer);
 
+    default void registerAutoSkipNonRecoverableDataListener(java.util.function.Consumer<List<Position>> listener) {
+        // do nothing
+    }
     /**
      * mark dispatcher closed to stop new incoming requests and disconnect all consumers.
      *

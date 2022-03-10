@@ -193,6 +193,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     private int individualDeletedMessagesSerializedSize;
     private static final String COMPACTION_CURSOR_NAME = "__compaction";
 
+    private final List<Position> autoSkipEntryPosition;
+
     class MarkDeleteEntry {
         final PositionImpl newPosition;
         final MarkDeleteCallback callback;
@@ -247,6 +249,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     ManagedCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName) {
+        this.autoSkipEntryPosition = new ArrayList<>();
         this.bookkeeper = bookkeeper;
         this.config = config;
         this.ledger = ledger;
@@ -276,6 +279,21 @@ public class ManagedCursorImpl implements ManagedCursor {
             markDeleteLimiter = null;
         }
         this.mbean = new ManagedCursorMXBeanImpl(this);
+    }
+
+    @Override
+    public void addSkipPosition(Position skipPosition) {
+        autoSkipEntryPosition.add(skipPosition);
+    }
+
+    @Override
+    public List<Position> getSkipPositions() {
+        return autoSkipEntryPosition;
+    }
+
+    @Override
+    public void clearSkipPositions() {
+        autoSkipEntryPosition.clear();
     }
 
     @Override

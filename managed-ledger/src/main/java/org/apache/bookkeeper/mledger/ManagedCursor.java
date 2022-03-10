@@ -54,6 +54,9 @@ public interface ManagedCursor {
         Include, Exclude
     }
 
+    default <T> void registerAutoSkipNonRecoverableDataListener(java.util.function.Consumer<T> listener) {
+        // do nothing
+    }
     /**
      * Get the unique cursor name.
      *
@@ -74,6 +77,17 @@ public interface ManagedCursor {
      */
     void updateLastActive();
 
+    default void addSkipPosition(Position skipPosition) {
+        // do nothing
+    }
+
+    default List<Position> getSkipPositions() {
+        return null;
+    }
+
+    default void clearSkipPositions(){
+        // do nothing
+    }
     /**
      * Return any properties that were associated with the last stored position.
      */

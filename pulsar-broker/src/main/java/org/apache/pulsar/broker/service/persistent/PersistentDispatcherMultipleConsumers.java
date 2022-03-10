@@ -60,6 +60,7 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,6 +106,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
+    private final ConcurrentOpenHashSet<java.util.function.Consumer<List<Position>>> registeredListeners;
+
     protected enum ReadType {
         Normal, Replay
     }
@@ -117,6 +120,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, Subscription subscription,
             boolean allowOutOfOrderDelivery) {
         super(subscription, topic.getBrokerService().pulsar().getConfiguration());
+        this.registeredListeners = new ConcurrentOpenHashSet<>();
         this.cursor = cursor;
         this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
@@ -127,6 +131,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
+    }
+
+    @Override
+    public void registerAutoSkipNonRecoverableDataListener(java.util.function.Consumer<List<Position>> listener) {
+        registeredListeners.add(listener);
+    }
+
+    public void ackAllSkipPosition() {
+        registeredListeners.forEach(listener -> {
+            listener.accept(cursor.getSkipPositions());
+        });
+        cursor.clearSkipPositions();
     }
 
     @Override
@@ -489,6 +505,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
+        ackAllSkipPosition();
         sendMessagesToConsumers(readType, entries);
     }
 
