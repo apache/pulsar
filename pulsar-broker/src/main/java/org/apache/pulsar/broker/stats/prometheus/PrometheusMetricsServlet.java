@@ -31,6 +31,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
@@ -71,6 +73,12 @@ public class PrometheusMetricsServlet extends HttpServlet {
         AsyncContext context = request.startAsync();
         context.setTimeout(metricsServletTimeoutMs);
         executor.execute(safeRun(() -> {
+            boolean useBuffer = true;
+            //param for internal tests.
+            String param = request.getParameter("useBuffer");
+            if (StringUtils.isNotBlank(param)) {
+                useBuffer = param.equalsIgnoreCase("true");
+            }
             long start = System.currentTimeMillis();
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             try {
@@ -78,7 +86,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 res.setContentType("text/plain");
                 PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
                         shouldExportProducerMetrics, splitTopicAndPartitionLabel, res.getOutputStream(),
-                        metricsProviders, Boolean.TRUE);
+                        metricsProviders, useBuffer);
             } catch (Exception e) {
                 long end = System.currentTimeMillis();
                 long time = end - start;
