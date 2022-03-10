@@ -44,8 +44,15 @@ public class ManagedLedgerFactoryConfig {
 
     /**
      * Frequency of cache eviction triggering. Default is 100 times per second.
+     * @Deprecated Use {@link #cacheEvictionIntervalMs} instead.
      */
+    @Deprecated
     private double cacheEvictionFrequency = 100;
+
+    /**
+     * Interval of cache eviction triggering. Default is 10 ms times.
+     */
+    private long cacheEvictionIntervalMs = 10;
 
     /**
      * All entries that have stayed in cache for more than the configured time, will be evicted.

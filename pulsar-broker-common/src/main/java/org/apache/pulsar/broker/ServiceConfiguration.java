@@ -1807,8 +1807,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
-    private double managedLedgerCacheEvictionFrequency = 100.0;
+            doc = "Configure the cache eviction frequency for the managed ledger cache.")
+    @Deprecated
+    private double managedLedgerCacheEvictionFrequency = 0;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Configure the cache eviction interval in milliseconds for the managed ledger cache, default is 10ms")
+    private long managedLedgerCacheEvictionIntervalMs = 10;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             dynamic = true,
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
@@ -3017,5 +3023,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public long getManagedLedgerCacheEvictionIntervalMs() {
+        return managedLedgerCacheEvictionFrequency > 0
+                ? (long) (1000 / Math.max(Math.min(managedLedgerCacheEvictionFrequency, 1000.0), 0.001))
+                : Math.min(1000000, managedLedgerCacheEvictionIntervalMs);
     }
 }
