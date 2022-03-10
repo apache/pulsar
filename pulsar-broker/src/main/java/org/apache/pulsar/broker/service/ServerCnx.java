@@ -2028,7 +2028,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         SchemaVersion schemaVersion = SchemaVersion.Latest;
         if (commandGetSchema.hasSchemaVersion()) {
             if (commandGetSchema.getSchemaVersion().length == 0) {
-                commandSender.sendGetSchemaErrorResponse(requestId, ServerError.IncompatibleSchema, "Empty schema version");
+                commandSender.sendGetSchemaErrorResponse(requestId, ServerError.IncompatibleSchema,
+                        "Empty schema version");
                 return;
             }
             schemaVersion = schemaService.versionFromBytes(commandGetSchema.getSchemaVersion());
