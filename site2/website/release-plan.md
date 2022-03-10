@@ -1,5 +1,9 @@
 # Apache Pulsar Release Plan
 
+## Time Based Release Plan
+
+Apache Pulsar follows a time based release plan and attempts to release 4 minor releases each year.
+
 ## Motivation
 
 The benefits of moving to a time based release are:
@@ -15,7 +19,7 @@ The benefits of moving to a time based release are:
 Since nothing is ever perfect, there will be some downsides:
 
 1. Most notably, features that miss the feature-freeze date for a release will have to wait few month for the next release. Features will reach users faster overall as per benefit #1, but individual features that just miss the cut will lose out
-2. More releases a year mean that being a committer is more work - release management is still some headache and we'll have more of those. Hopefully we'll get better at it. Also, the committer list is growing and hopefully it will be less than once-a-year effort for each committer.
+2. More releases a year mean that being a committer is more work - release management is still some headache, and we'll have more of those. Hopefully we'll get better at it. Also, the committer list is growing, and hopefully it will be less than once-a-year effort for each committer.
 3. For users, figuring out which release to use and having frequent new releases to upgrade to may be a bit confusing.
 4. Frequent releases mean we need to do bugfix releases for older branches. Right now we only do bugfix releases to latest release.
 
@@ -39,24 +43,24 @@ For time based release, we will strictly ensure that a release happens on a give
 
 ## What happens if features don’t complete?
 
-Features tend to be of different complexity. Some of them can be implemented within a single release while some span multiple releases. With time based release, we would need to ensure that ongoing features do not affect the stability of the release. There are couple of options –
+Features tend to be of different complexity. Some of them can be implemented within a single release while some span multiple releases. With time based release, we would need to ensure that ongoing features do not affect the stability of the release. There are a couple of options –
 
-1. **Ensure that every feature is broken down into testable units and only testable units get checked in**. This means that good set of unit test and system tests are written for sub tasks before they are checked in. This will ensure that trunk is in a relatively stable state to release at any point of time.
+1. **Ensure that every feature is broken down into testable units and only testable units get checked in**. This means that good set of unit test and system tests are written for sub-tasks before they are checked in. This will ensure that trunk is in a relatively stable state to release at any point of time.
 2. **Use feature branches**. Create branches from trunk that are focused on a specific feature. The feature developers ensure that the branch is in sync with trunk from time to time. Once there is high level of confidence on the stability, it can be merged into trunk. This approach has the additional overhead of branching and performing merges from time to time.
 
 ### What are the gaps that we need to focus on?
 
 There are some gaps in the development process and testing infrastructure that we need to close to ensure that we can successfully do a time based release. This is going to be a long term effort but will simplify time based releases as we make more progress in closing them.
 
-1. **Testing coverage with check ins**. Code reviews in Apache Pulsar need to ensure we have good unit test coverage and enforce system tests be written along with the check ins (when applicable). Testing should not be at the end. We should also encourage documentation be accompanied with check ins where applicable.
+1. **Testing coverage with check ins**. Code reviews in Apache Pulsar need to ensure we have good unit test coverage and enforce system tests be written along with the check ins (when applicable). Testing should not be at the end. We should also encourage documentation be accompanied by check ins where applicable.
 2. **Compatibility testing**. Although we have basic backward compatibility testing, it is not a very good framework. We need to come up with a better solution during testing.
-3. **Documentation coverage with check ins**. Code reviews in Apache Pulsar need to ensure we have good documentation coverage with check ins. Otherwise we will end up spending too much time on documentation at the end of each release.
+3. **Documentation coverage with check ins**. Code reviews in Apache Pulsar need to ensure we have good documentation coverage with check ins. Otherwise, we will end up spending too much time on documentation at the end of each release.
 
 ### What Is Our EOL Policy?
 
 Currently Apache Pulsar doesn't have a good story about EOL policy. We kept almost all the releases.
 
-If we switched to Time based release plan, we will have more releases. We need to define an EOL Policy. Given 4 releases a year and the fact that no one upgrades three times a year, we propose making sure (by testing!) that rolling upgrade can be done from each release in the past year (i.e. last 4 releases) to the latest version.
+If we switched to Time based release plan, we will have more releases. We need to define an EOL Policy. Given 4 releases a year and the fact that no one upgrades four times a year, we propose making sure (by testing!) that rolling upgrade can be done from each release in the past year (i.e. last 4 releases) to the latest version.
 
 We will also attempt, as a community to do bugfix releases as needed for the last 4 releases.
 
@@ -66,7 +70,7 @@ As usual, a committer shall volunteer. If no committer volunteers, we'll cancel 
 
 ### What About Version Numbers?
 
-Currently the Apache Pulsar version number is comprised with 3 components: major.minor.bug
+Currently, the Apache Pulsar version number is comprised with 3 components: major.minor.bug
 
 Feature releases will be a minor release by default (e.g. 2.3.0 => 2.4.0) - unless
 
