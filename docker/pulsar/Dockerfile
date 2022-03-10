@@ -51,6 +51,7 @@ ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 
 # Install some utilities
 RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
+     && echo 'Acquire::http::Timeout "30";\nAcquire::ftp::Timeout "30";\nAcquire::Retries "3";' > /etc/apt/apt.conf.d/99timeout_and_retries \
      && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install --no-install-recommends openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \

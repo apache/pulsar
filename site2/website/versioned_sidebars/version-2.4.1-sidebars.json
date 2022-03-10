@@ -58,7 +58,6 @@
       "version-2.4.1-deploy-kubernetes",
       "version-2.4.1-deploy-bare-metal",
       "version-2.4.1-deploy-bare-metal-multi-cluster",
-      "version-2.4.1-deploy-dcos",
       "version-2.4.1-deploy-monitoring"
     ],
     "Administration": [
