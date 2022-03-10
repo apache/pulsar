@@ -414,13 +414,16 @@ public class NonPersistentTopics extends PersistentTopics {
             }
         }
 
-        final List<String> topics = Lists.newArrayList();
         FutureUtil.waitForAll(futures).whenComplete((result, ex) -> {
             if (ex != null) {
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
             } else {
+                final List<String> topics = Lists.newArrayList();
                 for (int i = 0; i < futures.size(); i++) {
-                    topics.addAll(futures.get(i).join());
+                    List<String> topicList = futures.get(i).join();
+                    if (topicList != null) {
+                        topics.addAll(topicList);
+                    }
                 }
                 final List<String> nonPersistentTopics =
                         topics.stream()
