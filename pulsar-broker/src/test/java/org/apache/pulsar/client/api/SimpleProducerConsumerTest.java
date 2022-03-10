@@ -4279,8 +4279,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testPartitionsAutoUpdate() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        int numPartitions = 6;
-        TopicName topicName = TopicName.get("persistent://my-property/my-ns/sendTimeoutAndRecover-1");
+        int numPartitions = 3;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/partitionsAutoUpdate-1");
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
         @Cleanup final PulsarClient client = PulsarClient.builder()
@@ -4309,41 +4309,31 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         AtomicReference<CompletableFuture<Void>> proPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
         AtomicReference<CompletableFuture<Void>> conPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
             assertNotNull(proPartitionsAutoUpdateFutureRef.get());
             assertTrue(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+            assertTrue(FutureUtil.getException(proPartitionsAutoUpdateFutureRef.get()).get().getMessage()
+                    .contains("Connection refused:"));
         });
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
             assertNotNull(conPartitionsAutoUpdateFutureRef.get());
             assertTrue(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+            assertTrue(FutureUtil.getException(conPartitionsAutoUpdateFutureRef.get()).get().getMessage()
+                    .contains("Connection refused:"));
         });
-
-        try {
-            proPartitionsAutoUpdateFutureRef.get().get();
-            Assert.fail("Producer auto update partitions should have failed");
-        } catch (Exception e) {
-            Assert.assertTrue(PulsarClientException.unwrap(e).getMessage().contains("Connection refused:"));
-        }
-
-        try {
-            conPartitionsAutoUpdateFutureRef.get().get();
-            Assert.fail("Consumer auto update partitions should have failed");
-        } catch (Exception e) {
-            Assert.assertTrue(PulsarClientException.unwrap(e).getMessage().contains("Connection refused:"));
-        }
 
         startBroker();
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
             assertNotNull(proPartitionsAutoUpdateFutureRef.get());
             assertFalse(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
         });
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
             assertNotNull(conPartitionsAutoUpdateFutureRef.get());
             assertFalse(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
