@@ -138,6 +138,8 @@ public class Consumer {
     @Setter
     private volatile long consumerEpoch;
 
+    private long negtiveUnackedMsgsTimestamp;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
@@ -946,6 +948,10 @@ public class Consumer {
         if (Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+        }
+        if (unackedMsgs < 0 && System.currentTimeMillis() - negtiveUnackedMsgsTimestamp >= 10_000) {
+            negtiveUnackedMsgsTimestamp = System.currentTimeMillis();
+            log.warn("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
         }
         return unackedMsgs;
     }
