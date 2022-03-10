@@ -86,6 +86,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -4272,5 +4273,82 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(r2.get() >= 1);
             assertEquals(resultSet.size(), total);
         });
+    }
+
+    @Test
+    public void testPartitionsAutoUpdate() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 6;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/sendTimeoutAndRecover-1");
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+        @Cleanup final PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .operationTimeout(2, TimeUnit.SECONDS)
+                .build();
+
+        @Cleanup
+        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer =
+                (MultiTopicsConsumerImpl<byte[]>) client.newConsumer().topic(topicName.toString())
+                        .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
+                        .subscriptionName("my-subscriber-name").subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer()
+                .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
+
+        producerBuilder.autoUpdatePartitionsInterval(2, TimeUnit.SECONDS);
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> partitionedProducer =
+                (PartitionedProducerImpl<byte[]>) producerBuilder.create();
+
+        // Trigger the Connection refused exception
+        stopBroker();
+
+        AtomicReference<CompletableFuture<Void>> proPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
+        AtomicReference<CompletableFuture<Void>> conPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertNotNull(proPartitionsAutoUpdateFutureRef.get());
+            assertTrue(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+        });
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
+            assertNotNull(conPartitionsAutoUpdateFutureRef.get());
+            assertTrue(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+        });
+
+        try {
+            proPartitionsAutoUpdateFutureRef.get().get();
+            Assert.fail("Producer auto update partitions should have failed");
+        } catch (Exception e) {
+            Assert.assertTrue(PulsarClientException.unwrap(e).getMessage().contains("Connection refused:"));
+        }
+
+        try {
+            conPartitionsAutoUpdateFutureRef.get().get();
+            Assert.fail("Consumer auto update partitions should have failed");
+        } catch (Exception e) {
+            Assert.assertTrue(PulsarClientException.unwrap(e).getMessage().contains("Connection refused:"));
+        }
+
+        startBroker();
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertNotNull(proPartitionsAutoUpdateFutureRef.get());
+            assertFalse(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+        });
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
+            assertNotNull(conPartitionsAutoUpdateFutureRef.get());
+            assertFalse(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+        });
+
+        log.info("-- Exiting {} test --", methodName);
     }
 }

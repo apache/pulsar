@@ -480,6 +480,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     };
 
     @VisibleForTesting
+    public CompletableFuture<Void> getPartitionsAutoUpdateFuture() {
+        return partitionsAutoUpdateFuture;
+    }
+
+    @VisibleForTesting
     public Timeout getPartitionsAutoUpdateTimeout() {
         return partitionsAutoUpdateTimeout;
     }
