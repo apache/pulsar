@@ -218,6 +218,7 @@ public class BrokerService implements Closeable {
 
     private AuthorizationService authorizationService = null;
     private final ScheduledExecutorService statsUpdater;
+    @Getter
     private final ScheduledExecutorService backlogQuotaChecker;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
