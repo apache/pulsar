@@ -295,7 +295,7 @@ consumer.acknowledge(message);
 
 ### Retry letter topic
 
-Retry letter topic allows you to store the messages that failed to be consumed and retry consuming them later. With this method, you can custom the interval to retry the delivery of the messages, and subscribers automatically subscribe to the retry letter topic and re-consume it. When the specified maximum number of retries is reached, the unconsumed messages are moved to a [dead letter topic](#dead-letter-topic) for manual processing.
+The retry letter topic allows you to store the messages that failed to be consumed and retry consuming them later. With this method, you can customize the interval at which the messages are redelivered. Consumers on the original topic are automatically subscribed to the retry letter topic as well. Once the maximum number of retries has been reached, the unconsumed messages are moved to a [dead letter topic](#dead-letter-topic) for manual processing.
 
 The diagram below illustrates the concept of the retry letter topic.
 ![](assets/retry-letter-topic.svg)
@@ -367,7 +367,7 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 ```
 > **Note**    
 > *  Currently, retry letter topic is enabled in Shared subscription types.
-> *  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval.
+> *  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval, because the negative acknowledgment caches messages that need to be retried on the client side, and the retry letter topic is persisted to bookkeeper.
 
 ### Dead letter topic
 
