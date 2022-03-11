@@ -262,52 +262,56 @@ public abstract class NamespacesBase extends AdminResource {
 
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        try {
-            // remove system topics first.
-            if (!topics.isEmpty()) {
-                for (String topic : topics) {
-                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
-                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
-                    });
+        // remove system topics first.
+        if (!topics.isEmpty()) {
+            for (String topic : topics) {
+                try {
+                    futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
+                } catch (Exception ex) {
+                    log.error("[{}] Failed to delete system topic {}", clientAppId(), topic, ex);
+                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, ex));
+                    return;
                 }
             }
+        }
+        FutureUtil.waitForAll(futures).thenCompose(__ -> {
+            List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(namespaceName);
+                            .getBundles(namespaceName);
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
-                if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                    futures.add(pulsar().getAdminClient().namespaces()
-                            .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
-                }
+                deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle).thenCompose(ownership -> {
+                    if (ownership.isPresent()) {
+                        try {
+                            return pulsar().getAdminClient().namespaces()
+                                            .deleteNamespaceBundleAsync(namespaceName.toString(),
+                                                    bundle.getBundleRange());
+                        } catch (PulsarServerException e) {
+                                    throw new RestException(e);
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }));
             }
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
-            asyncResponse.resume(new RestException(e));
-            return;
-        }
-
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
-                } else {
-                    log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, exception);
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
-                }
-            }
-
-            internalClearZkSources(asyncResponse);
-
+            return FutureUtil.waitForAll(deleteBundleFutures);
+        })
+        .thenCompose(__ -> internalClearZkSources())
+        .thenAccept(__ -> {
+            log.info("[{}] Remove namespace successfully {}", clientAppId(), namespaceName);
+            asyncResponse.resume(Response.noContent().build());
+        })
+        .exceptionally(ex -> {
+            log.error("[{}] Failed to remove namespace {}", clientAppId(), namespaceName, ex.getCause());
+            resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
             return null;
         });
     }
 
     // clear zk-node resources for deleting namespace
-    protected void internalClearZkSources(AsyncResponse asyncResponse) {
+    protected CompletableFuture<Void> internalClearZkSources() {
         // clear resource of `/namespace/{namespaceName}` for zk-node
-        namespaceResources().deleteNamespaceAsync(namespaceName)
+        return namespaceResources().deleteNamespaceAsync(namespaceName)
                 .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
                         .clearPartitionedTopicMetadataAsync(namespaceName))
                 // clear resource for manager-ledger z-node
@@ -319,18 +323,8 @@ public abstract class NamespacesBase extends AdminResource {
                 // z-node can be deleted now
                 .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
                 // clear z-node of local policies
-                .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
-                .whenComplete((ignore, ex) -> {
-                    if (ex != null) {
-                        log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
-                                clientAppId(), namespaceName, ex);
-                        asyncResponse.resume(new RestException(ex));
-                    } else {
-                        log.info("[{}] Remove namespace or managed-ledger successfully {}",
-                                clientAppId(), namespaceName);
-                        asyncResponse.resume(Response.noContent().build());
-                    }
-                });
+                .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName));
+
     }
 
     @SuppressWarnings("deprecation")
@@ -474,7 +468,7 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+        FutureUtil.waitForAll(futures).thenCompose(__ -> internalClearZkSources()).handle((result, exception) -> {
             if (exception != null) {
                 if (exception.getCause() instanceof PulsarAdminException) {
                     asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
@@ -487,7 +481,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
 
-            internalClearZkSources(asyncResponse);
+            asyncResponse.resume(Response.noContent().build());
 
             return null;
         });

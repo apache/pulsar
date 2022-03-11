@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
@@ -750,6 +751,8 @@ public abstract class AdminResource extends PulsarWebResource {
             asyncResponse.resume(throwable);
         } else if (throwable instanceof BrokerServiceException.NotAllowedException) {
             asyncResponse.resume(new RestException(Status.CONFLICT, throwable));
+        } else if (throwable instanceof PulsarAdminException) {
+            asyncResponse.resume(new RestException(((PulsarAdminException) throwable)));
         } else {
             asyncResponse.resume(new RestException(throwable));
         }
