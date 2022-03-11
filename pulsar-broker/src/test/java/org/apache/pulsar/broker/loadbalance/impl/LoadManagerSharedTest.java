@@ -36,7 +36,9 @@ public class LoadManagerSharedTest {
         String assignedBundle = namespace + "/0x00000000_0x40000000";
 
         Set<String> candidates = Sets.newHashSet();
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
+                        .build();
         LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, map);
         Assert.assertEquals(candidates.size(), 0);
 
@@ -80,8 +82,10 @@ public class LoadManagerSharedTest {
     private static void fillBrokerToNamespaceToBundleMap(
             ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map,
             String broker, String namespace, String bundle) {
-        map.computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>())
-                .computeIfAbsent(namespace, k -> new ConcurrentOpenHashSet<>()).add(bundle);
+        map.computeIfAbsent(broker,
+                k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build())
+                .computeIfAbsent(namespace, k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                .add(bundle);
     }
 
 }

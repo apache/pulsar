@@ -190,7 +190,9 @@ public class LoadManagerShared {
         bundles.forEach(bundleName -> {
             final String namespaceName = getNamespaceNameFromBundleName(bundleName);
             final String bundleRange = getBundleRangeFromBundleName(bundleName);
-            target.computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>()).add(bundleRange);
+            target.computeIfAbsent(namespaceName,
+                    k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                    .add(bundleRange);
         });
     }
 
@@ -263,8 +265,11 @@ public class LoadManagerShared {
 
         for (final String broker : candidates) {
             int bundles = (int) brokerToNamespaceToBundleRange
-                    .computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>())
-                    .computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>()).size();
+                    .computeIfAbsent(broker,
+                            k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build())
+                    .computeIfAbsent(namespaceName,
+                            k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                    .size();
             leastBundles = Math.min(leastBundles, bundles);
             if (leastBundles == 0) {
                 break;
@@ -276,8 +281,10 @@ public class LoadManagerShared {
 
         final int finalLeastBundles = leastBundles;
         candidates.removeIf(
-                broker -> brokerToNamespaceToBundleRange.computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>())
-                        .computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>()).size() > finalLeastBundles);
+                broker -> brokerToNamespaceToBundleRange.computeIfAbsent(broker,
+                        k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build())
+                        .computeIfAbsent(namespaceName, k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                        .size() > finalLeastBundles);
     }
 
     /**
