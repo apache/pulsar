@@ -67,6 +67,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.common.naming.BundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -797,11 +798,12 @@ public class NamespaceService implements AutoCloseable {
      * @throws Exception
      */
     public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload,
-                                                     NamespaceBundleSplitAlgorithm splitAlgorithm) {
+                                                     NamespaceBundleSplitAlgorithm splitAlgorithm,
+                                                     List<Long> boundaries) {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
-        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm);
+        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm, boundaries);
 
         return unloadFuture;
     }
@@ -810,13 +812,20 @@ public class NamespaceService implements AutoCloseable {
                                        boolean unload,
                                        AtomicInteger counter,
                                        CompletableFuture<Void> completionFuture,
-                                       NamespaceBundleSplitAlgorithm splitAlgorithm) {
-        splitAlgorithm.getSplitBoundary(this, bundle).whenComplete((splitBoundary, ex) -> {
+                                       NamespaceBundleSplitAlgorithm splitAlgorithm,
+                                       List<Long> boundaries) {
+        BundleSplitOption bundleSplitOption = new BundleSplitOption(this, bundle, boundaries);
+        splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
             if (ex == null) {
+                if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                    LOG.info("[{}] No valid boundary found in {} to split bundle {}",
+                            bundle.getNamespaceObject().toString(), boundaries, bundle.getBundleRange());
+                    completionFuture.complete(null);
+                    return;
+                }
                 try {
-                    bundleFactory.splitBundles(bundle,
-                        2 /* by default split into 2 */, splitBoundary)
+                    bundleFactory.splitBundles(bundle, splitBoundaries.size() + 1, splitBoundaries)
                             .thenAccept(splittedBundles -> {
                                 // Split and updateNamespaceBundles. Update may fail because of concurrent write to
                                 // Zookeeper.
@@ -829,14 +838,13 @@ public class NamespaceService implements AutoCloseable {
 
                                 checkNotNull(splittedBundles.getLeft());
                                 checkNotNull(splittedBundles.getRight());
-                                checkArgument(splittedBundles.getRight().size() == 2,
-                                        "bundle has to be split in two bundles");
+                                checkArgument(splittedBundles.getRight().size() == splitBoundaries.size() + 1,
+                                        "bundle has to be split in " + (splitBoundaries.size() + 1) + " bundles");
                                 NamespaceName nsname = bundle.getNamespaceObject();
                                 if (LOG.isDebugEnabled()) {
-                                    LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
+                                    LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {}, bundles: {}",
                                             nsname.toString(), bundle.getBundleRange(), counter.get(),
-                                            splittedBundles.getRight().get(0).getBundleRange(),
-                                            splittedBundles.getRight().get(1).getBundleRange());
+                                            splittedBundles.getRight());
                                 }
                                 try {
                                     // take ownership of newly split bundles
@@ -880,7 +888,7 @@ public class NamespaceService implements AutoCloseable {
                             && (counter.decrementAndGet() >= 0)) {
                         pulsar.getOrderedExecutor()
                                 .execute(() -> splitAndOwnBundleOnceAndRetry(
-                                        bundle, unload, counter, completionFuture, splitAlgorithm));
+                                        bundle, unload, counter, completionFuture, splitAlgorithm, boundaries));
                     } else if (t instanceof IllegalArgumentException) {
                         completionFuture.completeExceptionally(t);
                     } else {
