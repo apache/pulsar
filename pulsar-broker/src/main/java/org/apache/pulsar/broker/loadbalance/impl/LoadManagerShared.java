@@ -266,7 +266,8 @@ public class LoadManagerShared {
         for (final String broker : candidates) {
             int bundles = (int) brokerToNamespaceToBundleRange
                     .computeIfAbsent(broker,
-                            k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build())
+                            k -> ConcurrentOpenHashMap.<String,
+                                    ConcurrentOpenHashSet<String>>newBuilder().build())
                     .computeIfAbsent(namespaceName,
                             k -> ConcurrentOpenHashSet.<String>newBuilder().build())
                     .size();
@@ -282,8 +283,10 @@ public class LoadManagerShared {
         final int finalLeastBundles = leastBundles;
         candidates.removeIf(
                 broker -> brokerToNamespaceToBundleRange.computeIfAbsent(broker,
-                        k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build())
-                        .computeIfAbsent(namespaceName, k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                        k -> ConcurrentOpenHashMap.<String,
+                                ConcurrentOpenHashSet<String>>newBuilder().build())
+                        .computeIfAbsent(namespaceName,
+                                k -> ConcurrentOpenHashSet.<String>newBuilder().build())
                         .size() > finalLeastBundles);
     }
 

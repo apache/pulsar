@@ -854,9 +854,11 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 // same broker.
                 brokerToNamespaceToBundleRange
                         .computeIfAbsent(selectedRU.getResourceId().replace("http://", ""),
-                                k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder()
+                                k -> ConcurrentOpenHashMap.<String,
+                                        ConcurrentOpenHashSet<String>>newBuilder()
                                         .build())
-                        .computeIfAbsent(namespaceName, k -> ConcurrentOpenHashSet.<String>newBuilder().build())
+                        .computeIfAbsent(namespaceName, k ->
+                                ConcurrentOpenHashSet.<String>newBuilder().build())
                         .add(bundleRange);
                 ranking.addPreAllocatedServiceUnit(serviceUnitId, quota);
                 resourceUnitRankings.put(selectedRU, ranking);
@@ -1277,7 +1279,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
                     brokerToNamespaceToBundleRange
                             .computeIfAbsent(broker.replace("http://", ""),
-                                    k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder()
+                                    k -> ConcurrentOpenHashMap.<String,
+                                            ConcurrentOpenHashSet<String>>newBuilder()
                                             .build());
             namespaceToBundleRange.clear();
             LoadManagerShared.fillNamespaceToBundlesMap(loadedBundles, namespaceToBundleRange);

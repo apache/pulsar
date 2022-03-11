@@ -93,7 +93,8 @@ public class ConcurrentOpenHashSetTest {
 
     @Test
     public void testClear() {
-        ConcurrentOpenHashSet<String> map = ConcurrentOpenHashSet.<String>newBuilder()
+        ConcurrentOpenHashSet<String> map =
+                ConcurrentOpenHashSet.<String>newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
                 .autoShrink(true)
@@ -112,7 +113,8 @@ public class ConcurrentOpenHashSetTest {
 
     @Test
     public void testExpandAndShrink() {
-        ConcurrentOpenHashSet<String> map = ConcurrentOpenHashSet.<String>newBuilder()
+        ConcurrentOpenHashSet<String> map =
+                ConcurrentOpenHashSet.<String>newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
                 .autoShrink(true)

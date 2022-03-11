@@ -106,7 +106,8 @@ public class MessageDeduplication {
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
     @VisibleForTesting
-    final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted = ConcurrentOpenHashMap.<String, Long>newBuilder()
+    final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted =
+            ConcurrentOpenHashMap.<String, Long>newBuilder()
             .expectedItems(16)
             .concurrencyLevel(1)
             .build();

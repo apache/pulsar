@@ -205,7 +205,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     public ModularLoadManagerImpl() {
         brokerCandidateCache = new HashSet<>();
         brokerToNamespaceToBundleRange =
-                ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
                         .build();
         defaultStats = new NamespaceBundleStats();
         filterPipeline = new ArrayList<>();
@@ -570,7 +571,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
                     brokerToNamespaceToBundleRange
                             .computeIfAbsent(broker, k ->
-                                    ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder()
+                                    ConcurrentOpenHashMap.<String,
+                                            ConcurrentOpenHashSet<String>>newBuilder()
                                             .build());
             synchronized (namespaceToBundleRange) {
                 namespaceToBundleRange.clear();
@@ -855,7 +857,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
                         brokerToNamespaceToBundleRange
                                 .computeIfAbsent(broker.get(),
-                                        k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder()
+                                        k -> ConcurrentOpenHashMap.<String,
+                                                ConcurrentOpenHashSet<String>>newBuilder()
                                                 .build());
                 synchronized (namespaceToBundleRange) {
                     namespaceToBundleRange.computeIfAbsent(namespaceName,

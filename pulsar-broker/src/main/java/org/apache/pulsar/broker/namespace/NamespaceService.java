@@ -357,11 +357,13 @@ public class NamespaceService implements AutoCloseable {
 
     private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
             findingBundlesAuthoritative =
-            ConcurrentOpenHashMap.<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>newBuilder()
+            ConcurrentOpenHashMap.<NamespaceBundle,
+                    CompletableFuture<Optional<LookupResult>>>newBuilder()
                     .build();
     private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
             findingBundlesNotAuthoritative =
-            ConcurrentOpenHashMap.<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>newBuilder()
+            ConcurrentOpenHashMap.<NamespaceBundle,
+                    CompletableFuture<Optional<LookupResult>>>newBuilder()
                     .build();
 
     /**

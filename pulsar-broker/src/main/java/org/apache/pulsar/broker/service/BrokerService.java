@@ -281,12 +281,16 @@ public class BrokerService implements Closeable {
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
-        this.topics = ConcurrentOpenHashMap.<String, CompletableFuture<Optional<Topic>>>newBuilder()
+        this.topics =
+                ConcurrentOpenHashMap.<String, CompletableFuture<Optional<Topic>>>newBuilder()
                 .build();
-        this.replicationClients = ConcurrentOpenHashMap.<String, PulsarClient>newBuilder().build();
-        this.clusterAdmins = ConcurrentOpenHashMap.<String, PulsarAdmin>newBuilder().build();
+        this.replicationClients =
+                ConcurrentOpenHashMap.<String, PulsarClient>newBuilder().build();
+        this.clusterAdmins =
+                ConcurrentOpenHashMap.<String, PulsarAdmin>newBuilder().build();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
-        this.configRegisteredListeners = ConcurrentOpenHashMap.<String, Consumer<?>>newBuilder().build();
+        this.configRegisteredListeners =
+                ConcurrentOpenHashMap.<String, Consumer<?>>newBuilder().build();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
 
         this.multiLayerTopicsMap = ConcurrentOpenHashMap.<String,
@@ -1601,7 +1605,8 @@ public class BrokerService implements Closeable {
                             String serviceUnit = namespaceBundle.toString();
                             multiLayerTopicsMap //
                                     .computeIfAbsent(topicName.getNamespace(),
-                                            k -> ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, Topic>>newBuilder()
+                                            k -> ConcurrentOpenHashMap.<String,
+                                                    ConcurrentOpenHashMap<String, Topic>>newBuilder()
                                                     .build()) //
                                     .computeIfAbsent(serviceUnit,
                                             k -> ConcurrentOpenHashMap.<String, Topic>newBuilder().build()) //
