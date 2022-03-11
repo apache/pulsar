@@ -39,6 +39,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -4283,60 +4284,66 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         TopicName topicName = TopicName.get("persistent://my-property/my-ns/partitionsAutoUpdate-1");
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
+        int operationTimeout = 2000; // MILLISECONDS
         @Cleanup final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(lookupUrl.toString())
-                .operationTimeout(2, TimeUnit.SECONDS)
+                .operationTimeout(operationTimeout, TimeUnit.MILLISECONDS)
                 .build();
 
         @Cleanup
         MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer =
                 (MultiTopicsConsumerImpl<byte[]>) client.newConsumer().topic(topicName.toString())
-                        .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
+                        .autoUpdatePartitions(true)
                         .subscriptionName("my-subscriber-name").subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = client.newProducer()
                 .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
 
-        producerBuilder.autoUpdatePartitionsInterval(2, TimeUnit.SECONDS);
-
         @Cleanup
         PartitionedProducerImpl<byte[]> partitionedProducer =
-                (PartitionedProducerImpl<byte[]>) producerBuilder.create();
+                (PartitionedProducerImpl<byte[]>) producerBuilder.autoUpdatePartitions(true).create();
 
         // Trigger the Connection refused exception
         stopBroker();
 
-        AtomicReference<CompletableFuture<Void>> proPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
-        AtomicReference<CompletableFuture<Void>> conPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
-
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
-            assertNotNull(proPartitionsAutoUpdateFutureRef.get());
-            assertTrue(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
-            assertTrue(FutureUtil.getException(proPartitionsAutoUpdateFutureRef.get()).get().getMessage()
+        log.info("trigger partitionsAutoUpdateTimerTask run failed for producer");
+        Timeout timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+            assertTrue(FutureUtil.getException(partitionedProducer.getPartitionsAutoUpdateFuture()).get().getMessage()
                     .contains("Connection refused:"));
         });
 
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
-            assertNotNull(conPartitionsAutoUpdateFutureRef.get());
-            assertTrue(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
-            assertTrue(FutureUtil.getException(conPartitionsAutoUpdateFutureRef.get()).get().getMessage()
+        log.info("trigger partitionsAutoUpdateTimerTask run failed for consumer");
+        timeout = multiTopicsConsumer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
+            assertTrue(multiTopicsConsumer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+            assertTrue(FutureUtil.getException(multiTopicsConsumer.getPartitionsAutoUpdateFuture()).get().getMessage()
                     .contains("Connection refused:"));
         });
 
         startBroker();
 
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
-            assertNotNull(proPartitionsAutoUpdateFutureRef.get());
-            assertFalse(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+        log.info("trigger partitionsAutoUpdateTimerTask run successful for producer");
+        timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isDone());
+            assertFalse(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
         });
 
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
-            assertNotNull(conPartitionsAutoUpdateFutureRef.get());
-            assertFalse(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
+        log.info("trigger partitionsAutoUpdateTimerTask run successful for consumer");
+        timeout = multiTopicsConsumer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
+            assertTrue(multiTopicsConsumer.getPartitionsAutoUpdateFuture().isDone());
+            assertFalse(multiTopicsConsumer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
         });
 
         log.info("-- Exiting {} test --", methodName);
