@@ -234,11 +234,14 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetListWithoutGetBundleOp() throws Exception {
         String tenant = "p1";
-        String namespace = "p1/ns1";
+        String namespaceV1 = "p1/global/ns1";
+        String namespaceV2 = "p1/ns2";
         admin.clusters().createCluster("c1", ClusterData.builder().build());
         admin.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
-        admin.namespaces().createNamespace(namespace);
-        admin.namespaces().grantPermissionOnNamespace(namespace, "pass.pass2", EnumSet.of(AuthAction.produce));
+        admin.namespaces().createNamespace(namespaceV1, Sets.newHashSet("c1"));
+        admin.namespaces().grantPermissionOnNamespace(namespaceV1, "pass.pass2", EnumSet.of(AuthAction.produce));
+        admin.namespaces().createNamespace(namespaceV2, Sets.newHashSet("c1"));
+        admin.namespaces().grantPermissionOnNamespace(namespaceV2, "pass.pass2", EnumSet.of(AuthAction.produce));
         PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                         ? brokerUrl.toString()
                         : brokerUrlTls.toString())
@@ -246,10 +249,16 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
                 .build();
         when(pulsar.getAdminClient()).thenReturn(admin2);
         try {
-            admin2.topics().getList(namespace, TopicDomain.non_persistent);
+            admin2.topics().getList(namespaceV1, TopicDomain.non_persistent);
         } catch (Exception ex) {
             assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
-            assertEquals(ex.getMessage(), "Unauthorized to validateNamespaceOperation for operation [GET_BUNDLE] on namespace [p1/ns1]");
+            assertEquals(ex.getMessage(), "Unauthorized to validateNamespaceOperation for operation [GET_BUNDLE] on namespace [p1/global/ns1]");
+        }
+        try {
+            admin2.topics().getList(namespaceV2, TopicDomain.non_persistent);
+        } catch (Exception ex) {
+            assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            assertEquals(ex.getMessage(), "Unauthorized to validateNamespaceOperation for operation [GET_BUNDLE] on namespace [p1/ns2]");
         }
     }
 
