@@ -391,6 +391,11 @@ public class ManagedCursorContainerTest {
         public boolean isClosed() {
             return false;
         }
+
+        @Override
+        public boolean isResetCursorInProgress() {
+            return false;
+        }
     }
 
     @Test
