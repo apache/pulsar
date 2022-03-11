@@ -367,7 +367,7 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 ```
 > **Note**    
 > *  Currently, retry letter topic is enabled in Shared subscription types.
-> *  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval, because the negative acknowledgment caches messages that need to be retried on the client side, and the retry letter topic is persisted to bookkeeper.
+> *  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval. Because messages in the retry letter topic are persisted to BookKeeper, while messages that need to be retried due to negative acknowledgment are cached on the client side.
 
 ### Dead letter topic
 
