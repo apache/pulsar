@@ -40,7 +40,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import lombok.Cleanup;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
