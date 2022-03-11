@@ -580,7 +580,8 @@ public class PersistentTopicsBase extends AdminResource {
         return metadata;
     }
 
-    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
+    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse,
+                                                  boolean authoritative,
                                                   boolean force) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),

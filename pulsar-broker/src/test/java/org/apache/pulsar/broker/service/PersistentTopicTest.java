@@ -186,6 +186,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
 
+        // create SchemaRegistryService for testDeleteTopic() otherwise it will fail
         schemaRegistryService = spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class);
         doReturn(schemaRegistryService).when(pulsar).getSchemaRegistryService();
 

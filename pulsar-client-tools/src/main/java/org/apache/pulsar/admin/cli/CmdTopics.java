@@ -622,7 +622,10 @@ public class CmdTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Delete a partitioned topic. "
-            + "It will also delete all the partitions of the topic if it exists.")
+            + "It will also delete all the partitions of the topic if it exists."
+            + "And the application is not able to connect to the topic(delete then re-create with same name) again "
+            + "if the schema auto uploading is disabled. Besides, users should to use the truncate cmd to clean up "
+            + "data of the topic instead of delete cmd if users continue to use this topic later.")
     private class DeletePartitionedCmd extends CliCommand {
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -632,6 +635,10 @@ public class CmdTopics extends CmdBase {
                 "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
 
+        @Parameter(names = {"-d", "--deleteSchema"}, description = "Delete schema while deleting topic, "
+                + "but the parameter is invalid and the schema is always deleted", hidden = true)
+        private boolean deleteSchema = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
@@ -640,7 +647,10 @@ public class CmdTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Delete a topic. "
-            + "The topic cannot be deleted if there's any active subscription or producers connected to it.")
+            + "The topic cannot be deleted if there's any active subscription or producers connected to it."
+            + "And the application is not able to connect to the topic(delete then re-create with same name) again "
+            + "if the schema auto uploading is disabled. Besides, users should to use the truncate cmd to clean up "
+            + "data of the topic instead of delete cmd if users continue to use this topic later.")
     private class DeleteCmd extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -648,6 +658,10 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-f",
                 "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
         private boolean force = false;
+
+        @Parameter(names = {"-d", "--deleteSchema"}, description = "Delete schema while deleting topic, "
+                + "but the parameter is invalid and the schema is always deleted", hidden = true)
+        private boolean deleteSchema = false;
 
         @Override
         void run() throws PulsarAdminException {

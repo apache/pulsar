@@ -911,9 +911,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Delete the topic's schema storage")
-            @QueryParam("deleteSchema") @DefaultValue("true") boolean deleteSchema) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             internalDeletePartitionedTopic(asyncResponse, authoritative, force);
@@ -979,9 +977,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Delete the topic's schema storage")
-            @QueryParam("deleteSchema") @DefaultValue("true") boolean deleteSchema) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalDeleteTopic(authoritative, force);
     }

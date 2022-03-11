@@ -685,6 +685,9 @@ public interface Topics {
 
     /**
      * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     * IMPORTANT NOTICE: the application is not able to connect to the topic(delete then re-create with same name) again
+     * if the schema auto uploading is disabled. Besides, users should to use the truncate method to clean up
+     * data of the topic instead of delete method if users continue to use this topic later.
      */
     default void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
         deletePartitionedTopic(topic, force, true);
@@ -772,6 +775,9 @@ public interface Topics {
 
     /**
      * @see Topics#delete(String, boolean, boolean)
+     * IMPORTANT NOTICE: the application is not able to connect to the topic(delete then re-create with same name) again
+     * if the schema auto uploading is disabled. Besides, users should to use the truncate method to clean up
+     * data of the topic instead of delete method if users continue to use this topic later.
      */
     default void delete(String topic, boolean force) throws PulsarAdminException {
         delete(topic, force, true);

@@ -294,8 +294,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("deleteSchema") @DefaultValue("true") boolean deleteSchema) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
             internalDeletePartitionedTopic(asyncResponse, authoritative, force);
@@ -333,8 +332,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void deleteTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("deleteSchema") @DefaultValue("true") boolean deleteSchema) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         internalDeleteTopic(authoritative, force);
     }
