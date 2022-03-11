@@ -30,11 +30,13 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.base.Charsets;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -43,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -112,6 +115,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -127,6 +131,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -1435,6 +1440,184 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testNamespacesGetTopicHashPositions() throws Exception {
+        // Force to create a namespace with only one bundle and create a topic
+        final String namespace = "prop-xyz/ns-one-bundle";
+        final String topic = "persistent://"+ namespace + "/topic";
+        final int topicPartitionNumber = 4;
+
+        Policies policies = new Policies();
+        policies.bundles  = PoliciesUtil.getBundles(1);
+        admin.namespaces().createNamespace(namespace, policies);
+        admin.topics().createPartitionedTopic(topic, topicPartitionNumber);
+        admin.lookups().lookupPartitionedTopic(topic);
+
+        // check bundles and bundle boundaries
+        BundlesData bundleData = admin.namespaces().getBundles(namespace);
+        assertEquals(bundleData.getNumBundles(), 1);
+        assertEquals(bundleData.getBoundaries().size(), 2);
+        assertEquals(bundleData.getBoundaries().get(0), "0x00000000");
+        assertEquals(bundleData.getBoundaries().get(1), "0xffffffff");
+
+        // test get topic position for partitioned-topic name
+        String bundleRange = "0x00000000_0xffffffff";
+        TopicHashPositions topicHashPositions =
+                admin.namespaces().getTopicHashPositions(namespace, bundleRange, Collections.singletonList(topic));
+        assertEquals(topicHashPositions.getNamespace(), "prop-xyz/ns-one-bundle");
+        assertEquals(topicHashPositions.getBundle(), "0x00000000_0xffffffff");
+        assertEquals(topicHashPositions.getTopicHashPositions().size(), topicPartitionNumber);
+
+        final HashFunction hashFunction = Hashing.crc32();
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // test get hash position for topic partition
+        List<String> partitions = new ArrayList<>();
+        partitions.add(topic + "-partition-0");
+        partitions.add(topic + "-partition-1");
+        partitions.add(topic + "-partition-2");
+        partitions.add(topic + "-partition-3");
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace, bundleRange, partitions);
+
+        assertEquals(topicHashPositions.getNamespace(), "prop-xyz/ns-one-bundle");
+        assertEquals(topicHashPositions.getBundle(), "0x00000000_0xffffffff");
+        assertEquals(topicHashPositions.getTopicHashPositions().size(), topicPartitionNumber);
+
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // test non-exist topic
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, Collections.singletonList(topic + "no-exist"));
+        assertEquals(topicHashPositions.getTopicHashPositions().size(), 0);
+
+        // test topics is null
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, null);
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // test topics is empty
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, new ArrayList<>());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+    }
+
+
+    @Test
+    public void testNamespaceSplitBundleWithSpecifiedPositionsDivideAlgorithm() throws Exception {
+        // 1. Force to create a topic
+        final String namespace = "prop-xyz/ns-one-bundle";
+        final String topic = "persistent://"+ namespace + "/topic";
+        final int topicPartitionNumber = 4;
+
+        Policies policies = new Policies();
+        policies.bundles  = PoliciesUtil.getBundles(1);
+        admin.namespaces().createNamespace(namespace, policies);
+        admin.topics().createPartitionedTopic(topic, topicPartitionNumber);
+        // 2. trigger bundle loading
+        admin.lookups().lookupPartitionedTopic(topic);
+
+        // 3. check namespace bundle and topics exist
+        List<String> topics = admin.topics().getList(namespace);
+        assertTrue(topics.contains(topic + "-partition-0"));
+        assertTrue(topics.contains(topic + "-partition-1"));
+        assertTrue(topics.contains(topic + "-partition-2"));
+        assertTrue(topics.contains(topic + "-partition-3"));
+
+        // 4. check bundles and bundle boundaries
+        BundlesData bundleData = admin.namespaces().getBundles(namespace);
+        assertEquals(bundleData.getNumBundles(), 1);
+        assertEquals(bundleData.getBoundaries().size(), 2);
+        assertEquals(bundleData.getBoundaries().get(0), "0x00000000");
+        assertEquals(bundleData.getBoundaries().get(1), "0xffffffff");
+
+        // 5. calculate positions for split
+        final HashFunction hashFunction = Hashing.crc32();
+        List<Long> hashPositions = new ArrayList<>();
+        hashPositions.add(hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        hashPositions.add(hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        hashPositions.add(hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        hashPositions.add(hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // 6. do split by SPECIFIED_POSITIONS_DIVIDE
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false,
+                NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE, hashPositions);
+
+        // 7. check split result
+        NamespaceBundles bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
+        assertEquals(bundles.getBundles().size(), 5);
+
+        Collections.sort(hashPositions);
+        String[] splitRange = {
+                "0x00000000_" + String.format("0x%08x",hashPositions.get(0)),
+                String.format("0x%08x", hashPositions.get(0)) + "_" + String.format("0x%08x", hashPositions.get(1)),
+                String.format("0x%08x", hashPositions.get(1)) + "_" + String.format("0x%08x", hashPositions.get(2)),
+                String.format("0x%08x", hashPositions.get(2)) + "_" + String.format("0x%08x", hashPositions.get(3)),
+                String.format("0x%08x", hashPositions.get(3)) + "_0xffffffff"
+        };
+
+        Set<String> bundleRanges = new HashSet<>();
+        bundles.getBundles().forEach(bundle -> bundleRanges.add(bundle.getBundleRange()));
+        Lists.newArrayList(splitRange).forEach(bundleRanges::remove);
+        assertEquals(bundleRanges.size(), 0);
+
+        // 8. check split result from admin cli tool
+        BundlesData adminBundleData = admin.namespaces().getBundles(namespace);
+        assertEquals(adminBundleData.getNumBundles(), 5);
+        String[] boundaries = {
+                "0x00000000",
+                String.format("0x%08x", hashPositions.get(0)),
+                String.format("0x%08x", hashPositions.get(1)),
+                String.format("0x%08x", hashPositions.get(2)),
+                String.format("0x%08x", hashPositions.get(3)),
+                "0xffffffff"
+        };
+        Lists.newArrayList(boundaries).forEach(adminBundleData.getBoundaries()::remove);
+        assertEquals(adminBundleData.getBoundaries().size(), 0);
+
+        // 9. test split at full upper and lower boundaries
+        List<Long> fullBoundaries =
+                Lists.newArrayList(NamespaceBundles.FULL_UPPER_BOUND, NamespaceBundles.FULL_UPPER_BOUND);
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_" + String.format("0x%08x",hashPositions.get(0)),
+                false, NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE, fullBoundaries);
+        admin.namespaces().splitNamespaceBundle(namespace, String.format("0x%08x", hashPositions.get(3)) + "_0xffffffff",
+                false, NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE, fullBoundaries);
+
+        // 10. full upper or lower boundaries does not split bundle
+        NamespaceBundles nbs = bundleFactory.getBundles(NamespaceName.get(namespace));
+        assertEquals(nbs.getBundles().size(), 5);
+        BundlesData adminBD = admin.namespaces().getBundles(namespace);
+        assertEquals(adminBD.getNumBundles(), 5);
+        assertEquals(adminBD.getBoundaries().size(), 6);
+    }
+
+    @Test
     public void testNamespaceSplitBundleWithInvalidAlgorithm() {
         // Force to create a topic
         final String namespace = "prop-xyz/ns1";
@@ -1533,10 +1716,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             fail("split bundle shouldn't have thrown exception");
         }
 
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(bundleFactory.getBundles(NamespaceName.get(namespace)).getBundles().size(), 4));
         String[] splitRange4 = { namespace + "/0x00000000_0x3fffffff", namespace + "/0x3fffffff_0x7fffffff",
                 namespace + "/0x7fffffff_0xbfffffff", namespace + "/0xbfffffff_0xffffffff" };
         bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
-        assertEquals(bundles.getBundles().size(), 4);
         for (int i = 0; i < bundles.getBundles().size(); i++) {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange4[i]);
         }
@@ -1566,13 +1750,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
-
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(bundleFactory.getBundles(NamespaceName.get(namespace)).getBundles().size(), 8));
         String[] splitRange8 = { namespace + "/0x00000000_0x1fffffff", namespace + "/0x1fffffff_0x3fffffff",
                 namespace + "/0x3fffffff_0x5fffffff", namespace + "/0x5fffffff_0x7fffffff",
                 namespace + "/0x7fffffff_0x9fffffff", namespace + "/0x9fffffff_0xbfffffff",
                 namespace + "/0xbfffffff_0xdfffffff", namespace + "/0xdfffffff_0xffffffff" };
         bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
-        assertEquals(bundles.getBundles().size(), 8);
         for (int i = 0; i < bundles.getBundles().size(); i++) {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange8[i]);
         }

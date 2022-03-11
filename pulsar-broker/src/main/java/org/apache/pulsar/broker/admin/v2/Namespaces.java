@@ -570,16 +570,33 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
-            @QueryParam("splitAlgorithmName") String splitAlgorithmName) {
-
+            @QueryParam("splitAlgorithmName") String splitAlgorithmName,
+            @ApiParam("splitBoundaries") List<Long> splitBoundaries) {
         try {
             validateNamespaceName(tenant, namespace);
-            internalSplitNamespaceBundle(asyncResponse, bundleRange, authoritative, unload, splitAlgorithmName);
+            internalSplitNamespaceBundle(asyncResponse,
+                    bundleRange, authoritative, unload, splitAlgorithmName, splitBoundaries);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{bundle}/topicHashPositions")
+    @ApiOperation(value = "Get hash positions for topics")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist")})
+    public void getTopicHashPositions(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange,
+            @QueryParam("topics") List<String> topics,
+            @Suspended AsyncResponse asyncResponse) {
+            validateNamespaceName(tenant, namespace);
+            internalGetTopicHashPositions(asyncResponse, bundleRange, topics);
     }
 
     @POST
