@@ -179,6 +179,23 @@ public class LinuxInfoUtils {
     }
 
     /**
+     * Get all physical nic limit.
+     * @param nics All nic path
+     * @param nicUnit Nic speed unit
+     * @return Total nic limit
+     * @throws IOException Read file exception
+     */
+    public static double getUncheckedTotalNicLimit(List<String> nics, NICUnit nicUnit)
+            throws IOException {
+        double sum = 0.0;
+        for (String nicPath : nics) {
+            double v = readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
+            sum += v;
+        }
+        return nicUnit.convertBy(sum);
+    }
+
+    /**
      * Get all physical nic usage.
      * @param nics All nic path
      * @param type Nic's usage type:  transport, receive
@@ -220,8 +237,13 @@ public class LinuxInfoUtils {
         if (CollectionUtils.isEmpty(physicalNICs)) {
             return false;
         }
-        double totalNicLimit = getTotalNicLimit(physicalNICs, NICUnit.Kbps);
-        return totalNicLimit > 0;
+        try {
+            double totalNicLimit = getUncheckedTotalNicLimit(physicalNICs, NICUnit.Kbps);
+            return totalNicLimit > 0;
+        } catch (IOException e) {
+            log.error("[LinuxInfo] Failed to get total nic limit.", e);
+            return false;
+        }
     }
 
     private static Path getReplacedNICPath(String template, String nic) {
