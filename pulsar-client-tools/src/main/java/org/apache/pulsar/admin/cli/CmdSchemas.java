@@ -78,10 +78,14 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Delete schema forcefully")
+        private boolean force = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getAdmin().schemas().deleteSchema(topic);
+            getAdmin().schemas().deleteSchema(topic, force);
         }
     }
 

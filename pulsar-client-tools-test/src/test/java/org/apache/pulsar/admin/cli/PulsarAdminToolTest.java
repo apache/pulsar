@@ -2074,7 +2074,11 @@ public class PulsarAdminToolTest {
 
         cmdSchemas = new CmdSchemas(() -> admin);
         cmdSchemas.run(split("delete persistent://tn1/ns1/tp1"));
-        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1");
+        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1", false);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("delete persistent://tn1/ns1/tp1 -f"));
+        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1", true);
 
         cmdSchemas = new CmdSchemas(() -> admin);
         String schemaFile = PulsarAdminToolTest.class.getClassLoader()

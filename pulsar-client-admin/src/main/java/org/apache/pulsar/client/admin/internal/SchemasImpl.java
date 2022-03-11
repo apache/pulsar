@@ -127,15 +127,25 @@ public class SchemasImpl extends BaseResource implements Schemas {
 
     @Override
     public void deleteSchema(String topic) throws PulsarAdminException {
-        sync(() ->deleteSchemaAsync(topic));
+        deleteSchema(topic, false);
     }
 
     @Override
     public CompletableFuture<Void> deleteSchemaAsync(String topic) {
-        TopicName tn = TopicName.get(topic);
+        return deleteSchemaAsync(topic, false);
+    }
+
+    @Override
+    public void deleteSchema(String topic, boolean force) throws PulsarAdminException {
+        sync(() ->deleteSchemaAsync(topic, force));
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteSchemaAsync(String topic, boolean force) {
+        WebTarget path = schemaPath(TopicName.get(topic)).queryParam("force", Boolean.toString(force));
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(schemaPath(tn)).async().delete(new InvocationCallback<DeleteSchemaResponse>() {
+            request(path).async().delete(new InvocationCallback<DeleteSchemaResponse>() {
                 @Override
                 public void completed(DeleteSchemaResponse deleteSchemaResponse) {
                     future.complete(null);

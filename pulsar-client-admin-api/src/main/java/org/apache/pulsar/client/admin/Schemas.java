@@ -99,6 +99,22 @@ public interface Schemas {
     CompletableFuture<Void> deleteSchemaAsync(String topic);
 
     /**
+     * Delete the schema associated with a given <tt>topic</tt>.
+     *
+     * @param topic topic name, in fully qualified format
+     * @param force force to delete schema
+     * @throws PulsarAdminException
+     */
+    void deleteSchema(String topic, boolean force) throws PulsarAdminException;
+
+    /**
+     * Delete the schema associated with a given <tt>topic</tt> asynchronously.
+     *
+     * @param topic topic name, in fully qualified format
+     */
+    CompletableFuture<Void> deleteSchemaAsync(String topic, boolean force);
+
+    /**
      * Create a schema for a given <tt>topic</tt> with the provided schema info.
      *
      * @param topic topic name, in fully qualified fomrat
