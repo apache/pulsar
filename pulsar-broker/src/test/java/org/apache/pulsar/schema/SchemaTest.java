@@ -1116,6 +1116,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAvroSchemaWithHttpLookup() throws Exception {
+        stopBroker();
+        isTcpLookup = false;
+        setup();
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;
         admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
