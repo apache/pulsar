@@ -1119,44 +1119,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         stopBroker();
         isTcpLookup = false;
         setup();
-        final String namespace = "test-namespace-" + randomName(16);
-        String ns = PUBLIC_TENANT + "/" + namespace;
-        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
-        final String autoProducerTopic = getTopicName(ns, "testAvroSchemaWithHttpLookup");
-
-        @Cleanup
-        Consumer<User> consumer = pulsarClient
-                .newConsumer(Schema.AVRO(User.class))
-                .topic(autoProducerTopic)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName("sub-1")
-                .subscribe();
-
-        @Cleanup
-        Producer<User> userProducer = pulsarClient
-                .newProducer(Schema.AVRO(User.class))
-                .topic(autoProducerTopic)
-                .enableBatching(false)
-                .create();
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient
-                .newProducer()
-                .topic(autoProducerTopic)
-                .enableBatching(false)
-                .create();
-        User test = new User("test");
-        userProducer.send(test);
-        producer.send("test".getBytes(StandardCharsets.UTF_8));
-        Message<User> message1 = consumer.receive();
-        Assert.assertEquals(test, message1.getValue());
-        try {
-            Message<User> message2 = consumer.receive();
-            message2.getValue();
-        } catch (Throwable ex) {
-            Assert.assertTrue(Throwables.getRootCause(ex) instanceof SchemaSerializationException);
-            Assert.assertEquals(Throwables.getRootCause(ex).getMessage(),"Empty schema version");
-        }
+        testEmptySchema();
     }
 
     @Test
@@ -1164,11 +1127,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         stopBroker();
         isTcpLookup = true;
         setup();
+        testEmptySchema();
+    }
+
+    private void testEmptySchema() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;
         admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
 
-        final String autoProducerTopic = getTopicName(ns, "testAvroSchemaWithTcpLookup");
+        final String autoProducerTopic = getTopicName(ns, "testEmptySchema");
 
         @Cleanup
         Consumer<User> consumer = pulsarClient
