@@ -2234,8 +2234,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return errorState;
     }
 
-    @VisibleForTesting
-    CompletableFuture<Void> getOriginalLastSendFuture() {
+    @Override
+    public CompletableFuture<Void> getOriginalLastSendFuture() {
         CompletableFuture<MessageId> lastSendFuture = this.lastSendFuture;
         return lastSendFuture.thenApply(ignore -> null);
     }

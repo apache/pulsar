@@ -199,4 +199,9 @@ public interface Producer<T> extends Closeable {
      * @return the number of partitions per topic.
      */
     int getNumOfPartitions();
+
+    /**
+     * @return Get the result of the last sent data
+     */
+    CompletableFuture<Void> getOriginalLastSendFuture();
 }
