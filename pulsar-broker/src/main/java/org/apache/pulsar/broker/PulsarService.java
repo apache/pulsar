@@ -645,11 +645,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
-            if (config.isLoadBalancerEnabled() && LinuxInfoUtils.isLinux()) {
-                if (!LinuxInfoUtils.checkHasNicSpeeds()) {
-                    throw new IllegalStateException("Unable to read VM NIC speed. You must set "
-                            + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
-                }
+            if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
+                    && config.isLoadBalancerEnabled()
+                    && LinuxInfoUtils.isLinux()
+                    && !LinuxInfoUtils.checkHasNicSpeeds()) {
+                throw new IllegalStateException("Unable to read VM NIC speed. You must set "
+                        + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
             }
 
             localMetadataStore = createLocalMetadataStore();
