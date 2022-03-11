@@ -160,8 +160,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         if (cpuUsageForEntireHost.isEmpty()) {
             return -1;
         }
-        double currentUsage = (cpuUsageForEntireHost.getUsage() - lastCpuUsage) /
-                (cpuUsageForEntireHost.getTotal() - lastCpuTotalTime) * getTotalCpuLimit(isCGroupsEnabled);
+        double currentUsage = (cpuUsageForEntireHost.getUsage() - lastCpuUsage)
+                / (cpuUsageForEntireHost.getTotal() - lastCpuTotalTime) * getTotalCpuLimit(isCGroupsEnabled);
         lastCpuUsage = cpuUsageForEntireHost.getUsage();
         lastCpuTotalTime = cpuUsageForEntireHost.getTotal();
         return currentUsage;

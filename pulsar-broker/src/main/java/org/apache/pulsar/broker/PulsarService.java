@@ -647,8 +647,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             if (config.isLoadBalancerEnabled() && LinuxInfoUtils.isLinux()) {
                 if (!LinuxInfoUtils.checkHasNicSpeeds()) {
-                    throw new IllegalStateException("Unable to read VM NIC speed. You must set " +
-                            "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
+                    throw new IllegalStateException("Unable to read VM NIC speed. You must set "
+                            + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
                 }
             }
 

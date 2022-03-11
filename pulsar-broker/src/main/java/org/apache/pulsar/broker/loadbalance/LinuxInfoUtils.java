@@ -7,10 +7,10 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -178,10 +178,10 @@ public class LinuxInfoUtils {
     }
 
     /**
-     * Get all physical nic usage
+     * Get all physical nic usage.
      * @param nics All nic path
      * @param type Nic's usage type:  transport, receive
-     * @param unit Nic usage unit.
+     * @param unit Nic usage unit
      * @return Total nic usage
      */
     public static double getTotalNicUsage(List<String> nics, NICUsageType type, UsageUnit unit) {
@@ -197,7 +197,7 @@ public class LinuxInfoUtils {
 
     /**
      * Get all physical nic path.
-     * @return All physical nic path.
+     * @return All physical nic path
      */
     public static List<String> getPhysicalNICs() {
         try (Stream<Path> stream = Files.list(Paths.get(NIC_PATH))) {
@@ -212,7 +212,7 @@ public class LinuxInfoUtils {
 
     /**
      * Check this VM has nic speed.
-     * @return Whether the VM has nic speed.
+     * @return Whether the VM has nic speed
      */
     public static boolean checkHasNicSpeeds() {
         List<String> physicalNICs = getPhysicalNICs();
