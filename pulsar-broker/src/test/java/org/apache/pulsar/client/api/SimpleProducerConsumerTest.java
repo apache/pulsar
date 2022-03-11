@@ -4309,7 +4309,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         AtomicReference<CompletableFuture<Void>> proPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
         AtomicReference<CompletableFuture<Void>> conPartitionsAutoUpdateFutureRef = new AtomicReference<>(null);
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
             proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
             assertNotNull(proPartitionsAutoUpdateFutureRef.get());
             assertTrue(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
@@ -4317,7 +4317,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .contains("Connection refused:"));
         });
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
             conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
             assertNotNull(conPartitionsAutoUpdateFutureRef.get());
             assertTrue(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
@@ -4327,13 +4327,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         startBroker();
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
             proPartitionsAutoUpdateFutureRef.set(partitionedProducer.getPartitionsAutoUpdateFuture());
             assertNotNull(proPartitionsAutoUpdateFutureRef.get());
             assertFalse(proPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
         });
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
             conPartitionsAutoUpdateFutureRef.set(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
             assertNotNull(conPartitionsAutoUpdateFutureRef.get());
             assertFalse(conPartitionsAutoUpdateFutureRef.get().isCompletedExceptionally());
