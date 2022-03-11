@@ -717,7 +717,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(producer);
     }
 
-    @Test(priority = 5, timeOut = 30000)
+    @Test(priority = 4, timeOut = 30000)
     public void testReplicatorProducerName() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicatorProducerName ---");
         final String topicName = BrokerTestUtil.newUniqueName("persistent://pulsar/ns/testReplicatorProducerName");
@@ -739,7 +739,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
-    @Test(priority = 5, timeOut = 30000)
+    @Test(priority = 4, timeOut = 30000)
     public void testReplicatorProducerNameWithUserDefinedReplicatorPrefix() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicatorProducerNameWithUserDefinedReplicatorPrefix ---");
         final String topicName = BrokerTestUtil.newUniqueName(
