@@ -1051,12 +1051,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     void removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
-        if (sub != null) {
-            // preserve accumulative stats form removed subscription
-            SubscriptionStatsImpl stats = sub.getStats(false, false, false);
-            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        if (sub == null) {
+            log.warn("[{}][{}] Subscription is not existed.", topic, subscriptionName);
+            return;
         }
+        // preserve accumulative stats form removed subscription
+        SubscriptionStatsImpl stats = sub.getStats(false, false, false);
+        bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+        msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
     }
 
     /**
