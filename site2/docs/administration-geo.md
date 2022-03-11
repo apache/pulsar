@@ -4,23 +4,12 @@ title: Pulsar geo-replication
 sidebar_label: Geo-replication
 ---
 
-*Geo-replication* is the replication of persistently stored message data across multiple clusters of a Pulsar instance.
 
-## How geo-replication works
+You must enable geo-replication on a [per-tenant basis](#concepts-multi-tenancy) in Pulsar. For example, you can enable geo-replication between two specific clusters only when a tenant has access to both clusters.
 
-The diagram below illustrates the process of geo-replication across Pulsar clusters:
+Geo-replication is managed at the namespace level, which means you only need to create and configure a namespace to replicate messages between two or more provisioned clusters that a tenant can access.
 
-![Replication Diagram](assets/geo-replication.png)
-
-In this diagram, whenever **P1**, **P2**, and **P3** producers publish messages to the **T1** topic on **Cluster-A**, **Cluster-B**, and **Cluster-C** clusters respectively, those messages are instantly replicated across clusters. Once the messages are replicated, **C1** and **C2** consumers can consume those messages from their respective clusters.
-
-Without geo-replication, **C1** and **C2** consumers are not able to consume messages that **P3** producer publishes.
-
-## Geo-replication and Pulsar properties
-
-You must enable geo-replication on a per-tenant basis in Pulsar. You can enable geo-replication between clusters only when a tenant is created that allows access to both clusters.
-
-Although geo-replication must be enabled between two clusters, actually geo-replication is managed at the namespace level. You must complete the following tasks to enable geo-replication for a namespace:
+Complete the following tasks to enable geo-replication for a namespace:
 
 * [Enable geo-replication namespaces](#enable-geo-replication-namespaces)
 * Configure that namespace to replicate across two or more provisioned clusters
