@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.BinaryNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.collect.ImmutableMap;
+import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -30,20 +35,17 @@ import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.testng.annotations.Test;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 import java.util.UUID;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 public class JsonConverterTests {
 
@@ -82,7 +84,7 @@ public class JsonConverterTests {
         genericRecord.put("arrayavro", new GenericData.Array<>(avroArraySchema, Arrays.asList("toto")));
         genericRecord.put("map", ImmutableMap.of("a",10));
         genericRecord.put("maputf8", ImmutableMap.of(new org.apache.avro.util.Utf8("a"),10));
-        JsonNode jsonNode = JsonConverter.toJson(genericRecord);
+        JsonNode jsonNode = JsonConverter.toJson(ElasticSearchConfig.load(ImmutableMap.of()), genericRecord);
         assertEquals(jsonNode.get("n"), NullNode.getInstance());
         assertEquals(jsonNode.get("l").asLong(), 1L);
         assertEquals(jsonNode.get("i").asInt(), 1);
@@ -136,7 +138,7 @@ public class JsonConverterTests {
         genericRecord.put("myuuid", myUuid.toString());
 
         GenericRecord genericRecord2 = deserialize(serialize(genericRecord, schema), schema);
-        JsonNode jsonNode = JsonConverter.toJson(genericRecord2);
+        JsonNode jsonNode = JsonConverter.toJson(ElasticSearchConfig.load(ImmutableMap.of()), genericRecord2);
         assertEquals(jsonNode.get("mydate").asInt(), calendar.toInstant().getEpochSecond());
         assertEquals(jsonNode.get("tsmillis").asInt(), (int)calendar.getTimeInMillis());
         assertEquals(jsonNode.get("tsmicros").asLong(), calendar.getTimeInMillis() * 1000);
@@ -159,5 +161,39 @@ public class JsonConverterTests {
         ByteArrayInputStream stream = new ByteArrayInputStream(recordBytes);
         BinaryDecoder binaryDecoder = new DecoderFactory().binaryDecoder(stream, null);
         return datumReader.read(null, binaryDecoder);
+    }
+
+    @Test
+    public void testUnsupportedLogicalTypeFails() throws IOException {
+        ElasticSearchConfig elasticSearchConfig = ElasticSearchConfig.load(ImmutableMap.of("ignoreUnsupportedFields", false));
+        org.apache.avro.Schema varintType  = new LogicalType("cql_varint").addToSchema(
+                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES)
+        );
+        Schema schema = SchemaBuilder.record("record")
+                .fields()
+                .name("myvarint").type(varintType).noDefault()
+                .endRecord();
+
+        GenericRecord genericRecord = new GenericData.Record(schema);
+        genericRecord.put("myvarint", BigInteger.valueOf(12234).toByteArray());
+        assertThrows(UnsupportedOperationException.class, () -> JsonConverter.toJson(elasticSearchConfig, genericRecord));
+    }
+
+    @Test
+    public void testUnsupportedLogicalTypeIgnore() throws IOException {
+        ElasticSearchConfig elasticSearchConfig = ElasticSearchConfig.load(ImmutableMap.of("ignoreUnsupportedFields", true));
+        org.apache.avro.Schema varintType  = new LogicalType("cql_varint").addToSchema(
+                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES)
+        );
+        Schema schema = SchemaBuilder.record("record")
+                .fields()
+                .name("myvarint").type(varintType).noDefault()
+                .endRecord();
+
+        GenericRecord genericRecord = new GenericData.Record(schema);
+        BigInteger bigInteger = BigInteger.valueOf(12234);
+        genericRecord.put("myvarint", bigInteger.toByteArray());
+        JsonNode jsonNode = JsonConverter.toJson(elasticSearchConfig, genericRecord);
+        assertEquals(jsonNode.get("myvarint"), new BinaryNode(bigInteger.toByteArray()));
     }
 }

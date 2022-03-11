@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -203,8 +204,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     if (elasticSearchConfig.isCopyKeyFields()
                             && (keySchema.getSchemaInfo().getType().equals(SchemaType.AVRO)
                             || keySchema.getSchemaInfo().getType().equals(SchemaType.JSON))) {
-                        JsonNode keyNode = extractJsonNode(keySchema, key);
-                        JsonNode valueNode = extractJsonNode(valueSchema, value);
+                        JsonNode keyNode = extractJsonNode(elasticSearchConfig, keySchema, key);
+                        JsonNode valueNode = extractJsonNode(elasticSearchConfig, valueSchema, value);
                         doc = stringify(JsonConverter.topLevelMerge(keyNode, valueNode));
                     } else {
                         doc = stringifyValue(valueSchema, value);
@@ -297,7 +298,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 return (String) val;
             case JSON:
             case AVRO:
-                return stringifyKey(extractJsonNode(schema, val));
+                return stringifyKey(extractJsonNode(elasticSearchConfig, schema, val));
             default:
                 throw new UnsupportedOperationException("Unsupported key schemaType="
                         + schema.getSchemaInfo().getType());
@@ -337,7 +338,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     }
 
     public String stringifyValue(Schema<?> schema, Object val) throws JsonProcessingException {
-        JsonNode jsonNode = extractJsonNode(schema, val);
+        JsonNode jsonNode = extractJsonNode(elasticSearchConfig, schema, val);
         return stringify(jsonNode);
     }
 
@@ -360,7 +361,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         return node;
     }
 
-    public static JsonNode extractJsonNode(Schema<?> schema, Object val) {
+    public static JsonNode extractJsonNode(ElasticSearchConfig elasticSearchConfig, Schema<?> schema, Object val) {
         if (val == null) {
             return null;
         }
@@ -370,7 +371,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             case AVRO:
                 org.apache.avro.generic.GenericRecord node = (org.apache.avro.generic.GenericRecord)
                         ((GenericRecord) val).getNativeObject();
-                return JsonConverter.toJson(node);
+                return JsonConverter.toJson(elasticSearchConfig, node);
             default:
                 throw new UnsupportedOperationException("Unsupported value schemaType="
                         + schema.getSchemaInfo().getType());
