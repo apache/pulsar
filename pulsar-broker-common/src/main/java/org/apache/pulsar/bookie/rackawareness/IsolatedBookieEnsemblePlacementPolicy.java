@@ -58,7 +58,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache;
 
-    private static final String PULSAR_METADATA_ISOLATION_GROUP = "*";
+    private static final String PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP = "*";
 
 
     public IsolatedBookieEnsemblePlacementPolicy() {
@@ -223,7 +223,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     private Set<BookieId> getBlacklistedBookiesWithIsolationGroups(int ensembleSize,
         Pair<Set<String>, Set<String>> isolationGroups) {
         Set<BookieId> blacklistedBookies = new HashSet<>();
-        if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_METADATA_ISOLATION_GROUP))  {
+        if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP))  {
             return blacklistedBookies;
         }
         try {
