@@ -777,8 +777,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         } else if (state == State.ClosedLedger) {
             // No ledger and no pending operations. Create a new ledger
-            log.info("[{}] Creating a new ledger", name);
             if (STATE_UPDATER.compareAndSet(this, State.ClosedLedger, State.CreatingLedger)) {
+                log.info("[{}] Creating a new ledger", name);
                 this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
                 mbean.startDataLedgerCreateOp();
                 asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
@@ -1647,7 +1647,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     synchronized void createLedgerAfterClosed() {
         if (isNeededCreateNewLedgerAfterCloseLedger()) {
-            log.info("[{}] Creating a new ledger", name);
+            log.info("[{}] Creating a new ledger after closed", name);
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
@@ -1670,8 +1670,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void rollCurrentLedgerIfFull() {
         log.info("[{}] Start checking if current ledger is full", name);
-        if (currentLedgerEntries > 0 && currentLedgerIsFull()) {
-            STATE_UPDATER.set(this, State.ClosingLedger);
+        if (currentLedgerEntries > 0 && currentLedgerIsFull()
+                && STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
             currentLedger.asyncClose(new AsyncCallback.CloseCallback() {
                 @Override
                 public void closeComplete(int rc, LedgerHandle lh, Object o) {
