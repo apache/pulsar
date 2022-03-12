@@ -198,6 +198,7 @@ public class NonPersistentTopics extends PersistentTopics {
         Policies policies = null;
         NamespaceName nsName = null;
         try {
+            validateNamespaceName(property, cluster, namespace);
             validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
             policies = getNamespacePolicies(property, cluster, namespace);
             nsName = NamespaceName.get(property, cluster, namespace);
@@ -232,22 +233,19 @@ public class NonPersistentTopics extends PersistentTopics {
             }
         }
 
-        final List<String> topics = Lists.newArrayList();
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            for (int i = 0; i < futures.size(); i++) {
-                try {
-                    if (futures.get(i).isDone() && futures.get(i).get() != null) {
-                        topics.addAll(futures.get(i).get());
+        FutureUtil.waitForAll(futures).whenComplete((result, ex) -> {
+            if (ex != null) {
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+            } else {
+                final List<String> topics = Lists.newArrayList();
+                for (int i = 0; i < futures.size(); i++) {
+                    List<String> topicList = futures.get(i).join();
+                    if (topicList != null) {
+                        topics.addAll(topicList);
                     }
-                } catch (InterruptedException | ExecutionException e) {
-                    log.error("[{}] Failed to get list of topics under namespace {}/{}/{}", clientAppId(), property,
-                            cluster, namespace, e);
-                    asyncResponse.resume(new RestException(e instanceof ExecutionException ? e.getCause() : e));
-                    return null;
                 }
+                asyncResponse.resume(topics);
             }
-            asyncResponse.resume(topics);
-            return null;
         });
     }
 
@@ -264,6 +262,7 @@ public class NonPersistentTopics extends PersistentTopics {
                                           @PathParam("bundle") String bundleRange) {
         log.info("[{}] list of topics on namespace bundle {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
                 bundleRange);
+        validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
         Policies policies = getNamespacePolicies(property, cluster, namespace);
         if (!cluster.equals(Constants.GLOBAL_CLUSTER)) {
