@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -217,9 +218,12 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
-        InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
         CompletableFuture<Optional<SchemaInfo>> schemaFuture = new CompletableFuture<>();
-
+        if (version != null && version.length == 0) {
+            schemaFuture.completeExceptionally(new SchemaSerializationException("Empty schema version"));
+            return schemaFuture;
+        }
+        InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
