@@ -60,6 +60,8 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -154,6 +156,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     private boolean errorState;
+
+    private final HashMap<Transaction, ArrayList<Pair<Message<?>, CompletableFuture<MessageId>>>> txnMessages =
+            new HashMap<>();
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
@@ -308,6 +313,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return lastSequenceIdPublished;
     }
 
+    void internalSendAsync(Message<?> message, CompletableFuture<MessageId> future) {
+        internalSendAsync(message)
+                .thenAccept(future::complete)
+                .exceptionally(throwable -> {
+                    future.completeExceptionally(throwable);
+                    return null;
+                });
+    }
+
     @Override
     CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
@@ -397,8 +411,26 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (!((TransactionImpl) txn).checkIfOpen(completableFuture)) {
                return completableFuture;
             }
-            return ((TransactionImpl) txn).registerProducedTopic(topic)
-                        .thenCompose(ignored -> internalSendAsync(message));
+            completableFuture = new CompletableFuture<>();
+            Pair<Message<?>, CompletableFuture<MessageId>> pair = new MutablePair<>(message, completableFuture);
+            synchronized (this) {
+                if (txnMessages.containsKey(txn)) {
+                    txnMessages.get(txn).add(pair);
+                } else {
+                    ArrayList<Pair<Message<?>, CompletableFuture<MessageId>>> messages = new ArrayList<>();
+                    messages.add(pair);
+                    txnMessages.put(txn, messages);
+                }
+            }
+             ((TransactionImpl) txn).registerProducedTopic(topic)
+                        .thenRun(() -> {
+                            synchronized (this) {
+                                        txnMessages.get(txn).forEach(pair1 ->
+                                                this.internalSendAsync(pair1.getLeft(), pair1.getRight()));
+                                        txnMessages.remove(txn);
+                            }
+                        });
+            return completableFuture;
         }
     }
 
