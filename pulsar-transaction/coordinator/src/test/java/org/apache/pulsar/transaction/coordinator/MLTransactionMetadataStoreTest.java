@@ -157,8 +157,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         Position position = managedLedger.getLastConfirmedEntry();
 
         if (isUseManagedLedger) {
+            Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+            stateUpdater.setAccessible(true);
+            stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
+            managedLedger.rollCurrentLedgerIfFull();
             Awaitility.await().until(() -> {
-                managedLedger.rollCurrentLedgerIfFull();
                 return !managedLedger.ledgerExists(position.getLedgerId());
             });
         }
