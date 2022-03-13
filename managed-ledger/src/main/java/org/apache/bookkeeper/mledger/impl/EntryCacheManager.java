@@ -65,7 +65,7 @@ public class EntryCacheManager {
     protected static final double MB = 1024 * 1024;
 
     @Getter
-    private volatile double evictionTriggerThresholdPercent = 0.98;
+    private static final double evictionTriggerThresholdPercent = 0.98;
 
 
     public EntryCacheManager(ManagedLedgerFactoryImpl factory) {
