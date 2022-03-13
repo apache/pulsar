@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,6 +25,7 @@ import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.PulsarService.isTransactionSystemTopic;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -40,6 +41,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -74,6 +76,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.ws.rs.core.Response;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -374,14 +377,14 @@ public class BrokerService implements Closeable {
                         BrokerService.class.getClassLoader());
 
         this.brokerEntryPayloadProcessors = BrokerEntryMetadataUtils.loadInterceptors(pulsar.getConfiguration()
-                        .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
+                .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
     }
 
     // This call is used for starting additional protocol handlers
     public void startProtocolHandlers(
-        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlers) {
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlers) {
 
         protocolHandlers.forEach((protocol, initializers) -> {
             initializers.forEach((address, initializer) -> {
@@ -433,7 +436,7 @@ public class BrokerService implements Closeable {
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
-            new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+                new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
         bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
         EventLoopUtil.enableTriggeredMode(bootstrap);
         return bootstrap;
@@ -456,8 +459,8 @@ public class BrokerService implements Closeable {
             InetSocketAddress addr = new InetSocketAddress(a.getAddress().getHost(), a.getAddress().getPort());
             boolean isTls = "pulsar+ssl".equals(a.getAddress().getScheme());
             PulsarChannelInitializer.PulsarChannelOptions opts = PulsarChannelInitializer.PulsarChannelOptions.builder()
-                            .enableTLS(isTls)
-                            .listenerName(a.getListenerName()).build();
+                    .enableTLS(isTls)
+                    .listenerName(a.getListenerName()).build();
 
             ServerBootstrap b = defaultServerBootstrap.clone();
             b.childHandler(
@@ -503,7 +506,7 @@ public class BrokerService implements Closeable {
 
     protected void startStatsUpdater(int statsUpdateInitialDelayInSecs, int statsUpdateFrequencyInSecs) {
         statsUpdater.scheduleAtFixedRate(safeRun(this::updateRates),
-            statsUpdateInitialDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
+                statsUpdateInitialDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
 
         // Ensure the broker starts up with initial stats
         updateRates();
@@ -564,7 +567,7 @@ public class BrokerService implements Closeable {
         int interval = pulsar().getConfiguration().getBrokerServiceCompactionMonitorIntervalInSeconds();
         if (interval > 0) {
             compactionMonitor.scheduleAtFixedRate(safeRun(() -> checkCompaction()),
-                                                  interval, interval, TimeUnit.SECONDS);
+                    interval, interval, TimeUnit.SECONDS);
         }
     }
 
@@ -572,7 +575,7 @@ public class BrokerService implements Closeable {
         int interval = pulsar().getConfiguration().getRetentionCheckIntervalInSeconds();
         if (interval > 0) {
             consumedLedgersMonitor.scheduleAtFixedRate(safeRun(this::checkConsumedLedgers),
-                                                            interval, interval, TimeUnit.SECONDS);
+                    interval, interval, TimeUnit.SECONDS);
         }
     }
 
@@ -631,20 +634,20 @@ public class BrokerService implements Closeable {
         if (brokerTickTimeMs > 0) {
             if (this.brokerPublishRateLimiterMonitor == null) {
                 this.brokerPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
-                    new DefaultThreadFactory("pulsar-broker-publish-rate-limiter-monitor"));
+                        new DefaultThreadFactory("pulsar-broker-publish-rate-limiter-monitor"));
                 // schedule task that sums up publish-rate across all cnx on a topic,
                 // and check the rate limit exceeded or not.
                 brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                    safeRun(() -> checkBrokerPublishThrottlingRate()),
-                    brokerTickTimeMs,
-                    brokerTickTimeMs,
-                    TimeUnit.MILLISECONDS);
+                        safeRun(() -> checkBrokerPublishThrottlingRate()),
+                        brokerTickTimeMs,
+                        brokerTickTimeMs,
+                        TimeUnit.MILLISECONDS);
                 // schedule task that refreshes rate-limiting bucket
                 brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                    safeRun(() -> refreshBrokerPublishRate()),
-                    1,
-                    1,
-                    TimeUnit.SECONDS);
+                        safeRun(() -> refreshBrokerPublishRate()),
+                        1,
+                        1,
+                        TimeUnit.SECONDS);
             }
         } else {
             // disable publish-throttling for broker.
@@ -831,7 +834,7 @@ public class BrokerService implements Closeable {
     CompletableFuture<Void> shutdownEventLoopGracefully(EventLoopGroup eventLoopGroup) {
         long brokerShutdownTimeoutMs = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
         long quietPeriod = Math.min((long) (
-                GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs),
+                        GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs),
                 GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS);
         long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
         return NettyFutureUtil.toCompletableFutureVoid(
@@ -1097,21 +1100,21 @@ public class BrokerService implements Closeable {
                         p.auth_policies.getTopicAuthentication().remove(topic);
                         return p;
                     }).thenAccept(v -> {
-                        log.info("Successfully delete authentication policies for topic {}", topic);
-                        future.complete(null);
-                    }).exceptionally(ex1 -> {
-                        if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
-                            log.warn(
-                                    "Failed to delete authentication policies because of bad version. "
-                                            + "Retry to delete authentication policies for topic {}",
-                                    topic);
-                            deleteTopicAuthenticationWithRetry(topic, future, count - 1);
-                        } else {
-                            log.error("Failed to delete authentication policies for topic {}", topic, ex1);
-                            future.completeExceptionally(ex1);
-                        }
-                        return null;
-                    });
+                log.info("Successfully delete authentication policies for topic {}", topic);
+                future.complete(null);
+            }).exceptionally(ex1 -> {
+                if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
+                    log.warn(
+                            "Failed to delete authentication policies because of bad version. "
+                                    + "Retry to delete authentication policies for topic {}",
+                            topic);
+                    deleteTopicAuthenticationWithRetry(topic, future, count - 1);
+                } else {
+                    log.error("Failed to delete authentication policies for topic {}", topic, ex1);
+                    future.completeExceptionally(ex1);
+                }
+                return null;
+            });
         }).exceptionally(ex -> {
             log.error("Failed to get policies for topic {}", topic, ex);
             future.completeExceptionally(ex);
@@ -1299,7 +1302,7 @@ public class BrokerService implements Closeable {
      * @throws RuntimeException
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
-            boolean createIfMissing, Map<String, String> properties) throws RuntimeException {
+                                                                             boolean createIfMissing, Map<String, String> properties) throws RuntimeException {
         final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
@@ -1331,9 +1334,9 @@ public class BrokerService implements Closeable {
                         }
                     }
                 }).exceptionally(ex -> {
-                    topicFuture.completeExceptionally(ex.getCause());
-                    return null;
-                });
+            topicFuture.completeExceptionally(ex.getCause());
+            return null;
+        });
 
         return topicFuture;
     }
@@ -1399,10 +1402,10 @@ public class BrokerService implements Closeable {
                                         .thenCompose(__ -> persistentTopic.checkReplication());
 
                                 CompletableFuture.allOf(preCreateSubForCompaction, replicationFuture)
-                                .thenCompose(v -> {
-                                    // Also check dedup status
-                                    return persistentTopic.checkDeduplicationStatus();
-                                }).thenRun(() -> {
+                                        .thenCompose(v -> {
+                                            // Also check dedup status
+                                            return persistentTopic.checkDeduplicationStatus();
+                                        }).thenRun(() -> {
                                     log.info("Created topic {} - dedup is {}", topic,
                                             persistentTopic.isDeduplicationEnabled() ? "enabled" : "disabled");
                                     long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
@@ -1649,7 +1652,7 @@ public class BrokerService implements Closeable {
      * This method will not make the broker attempt to load the topic if it's not already.
      */
     public Optional<Topic> getTopicReference(String topic) {
-          CompletableFuture<Optional<Topic>> future = topics.get(topic);
+        CompletableFuture<Optional<Topic>> future = topics.get(topic);
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             return future.join();
         } else {
@@ -1695,10 +1698,10 @@ public class BrokerService implements Closeable {
 
     public void checkCompaction() {
         forEachTopic((t) -> {
-                if (t instanceof PersistentTopic) {
-                    ((PersistentTopic) t).checkCompaction();
-                }
-            });
+            if (t instanceof PersistentTopic) {
+                ((PersistentTopic) t).checkCompaction();
+            }
+        });
     }
 
     private void checkConsumedLedgers() {
@@ -1810,7 +1813,7 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
-            boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
+                                                        boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
         CompletableFuture<Integer> future = unloadServiceUnit(serviceUnit, closeWithoutWaitingClientDisconnect);
         ScheduledFuture<?> taskTimeout = executor().schedule(() -> {
             if (!future.isDone()) {
@@ -2143,22 +2146,29 @@ public class BrokerService implements Closeable {
         });
 
         //  add listener to notify broker evictionTriggerThresholdPercent dynamic config
-        registerConfigurationListener("evictionTriggerThresholdPercent", (evictionTriggerThresholdPercent) -> {
-            long maxSize = pulsar().getConfiguration().getManagedLedgerCacheSizeMB() * 1024L * 1024L;
+        registerConfigurationListener(
+                "evictionTriggerThresholdPercent", (evictionTriggerThresholdPercent) -> {
+            long maxSize =
+                    pulsar().getConfiguration().getManagedLedgerCacheSizeMB() * 1024L * 1024L;
             double thresholdPercent = (double) evictionTriggerThresholdPercent;
 
             updateCacheSizeAndThreshold(maxSize, thresholdPercent);
         });
 
         //  add listener to notify broker managedLedgerCacheEvictionWatermark dynamic config
-        registerConfigurationListener("managedLedgerCacheEvictionWatermark", (cacheEvictionWatermark) -> {
-            ManagedLedgerFactoryImpl managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
-            managedLedgerFactory.getEntryCacheManager().setCacheEvictionWatermark((double) cacheEvictionWatermark);
+        registerConfigurationListener(
+                "managedLedgerCacheEvictionWatermark", (cacheEvictionWatermark) -> {
+            ManagedLedgerFactoryImpl managedLedgerFactory =
+                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
+            managedLedgerFactory.getEntryCacheManager()
+                    .setCacheEvictionWatermark((double) cacheEvictionWatermark);
         });
 
         //  add listener to notify broker managedLedgerCacheEvictionTimeThresholdMillis dynamic config
-        registerConfigurationListener("managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdNanos) -> {
-            ManagedLedgerFactoryImpl managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
+        registerConfigurationListener(
+                "managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdNanos) -> {
+            ManagedLedgerFactoryImpl managedLedgerFactory =
+                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
             managedLedgerFactory.setCacheEvictionTimeThresholdNanos(TimeUnit.MILLISECONDS
                     .toNanos((long) cacheEvictionTimeThresholdNanos));
         });
@@ -2257,7 +2267,7 @@ public class BrokerService implements Closeable {
         // lazy init broker Publish-rateLimiting monitoring if not initialized yet
         this.setupBrokerPublishRateLimiterMonitor();
         if (brokerPublishRateLimiter == null
-            || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+                || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
             // create new rateLimiter if rate-limiter is disabled
             brokerPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
         } else {
@@ -2317,12 +2327,12 @@ public class BrokerService implements Closeable {
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic Replicator in Geo-replication
             forEachTopic(topic -> {
-                    if (topic instanceof AbstractTopic) {
-                        ((AbstractTopic) topic).updateBrokerReplicatorDispatchRate();
+                        if (topic instanceof AbstractTopic) {
+                            ((AbstractTopic) topic).updateBrokerReplicatorDispatchRate();
+                        }
+                        topic.getReplicators().forEach((name, persistentReplicator) ->
+                                persistentReplicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate));
                     }
-                    topic.getReplicators().forEach((name, persistentReplicator) ->
-                        persistentReplicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate));
-                }
             );
         });
     }
@@ -2389,7 +2399,7 @@ public class BrokerService implements Closeable {
         Optional<Map<String, String>> configCache = Optional.empty();
 
         try {
-            configCache  =
+            configCache =
                     pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration();
 
             // create dynamic-config if not exist.
@@ -2819,6 +2829,7 @@ public class BrokerService implements Closeable {
         log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
     }
+
     private boolean isSystemTopic(String topic) {
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
     }
