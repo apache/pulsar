@@ -3223,7 +3223,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName, 3);
 
         // 4. wait for client to update partitions
-        Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() <= 1);
+        Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() == 3);
 
         // 5. produce 5 more messages
         for (int i = 5; i < 10; i++) {

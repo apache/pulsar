@@ -88,7 +88,9 @@ Again, given the very low expected load on the configuration store servers, you 
 For example, you can assume a Pulsar instance with the following clusters `us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`. Also you can assume, each cluster has its own local ZK servers named such as
 
 ```
+
 zk[1-3].${CLUSTER}.example.com
+
 ```
 
 In this scenario you want to pick the quorum participants from few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, you can pick 3 servers from `us-west`, 2 from `us-central` and 2 from `us-east`.
@@ -98,6 +100,7 @@ This guarantees that writes to configuration store is possible even if one of th
 The ZK configuration in all the servers looks like:
 
 ```properties
+
 clientPort=2184
 server.1=zk1.us-west.example.com:2185:2186
 server.2=zk2.us-west.example.com:2185:2186
@@ -114,12 +117,15 @@ server.12=zk3.eu-central.example.com:2185:2186:observer
 server.13=zk1.ap-south.example.com:2185:2186:observer
 server.14=zk2.ap-south.example.com:2185:2186:observer
 server.15=zk3.ap-south.example.com:2185:2186:observer
+
 ```
 
 Additionally, ZK observers need to have:
 
 ```properties
+
 peerType=observer
+
 ```
 
 ##### Start the service
@@ -127,10 +133,10 @@ peerType=observer
 Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon)
 
 ```shell
+
 $ bin/pulsar-daemon start configuration-store
+
 ```
-
-
 
 ### ZooKeeper configuration
 
@@ -156,6 +162,7 @@ The [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file handles t
 
 The [`conf/global-zookeeper.conf`](reference-configuration.md#configuration-store) file handles the configuration for configuration store. The table below shows the available parameters:
 
+
 ## BookKeeper
 
 BookKeeper stores all durable message in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
@@ -180,7 +187,11 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
 The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 
+> **Note**
+> Set `journalDirectory` and `ledgerDirectories` carefully. It is difficilt to change them later.
+
 ```properties
+
 # Change to point to journal disk mount point
 journalDirectory=data/bookkeeper/journal
 
@@ -189,6 +200,9 @@ ledgerDirectories=data/bookkeeper/ledgers
 
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
+
+#It is recommended to set this parameter. Otherwise, BookKeeper can't start normally in certain environments (for example, Huawei Cloud).
+advertisedAddress=
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.
@@ -206,19 +220,25 @@ You can start a bookie in the foreground or as a background daemon.
 To start a bookie in the foreground, use the [`bookkeeper`](reference-cli-tools.md#bookkeeper) CLI tool:
 
 ```bash
+
 $ bin/bookkeeper bookie
+
 ```
 
 To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
 ```bash
+
 $ bin/pulsar-daemon start bookie
+
 ```
 
 You can verify whether the bookie works properly with the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
 
 ```shell
+
 $ bin/bookkeeper shell bookiesanity
+
 ```
 
 When you use this command, you create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.
@@ -243,9 +263,9 @@ And then you can decommission bookies safely. To decommission bookies, complete 
 3. Run the decommission command.
    - If you have logged in to the node to be decommissioned, you do not need to provide `-bookieid`.
    - If you are running the decommission command for the target bookie node from another bookie node, you should mention the target bookie ID in the arguments for `-bookieid`
-    `$ bin/bookkeeper shell decommissionbookie`
-    or
-    `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
+   `$ bin/bookkeeper shell decommissionbookie`
+   or
+   `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
 
 4. Validate that no ledgers are on the decommissioned bookie.   
 `$ bin/bookkeeper shell listledgers -bookieid <target bookieid>`
@@ -253,8 +273,10 @@ And then you can decommission bookies safely. To decommission bookies, complete 
 You can run the following command to check if the bookie you have decommissioned is listed in the bookies list:
 
 ```bash
+
 ./bookkeeper shell listbookies -rw -h
 ./bookkeeper shell listbookies -ro -h
+
 ```
 
 ## BookKeeper persistence policies
@@ -284,9 +306,11 @@ Flag | Description | Default
 The following is an example:
 
 ```shell
+
 $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
   --bookkeeper-ack-quorum 3 \
   --bookkeeper-ensemble 2
+
 ```
 
 #### REST API
@@ -296,6 +320,7 @@ $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 #### Java
 
 ```java
+
 int bkEnsemble = 2;
 int bkQuorum = 3;
 int bkAckQuorum = 2;
@@ -303,6 +328,7 @@ double markDeleteRate = 0.7;
 PersistencePolicies policies =
   new PersistencePolicies(ensemble, quorum, ackQuorum, markDeleteRate);
 admin.namespaces().setPersistence(namespace, policies);
+
 ```
 
 ### List persistence policies
@@ -316,6 +342,7 @@ Use the [`get-persistence`](reference-pulsar-admin.md#namespaces-get-persistence
 The following is an example:
 
 ```shell
+
 $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 {
   "bookkeeperEnsemble": 1,
@@ -323,6 +350,7 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
   "bookkeeperAckQuorum", 1,
   "managedLedgerMaxMarkDeleteRate": 0
 }
+
 ```
 
 #### REST API
@@ -332,7 +360,9 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 #### Java
 
 ```java
+
 PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
+
 ```
 
 ## How Pulsar uses ZooKeeper and BookKeeper

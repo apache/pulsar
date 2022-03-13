@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
-
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;

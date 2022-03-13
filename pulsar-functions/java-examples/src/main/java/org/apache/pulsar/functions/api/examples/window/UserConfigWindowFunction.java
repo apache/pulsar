@@ -32,7 +32,7 @@ public class UserConfigWindowFunction implements WindowFunction<String, String> 
     public String process(Collection<Record<String>> input, WindowContext context) throws Exception {
         Optional<Object> whatToWrite = context.getUserConfigValue("WhatToWrite");
         if (whatToWrite.get() != null) {
-            return (String)whatToWrite.get();
+            return (String) whatToWrite.get();
         } else {
             return "Not a nice way";
         }

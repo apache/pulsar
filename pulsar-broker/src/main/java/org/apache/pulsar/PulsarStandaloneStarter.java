@@ -28,6 +28,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,13 +88,27 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         // Priority: args > conf > default
         if (!argsContains(args, "--zookeeper-port")) {
             if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
-                this.setZkPort(Integer.parseInt(config.getMetadataStoreUrl().split(":")[1]));
+                String[] metadataStoreUrl = config.getMetadataStoreUrl().split(",")[0].split(":");
+                if (metadataStoreUrl.length == 2) {
+                    this.setZkPort(Integer.parseInt(metadataStoreUrl[1]));
+                } else if ((metadataStoreUrl.length == 3)){
+                    String zkPort = metadataStoreUrl[2];
+                    if (zkPort.contains("/")) {
+                        this.setZkPort(Integer.parseInt(zkPort.substring(0, zkPort.lastIndexOf("/"))));
+                    } else {
+                        this.setZkPort(Integer.parseInt(zkPort));
+                    }
+                }
             }
         }
-        config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-        config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
+        final String metadataStoreUrl =
+                ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zkServers + ":" + this.getZkPort();
+        config.setMetadataStoreUrl(metadataStoreUrl);
+        config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
 
         config.setRunningStandalone(true);
+        config.getProperties().setProperty("metadataStoreUrl", metadataStoreUrl);
+        config.getProperties().setProperty("configurationMetadataStoreUrl", metadataStoreUrl);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {

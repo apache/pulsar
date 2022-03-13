@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -96,6 +97,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
         super.baseSetup();
     }
 
@@ -617,8 +619,27 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
-    }
 
+        // write again, the topic will be available
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName).create();
+        producer2.close();
+
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        // 6. Test for partitioned topic to delete the partitioned metadata
+        String topicGc = "persistent://prop/ns-abc/topic-gc";
+        int partitions = 5;
+        admin.topics().createPartitionedTopic(topicGc, partitions);
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicGc).create();
+        producer3.close();
+        assertEquals(partitions, pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
+                TopicName.get(topicGc)).join().partitions);
+        runGC();
+        Awaitility.await().untilAsserted(()-> {
+            assertEquals(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
+                    TopicName.get(topicGc)).join().partitions, 0);
+        });
+    }
     @Data
     @ToString
     @EqualsAndHashCode
@@ -1728,7 +1749,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         redeliveryMessagesField.set(dispatcher, redeliveryMessages);
         // (a) redelivery with all acked-message should clear messageReply bucket
-        dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0));
+        dispatcher.redeliverUnacknowledgedMessages(dispatcher.getConsumers().get(0), DEFAULT_CONSUMER_EPOCH);
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
             return redeliveryMessages.isEmpty();
         });

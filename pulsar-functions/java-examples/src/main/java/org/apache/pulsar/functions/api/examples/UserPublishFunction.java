@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.api.examples;
 
 import java.util.Optional;
-
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Context;

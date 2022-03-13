@@ -32,6 +32,7 @@
 #include <lib/MultiTopicsBrokerConsumerStatsImpl.h>
 #include <lib/TopicName.h>
 #include <lib/NamespaceName.h>
+#include <lib/SynchronizedHashMap.h>
 
 namespace pulsar {
 typedef std::shared_ptr<Promise<Result, Consumer>> ConsumerSubResultPromisePtr;
@@ -93,7 +94,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     std::string consumerStr_;
     std::string topic_;
     const ConsumerConfiguration conf_;
-    typedef std::map<std::string, ConsumerImplPtr> ConsumerMap;
+    typedef SynchronizedHashMap<std::string, ConsumerImplPtr> ConsumerMap;
     ConsumerMap consumers_;
     std::map<std::string, int> topicsPartitions_;
     mutable std::mutex mutex_;
@@ -115,7 +116,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
 
     void handleSinglePartitionConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
                                               unsigned int partitionIndex);
-    void handleSingleConsumerClose(Result result, std::string& topicPartitionName, CloseCallback callback);
+    void handleSingleConsumerClose(Result result, std::string topicPartitionName, CloseCallback callback);
     void notifyResult(CloseCallback closeCallback);
     void messageReceived(Consumer consumer, const Message& msg);
     void internalListener(Consumer consumer);

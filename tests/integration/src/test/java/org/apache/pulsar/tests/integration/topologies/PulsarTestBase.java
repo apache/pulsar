@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static org.testng.Assert.assertEquals;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -44,6 +46,10 @@ public abstract class PulsarTestBase extends TestRetrySupport {
                 {"persistent"},
                 {"non-persistent"}
         };
+    }
+
+    public static String randomName() {
+        return randomName(6);
     }
 
     public static String randomName(int numChars) {
@@ -184,4 +190,7 @@ public abstract class PulsarTestBase extends TestRetrySupport {
         }
     }
 
+    protected ObjectMapper jsonMapper () {
+        return ObjectMapperFactory.getThreadLocal();
+    }
 }

@@ -19,6 +19,14 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -35,15 +43,6 @@ import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
-import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.util.Collection;
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
 @Slf4j
 public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
@@ -59,7 +58,8 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
     }
 
     @Override
-    public Response getFunctionInfo(final String tenant, final String namespace, final String functionName, String clientRole)
+    public Response getFunctionInfo(final String tenant, final String namespace,
+                                    final String functionName, String clientRole)
             throws IOException {
 
         // run just for parameter checks
@@ -78,17 +78,21 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
                                               final String instanceId, URI uri, String clientRole) throws IOException {
 
         org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
-                functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri, clientRole, null);
+                functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace,
+                functionName, instanceId, uri, clientRole, null);
 
         String jsonResponse = FunctionCommon.printJson(toProto(functionInstanceStatus, instanceId));
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
     @Override
-    public Response getFunctionStatusV2(String tenant, String namespace, String functionName, URI requestUri, String clientRole) throws
+    public Response getFunctionStatusV2(String tenant, String namespace, String functionName,
+                                        URI requestUri, String clientRole) throws
             IOException {
-        FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace, functionName, requestUri, clientRole, null);
-        InstanceCommunication.FunctionStatusList.Builder functionStatusList = InstanceCommunication.FunctionStatusList.newBuilder();
+        FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace,
+                functionName, requestUri, clientRole, null);
+        InstanceCommunication.FunctionStatusList.Builder functionStatusList =
+                InstanceCommunication.FunctionStatusList.newBuilder();
         functionStatus.instances.forEach(functionInstanceStatus -> functionStatusList.addFunctionStatusList(
                 toProto(functionInstanceStatus.getStatus(),
                         String.valueOf(functionInstanceStatus.getInstanceId()))));
@@ -115,9 +119,9 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
     }
 
     @Override
-    public Response updateFunction(String tenant, String namespace, String functionName, InputStream uploadedInputStream,
-                                   FormDataContentDisposition fileDetail, String functionPkgUrl, String
-                                           functionDetailsJson, String clientRole) {
+    public Response updateFunction(String tenant, String namespace, String functionName,
+                                   InputStream uploadedInputStream, FormDataContentDisposition fileDetail,
+                                   String functionPkgUrl, String functionDetailsJson, String clientRole) {
 
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         try {
@@ -140,19 +144,21 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     @Override
     public Response listFunctions(String tenant, String namespace, String clientRole) {
-        Collection<String> functionStateList = delegate.listFunctions( tenant, namespace, clientRole, null);
+        Collection<String> functionStateList = delegate.listFunctions(tenant, namespace, clientRole, null);
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
     @Override
     public Response triggerFunction(String tenant, String namespace, String functionName, String triggerValue,
                                     InputStream triggerStream, String topic, String clientRole) {
-        String result = delegate.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientRole, null);
+        String result = delegate.triggerFunction(tenant, namespace, functionName,
+                triggerValue, triggerStream, topic, clientRole, null);
         return Response.status(Response.Status.OK).entity(result).build();
     }
 
     @Override
-    public Response getFunctionState(String tenant, String namespace, String functionName, String key, String clientRole) {
+    public Response getFunctionState(String tenant, String namespace, String functionName,
+                                     String key, String clientRole) {
         FunctionState functionState = delegate.getFunctionState(
                 tenant, namespace, functionName, key, clientRole, null);
 
@@ -212,8 +218,8 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
     private InstanceCommunication.FunctionStatus toProto(
             org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
                     functionInstanceStatus, String instanceId) {
-        List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSysExceptions
-                = functionInstanceStatus.getLatestSystemExceptions()
+        List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSysExceptions =
+                functionInstanceStatus.getLatestSystemExceptions()
                 .stream()
                 .map(exceptionInformation -> InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
                         .setExceptionString(exceptionInformation.getExceptionString())
@@ -221,8 +227,8 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
                         .build())
                 .collect(Collectors.toList());
 
-        List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions
-                = functionInstanceStatus.getLatestUserExceptions()
+        List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions =
+                functionInstanceStatus.getLatestUserExceptions()
                 .stream()
                 .map(exceptionInformation -> InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
                         .setExceptionString(exceptionInformation.getExceptionString())

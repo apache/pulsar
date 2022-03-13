@@ -19,12 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -48,18 +46,15 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         conf.setPreciseTopicPublishRateLimiterEnable(false);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
         org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
-        Policies policies = new Policies();
-        policies.publishMaxMessageRate = new HashMap<>();
-        policies.publishMaxMessageRate.put("test", publishRate);
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-        ((AbstractTopic)topicRef).updateMaxPublishRate(policies);
         MessageId messageId = null;
         try {
             // first will be success
@@ -87,18 +82,15 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
         org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
-        Policies policies = new Policies();
-        policies.publishMaxMessageRate = new HashMap<>();
-        policies.publishMaxMessageRate.put("test", publishRate);
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-        ((AbstractTopic)topicRef).updateMaxPublishRate(policies);
         MessageId messageId = null;
         try {
             // first will be success, and will set auto read to false
@@ -119,18 +111,15 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
         org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .producerName("producer-name")
                 .create();
-        Policies policies = new Policies();
-        policies.publishMaxMessageRate = new HashMap<>();
-        policies.publishMaxMessageRate.put("test", publishRate);
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
-        ((AbstractTopic)topicRef).updateMaxPublishRate(policies);
         MessageId messageId = null;
         try {
             // first will be success, and will set auto read to false

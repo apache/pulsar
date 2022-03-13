@@ -2237,6 +2237,9 @@ public class BrokerService implements Closeable {
         this.pulsar().getExecutor().execute(() -> {
             // update message-rate for each topic
             forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    ((AbstractTopic) topic).updateBrokerDispatchRate();
+                }
                 if (topic.getDispatchRateLimiter().isPresent()) {
                     topic.getDispatchRateLimiter().get().updateDispatchRate();
                 }
@@ -2259,6 +2262,9 @@ public class BrokerService implements Closeable {
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic subscription
             forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    ((AbstractTopic) topic).updateBrokerSubscriptionDispatchRate();
+                }
                 topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
                     Dispatcher dispatcher = persistentSubscription.getDispatcher();
                     if (dispatcher != null) {
@@ -2272,12 +2278,14 @@ public class BrokerService implements Closeable {
     private void updateReplicatorMessageDispatchRate() {
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic Replicator in Geo-replication
-            forEachTopic(topic ->
-                topic.getReplicators().forEach((name, persistentReplicator) -> {
-                    if (persistentReplicator.getRateLimiter().isPresent()) {
-                        persistentReplicator.getRateLimiter().get().updateDispatchRate();
+            forEachTopic(topic -> {
+                    if (topic instanceof AbstractTopic) {
+                        ((AbstractTopic) topic).updateBrokerReplicatorDispatchRate();
                     }
-                }));
+                    topic.getReplicators().forEach((name, persistentReplicator) ->
+                        persistentReplicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate));
+                }
+            );
         });
     }
 

@@ -78,7 +78,6 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -442,7 +441,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
-                asyncCloseFutures.add(this.brokerService.closeAsync());
+                CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
+                if (this.transactionMetadataStoreService != null) {
+                    asyncCloseFutures.add(brokerCloseFuture.whenComplete((__, ___) -> {
+                        // close transactionMetadataStoreService after the broker has been closed
+                        this.transactionMetadataStoreService.close();
+                        this.transactionMetadataStoreService = null;
+                    }));
+                } else {
+                    asyncCloseFutures.add(brokerCloseFuture);
+                }
                 this.brokerService = null;
             }
 
@@ -803,7 +811,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     + (StringUtils.isNotEmpty(brokerServiceUrlTls) ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready, bootstrap_seconds={}", bootstrapTimeSeconds);
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
-                    config.getClusterName(), ReflectionToStringBuilder.toString(config));
+                    config.getClusterName(), config);
 
             state = State.Started;
         } catch (Exception e) {

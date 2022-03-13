@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -31,12 +34,6 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
-
-import java.util.Map;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Slf4j
 public class ValidatorUtils {
@@ -64,7 +61,9 @@ public class ValidatorUtils {
 
 
     public static void validateCryptoKeyReader(CryptoConfig conf, ClassLoader classLoader, boolean isProducer) {
-        if (isEmpty(conf.getCryptoKeyReaderClassName())) return;
+        if (isEmpty(conf.getCryptoKeyReaderClassName())) {
+            return;
+        }
 
         Class<?> cryptoClass;
         try {
@@ -93,8 +92,12 @@ public class ValidatorUtils {
 
     public static void validateSerde(String inputSerializer, Class<?> typeArg, ClassLoader clsLoader,
                                      boolean deser) {
-        if (isEmpty(inputSerializer)) return;
-        if (inputSerializer.equals(DEFAULT_SERDE)) return;
+        if (isEmpty(inputSerializer)) {
+            return;
+        }
+        if (inputSerializer.equals(DEFAULT_SERDE)) {
+            return;
+        }
         try {
             Class<?> serdeClass = ClassLoaderUtils.loadClass(inputSerializer, clsLoader);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
@@ -167,7 +170,8 @@ public class ValidatorUtils {
     }
 
 
-    public static void validateFunctionClassTypes(ClassLoader classLoader, Function.FunctionDetails.Builder functionDetailsBuilder) {
+    public static void validateFunctionClassTypes(ClassLoader classLoader,
+                                                  Function.FunctionDetails.Builder functionDetailsBuilder) {
 
         // validate only if classLoader is provided
         if (classLoader == null) {

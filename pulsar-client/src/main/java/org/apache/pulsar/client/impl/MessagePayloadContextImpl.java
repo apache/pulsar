@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import java.util.List;
@@ -51,6 +52,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     private int redeliveryCount;
     private BatchMessageAcker acker;
     private BitSetRecyclable ackBitSet;
+    private long consumerEpoch;
 
     private MessagePayloadContextImpl(final Recycler.Handle<MessagePayloadContextImpl> handle) {
         this.recyclerHandle = handle;
@@ -61,8 +63,10 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                                                 @NonNull final MessageIdImpl messageId,
                                                 @NonNull final ConsumerImpl<?> consumer,
                                                 final int redeliveryCount,
-                                                final List<Long> ackSet) {
+                                                final List<Long> ackSet,
+                                                final long consumerEpoch) {
         final MessagePayloadContextImpl context = RECYCLER.get();
+        context.consumerEpoch = consumerEpoch;
         context.brokerEntryMetadata = brokerEntryMetadata;
         context.messageMetadata = messageMetadata;
         context.singleMessageMetadata = new SingleMessageMetadata();
@@ -83,6 +87,7 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
         messageId = null;
         consumer = null;
         redeliveryCount = 0;
+        consumerEpoch = DEFAULT_CONSUMER_EPOCH;
         acker = null;
         if (ackBitSet != null) {
             ackBitSet.recycle();
@@ -130,7 +135,8 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                     containMetadata,
                     ackBitSet,
                     acker,
-                    redeliveryCount);
+                    redeliveryCount,
+                    consumerEpoch);
         } finally {
             payloadBuffer.release();
         }
@@ -140,8 +146,8 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
     public <T> Message<T> asSingleMessage(MessagePayload payload, Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
-            return consumer.newMessage(
-                    messageId, brokerEntryMetadata, messageMetadata, payloadBuffer, schema, redeliveryCount);
+            return consumer.newMessage(messageId, brokerEntryMetadata,
+                    messageMetadata, payloadBuffer, schema, redeliveryCount, consumerEpoch);
         } finally {
             payloadBuffer.release();
         }

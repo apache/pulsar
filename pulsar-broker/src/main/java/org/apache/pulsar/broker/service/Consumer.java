@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.Future;
@@ -33,11 +34,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -58,6 +59,8 @@ import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,11 +134,17 @@ public class Consumer {
     private final MessageId startMessageId;
     private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;
 
+    @Getter
+    @Setter
+    private volatile long consumerEpoch;
+
+    private long negtiveUnackedMsgsTimestamp;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -179,13 +188,19 @@ public class Consumer {
         stats.metadata = this.metadata;
 
         if (Subscription.isIndividualAckMode(subType)) {
-            this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
+            this.pendingAcks = ConcurrentLongLongPairHashMap.newBuilder()
+                    .autoShrink(subscription.getTopic().getBrokerService()
+                            .getPulsar().getConfiguration().isAutoShrinkForConsumerPendingAcksMap())
+                    .expectedItems(256)
+                    .concurrencyLevel(1)
+                    .build();
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
         }
 
         this.clientAddress = cnx.clientSourceAddress();
+        this.consumerEpoch = consumerEpoch;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
     }
@@ -214,6 +229,14 @@ public class Consumer {
         return readCompacted;
     }
 
+    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+                                     EntryBatchIndexesAcks batchIndexesAcks,
+                                     int totalMessages, long totalBytes, long totalChunkedMessages,
+                                     RedeliveryTracker redeliveryTracker) {
+        return sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+                totalChunkedMessages, redeliveryTracker, DEFAULT_CONSUMER_EPOCH);
+    }
+
     /**
      * Dispatch a list of entries to the consumer. <br/>
      * <b>It is also responsible to release entries data and recycle entries object.</b>
@@ -223,7 +246,7 @@ public class Consumer {
     public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
-                                     RedeliveryTracker redeliveryTracker) {
+                                     RedeliveryTracker redeliveryTracker, long epoch) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
 
         if (entries.isEmpty() || totalMessages == 0) {
@@ -266,7 +289,7 @@ public class Consumer {
 
         // calculate avg message per entry
         int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
-        tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent
+        tmpAvgMessagesPerEntry = (int) Math.floor(tmpAvgMessagesPerEntry * avgPercent
                 + (1 - avgPercent) * totalMessages / entries.size());
         AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
@@ -286,7 +309,7 @@ public class Consumer {
 
 
         return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
-                entries, batchSizes, batchIndexesAcks, redeliveryTracker);
+                entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
@@ -526,7 +549,8 @@ public class Consumer {
 
     private long getAckedCountForBatchIndexLevelEnabled(PositionImpl position, long batchSize, long[] ackSets) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)
+            && pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
@@ -537,7 +561,7 @@ public class Consumer {
                 int currentCardinality = cursorBitSet.cardinality();
                 ackedCount = lastCardinality - currentCardinality;
                 cursorBitSet.recycle();
-            } else if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) != null) {
+            } else {
                 ackedCount = batchSize - BitSet.valueOf(ackSets).cardinality();
             }
         }
@@ -558,6 +582,7 @@ public class Consumer {
             if (cursorAckSet != null) {
                 BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
                 unAckedCount = cursorBitSet.cardinality();
+                cursorBitSet.recycle();
             }
         }
         return unAckedCount;
@@ -850,7 +875,7 @@ public class Consumer {
         return priorityLevel;
     }
 
-    public void redeliverUnacknowledgedMessages() {
+    public void redeliverUnacknowledgedMessages(long consumerEpoch) {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
         clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
@@ -875,7 +900,7 @@ public class Consumer {
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
-            subscription.redeliverUnacknowledgedMessages(this);
+            subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
 
         flowConsumerBlockedPermits(this);
@@ -929,8 +954,9 @@ public class Consumer {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }
-        if (unackedMsgs < 0) {
-            log.error("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
+        if (unackedMsgs < 0 && System.currentTimeMillis() - negtiveUnackedMsgsTimestamp >= 10_000) {
+            negtiveUnackedMsgsTimestamp = System.currentTimeMillis();
+            log.warn("unackedMsgs is : {}, ackedMessages : {}, consumer : {}", unackedMsgs, ackedMessages, consumer);
         }
         return unackedMsgs;
     }
