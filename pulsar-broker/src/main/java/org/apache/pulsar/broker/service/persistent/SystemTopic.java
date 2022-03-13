@@ -76,7 +76,9 @@ public class SystemTopic extends PersistentTopic {
         // All system topics are using compaction except `HealthCheck`,
         // even though is not explicitly set in the policies.
         TopicName name = TopicName.get(topic);
-        NamespaceName heartbeatNamespace = brokerService.pulsar().getHeartbeatNamespaceV2();
-        return !name.getNamespaceObject().equals(heartbeatNamespace);
+        NamespaceName heartbeatNamespaceV1 = brokerService.pulsar().getHeartbeatNamespaceV1();
+        NamespaceName heartbeatNamespaceV2 = brokerService.pulsar().getHeartbeatNamespaceV2();
+        return !name.getNamespaceObject().equals(heartbeatNamespaceV1)
+                && !name.getNamespaceObject().equals(heartbeatNamespaceV2);
     }
 }

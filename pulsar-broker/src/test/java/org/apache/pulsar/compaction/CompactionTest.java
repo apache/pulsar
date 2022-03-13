@@ -1665,11 +1665,17 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @SneakyThrows
     @Test
     public void testHealthCheckTopicNotCompacted() {
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
+        String topicV1 = "persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck";
         NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
-        String topic = heartbeatNamespaceV2.toString() + "/healthcheck";
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
-        Optional<Topic> topicReference = pulsar.getBrokerService().getTopic(topic, false).join();
-        assertFalse(((SystemTopic)topicReference.get()).isCompactionEnabled());
-        producer.close();
+        String topicV2 = heartbeatNamespaceV2.toString() + "/healthcheck";
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicV1).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicV2).create();
+        Optional<Topic> topicReferenceV1 = pulsar.getBrokerService().getTopic(topicV1, false).join();
+        Optional<Topic> topicReferenceV2 = pulsar.getBrokerService().getTopic(topicV2, false).join();
+        assertFalse(((SystemTopic)topicReferenceV1.get()).isCompactionEnabled());
+        assertFalse(((SystemTopic)topicReferenceV2.get()).isCompactionEnabled());
+        producer1.close();
+        producer2.close();
     }
 }
