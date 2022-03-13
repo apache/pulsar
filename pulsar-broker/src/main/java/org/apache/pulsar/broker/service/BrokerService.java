@@ -2154,11 +2154,11 @@ public class BrokerService implements Closeable {
 
         //  add listener to notify broker managedLedgerCacheEvictionTimeThresholdMillis dynamic config
         registerConfigurationListener(
-                "managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdNanos) -> {
+                "managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdMills) -> {
             ManagedLedgerFactoryImpl managedLedgerFactory =
                     (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
             managedLedgerFactory.setCacheEvictionTimeThresholdNanos(TimeUnit.MILLISECONDS
-                    .toNanos((long) cacheEvictionTimeThresholdNanos));
+                    .toNanos((long) cacheEvictionTimeThresholdMills));
         });
 
 
