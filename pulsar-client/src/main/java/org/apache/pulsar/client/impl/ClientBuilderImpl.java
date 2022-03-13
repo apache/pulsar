@@ -74,8 +74,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(
-                config, conf, ClientConfigurationData.class);
+        conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         return this;
     }
 
@@ -328,8 +327,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder dnsLookupBind(String address, int port) {
-        checkArgument(port >= 0 && port <= 65535,
-                "DnsLookBindPort need to be within the range of 0 and 65535");
+        checkArgument(port >= 0 && port <= 65535, "DnsLookBindPort need to be within the range of 0 and 65535");
         conf.setDnsLookupBindAddress(address);
         conf.setDnsLookupBindPort(port);
         return this;
