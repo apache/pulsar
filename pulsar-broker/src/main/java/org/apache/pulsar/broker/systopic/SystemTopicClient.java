@@ -21,14 +21,9 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.admin.impl.BrokersBase;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.events.EventsTopicNames;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
