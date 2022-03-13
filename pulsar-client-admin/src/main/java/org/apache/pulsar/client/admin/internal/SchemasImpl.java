@@ -137,7 +137,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
 
     @Override
     public void deleteSchema(String topic, boolean force) throws PulsarAdminException {
-        sync(() ->deleteSchemaAsync(topic, force));
+        sync(() -> deleteSchemaAsync(topic, force));
     }
 
     @Override
