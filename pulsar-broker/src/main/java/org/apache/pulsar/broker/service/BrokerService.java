@@ -88,6 +88,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
@@ -2132,6 +2133,37 @@ public class BrokerService implements Closeable {
                 }
             });
         });
+
+        //  add listener to notify broker managedLedgerCacheSizeMB dynamic config
+        registerConfigurationListener("managedLedgerCacheSizeMB", (managedLedgerCacheSizeMB) -> {
+            long maxSize = (long) managedLedgerCacheSizeMB * 1024L * 1024L;
+            double thresholdPercent = pulsar().getConfiguration().getEvictionTriggerThresholdPercent();
+
+            updateCacheSizeAndThreshold(maxSize, thresholdPercent);
+        });
+
+        //  add listener to notify broker evictionTriggerThresholdPercent dynamic config
+        registerConfigurationListener("evictionTriggerThresholdPercent", (evictionTriggerThresholdPercent) -> {
+            long maxSize = pulsar().getConfiguration().getManagedLedgerCacheSizeMB() * 1024L * 1024L;
+            double thresholdPercent = (double) evictionTriggerThresholdPercent;
+
+            updateCacheSizeAndThreshold(maxSize, thresholdPercent);
+        });
+
+        //  add listener to notify broker managedLedgerCacheEvictionWatermark dynamic config
+        registerConfigurationListener("managedLedgerCacheEvictionWatermark", (cacheEvictionWatermark) -> {
+            ManagedLedgerFactoryImpl managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
+            managedLedgerFactory.getEntryCacheManager().setCacheEvictionWatermark((double) cacheEvictionWatermark);
+        });
+
+        //  add listener to notify broker managedLedgerCacheEvictionTimeThresholdMillis dynamic config
+        registerConfigurationListener("managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdNanos) -> {
+            ManagedLedgerFactoryImpl managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
+            managedLedgerFactory.setCacheEvictionTimeThresholdNanos(TimeUnit.MILLISECONDS
+                    .toNanos((long) cacheEvictionTimeThresholdNanos));
+        });
+
+
         // add listener to update message-dispatch-rate in msg for topic
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
             updateTopicMessageDispatchRate();
@@ -2231,6 +2263,12 @@ public class BrokerService implements Closeable {
         } else {
             brokerPublishRateLimiter.update(publishRate);
         }
+    }
+
+    private void updateCacheSizeAndThreshold(long maxSize, double thresholdPercent) {
+        ManagedLedgerFactoryImpl managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
+        managedLedgerFactory.getEntryCacheManager().setMaxSize(maxSize);
+        managedLedgerFactory.getEntryCacheManager().setEvictionTriggerThreshold((long) (maxSize * thresholdPercent));
     }
 
     private void updateTopicMessageDispatchRate() {

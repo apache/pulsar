@@ -30,6 +30,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
+import lombok.Setter;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
@@ -45,9 +47,12 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("checkstyle:javadoctype")
 public class EntryCacheManager {
 
-    private final long maxSize;
-    private final long evictionTriggerThreshold;
-    private final double cacheEvictionWatermark;
+    @Setter
+    private volatile long maxSize;
+    @Setter
+    private volatile long evictionTriggerThreshold;
+    @Setter
+    private volatile double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
     private final ConcurrentMap<String, EntryCache> caches = Maps.newConcurrentMap();
     private final EntryCacheEvictionPolicy evictionPolicy;
@@ -59,7 +64,8 @@ public class EntryCacheManager {
 
     protected static final double MB = 1024 * 1024;
 
-    private static final double evictionTriggerThresholdPercent = 0.98;
+    @Setter
+    private volatile double evictionTriggerThresholdPercent = 0.98;
 
 
     public EntryCacheManager(ManagedLedgerFactoryImpl factory) {
