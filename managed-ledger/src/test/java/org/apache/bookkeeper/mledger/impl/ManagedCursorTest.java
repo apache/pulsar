@@ -3740,13 +3740,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // op readPosition is bigger than maxReadPosition
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, ledger.lastConfirmedEntry, 10, callback,
                 null, PositionImpl.get(lastPosition.getLedgerId(), -1));
+        Field field = ManagedCursorImpl.class.getDeclaredField("readPosition");
+        field.setAccessible(true);
+        field.set(cursor, PositionImpl.EARLIEST);
         ledger.asyncReadEntries(opReadEntry);
 
         // when readPosition is bigger than maxReadPosition, should complete the opReadEntry
         Awaitility.await().untilAsserted(() -> assertTrue(flag.get()));
     }
-
-
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
