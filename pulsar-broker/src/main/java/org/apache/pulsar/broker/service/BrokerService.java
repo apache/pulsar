@@ -2136,20 +2136,11 @@ public class BrokerService implements Closeable {
 
         //  add listener to notify broker managedLedgerCacheSizeMB dynamic config
         registerConfigurationListener("managedLedgerCacheSizeMB", (managedLedgerCacheSizeMB) -> {
+            ManagedLedgerFactoryImpl managedLedgerFactory =
+                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
             long maxSize = (long) managedLedgerCacheSizeMB * 1024L * 1024L;
-            double thresholdPercent = pulsar().getConfiguration().getEvictionTriggerThresholdPercent();
 
-            updateCacheSizeAndThreshold(maxSize, thresholdPercent);
-        });
-
-        //  add listener to notify broker evictionTriggerThresholdPercent dynamic config
-        registerConfigurationListener(
-                "evictionTriggerThresholdPercent", (evictionTriggerThresholdPercent) -> {
-            long maxSize =
-                    pulsar().getConfiguration().getManagedLedgerCacheSizeMB() * 1024L * 1024L;
-            double thresholdPercent = (double) evictionTriggerThresholdPercent;
-
-            updateCacheSizeAndThreshold(maxSize, thresholdPercent);
+            updateCacheSizeAndThreshold(maxSize);
         });
 
         //  add listener to notify broker managedLedgerCacheEvictionWatermark dynamic config
@@ -2272,8 +2263,9 @@ public class BrokerService implements Closeable {
         }
     }
 
-    private void updateCacheSizeAndThreshold(long maxSize, double thresholdPercent) {
+    private void updateCacheSizeAndThreshold(long maxSize) {
         ManagedLedgerFactoryImpl managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory();
+        double thresholdPercent = managedLedgerFactory.getEntryCacheManager().getEvictionTriggerThresholdPercent();
         managedLedgerFactory.getEntryCacheManager().setMaxSize(maxSize);
         managedLedgerFactory.getEntryCacheManager().setEvictionTriggerThreshold((long) (maxSize * thresholdPercent));
     }

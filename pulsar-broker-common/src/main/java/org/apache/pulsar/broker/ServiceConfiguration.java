@@ -1685,13 +1685,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(
-            category = CATEGORY_STORAGE_ML,
-            dynamic = true,
-            doc = "Threshold to evicteis triggered"
-    )
-    private double evictionTriggerThresholdPercent = 0.98;
-
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;

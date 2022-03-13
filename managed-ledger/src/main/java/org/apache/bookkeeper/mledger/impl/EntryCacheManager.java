@@ -30,6 +30,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
+import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -63,7 +65,7 @@ public class EntryCacheManager {
 
     protected static final double MB = 1024 * 1024;
 
-    @Setter
+    @Getter
     private volatile double evictionTriggerThresholdPercent = 0.98;
 
 
