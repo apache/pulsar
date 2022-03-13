@@ -270,6 +270,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private volatile CompletableFuture<Void> closeFuture;
     // key is listener name, value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
+    private NamespaceName heartbeatNamespaceV1;
     private NamespaceName heartbeatNamespaceV2;
 
     public PulsarService(ServiceConfiguration config) {
@@ -708,6 +709,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
+            heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(this.advertisedAddress, this.config);
             heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(this.advertisedAddress, this.config);
 
             // Refresh addresses and update configuration, since the port might have been dynamically assigned

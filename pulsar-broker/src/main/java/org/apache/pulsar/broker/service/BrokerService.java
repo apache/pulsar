@@ -120,7 +120,7 @@ import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -131,6 +131,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
@@ -2781,8 +2782,30 @@ public class BrokerService implements Closeable {
         log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
     }
-    private boolean isSystemTopic(String topic) {
-        return SystemTopicClient.isSystemTopic(TopicName.get(topic));
+
+    public boolean isSystemTopic(String topic) {
+        return isSystemTopic(TopicName.get(topic));
+    }
+
+    public boolean isSystemTopic(TopicName topicName) {
+        if (topicName.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
+            return true;
+        }
+
+        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+
+        // event topic
+        if (EventsTopicNames.checkTopicIsEventsNames(nonePartitionedTopicName)) {
+            return true;
+        }
+
+        String localName = nonePartitionedTopicName.getLocalName();
+        // transaction pending ack topic
+        if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+            return true;
+        }
+        return topicName.getNamespaceObject().equals(pulsar.getHeartbeatNamespaceV1())
+                || topicName.getNamespaceObject().equals(pulsar.getHeartbeatNamespaceV2());
     }
 
     /**
@@ -2817,13 +2840,13 @@ public class BrokerService implements Closeable {
                     int maxTopicsPerNamespace = optPolicies.map(p -> p.max_topics_per_namespace)
                             .orElse(pulsar.getConfig().getMaxTopicsPerNamespace());
 
-                    if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
+                    if (maxTopicsPerNamespace > 0 && !isSystemTopic(topicName)) {
                         return pulsar().getPulsarResources().getTopicResources()
                                 .getExistingPartitions(topicName)
                                 .thenCompose(topics -> {
                                     // exclude created system topic
                                     long topicsCount = topics.stream()
-                                            .filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t)))
+                                            .filter(t -> !isSystemTopic(TopicName.get(t)))
                                             .count();
                                     if (topicsCount + numPartitions > maxTopicsPerNamespace) {
                                         log.error("Failed to create persistent topic {}, "

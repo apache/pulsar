@@ -241,7 +241,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
             boolean hasNonSystemTopic = false;
             for (String topic : topics) {
-                if (!SystemTopicClient.isSystemTopic(TopicName.get(topic))) {
+                if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                     hasNonSystemTopic = true;
                     break;
                 }
@@ -1985,14 +1985,14 @@ public abstract class NamespacesBase extends AdminResource {
                 }
                 for (Topic topic : topicList) {
                     if (topic instanceof PersistentTopic
-                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                            && !pulsar().getBrokerService().isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
                     if (topic instanceof PersistentTopic
-                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                            && !pulsar().getBrokerService().isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog());
                     }
                 }

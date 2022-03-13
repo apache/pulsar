@@ -190,28 +190,4 @@ public interface SystemTopicClient<T> {
         SystemTopicClient<T> getSystemTopic();
     }
 
-    static boolean isSystemTopic(TopicName topicName) {
-        if (topicName.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
-            return true;
-        }
-
-        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-
-        // event topic
-        if (EventsTopicNames.checkTopicIsEventsNames(nonePartitionedTopicName)) {
-            return true;
-        }
-
-        String localName = nonePartitionedTopicName.getLocalName();
-        // transaction pending ack topic
-        if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
-            return true;
-        }
-        // health check topic
-        if (StringUtils.endsWith(localName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX)){
-            return true;
-        }
-        return false;
-    }
-
 }
