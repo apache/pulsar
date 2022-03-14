@@ -76,7 +76,7 @@ bool MessageId::isChunkMessageid() const {
 void MessageId::serialize(std::string& result) const {
     proto::MessageIdData idData;
     writeMessageIdData(impl_, &idData);
-    if (isChunkMessageid() == true) {
+    if (isChunkMessageid()) {
         auto chunkMsgIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_);
         writeMessageIdData(chunkMsgIdImpl->getFirstChunkMessageIdImpl(),
                            idData.mutable_first_chunk_message_id());
