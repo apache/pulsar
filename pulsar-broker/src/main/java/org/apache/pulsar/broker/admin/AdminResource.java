@@ -39,7 +39,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -586,12 +585,12 @@ public abstract class AdminResource extends PulsarWebResource {
             }
 
             // new create check
-            if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
+            if (maxTopicsPerNamespace > 0 && !pulsar().getBrokerService().isSystemTopic(topicName)) {
                 List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
                 // exclude created system topic
                 long topicsCount =
-                        partitionedTopics.stream().filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t)))
-                                .count();
+                        partitionedTopics.stream().filter(t ->
+                                        !pulsar().getBrokerService().isSystemTopic(TopicName.get(t))).count();
                 if (topicsCount + numPartitions > maxTopicsPerNamespace) {
                     log.error("[{}] Failed to create partitioned topic {}, "
                             + "exceed maximum number of topics in namespace", clientAppId(), topicName);

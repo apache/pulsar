@@ -47,7 +47,6 @@ import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
@@ -540,7 +539,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected void setSchemaCompatibilityStrategy(Policies policies) {
-        if (SystemTopicClient.isSystemTopic(TopicName.get(this.topic))) {
+        if (isSystemTopic()) {
             schemaCompatibilityStrategy =
                     brokerService.pulsar().getConfig().getSystemTopicSchemaCompatibilityStrategy();
             return;

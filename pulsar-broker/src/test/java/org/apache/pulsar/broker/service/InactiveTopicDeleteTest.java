@@ -35,11 +35,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.admin.impl.BrokersBase;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
@@ -580,49 +582,32 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 30000)
-    public void testInternalTopicInactiveNotClean() throws Exception {
+    public void testHealthTopicInactiveNotClean() throws Exception {
         conf.setSystemTopicEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
         // init topic
-        final String healthCheckTopic = "persistent://prop/ns-abc/"+ BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX;
-        final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        final String healthCheckTopicV1 = "persistent://" + heartbeatNamespaceV1 + "/healthcheck";
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscribe();
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        final String healthCheckTopicV2 = "persistent://" + heartbeatNamespaceV2 + "/healthcheck";
 
-        Producer<byte[]> heathCheckProducer = pulsarClient.newProducer()
-                .topic(healthCheckTopic)
-                .create();
-        Consumer<byte[]> heathCheckConsumer = pulsarClient.newConsumer()
-                .topic(healthCheckTopic)
-                .subscriptionName("healthCheck")
-                .subscribe();
+        admin.brokers().healthcheck(TopicVersion.V1);
+        admin.brokers().healthcheck(TopicVersion.V2);
 
-        consumer.close();
-        producer.close();
-        heathCheckConsumer.close();
-        heathCheckProducer.close();
-
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(admin.topics().getList("prop/ns-abc")
-                .contains(topic)));
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertTrue(admin.topics().getList("prop/ns-abc").contains(healthCheckTopic));
-        });
-
-        admin.topics().deleteSubscription(topic, "sub");
-        admin.topics().deleteSubscription(healthCheckTopic, "healthCheck");
-
-        Awaitility.await().untilAsserted(() -> Assert.assertFalse(admin.topics().getList("prop/ns-abc")
-                .contains(topic)));
-        Awaitility.await().pollDelay(2, TimeUnit.SECONDS)
-                .untilAsserted(() -> Assert.assertTrue(admin.topics().getList("prop/ns-abc")
-                        .contains(healthCheckTopic)));
+        List<String> V1Partitions = pulsar
+                .getPulsarResources()
+                .getTopicResources()
+                .getExistingPartitions(TopicName.get(healthCheckTopicV1))
+                .get(10, TimeUnit.SECONDS);
+        List<String> V2Partitions = pulsar
+                .getPulsarResources()
+                .getTopicResources()
+                .getExistingPartitions(TopicName.get(healthCheckTopicV2))
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertTrue(V1Partitions.contains(healthCheckTopicV1));
+        Assert.assertTrue(V2Partitions.contains(healthCheckTopicV2));
     }
 }
