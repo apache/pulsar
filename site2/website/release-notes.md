@@ -173,7 +173,7 @@
 - Fix parse BigDecimal [14019](https://github.com/apache/pulsar/pull/14019)
 - Fix pulsar use json or avro primitive schema. [12886](https://github.com/apache/pulsar/pull/12886)
 
-### Sql
+### SQL
 - Support protobuf/timestamp [13287](https://github.com/apache/pulsar/pull/13287)
 - Fix time field use error [12249](https://github.com/apache/pulsar/pull/12249)
 
@@ -185,7 +185,7 @@
 - [pulsar-perf] Support listenerThreads configuration. [12892](https://github.com/apache/pulsar/pull/12892)
 - [docs] Fix doc for pulsar-admin bookies cmd [12542](https://github.com/apache/pulsar/pull/12542)
 
-### Topic-Policy
+### Topic policy
 - [Broker] Avoid thread deadlock problem when creating topic policy reader [13837](https://github.com/apache/pulsar/pull/13837)
 - Fixed internal topic effect by InactiveTopicPolicy. [13816](https://github.com/apache/pulsar/pull/13816)
 
@@ -197,7 +197,7 @@
 ### Websocket
 - Fix ``ClassCastException`` when user create ``MultiTopicReader``. [14316](https://github.com/apache/pulsar/pull/14316)
 
-### Miscellaneous
+### Dependency
 - Upgrade Gson version 2.8.6 to 2.8.9 [13610](https://github.com/apache/pulsar/pull/13610)
 - Upgrade commons-cli to 1.5.0 [14094](https://github.com/apache/pulsar/pull/14094)
 - Bump netty version to 4.1.74.Final [14257](https://github.com/apache/pulsar/pull/14257)
