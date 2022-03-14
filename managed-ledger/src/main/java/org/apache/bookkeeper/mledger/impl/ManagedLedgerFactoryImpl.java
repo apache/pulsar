@@ -948,11 +948,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public void updateCacheSizeAndThreshold(long maxSize) {
-        entryCacheManager.updateCacheSizeAndThreshold(maxSize);
-    }
-
-    @Override
     public void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos){
         this.cacheEvictionTimeThresholdNanos = cacheEvictionTimeThresholdNanos;
     }

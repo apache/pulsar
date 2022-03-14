@@ -186,13 +186,6 @@ public interface ManagedLedgerFactory {
     EntryCacheManager getEntryCacheManager();
 
     /**
-     * update cache size and evictionTriggerThreshold.
-     *
-     * @param maxSize max cache size.
-     */
-    void updateCacheSizeAndThreshold(long maxSize);
-
-    /**
      * update cache evictionTimeThreshold.
      *
      * @param cacheEvictionTimeThresholdNanos time threshold for eviction.

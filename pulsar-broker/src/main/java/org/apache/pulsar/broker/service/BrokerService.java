@@ -2135,7 +2135,7 @@ public class BrokerService implements Closeable {
 
         //  add listener to notify broker managedLedgerCacheSizeMB dynamic config
         registerConfigurationListener("managedLedgerCacheSizeMB", (managedLedgerCacheSizeMB) -> {
-            managedLedgerFactory
+            managedLedgerFactory.getEntryCacheManager()
                     .updateCacheSizeAndThreshold((long) managedLedgerCacheSizeMB * 1024L * 1024L);
         });
 
