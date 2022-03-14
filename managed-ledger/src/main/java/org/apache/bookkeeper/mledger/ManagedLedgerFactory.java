@@ -181,21 +181,21 @@ public interface ManagedLedgerFactory {
     CompletableFuture<Boolean> asyncExists(String ledgerName);
 
     /**
-     * @return return EntryCacheManager
+     * @return return EntryCacheManager.
      */
     EntryCacheManager getEntryCacheManager();
 
     /**
-     * update cache size and evictionTriggerThreshold
+     * update cache size and evictionTriggerThreshold.
      *
-     * @param maxSize max cache size
+     * @param maxSize max cache size.
      */
     void updateCacheSizeAndThreshold(long maxSize);
 
     /**
-     * update cache evictionTimeThreshold
+     * update cache evictionTimeThreshold.
      *
-     * @param cacheEvictionTimeThresholdNanos time threshold for eviction
+     * @param cacheEvictionTimeThresholdNanos time threshold for eviction.
      */
     void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
 }
