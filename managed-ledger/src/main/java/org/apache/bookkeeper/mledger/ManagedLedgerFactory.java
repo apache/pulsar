@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.mledger.impl.EntryCacheManager;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -179,4 +180,22 @@ public interface ManagedLedgerFactory {
      */
     CompletableFuture<Boolean> asyncExists(String ledgerName);
 
+    /**
+     * @return return EntryCacheManager
+     * */
+    EntryCacheManager getEntryCacheManager();
+
+    /**
+     * update cache size and evictionTriggerThreshold
+     *
+     * @param maxSize max cache size
+     */
+    void updateCacheSizeAndThreshold(long maxSize);
+
+    /**
+     * update cache evictionTimeThreshold
+     *
+     * @param cacheEvictionTimeThresholdNanos time threshold for eviction
+     * */
+    void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
 }
