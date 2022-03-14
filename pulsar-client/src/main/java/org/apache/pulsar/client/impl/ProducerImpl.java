@@ -2197,13 +2197,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     public int getPendingQueueSize() {
-        if (!isBatchMessagingEnabled()) {
-            return pendingMessages.messagesCount();
-        } else {
+        if (isBatchMessagingEnabled()) {
             synchronized (this) {
                 return pendingMessages.messagesCount() + batchMessageContainer.getNumMessagesInBatch();
             }
         }
+        return pendingMessages.messagesCount();
     }
 
     @Override
