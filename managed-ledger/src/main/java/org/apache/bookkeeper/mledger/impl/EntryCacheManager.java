@@ -45,9 +45,9 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("checkstyle:javadoctype")
 public class EntryCacheManager {
 
-    private final long maxSize;
-    private final long evictionTriggerThreshold;
-    private final double cacheEvictionWatermark;
+    private volatile long maxSize;
+    private volatile long evictionTriggerThreshold;
+    private volatile double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
     private final ConcurrentMap<String, EntryCache> caches = Maps.newConcurrentMap();
     private final EntryCacheEvictionPolicy evictionPolicy;
@@ -86,6 +86,15 @@ public class EntryCacheManager {
         } else {
             return newEntryCache;
         }
+    }
+
+    public void updateCacheSizeAndThreshold(long maxSize) {
+        this.maxSize = maxSize;
+        this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
+    }
+
+    public void updateCacheEvictionWatermark(double cacheEvictionWatermark) {
+        this.cacheEvictionWatermark = cacheEvictionWatermark;
     }
 
     void removeEntryCache(String name) {
@@ -147,6 +156,10 @@ public class EntryCacheManager {
 
     public long getMaxSize() {
         return maxSize;
+    }
+
+    public double getCacheEvictionWatermark() {
+        return cacheEvictionWatermark;
     }
 
     public void clear() {
