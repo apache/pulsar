@@ -88,9 +88,17 @@ public class WebSocketService implements Closeable {
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
         this.config = config;
         this.localCluster = localCluster;
-        this.topicProducerMap = new ConcurrentOpenHashMap<>();
-        this.topicConsumerMap = new ConcurrentOpenHashMap<>();
-        this.topicReaderMap = new ConcurrentOpenHashMap<>();
+        this.topicProducerMap =
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashSet<ProducerHandler>>newBuilder()
+                        .build();
+        this.topicConsumerMap =
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashSet<ConsumerHandler>>newBuilder()
+                        .build();
+        this.topicReaderMap =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ReaderHandler>>newBuilder()
+                        .build();
         this.proxyStats = new ProxyStats(this);
     }
 
@@ -260,7 +268,8 @@ public class WebSocketService implements Closeable {
 
     public boolean addProducer(ProducerHandler producer) {
         return topicProducerMap
-                .computeIfAbsent(producer.getProducer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(producer.getProducer().getTopic(),
+                        topic -> ConcurrentOpenHashSet.<ProducerHandler>newBuilder().build())
                 .add(producer);
     }
 
@@ -278,7 +287,8 @@ public class WebSocketService implements Closeable {
 
     public boolean addConsumer(ConsumerHandler consumer) {
         return topicConsumerMap
-                .computeIfAbsent(consumer.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(consumer.getConsumer().getTopic(), topic ->
+                        ConcurrentOpenHashSet.<ConsumerHandler>newBuilder().build())
                 .add(consumer);
     }
 
@@ -295,7 +305,8 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addReader(ReaderHandler reader) {
-        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic ->
+                ConcurrentOpenHashSet.<ReaderHandler>newBuilder().build())
                 .add(reader);
     }
 

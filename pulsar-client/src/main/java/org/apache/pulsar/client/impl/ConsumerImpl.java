@@ -174,7 +174,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected volatile boolean paused;
 
-    protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentOpenHashMap<>();
+    protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap =
+            ConcurrentOpenHashMap.<String, ChunkedMessageCtx>newBuilder().build();
     private int pendingChunkedMessageCount = 0;
     protected long expireTimeOfIncompleteChunkedMessageMillis = 0;
     private boolean expireChunkMessageTaskScheduled = false;

@@ -234,7 +234,8 @@ public class AntiAffinityNamespaceGroupTest {
         brokerToDomainMap.put("brokerName-3", "domain-1");
 
         Set<String> candidate = Sets.newHashSet();
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
 
         assertEquals(brokers.size(), totalBrokers);
 
@@ -320,7 +321,8 @@ public class AntiAffinityNamespaceGroupTest {
 
         Set<String> brokers = Sets.newHashSet();
         Set<String> candidate = Sets.newHashSet();
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");
@@ -367,9 +369,11 @@ public class AntiAffinityNamespaceGroupTest {
     private void selectBrokerForNamespace(
             ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange,
             String broker, String namespace, String assignedBundleName) {
-        ConcurrentOpenHashSet<String> bundleSet = new ConcurrentOpenHashSet<>();
+        ConcurrentOpenHashSet<String> bundleSet =
+                ConcurrentOpenHashSet.<String>newBuilder().build();
         bundleSet.add(assignedBundleName);
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> nsToBundleMap = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> nsToBundleMap =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build();
         nsToBundleMap.put(namespace, bundleSet);
         brokerToNamespaceToBundleRange.put(broker, nsToBundleMap);
     }
@@ -475,7 +479,8 @@ public class AntiAffinityNamespaceGroupTest {
 
         Set<String> brokers = Sets.newHashSet();
         Set<String> candidate = Sets.newHashSet();
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
         brokers.add("broker-0");
         brokers.add("broker-1");
         brokers.add("broker-2");
