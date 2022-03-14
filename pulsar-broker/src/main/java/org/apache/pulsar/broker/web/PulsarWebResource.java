@@ -38,6 +38,7 @@ import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -709,6 +710,11 @@ public abstract class PulsarWebResource {
         if (!namespace.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
+        NamespaceName heartbeatNamespace = pulsarService.getHeartbeatNamespaceV2();
+        if (namespace.equals(heartbeatNamespace)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         final CompletableFuture<ClusterDataImpl> validationFuture = new CompletableFuture<>();
         final String localCluster = pulsarService.getConfiguration().getClusterName();
 
@@ -1055,4 +1061,13 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected Void handleCommonRestAsyncException(AsyncResponse asyncResponse, Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        if (realCause instanceof WebApplicationException) {
+            asyncResponse.resume(realCause);
+        } else {
+            asyncResponse.resume(new RestException(realCause));
+        }
+        return null;
+    }
 }

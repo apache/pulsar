@@ -126,6 +126,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -1352,6 +1353,10 @@ public class PersistentTopic extends AbstractTopic
     public CompletableFuture<Void> checkReplication() {
         TopicName name = TopicName.get(topic);
         if (!name.isGlobal()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        NamespaceName heartbeatNamespace = brokerService.pulsar().getHeartbeatNamespaceV2();
+        if (name.getNamespaceObject().equals(heartbeatNamespace)) {
             return CompletableFuture.completedFuture(null);
         }
 
