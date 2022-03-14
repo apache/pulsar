@@ -2145,6 +2145,28 @@ public class BrokerService implements Closeable {
                 }
             });
         });
+
+        //  add listener to notify broker managedLedgerCacheSizeMB dynamic config
+        registerConfigurationListener("managedLedgerCacheSizeMB", (managedLedgerCacheSizeMB) -> {
+            managedLedgerFactory.getEntryCacheManager()
+                    .updateCacheSizeAndThreshold(((int) managedLedgerCacheSizeMB) * 1024L * 1024L);
+        });
+
+        //  add listener to notify broker managedLedgerCacheEvictionWatermark dynamic config
+        registerConfigurationListener(
+                "managedLedgerCacheEvictionWatermark", (cacheEvictionWatermark) -> {
+            managedLedgerFactory.getEntryCacheManager()
+                    .updateCacheEvictionWatermark((double) cacheEvictionWatermark);
+        });
+
+        //  add listener to notify broker managedLedgerCacheEvictionTimeThresholdMillis dynamic config
+        registerConfigurationListener(
+                "managedLedgerCacheEvictionTimeThresholdMillis", (cacheEvictionTimeThresholdMills) -> {
+            managedLedgerFactory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+                    .toNanos((long) cacheEvictionTimeThresholdMills));
+        });
+
+
         // add listener to update message-dispatch-rate in msg for topic
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
             updateTopicMessageDispatchRate();
