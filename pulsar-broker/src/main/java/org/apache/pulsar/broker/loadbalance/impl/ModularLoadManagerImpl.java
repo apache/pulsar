@@ -24,6 +24,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BrokerData;
@@ -198,6 +200,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private long unloadBundleCount = 0;
 
     private final Lock lock = new ReentrantLock();
+    private Set<String> knownBrokers = new HashSet<>();
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -472,10 +475,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         if (log.isDebugEnabled()) {
             log.debug("Updating broker and bundle data for loadreport");
         }
+        cleanupDeadBrokersData();
         updateAllBrokerData();
         updateBundleData();
         // broker has latest load-report: check if any bundle requires split
         checkNamespaceBundleSplit();
+    }
+
+    private void cleanupDeadBrokersData() {
+        final Set<String> activeBrokers = getAvailableBrokers();
+        Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokers);
+        knownBrokers.addAll(newBrokers);
+        Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
+        knownBrokers.removeAll(deadBrokers);
+        if (pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader()) {
+            deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
+        }
     }
 
     // As the leader broker, update the broker data map in loadData by querying metadata store for the broker data put
@@ -1077,6 +1093,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 log.warn("Failed to delete bundle-data {} from metadata store", bundle, e);
             }
         }
+    }
+
+    private void deleteTimeAverageDataFromMetadataStoreAsync(String broker) {
+        final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
+        timeAverageBrokerDataCache.delete(timeAverageZPath).whenComplete((__, ex) -> {
+            if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
+                log.warn("Failed to delete dead broker {} time "
+                        + "average data from metadata store", broker, ex);
+            }
+        });
     }
 
     private void refreshBrokerToFailureDomainMap() {

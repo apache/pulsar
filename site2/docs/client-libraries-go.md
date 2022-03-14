@@ -16,7 +16,9 @@ You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to cr
 
 ### Install go package
 
-You can install the `pulsar` library locally using `go get`.  
+You can get the `pulsar` library by using `go get` or use it with `go module`.  
+
+Download the library of Go client to local environment:
 
 ```bash
 $ go get -u "github.com/apache/pulsar-client-go/pulsar"
@@ -26,6 +28,20 @@ Once installed locally, you can import it into your project:
 
 ```go
 import "github.com/apache/pulsar-client-go/pulsar"
+```
+
+Use with go module:
+
+```bash
+$ mkdir test_dir && cd test_dir 
+```
+Write a sample script in the `test_dir` directory (such as `test_example.go`) and write `package main` at the beginning of the file.
+
+```bash
+$ go mod init test_dir 
+$ go mod tidy && go mod download
+$ go build test_example.go
+$ ./test_example
 ```
 
 ## Connection URLs
