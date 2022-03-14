@@ -105,8 +105,8 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -244,7 +244,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     // packages management service
     private Optional<PackagesManagement> packagesManagement = Optional.empty();
-    private PrometheusMetricsServlet metricsServlet;
+    private PulsarPrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
     private MetadataStoreExtended localMetadataStore;
@@ -697,7 +697,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerAdditionalServlets = AdditionalServlets.load(config);
 
             this.webService = new WebService(this);
-            this.metricsServlet = new PrometheusMetricsServlet(
+            this.metricsServlet = new PulsarPrometheusMetricsServlet(
                     this, config.isExposeTopicLevelMetricsInPrometheus(),
                     config.isExposeConsumerLevelMetricsInPrometheus(),
                     config.isExposeProducerLevelMetricsInPrometheus(),
@@ -825,7 +825,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private void addWebServerHandlers(WebService webService,
-                                      PrometheusMetricsServlet metricsServlet,
+                                      PulsarPrometheusMetricsServlet metricsServlet,
                                       ServiceConfiguration config)
             throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {

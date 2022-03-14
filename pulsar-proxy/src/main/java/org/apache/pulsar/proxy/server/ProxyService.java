@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +55,7 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -133,6 +135,8 @@ public class ProxyService implements Closeable {
     private final Map<String, TopicStats> topicStats;
     @Getter
     private AdditionalServlets proxyAdditionalServlets;
+    @Getter
+    private List<PrometheusRawMetricsProvider> metricsProviders = new LinkedList<>();
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
@@ -412,6 +416,10 @@ public class ProxyService implements Closeable {
 
     public Authentication getProxyClientAuthenticationPlugin() {
         return this.proxyClientAuthentication;
+    }
+
+    public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+        metricsProviders.add(metricsProvider);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
