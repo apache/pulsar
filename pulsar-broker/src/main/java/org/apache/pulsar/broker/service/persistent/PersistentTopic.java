@@ -1415,34 +1415,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         messageDeduplication.purgeInactiveProducers();
     }
 
-    public CompletableFuture<Boolean> isCompactionEnabled() {
-        Optional<Long> topicCompactionThreshold = getTopicPolicies()
-                .map(TopicPolicies::getCompactionThreshold);
-        if (topicCompactionThreshold.isPresent() && topicCompactionThreshold.get() > 0) {
-            return CompletableFuture.completedFuture(true);
-        }
-
-        TopicName topicName = TopicName.get(topic);
-        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(topicName.getNamespaceObject())
-                .thenApply(policies -> {
-                    if (policies.isPresent()) {
-                        return policies.get().compaction_threshold != null
-                                && policies.get().compaction_threshold > 0;
-                    } else {
-                        // Check broker default
-                        return brokerService.pulsar().getConfiguration()
-                                .getBrokerServiceCompactionThresholdInBytes() > 0;
-                    }
-                });
+    public boolean isCompactionEnabled() {
+        Long compactionThreshold = topicPolicies.getCompactionThreshold().get();
+        return compactionThreshold != null && compactionThreshold > 0;
     }
 
     public void checkCompaction() {
         TopicName name = TopicName.get(topic);
         try {
             long compactionThreshold = topicPolicies.getCompactionThreshold().get();
-            if (isSystemTopic() || compactionThreshold != 0
-                && currentCompaction.isDone()) {
+            if (isCompactionEnabled() && currentCompaction.isDone()) {
 
                 long backlogEstimate = 0;
 
@@ -1480,17 +1462,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         return isCompactionEnabled()
-                .thenCompose(enabled -> {
-                    if (enabled) {
-                        // If a topic has a compaction policy setup, we must make sure that the compaction cursor
-                        // is pre-created, in order to ensure all the data will be seen by the compactor.
-                        return createSubscription(COMPACTION_SUBSCRIPTION,
-                                        CommandSubscribe.InitialPosition.Earliest, false)
-                                .thenCompose(__ -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+                // If a topic has a compaction policy setup, we must make sure that the compaction cursor
+                // is pre-created, in order to ensure all the data will be seen by the compactor.
+                ? createSubscription(COMPACTION_SUBSCRIPTION, CommandSubscribe.InitialPosition.Earliest, false)
+                        .thenCompose(__ -> CompletableFuture.completedFuture(null))
+                : CompletableFuture.completedFuture(null);
     }
 
     CompletableFuture<Void> startReplicator(String remoteCluster) {
