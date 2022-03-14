@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
@@ -136,7 +137,8 @@ public class ProxyService implements Closeable {
     @Getter
     private AdditionalServlets proxyAdditionalServlets;
     @Getter
-    private List<PrometheusRawMetricsProvider> metricsProviders = new LinkedList<>();
+    private PrometheusMetricsServlet metricsServlet;
+    private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
@@ -254,6 +256,12 @@ public class ProxyService implements Closeable {
             this.serviceUrlTls = null;
         }
 
+        this.metricsServlet = new PrometheusMetricsServlet(-1L, proxyConfig.getClusterName());
+        if (pendingMetricsProviders != null) {
+            pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+            this.pendingMetricsProviders = null;
+        }
+
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
         // so that the protocol handlers can access broker service properly.
@@ -339,6 +347,8 @@ public class ProxyService implements Closeable {
             proxyAdditionalServlets = null;
         }
 
+        metricsServlet = null;
+
         if (localMetadataStore != null) {
             try {
                 localMetadataStore.close();
@@ -419,7 +429,14 @@ public class ProxyService implements Closeable {
     }
 
     public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
-        metricsProviders.add(metricsProvider);
+        if (metricsServlet == null) {
+            if (pendingMetricsProviders == null) {
+                pendingMetricsProviders = new LinkedList<>();
+            }
+            pendingMetricsProviders.add(metricsProvider);
+        } else {
+            this.metricsServlet.addRawMetricsProvider(metricsProvider);
+        }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
