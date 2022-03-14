@@ -952,6 +952,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.cacheEvictionTimeThresholdNanos = cacheEvictionTimeThresholdNanos;
     }
 
+    @Override
+    public long getCacheEvictionTimeThresholdNanos(){
+        return cacheEvictionTimeThresholdNanos;
+    }
+
     public ManagedLedgerFactoryMXBean getCacheStats() {
         return this.mbean;
     }

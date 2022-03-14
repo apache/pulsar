@@ -93,7 +93,7 @@ public class EntryCacheManager {
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
     }
 
-    public void updateCacheEvictionWatermark(double cacheEvictionWatermark){
+    public void updateCacheEvictionWatermark(double cacheEvictionWatermark) {
         this.cacheEvictionWatermark = cacheEvictionWatermark;
     }
 
@@ -156,6 +156,10 @@ public class EntryCacheManager {
 
     public long getMaxSize() {
         return maxSize;
+    }
+
+    public double getCacheEvictionWatermark() {
+        return cacheEvictionWatermark;
     }
 
     public void clear() {

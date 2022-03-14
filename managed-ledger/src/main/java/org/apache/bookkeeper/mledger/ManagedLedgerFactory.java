@@ -191,4 +191,10 @@ public interface ManagedLedgerFactory {
      * @param cacheEvictionTimeThresholdNanos time threshold for eviction.
      */
     void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
+
+    /**
+     * @return time threshold for eviction.
+     * */
+    long getCacheEvictionTimeThresholdNanos();
+
 }
