@@ -73,7 +73,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf, int numPartitions,
             CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema, ProducerInterceptors interceptors) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
-        this.producers = new ConcurrentOpenHashMap<>();
+        this.producers =
+                ConcurrentOpenHashMap.<Integer, ProducerImpl<T>>newBuilder().build();
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStatsRecorderImpl() : null;

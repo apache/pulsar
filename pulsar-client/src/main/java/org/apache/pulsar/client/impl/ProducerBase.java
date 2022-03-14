@@ -53,7 +53,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         this.conf = conf;
         this.schema = schema;
         this.interceptors = interceptors;
-        this.schemaCache = new ConcurrentOpenHashMap<>();
+        this.schemaCache =
+                ConcurrentOpenHashMap.<SchemaHash, byte[]>newBuilder().build();
         if (!conf.isMultiSchema()) {
             multiSchemaMode = MultiSchemaMode.Disabled;
         }
