@@ -55,6 +55,8 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.util.Codec;
 
 public class NamespacesImpl extends BaseResource implements Namespaces {
 
@@ -1105,20 +1107,67 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void splitNamespaceBundle(
-            String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName)
-            throws PulsarAdminException {
-        sync(() -> splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName));
+    public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
+                                     String splitAlgorithmName) throws PulsarAdminException {
+        splitNamespaceBundle(namespace, bundle, unloadSplitBundles, splitAlgorithmName, null);
     }
 
     @Override
-    public CompletableFuture<Void> splitNamespaceBundleAsync(
-            String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName) {
+    public CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle,
+                                                             boolean unloadSplitBundles, String splitAlgorithmName) {
+        return splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName, null);
+    }
+
+    @Override
+    public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
+            String splitAlgorithmName, List<Long> splitBoundaries)
+            throws PulsarAdminException {
+        sync(() ->
+                splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName, splitBoundaries));
+    }
+
+    @Override
+    public CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle,
+                                                             boolean unloadSplitBundles, String splitAlgorithmName,
+                                                             List<Long> splitBoundaries) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle, "split")
                 .queryParam("unload", Boolean.toString(unloadSplitBundles))
                 .queryParam("splitAlgorithmName", splitAlgorithmName);
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+
+        return (splitBoundaries == null || splitBoundaries.size() == 0)
+                ? asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON))
+                : asyncPutRequest(path, Entity.entity(splitBoundaries, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public TopicHashPositions getTopicHashPositions(String namespace, String bundle, List<String> topics)
+            throws PulsarAdminException {
+        return sync(() -> getTopicHashPositionsAsync(namespace, bundle, topics));
+    }
+
+    @Override
+    public CompletableFuture<TopicHashPositions>
+    getTopicHashPositionsAsync(String namespace, String bundle, List<String> topics) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle, "topicHashPositions");
+        if (topics != null && topics.size() > 0) {
+            path = path.queryParam("topics", topics.stream().map(Codec::encode).toArray());
+        }
+        final CompletableFuture<TopicHashPositions> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<TopicHashPositions>() {
+                    @Override
+                    public void completed(TopicHashPositions topicHashPositions) {
+                        future.complete(topicHashPositions);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override

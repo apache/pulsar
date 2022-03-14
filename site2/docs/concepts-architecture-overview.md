@@ -125,7 +125,7 @@ The **Pulsar proxy** provides a solution to this problem by acting as a single g
 
 > For the sake of performance and fault tolerance, you can run as many instances of the Pulsar proxy as you'd like.
 
-Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and instance-wide configuration store clusters. Here's an example:
+Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide metadata store connection strings for the cluster-specific and instance-wide configuration store clusters. Here's an example:
 
 ```bash
 $ cd /path/to/pulsar/directory

@@ -1,4 +1,26 @@
 module.exports = {
+  books: [
+    {
+      book: 'Apache Pulsar in Action',
+      author: "David Kjerrumgaard",
+      link: 'https://www.manning.com/books/apache-pulsar-in-action/'      
+    },
+    {
+      book: 'Mastering Apache Pulsar',
+      author: "Jowanza Joseph",
+      link: 'https://www.oreilly.com/library/view/mastering-apache-pulsar/9781492084891/'      
+    },
+    {
+      book: 'Cloud-Native Microservices with Apache Pulsar',
+      author: "Rahul Sharma, Mohammad Atyab",
+      link: 'https://link.springer.com/book/10.1007/978-1-4842-7839-0'      
+    },
+    {
+      book: '深入解析 Apache Pulsar（Chinese Book, which means "Deep Dive into Apache Pulsar")',
+      author: "Lin Lin",
+      link: 'https://www.phei.com.cn/module/goods/wssd_content.jsp?bookid=59310'      
+    }
+  ],
   articles: [
   {
       forum: 'Pedro Silvestre',
