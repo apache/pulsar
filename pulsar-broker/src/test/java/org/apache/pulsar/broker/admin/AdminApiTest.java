@@ -515,7 +515,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
         assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
                 .toNanos(2000));
-
     }
 
     /**
