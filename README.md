@@ -297,6 +297,10 @@ Pulsar slack channel at https://apache-pulsar.slack.com/
 
 You can self-register at https://apache-pulsar.herokuapp.com/
 
+##### Report a security vulnerability
+
+To report a vulnerability for Pulsar, contact the [Apache Security Team](https://www.apache.org/security/). When reporting a vulnerability to [security@apache.org](mailto:security@apache.org), you can copy your email to [private@pulsar.apache.org](mailto:private@pulsar.apache.org) to send your report to the Apache Pulsar Project Management Committee. This is a private mailing list.
+
 ## License
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0

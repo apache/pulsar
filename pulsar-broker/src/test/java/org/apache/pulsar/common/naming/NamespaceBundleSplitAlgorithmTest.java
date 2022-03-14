@@ -20,6 +20,7 @@ package org.apache.pulsar.common.naming;
 
 
 import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME;
+import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE;
 import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -37,5 +38,7 @@ public class NamespaceBundleSplitAlgorithmTest {
         Assert.assertTrue(rangeEquallyDivideName instanceof RangeEquallyDivideBundleSplitAlgorithm);
         NamespaceBundleSplitAlgorithm topicCountEquallyDivide = NamespaceBundleSplitAlgorithm.of(TOPIC_COUNT_EQUALLY_DIVIDE);
         Assert.assertTrue(topicCountEquallyDivide instanceof TopicCountEquallyDivideBundleSplitAlgorithm);
+        NamespaceBundleSplitAlgorithm specifiedTopicCountEquallyDivide = NamespaceBundleSplitAlgorithm.of(SPECIFIED_POSITIONS_DIVIDE);
+        Assert.assertTrue(specifiedTopicCountEquallyDivide instanceof SpecifiedPositionsBundleSplitAlgorithm);
     }
 }

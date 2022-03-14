@@ -108,6 +108,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Optional<Semaphore> semaphore;
     private volatile Timeout sendTimeout = null;
     private final long lookupDeadline;
+    private int chunkMaxMessageSize;
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> PRODUCER_DEADLINE_UPDATER = AtomicLongFieldUpdater
@@ -170,6 +171,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.userProvidedProducerName = StringUtils.isNotBlank(producerName);
         this.partitionIndex = partitionIndex;
         this.pendingMessages = createPendingMessagesQueue();
+        this.chunkMaxMessageSize = conf.getChunkMaxMessageSize() > 0
+                ? Math.min(conf.getChunkMaxMessageSize(), ClientCnx.getMaxMessageSize())
+                : ClientCnx.getMaxMessageSize();
         if (conf.getMaxPendingMessages() > 0) {
             this.semaphore = Optional.of(new Semaphore(conf.getMaxPendingMessages(), true));
         } else {
@@ -494,6 +498,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 compressedPayload.release();
                 return;
             }
+            payloadChunkSize = Math.min(chunkMaxMessageSize, payloadChunkSize);
             totalChunks = MathUtils.ceilDiv(Math.max(1, compressedPayload.readableBytes()), payloadChunkSize);
         }
 
@@ -1547,6 +1552,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @Override
     public void connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
+        chunkMaxMessageSize = Math.min(chunkMaxMessageSize, ClientCnx.getMaxMessageSize());
 
         final long epoch;
         synchronized (this) {
