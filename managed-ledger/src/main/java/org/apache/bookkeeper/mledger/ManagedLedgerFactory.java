@@ -182,7 +182,7 @@ public interface ManagedLedgerFactory {
 
     /**
      * @return return EntryCacheManager
-     * */
+     */
     EntryCacheManager getEntryCacheManager();
 
     /**
@@ -196,6 +196,6 @@ public interface ManagedLedgerFactory {
      * update cache evictionTimeThreshold
      *
      * @param cacheEvictionTimeThresholdNanos time threshold for eviction
-     * */
+     */
     void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
 }
