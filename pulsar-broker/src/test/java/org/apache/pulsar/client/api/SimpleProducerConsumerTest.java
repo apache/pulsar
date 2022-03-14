@@ -87,6 +87,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -615,6 +616,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         TopicName topicName = TopicName.get("persistent://my-property/my-ns/sendTimeoutAndRecover-1");
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-subscriber-name").subscribe();
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
@@ -625,10 +627,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerBuilder.batchingMaxMessages(5);
         }
+
+        @Cleanup
         PartitionedProducerImpl<byte[]> partitionedProducer =
                 (PartitionedProducerImpl<byte[]>) producerBuilder.create();
         final String message = "my-message";
-
         // 1. Trigger the send timeout
         stopBroker();
 
@@ -679,7 +682,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertNotNull(msg);
         Assert.assertEquals(new String(msg.getData()), message);
 
-        consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
 

@@ -55,8 +55,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
@@ -944,7 +944,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private static final class LastSendFutureWrapper {
         private final CompletableFuture<MessageId> lastSendFuture;
-        private final AtomicBoolean throwOnce = new AtomicBoolean(false);
+        private static final int FALSE = 0;
+        private static final int TRUE = 1;
+        private static final AtomicIntegerFieldUpdater<LastSendFutureWrapper> THROW_ONCE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(LastSendFutureWrapper.class, "throwOnce");
+        private volatile int throwOnce = FALSE;
+
         private LastSendFutureWrapper(CompletableFuture<MessageId> lastSendFuture) {
             this.lastSendFuture = lastSendFuture;
         }
@@ -953,7 +958,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         public CompletableFuture<Void> handleOnce() {
             return lastSendFuture.handle((ignore, t) -> {
-                if (t != null && throwOnce.compareAndSet(false, true)) {
+                if (t != null && THROW_ONCE_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                     throw FutureUtil.wrapToCompletionException(t);
                 }
                 return null;
@@ -2240,8 +2245,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return errorState;
     }
 
-    @Override
-    public CompletableFuture<Void> getOriginalLastSendFuture() {
+    @VisibleForTesting
+    CompletableFuture<Void> getOriginalLastSendFuture() {
         CompletableFuture<MessageId> lastSendFuture = this.lastSendFuture;
         return lastSendFuture.thenApply(ignore -> null);
     }
