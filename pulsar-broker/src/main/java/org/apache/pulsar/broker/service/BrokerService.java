@@ -1392,44 +1392,40 @@ public class BrokerService implements Closeable {
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
-                                CompletableFuture<Void> preCreateSubForCompaction =
-                                        persistentTopic.preCreateSubscriptionForCompactionIfNeeded();
-                                CompletableFuture<Void> replicationFuture = persistentTopic
+                                persistentTopic
                                         .initialize()
-                                        .thenCompose(__ -> persistentTopic.checkReplication());
-
-                                CompletableFuture.allOf(preCreateSubForCompaction, replicationFuture)
-                                .thenCompose(v -> {
-                                    // Also check dedup status
-                                    return persistentTopic.checkDeduplicationStatus();
-                                }).thenRun(() -> {
-                                    log.info("Created topic {} - dedup is {}", topic,
+                                        .thenCompose(__ -> persistentTopic.preCreateSubscriptionForCompactionIfNeeded())
+                                        .thenCompose(__ -> persistentTopic.checkReplication())
+                                        .thenCompose(v -> {
+                                            // Also check dedup status
+                                            return persistentTopic.checkDeduplicationStatus();
+                                        })
+                                        .thenRun(() -> {
+                                            log.info("Created topic {} - dedup is {}", topic,
                                             persistentTopic.isDeduplicationEnabled() ? "enabled" : "disabled");
-                                    long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
-                                            - topicCreateTimeMs;
-                                    pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-                                    if (topicFuture.isCompletedExceptionally()) {
-                                        log.warn("{} future is already completed with failure {}, closing the topic",
-                                                topic, FutureUtil.getException(topicFuture));
-                                        persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                            topics.remove(topic, topicFuture);
+                                            long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
+                                                                        - topicCreateTimeMs;
+                                            pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
+                                            if (topicFuture.isCompletedExceptionally()) {
+                                                log.warn("{} future is already completed with failure {}, closing the"
+                                                        + " topic", topic, FutureUtil.getException(topicFuture));
+                                                persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                                                    topics.remove(topic, topicFuture);
+                                                });
+                                            } else {
+                                                addTopicToStatsMaps(topicName, persistentTopic);
+                                                topicFuture.complete(Optional.of(persistentTopic));
+                                            }
+                                        })
+                                        .exceptionally((ex) -> {
+                                            log.warn("Replication or dedup check failed."
+                                                    + " Removing topic from topics list {}, {}", topic, ex);
+                                            persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                                                topics.remove(topic, topicFuture);
+                                                topicFuture.completeExceptionally(ex);
+                                            });
+                                            return null;
                                         });
-                                    } else {
-                                        addTopicToStatsMaps(topicName, persistentTopic);
-                                        topicFuture.complete(Optional.of(persistentTopic));
-                                    }
-                                }).exceptionally((ex) -> {
-                                    log.warn(
-                                            "Replication or dedup check failed."
-                                                    + " Removing topic from topics list {}, {}",
-                                            topic, ex);
-                                    persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                        topics.remove(topic, topicFuture);
-                                        topicFuture.completeExceptionally(ex);
-                                    });
-
-                                    return null;
-                                });
                             } catch (PulsarServerException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
