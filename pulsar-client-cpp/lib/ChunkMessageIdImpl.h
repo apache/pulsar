@@ -29,7 +29,7 @@ class MessageIdImpl;
 
 class ChunkMessageIdImpl : public MessageIdImpl, public std::enable_shared_from_this<ChunkMessageIdImpl> {
    public:
-    ChunkMessageIdImpl(MessageIdImpl& firstChunkMsgId, MessageIdImpl& lastChunkMsgId)
+    ChunkMessageIdImpl(const MessageIdImpl& firstChunkMsgId, const MessageIdImpl& lastChunkMsgId)
         : MessageIdImpl(lastChunkMsgId.partition_, lastChunkMsgId.ledgerId_, lastChunkMsgId.entryId_,
                         lastChunkMsgId.batchIndex_) {
         firstChunkMsgId_ =
