@@ -953,7 +953,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public long getCacheEvictionTimeThresholdNanos(){
+    public long getCacheEvictionTimeThreshold(){
         return cacheEvictionTimeThresholdNanos;
     }
 

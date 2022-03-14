@@ -503,22 +503,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration("managedLedgerCacheEvictionTimeThresholdMillis", "2000");
 
         // wait config to be updated
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize() != 1 * 1024L * 1024L
-                    || pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark() != 0.8
-                    || pulsar.getManagedLedgerFactory().getCacheEvictionTimeThresholdNanos() != TimeUnit.MILLISECONDS
-                    .toNanos(2000)) {
-                Thread.sleep(100 + (i * 10));
-            } else {
-                break;
-            }
-        }
-
+        Awaitility.await().until(() -> {
+            return pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize() == 1 * 1024L * 1024L
+                    && pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark() == 0.8
+                    && pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold() == TimeUnit.MILLISECONDS
+                    .toNanos(2000);
+        });
 
         // verify value is updated
         assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
         assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
-        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThresholdNanos(), TimeUnit.MILLISECONDS
+        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
                 .toNanos(2000));
 
     }

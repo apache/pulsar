@@ -195,6 +195,6 @@ public interface ManagedLedgerFactory {
     /**
      * @return time threshold for eviction.
      * */
-    long getCacheEvictionTimeThresholdNanos();
+    long getCacheEvictionTimeThreshold();
 
 }
