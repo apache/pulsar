@@ -48,7 +48,8 @@ MessageId::MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32
     : impl_(std::make_shared<MessageIdImpl>(partition, ledgerId, entryId, batchIndex)) {}
 
 MessageId::MessageId(const MessageId& firstMessageId, const MessageId& lastMessageId) {
-    auto firstImpl = firstMessageId.impl_, lastImpl = lastMessageId.impl_;
+    auto firstImpl = firstMessageId.impl_;
+    auto lastImpl = lastMessageId.impl_;
     impl_ = std::make_shared<ChunkMessageIdImpl>(
                 firstImpl->partition_, firstImpl->ledgerId_, firstImpl->entryId_, firstImpl->batchIndex_,
                 lastImpl->partition_, lastImpl->ledgerId_, lastImpl->entryId_, lastImpl->batchIndex_)

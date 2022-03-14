@@ -70,8 +70,7 @@ Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metad
     impl_->payload = payload;
 }
 
-Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
-                 int32_t partition)
+Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload)
     : impl_(std::make_shared<MessageImpl>()) {
     impl_->messageId = messageID;
     impl_->metadata = metadata;

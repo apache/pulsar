@@ -441,7 +441,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     }
     Message m;
     if (chunkMessageId) {
-        m = Message(*chunkMessageId, metadata, payload, partitionIndex_);
+        m = Message(*chunkMessageId, metadata, payload);
     } else {
         m = Message(msg, metadata, payload, partitionIndex_);
     }
