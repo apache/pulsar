@@ -35,14 +35,16 @@ class ProducerChunkedMessageCtx {
    public:
     ProducerChunkedMessageCtx() = default;
 
-    ProducerChunkedMessageCtx(const MessageIdImplPtr firstChunkMessageId, const MessageIdImplPtr lastChunkMessageId)
+    ProducerChunkedMessageCtx(const MessageIdImplPtr firstChunkMessageId,
+                              const MessageIdImplPtr lastChunkMessageId)
         : firstChunkMessageIdImplPtr_(firstChunkMessageId), lastChunkMessageIdImplPtr_(lastChunkMessageId) {}
 
     MessageIdImplPtr getChunkMessageId() {
         return std::make_shared<ChunkMessageIdImpl>(*firstChunkMessageIdImplPtr_, *lastChunkMessageIdImplPtr_)
             ->getLastChunkMessageIdImpl();
     }
-private:
+
+   private:
     friend class ProducerImpl;
     MessageIdImplPtr firstChunkMessageIdImplPtr_;
     MessageIdImplPtr lastChunkMessageIdImplPtr_;

@@ -141,8 +141,7 @@ TEST_F(MessageChunkingTest, testSeek) {
     ProducerConfiguration conf;
     conf.setBatchingEnabled(false);
     conf.setChunkingEnabled(true);
-    const std::string topic =
-        "MessageChunkingTest-TestSeek-" + std::to_string(time(nullptr));
+    const std::string topic = "MessageChunkingTest-TestSeek-" + std::to_string(time(nullptr));
     Consumer consumer;
     client.subscribe(topic, "my-sub", consumer);
     Producer producer;

@@ -113,13 +113,13 @@ PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const pulsar::MessageId&
             s << '(' << impl->ledgerId_ << ',' << impl->entryId_ << ',' << impl->partition_ << ','
               << impl->batchIndex_ << ')';
         };
-    if (messageId.isChunkMessageid() == false) {
-        printMsgIdImpl(s, messageId.impl_);
-    } else {
-        auto firstMessageidImplPtr =
-            std::dynamic_pointer_cast<ChunkMessageIdImpl>(messageId.impl_)->getFirstChunkMessageIdImpl();
+    auto firstMessageidImplPtr =
+        std::dynamic_pointer_cast<ChunkMessageIdImpl>(messageId.impl_)->getFirstChunkMessageIdImpl();
+    if (firstMessageidImplPtr) {
         printMsgIdImpl(s, firstMessageidImplPtr);
         s << "->";
+        printMsgIdImpl(s, messageId.impl_);
+    } else {
         printMsgIdImpl(s, messageId.impl_);
     }
     return s;
