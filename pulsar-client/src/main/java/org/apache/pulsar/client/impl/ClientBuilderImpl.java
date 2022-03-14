@@ -312,8 +312,9 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol) {
-        checkArgument(StringUtils.isBlank(proxyServiceUrl) || proxyProtocol != null,
-                "proxyProtocol must be present with proxyServiceUrl");
+        if (StringUtils.isNotBlank(proxyServiceUrl)) {
+            checkArgument(proxyProtocol != null, "proxyProtocol must be present with proxyServiceUrl");
+        }
         conf.setProxyServiceUrl(proxyServiceUrl);
         conf.setProxyProtocol(proxyProtocol);
         return this;
