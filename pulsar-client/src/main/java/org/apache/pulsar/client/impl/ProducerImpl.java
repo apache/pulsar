@@ -638,8 +638,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         if (isBatchFull) {
                             batchMessageAndSend(false);
                         } else {
-                            // todo make it possible to skip the triggering!
-                            // user can call `flush` themselves
                             maybeScheduleBatchFlushTask();
                         }
                     }
