@@ -67,10 +67,7 @@ const MessageId& MessageId::latest() {
 }
 
 bool MessageId::isChunkMessageid() const {
-    if (std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_) != nullptr) {
-        return true;
-    }
-    return false;
+    return std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_) != nullptr;
 }
 
 void MessageId::serialize(std::string& result) const {
