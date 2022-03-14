@@ -32,7 +32,6 @@
 #include "stats/ProducerStatsImpl.h"
 #include "PulsarApi.pb.h"
 #include "OpSendMsg.h"
-#include "BatchMessageContainerBase.h"
 #include "PendingFailures.h"
 #include "Semaphore.h"
 #include "ChunkMessageIdImpl.h"
@@ -49,6 +48,7 @@ class PulsarFriend;
 class Producer;
 class MemoryLimitController;
 class TopicName;
+class BatchMessageContainerBase;
 
 class ProducerImpl : public HandlerBase,
                      public std::enable_shared_from_this<ProducerImpl>,

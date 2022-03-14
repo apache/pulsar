@@ -26,21 +26,24 @@
 #include "TimeUtils.h"
 #include "MessageImpl.h"
 #include "ChunkMessageIdImpl.h"
+#include "ProducerImpl.h"
 
 namespace pulsar {
 
-struct ProducerChunkedMessageCtx {
+class ProducerImpl;
+class ProducerChunkedMessageCtx {
    public:
     ProducerChunkedMessageCtx() = default;
 
-    ProducerChunkedMessageCtx(MessageIdImplPtr firstChunkMessageId, MessageIdImplPtr lastChunkMessageId)
+    ProducerChunkedMessageCtx(const MessageIdImplPtr firstChunkMessageId, const MessageIdImplPtr lastChunkMessageId)
         : firstChunkMessageIdImplPtr_(firstChunkMessageId), lastChunkMessageIdImplPtr_(lastChunkMessageId) {}
 
     MessageIdImplPtr getChunkMessageId() {
         return std::make_shared<ChunkMessageIdImpl>(*firstChunkMessageIdImplPtr_, *lastChunkMessageIdImplPtr_)
             ->getLastChunkMessageIdImpl();
     }
-
+private:
+    friend class ProducerImpl;
     MessageIdImplPtr firstChunkMessageIdImplPtr_;
     MessageIdImplPtr lastChunkMessageIdImplPtr_;
 };
