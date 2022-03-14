@@ -135,3 +135,39 @@ TEST_P(MessageChunkingTest, testEndToEnd) {
 INSTANTIATE_TEST_CASE_P(Pulsar, MessageChunkingTest,
                         ::testing::Values(CompressionNone, CompressionLZ4, CompressionZLib, CompressionZSTD,
                                           CompressionSNAPPY));
+
+TEST_F(MessageChunkingTest, testSeek) {
+    Client client(lookupUrl);
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(false);
+    conf.setChunkingEnabled(true);
+    const std::string topic =
+        "MessageChunkingTest-TestSeek-" + std::to_string(time(nullptr));
+    Consumer consumer;
+    client.subscribe(topic, "my-sub", consumer);
+    Producer producer;
+    client.createProducer(topic, conf, producer);
+
+    constexpr int numMessages = 20;
+    const string largeMessage = createLargeMessage();
+    std::vector<MessageId> receiveMessageIds;
+    for (int i = 0; i < numMessages; i++) {
+        MessageId messageId;
+        ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(largeMessage).build(), messageId));
+        LOG_INFO("Send " << i << " to " << messageId);
+    }
+
+    Message msg;
+    for (int i = 0; i < numMessages; i++) {
+        consumer.receive(msg, 3000);
+        receiveMessageIds.push_back(msg.getMessageId());
+    }
+
+    consumer.seek(receiveMessageIds[1]);
+    for (int i = 1; i < numMessages; i++) {
+        consumer.receive(msg, 3000);
+        LOG_INFO("Receive " << i << " to " << msg.getMessageId());
+        ASSERT_EQ(receiveMessageIds[i], msg.getMessageId());
+    }
+    client.close();
+}

@@ -38,10 +38,10 @@ TEST(ChunkMessageIdImplTest, testSerialization) {
 }
 
 TEST(ChunkMessageIdImplTest, testCompareLedgerAndEntryId) {
-    MessageId id1(MessageId(1, 1, 1, 1), MessageId(-1, 2L, 1L, 0));
-    MessageId id2(MessageId(1, 1, 1, 1), MessageId(-1, 2L, 1L, 1));
-    MessageId id3(MessageId(1, 1, 1, 1), MessageId(-1, 2L, 2L, 0));
-    MessageId id4(MessageId(1, 1, 1, 1), MessageId(-1, 3L, 0L, 0));
+    MessageId id1(MessageId(1, 1, 1, 1), MessageId(-1, 2, 1, 0));
+    MessageId id2(MessageId(1, 1, 1, 1), MessageId(-1, 2, 1, 1));
+    MessageId id3(MessageId(1, 1, 1, 1), MessageId(-1, 2, 2, 0));
+    MessageId id4(MessageId(1, 1, 1, 1), MessageId(-1, 3, 0, 0));
     ASSERT_EQ(compareLedgerAndEntryId(id1, id2), 0);
     ASSERT_EQ(compareLedgerAndEntryId(id1, id2), 0);
 
