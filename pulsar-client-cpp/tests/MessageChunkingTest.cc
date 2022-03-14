@@ -169,5 +169,7 @@ TEST_F(MessageChunkingTest, testSeek) {
         LOG_INFO("Receive " << i << " to " << msg.getMessageId());
         ASSERT_EQ(receiveMessageIds[i], msg.getMessageId());
     }
+    consumer.close();
+    producer.close();
     client.close();
 }
