@@ -290,4 +290,6 @@ public interface ReaderBuilder<T> extends Cloneable {
      * memory corruption, deserialization error, etc.).
      */
     ReaderBuilder<T> poolMessages(boolean poolMessages);
+
+    ReaderBuilder<T> intercept(List<ReaderInterceptor<T>> readerInterceptorList);
 }

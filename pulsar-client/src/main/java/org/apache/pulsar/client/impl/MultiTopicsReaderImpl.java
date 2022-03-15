@@ -101,8 +101,15 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                             .ranges(readerConfiguration.getKeyHashRanges())
             );
         }
+
+        ConsumerInterceptors<T> consumerInterceptors = null;
+        if (readerConfiguration.getReaderInterceptorList() != null) {
+            consumerInterceptors = new ReaderInterceptors<>(this, readerConfiguration.getReaderInterceptorList())
+                    .convertToConsumerInterceptor();
+        }
+
         multiTopicsConsumer = new MultiTopicsConsumerImpl<>(client, consumerConfiguration, executorProvider,
-                consumerFuture, schema,  null, true,
+                consumerFuture, schema,  consumerInterceptors, true,
                 readerConfiguration.getStartMessageId(),
                 readerConfiguration.getStartMessageFromRollbackDurationInSec());
     }

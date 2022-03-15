@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -229,4 +230,13 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         conf.setPoolMessages(poolMessages);
         return this;
     }
+
+    @Override
+    public ReaderBuilder<T> intercept(List<ReaderInterceptor<T>> readerInterceptorList) {
+        if (readerInterceptorList != null) {
+            this.conf.setReaderInterceptorList(readerInterceptorList);
+        }
+        return this;
+    }
+
 }

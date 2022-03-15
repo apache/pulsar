@@ -28,7 +28,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
@@ -734,4 +737,66 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
     }
+
+    @Test
+    public void testReaderInterceptor() throws Exception {
+
+        ReaderInterceptor<byte[]> readerInterceptor1 = new ReaderInterceptor<byte[]>() {
+            @Override
+            public void close() {
+                log.info("close reader interceptor1");
+            }
+
+            @Override
+            public Message<byte[]> beforeRead(Reader<byte[]> reader, Message<byte[]> message) {
+                log.info("reader interceptor 1 beforeRead");
+                return message;
+            }
+
+            @Override
+            public void onPartitionsChange(String topicName, int partitions) {
+
+            }
+        };
+
+        ReaderInterceptor<byte[]> readerInterceptor2 = new ReaderInterceptor<byte[]>() {
+            @Override
+            public void close() {
+                log.info("close reader interceptor2");
+            }
+
+            @Override
+            public Message<byte[]> beforeRead(Reader<byte[]> reader, Message<byte[]> message) {
+                log.info("reader interceptor 2 beforeRead");
+                return message;
+            }
+
+            @Override
+            public void onPartitionsChange(String topicName, int partitions) {
+
+            }
+        };
+
+        String topic = "reader-interceptor-test-" + RandomStringUtils.randomAlphabetic(5);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .intercept(Lists.newArrayList(readerInterceptor1, readerInterceptor2))
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().value(("msg - " + i).getBytes()).send();
+        }
+
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> message = reader.readNext();
+        }
+    }
+
 }

@@ -114,11 +114,17 @@ public class ReaderImpl<T> implements Reader<T> {
             );
         }
 
+        ConsumerInterceptors<T> consumerInterceptors = null;
+        if (readerConfiguration.getReaderInterceptorList() != null) {
+            consumerInterceptors = new ReaderInterceptors<T>(this, readerConfiguration.getReaderInterceptorList())
+                    .convertToConsumerInterceptor();
+        }
+
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration,
                 executorProvider, partitionIdx, false, consumerFuture,
                 readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec(),
-                schema, null, true /* createTopicIfDoesNotExist */);
+                schema, consumerInterceptors, true /* createTopicIfDoesNotExist */);
     }
 
     @Override
