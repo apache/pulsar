@@ -105,12 +105,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The service url points to the broker cluster"
+        doc = "The service url points to the broker cluster. URL must have the pulsar:// prefix."
     )
     private String brokerServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls service url points to the broker cluster"
+        doc = "The tls service url points to the broker cluster. URL must have the pulsar+ssl:// prefix."
     )
     private String brokerServiceURLTLS;
 

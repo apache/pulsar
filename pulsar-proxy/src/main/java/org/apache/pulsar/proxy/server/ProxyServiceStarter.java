@@ -136,6 +136,16 @@ public class ProxyServiceStarter {
                 config.setConfigurationStoreServers(configurationStoreServers);
             }
 
+            if (isNotBlank(config.getBrokerServiceURL())) {
+                checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
+                        "brokerServiceURL must start with pulsar://");
+            }
+
+            if (isNotBlank(config.getBrokerServiceURLTLS())) {
+                checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
+                        "brokerServiceURLTLS must start with pulsar+ssl://");
+            }
+
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                     || config.isAuthorizationEnabled()) {
                 checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
