@@ -1813,7 +1813,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.addEntry("data".getBytes());
         
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+            assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+            assertEquals(ledger.getState(), ManagedLedgerImpl.State.ClosedLedger);
         });   
     }
 
@@ -3127,12 +3128,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger
-        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
         ledger.rollCurrentLedgerIfFull();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1));
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getTotalSize(), 0));
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(ledger.getState(), ManagedLedgerImpl.State.ClosedLedger));
     }
 
     @Test
