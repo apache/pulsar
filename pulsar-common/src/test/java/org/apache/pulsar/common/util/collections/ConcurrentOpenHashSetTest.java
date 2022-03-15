@@ -92,23 +92,43 @@ public class ConcurrentOpenHashSetTest {
     }
 
     @Test
+    public void testReduceUnnecessaryExpansions() {
+        ConcurrentOpenHashSet<String> set =
+                ConcurrentOpenHashSet.<String>newBuilder()
+                        .expectedItems(2)
+                        .concurrencyLevel(1)
+                        .build();
+
+        assertTrue(set.add("1"));
+        assertTrue(set.add("2"));
+        assertTrue(set.add("3"));
+        assertTrue(set.add("4"));
+
+        assertTrue(set.remove("1"));
+        assertTrue(set.remove("2"));
+        assertTrue(set.remove("3"));
+        assertTrue(set.remove("4"));
+        assertEquals(0, set.getUsedBucketCount());
+    }
+
+    @Test
     public void testClear() {
-        ConcurrentOpenHashSet<String> map =
+        ConcurrentOpenHashSet<String> set =
                 ConcurrentOpenHashSet.<String>newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
                 .autoShrink(true)
                 .mapIdleFactor(0.25f)
                 .build();
-        assertTrue(map.capacity() == 4);
+        assertTrue(set.capacity() == 4);
 
-        assertTrue(map.add("k1"));
-        assertTrue(map.add("k2"));
-        assertTrue(map.add("k3"));
+        assertTrue(set.add("k1"));
+        assertTrue(set.add("k2"));
+        assertTrue(set.add("k3"));
 
-        assertTrue(map.capacity() == 8);
-        map.clear();
-        assertTrue(map.capacity() == 4);
+        assertTrue(set.capacity() == 8);
+        set.clear();
+        assertTrue(set.capacity() == 4);
     }
 
     @Test

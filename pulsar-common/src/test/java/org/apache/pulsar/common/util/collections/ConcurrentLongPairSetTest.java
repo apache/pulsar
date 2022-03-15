@@ -75,6 +75,25 @@ public class ConcurrentLongPairSetTest {
     }
 
     @Test
+    public void testReduceUnnecessaryExpansions() {
+        ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .build();
+        assertTrue(set.add(1, 1));
+        assertTrue(set.add(2, 2));
+        assertTrue(set.add(3, 3));
+        assertTrue(set.add(4, 4));
+
+        assertTrue(set.remove(1, 1));
+        assertTrue(set.remove(2, 2));
+        assertTrue(set.remove(3, 3));
+        assertTrue(set.remove(4, 4));
+
+        assertEquals(0, set.getUsedBucketCount());
+    }
+
+    @Test
     public void simpleInsertions() {
         ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
                 .expectedItems(16)

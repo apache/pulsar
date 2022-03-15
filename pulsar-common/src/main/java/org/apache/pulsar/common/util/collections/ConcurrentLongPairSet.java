@@ -493,14 +493,15 @@ public class ConcurrentLongPairSet implements LongPairSet {
                 table[bucket + 1] = EmptyItem;
                 --usedBuckets;
 
-                // Cleanup all the buckets that were in `DeletedKey` state,
+                // Cleanup all the buckets that were in `DeletedItem` state,
                 // so that we can reduce unnecessary expansions
-                bucket = (bucket - 1) & (table.length - 1);
-                while (table[bucket] == DeletedItem) {
-                    table[bucket] = EmptyItem;
+                int lastBucket = (bucket - 2) & (table.length - 1);
+                while (table[lastBucket] == DeletedItem) {
+                    table[lastBucket] = EmptyItem;
+                    table[lastBucket + 1] = EmptyItem;
                     --usedBuckets;
 
-                    bucket = (bucket - 1) & (table.length - 1);
+                    lastBucket = (lastBucket - 2) & (table.length - 1);
                 }
             } else {
                 table[bucket] = DeletedItem;

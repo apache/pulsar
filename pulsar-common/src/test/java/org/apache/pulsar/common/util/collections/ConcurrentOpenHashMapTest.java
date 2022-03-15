@@ -110,6 +110,25 @@ public class ConcurrentOpenHashMapTest {
     }
 
     @Test
+    public void testReduceUnnecessaryExpansions() {
+        ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .build();
+        assertNull(map.put("1", "1"));
+        assertNull(map.put("2", "2"));
+        assertNull(map.put("3", "3"));
+        assertNull(map.put("4", "4"));
+
+        assertEquals(map.remove("1"), "1");
+        assertEquals(map.remove("2"), "2");
+        assertEquals(map.remove("3"), "3");
+        assertEquals(map.remove("4"), "4");
+
+        assertEquals(0, map.getUsedBucketCount());
+    }
+
+    @Test
     public void testClear() {
         ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
                 .expectedItems(2)

@@ -152,6 +152,14 @@ public class ConcurrentOpenHashSet<V> {
         }
     }
 
+    long getUsedBucketCount() {
+        long usedBucketCount = 0;
+        for (Section<V> s : sections) {
+            usedBucketCount += s.usedBuckets;
+        }
+        return usedBucketCount;
+    }
+
     public long size() {
         long size = 0;
         for (int i = 0; i < sections.length; i++) {
@@ -477,6 +485,16 @@ public class ConcurrentOpenHashSet<V> {
             if (values[nextInArray] == EmptyValue) {
                 values[bucket] = (V) EmptyValue;
                 --usedBuckets;
+
+                // Cleanup all the buckets that were in `DeletedValue` state,
+                // so that we can reduce unnecessary expansions
+                int lastBucket = signSafeMod(bucket - 1, capacity);
+                while (values[lastBucket] == DeletedValue) {
+                    values[lastBucket] = (V) EmptyValue;
+                    --usedBuckets;
+
+                    lastBucket = signSafeMod(lastBucket - 1, capacity);
+                }
             } else {
                 values[bucket] = (V) DeletedValue;
             }
