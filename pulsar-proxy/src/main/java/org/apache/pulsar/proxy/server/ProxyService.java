@@ -136,7 +136,7 @@ public class ProxyService implements Closeable {
     private final Map<String, TopicStats> topicStats;
     @Getter
     private AdditionalServlets proxyAdditionalServlets;
-    @Getter
+
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
@@ -256,11 +256,7 @@ public class ProxyService implements Closeable {
             this.serviceUrlTls = null;
         }
 
-        this.metricsServlet = new PrometheusMetricsServlet(-1L, proxyConfig.getClusterName());
-        if (pendingMetricsProviders != null) {
-            pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
-            this.pendingMetricsProviders = null;
-        }
+        createMetricsServlet();
 
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
@@ -269,6 +265,14 @@ public class ProxyService implements Closeable {
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
                 this.proxyExtensions.newChannelInitializers();
         startProxyExtensions(protocolHandlerChannelInitializers, bootstrap);
+    }
+
+    private synchronized void createMetricsServlet() {
+        this.metricsServlet = new PrometheusMetricsServlet(-1L, proxyConfig.getClusterName());
+        if (pendingMetricsProviders != null) {
+            pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+            this.pendingMetricsProviders = null;
+        }
     }
 
     // This call is used for starting additional protocol handlers
@@ -347,7 +351,7 @@ public class ProxyService implements Closeable {
             proxyAdditionalServlets = null;
         }
 
-        metricsServlet = null;
+        resetMetricsServlet();
 
         if (localMetadataStore != null) {
             try {
@@ -368,6 +372,10 @@ public class ProxyService implements Closeable {
         for (EventLoopGroup group : extensionsWorkerGroups) {
             group.shutdownGracefully();
         }
+    }
+
+    private synchronized void resetMetricsServlet() {
+        metricsServlet = null;
     }
 
     public String getServiceUrl() {
@@ -428,7 +436,11 @@ public class ProxyService implements Closeable {
         return this.proxyClientAuthentication;
     }
 
-    public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+    public synchronized PrometheusMetricsServlet getMetricsServlet() {
+        return metricsServlet;
+    }
+
+    public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
         if (metricsServlet == null) {
             if (pendingMetricsProviders == null) {
                 pendingMetricsProviders = new LinkedList<>();

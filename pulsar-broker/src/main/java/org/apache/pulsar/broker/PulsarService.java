@@ -413,7 +413,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             }
 
-            metricsServlet = null;
+            resetMetricsServlet();
 
             if (this.webSocketService != null) {
                 this.webSocketService.close();
@@ -570,6 +570,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    private synchronized void resetMetricsServlet() {
+        metricsServlet = null;
+    }
+
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory(getClass().getSimpleName() + "-shutdown"));
@@ -697,16 +701,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerAdditionalServlets = AdditionalServlets.load(config);
 
             this.webService = new WebService(this);
-            this.metricsServlet = new PulsarPrometheusMetricsServlet(
-                    this, config.isExposeTopicLevelMetricsInPrometheus(),
-                    config.isExposeConsumerLevelMetricsInPrometheus(),
-                    config.isExposeProducerLevelMetricsInPrometheus(),
-                    config.isSplitTopicAndPartitionLabelInPrometheus());
-            if (pendingMetricsProviders != null) {
-                pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
-                this.pendingMetricsProviders = null;
-            }
-
+            createMetricsServlet();
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
             heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(this.advertisedAddress, this.config);
@@ -821,6 +816,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();
+        }
+    }
+
+    private synchronized void createMetricsServlet() {
+        this.metricsServlet = new PulsarPrometheusMetricsServlet(
+                this, config.isExposeTopicLevelMetricsInPrometheus(),
+                config.isExposeConsumerLevelMetricsInPrometheus(),
+                config.isExposeProducerLevelMetricsInPrometheus(),
+                config.isSplitTopicAndPartitionLabelInPrometheus());
+        if (pendingMetricsProviders != null) {
+            pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+            this.pendingMetricsProviders = null;
         }
     }
 
@@ -1515,7 +1522,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return resourceUsageTransportManager;
     }
 
-    public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+    public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
         if (metricsServlet == null) {
             if (pendingMetricsProviders == null) {
                 pendingMetricsProviders = new LinkedList<>();

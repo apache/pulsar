@@ -43,6 +43,7 @@ import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -239,8 +240,13 @@ public class ProxyServiceStarter {
                                      ProxyConfiguration config,
                                      ProxyService service,
                                      BrokerDiscoveryProvider discoveryProvider) throws Exception {
-        server.addServlet("/metrics", new ServletHolder(service.getMetricsServlet()),
-                Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+        if (service != null) {
+            PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
+            if (metricsServlet != null) {
+                server.addServlet("/metrics", new ServletHolder(metricsServlet),
+                        Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+            }
+        }
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
         server.addRestResources("/proxy-stats", ProxyStats.class.getPackage().getName(),
