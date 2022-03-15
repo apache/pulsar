@@ -102,7 +102,9 @@ public interface Schemas {
      * Delete the schema associated with a given <tt>topic</tt>.
      *
      * @param topic topic name, in fully qualified format
-     * @param force force to delete schema
+     * @param force whether to delete schema completely.
+     *              If true, delete all resources (including metastore and ledger),
+     *              otherwise only do a mark deletion and not remove any resources indeed
      * @throws PulsarAdminException
      */
     void deleteSchema(String topic, boolean force) throws PulsarAdminException;

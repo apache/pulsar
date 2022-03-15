@@ -79,7 +79,9 @@ public class CmdSchemas extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-f",
-                "--force" }, description = "Delete schema forcefully")
+                "--force" }, description = "whether to delete schema completely. If true, delete "
+                + "all resources (including metastore and ledger), otherwise only do a mark deletion"
+                + " and not remove any resources indeed")
         private boolean force = false;
 
         @Override
