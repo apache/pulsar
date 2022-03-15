@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies.data.impl;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
 
@@ -31,7 +30,6 @@ import org.apache.pulsar.common.policies.data.TopicType;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Slf4j
 public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOverride {
     private boolean allowAutoTopicCreation;
     private String topicType;
@@ -59,20 +57,6 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
             }
         }
         return true;
-    }
-
-    @Override
-    public boolean autoFix() {
-        if (this.allowAutoTopicCreation) {
-            if (TopicType.NON_PARTITIONED.toString().equals(this.topicType)
-                    && this.defaultNumPartitions != null) {
-                log.warn("NON_PARTITIONED does not allow defaultNumPartitions to be set,"
-                        + " the system has automatically set the value to empty.");
-                this.defaultNumPartitions = null;
-                return true;
-            }
-        }
-        return false;
     }
 
     public static AutoTopicCreationOverrideImplBuilder builder() {
