@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -270,7 +271,7 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 500, message = "Internal server error")})
     public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccess();
-        pulsar().getBrokerService().executor().execute(()->{
+        pulsar().getBrokerService().getBacklogQuotaChecker().execute(safeRun(()->{
             try {
                 pulsar().getBrokerService().monitorBacklogQuota();
                 asyncResponse.resume(Response.noContent().build());
@@ -278,7 +279,7 @@ public class BrokersBase extends PulsarWebResource {
                 LOG.error("trigger backlogQuotaCheck fail", e);
                 asyncResponse.resume(new RestException(e));
             }
-        });
+        }));
     }
 
     @GET
