@@ -108,6 +108,25 @@ public class ConcurrentLongHashMapTest {
     }
 
     @Test
+    public void testReduceUnnecessaryExpansions() {
+        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .build();
+        assertNull(map.put(1, "v1"));
+        assertNull(map.put(2, "v2"));
+        assertNull(map.put(3, "v3"));
+        assertNull(map.put(4, "v4"));
+
+        assertTrue(map.remove(1, "v1"));
+        assertTrue(map.remove(2, "v2"));
+        assertTrue(map.remove(3, "v3"));
+        assertTrue(map.remove(4, "v4"));
+
+        assertEquals(0, map.getUsedBucketCount());
+    }
+
+    @Test
     public void testClear() {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
                 .expectedItems(2)
