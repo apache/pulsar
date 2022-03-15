@@ -1742,4 +1742,18 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertTrue(e.getMessage().startsWith("Invalid retention policy"));
         }
     }
+
+    @Test
+    public void testSplitBundleForMultiTimes() throws Exception{
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        BundlesData data = BundlesData.builder().numBundles(4).build();
+        admin.namespaces().createNamespace(namespace, data);
+        for (int i = 0; i < 10; i ++) {
+            final BundlesData bundles = admin.namespaces().getBundles(namespace);
+            final String bundle = bundles.getBoundaries().get(0) + "_" + bundles.getBoundaries().get(1);
+            admin.namespaces().splitNamespaceBundle(namespace, bundle, true, null);
+        }
+        BundlesData bundles = admin.namespaces().getBundles(namespace);
+        assertEquals(bundles.getNumBundles(), 14);
+    }
 }
