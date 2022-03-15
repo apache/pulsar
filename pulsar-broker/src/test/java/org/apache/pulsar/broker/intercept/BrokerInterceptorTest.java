@@ -40,6 +40,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.same;
@@ -177,6 +178,23 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
         assertEquals(((CounterBrokerInterceptor) listener).getBeforeSendCount(), 1);
         assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),1);
+    }
+
+    @Test
+    public void testInterceptAck() throws Exception {
+        final String topic = "test-intercept-ack" + UUID.randomUUID();
+        BrokerInterceptor interceptor = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(interceptor instanceof CounterBrokerInterceptor);
+
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                     .subscriptionName("test-sub").subscribe()) {
+            producer.send("test intercept ack message");
+            Message<String> message = consumer.receive();
+            consumer.acknowledge(message);
+        }
+
+        Assert.assertEquals(((CounterBrokerInterceptor) interceptor).getHandleAckCount(), 1);
     }
 
     @Test

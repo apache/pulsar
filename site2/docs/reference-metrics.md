@@ -378,7 +378,8 @@ All the subscription metrics are labelled with the following labels:
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_subscription_back_log | Gauge | The total backlog of a subscription (messages). |
+| pulsar_subscription_back_log | Gauge | The total backlog of a subscription (entries). |
+| pulsar_subscription_back_log_no_delayed | Gauge | The backlog of a subscription that do not contain the delay messages (entries). |
 | pulsar_subscription_delayed | Gauge | The total number of messages are delayed to be dispatched for a subscription (messages). |
 | pulsar_subscription_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (messages/second). |
 | pulsar_subscription_unacked_messages | Gauge | The total number of unacknowledged messages of a subscription (messages). |

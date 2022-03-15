@@ -651,16 +651,33 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("unload") @DefaultValue("false") boolean unload) {
+            @QueryParam("unload") @DefaultValue("false") boolean unload,
+            @QueryParam("splitBoundaries") @DefaultValue("") List<Long> splitBoundaries) {
         try {
             validateNamespaceName(property, cluster, namespace);
-            internalSplitNamespaceBundle(asyncResponse, bundleRange, authoritative, unload,
-                    NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME);
+            internalSplitNamespaceBundle(asyncResponse, bundleRange,
+                    authoritative, unload, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME, splitBoundaries);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/{bundle}/topicHashPositions")
+    @ApiOperation(value = "Get hash positions for topics")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist")})
+    public void getTopicHashPositions(
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundle,
+            @QueryParam("topics") List<String> topics,
+            @Suspended AsyncResponse asyncResponse) {
+        validateNamespaceName(property, cluster, namespace);
+        internalGetTopicHashPositions(asyncResponse, bundle, topics);
     }
 
     @POST

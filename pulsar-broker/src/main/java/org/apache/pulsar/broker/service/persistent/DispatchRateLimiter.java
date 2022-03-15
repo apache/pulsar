@@ -169,40 +169,31 @@ public class DispatchRateLimiter {
      * broker-level
      */
     public void updateDispatchRate() {
+        DispatchRate dispatchRate;
         switch (type) {
             case TOPIC:
-                updateDispatchRate(topic.getDispatchRate());
-                return;
+                dispatchRate = topic.getDispatchRate();
+                break;
             case SUBSCRIPTION:
-                updateDispatchRate(topic.getSubscriptionDispatchRate());
-                return;
+                dispatchRate = topic.getSubscriptionDispatchRate();
+                break;
             case REPLICATOR:
-                updateDispatchRate(topic.getReplicatorDispatchRate());
+                dispatchRate = topic.getReplicatorDispatchRate();
+                break;
+            case BROKER:
+                dispatchRate = createDispatchRate();
+                break;
+            default:
+                log.warn("ignore configured dispatch rate for type {}", type);
                 return;
         }
-
-        Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
-        if (!dispatchRate.isPresent()) {
-            getPoliciesDispatchRateAsync(brokerService).thenAccept(dispatchRateOp -> {
-                if (!dispatchRateOp.isPresent()) {
-                    dispatchRateOp = Optional.of(createDispatchRate());
-                }
-                updateDispatchRate(dispatchRateOp.get());
-                if (type == Type.BROKER) {
-                  log.info("configured broker message-dispatch rate {}", dispatchRateOp.get());
-                } else {
-                  log.info("[{}] configured {} message-dispatch rate at broker {}",
-                          this.topicName, type, dispatchRateOp.get());
-                }
-            }).exceptionally(ex -> {
-                log.error("[{}] failed to get the dispatch rate policy from the namespace resource for type {}",
-                        topicName, type, ex);
-                return null;
-            });
+        if (type == Type.BROKER) {
+            log.info("configured broker message-dispatch rate {}", dispatchRate);
         } else {
-            updateDispatchRate(dispatchRate.get());
-            log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate.get());
+            log.info("[{}] configured {} message-dispatch rate at broker {}",
+                this.topicName, type, dispatchRate);
         }
+        updateDispatchRate(dispatchRate);
     }
 
     public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
@@ -341,21 +332,6 @@ public class DispatchRateLimiter {
             }
             return isDispatchRateEnabled(dispatchRate) ? dispatchRate : null;
         }).orElse(null);
-    }
-
-
-    /**
-     * Gets configured dispatch-rate from namespace policies. Returns null if dispatch-rate is not configured
-     *
-     * @return
-     */
-    public CompletableFuture<Optional<DispatchRate>> getPoliciesDispatchRateAsync(BrokerService brokerService) {
-        if (topicName == null) {
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
-        final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-        return getPoliciesAsync(brokerService, topicName).thenApply(policiesOp ->
-                Optional.ofNullable(getPoliciesDispatchRate(cluster, policiesOp, type)));
     }
 
     public static CompletableFuture<Optional<Policies>> getPoliciesAsync(BrokerService brokerService,

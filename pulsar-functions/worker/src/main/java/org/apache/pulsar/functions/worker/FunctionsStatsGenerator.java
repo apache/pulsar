@@ -67,7 +67,10 @@ public class FunctionsStatsGenerator {
                     if (functionRuntime != null) {
                         try {
 
-                            out.write(functionRuntime.getPrometheusMetrics());
+                            String prometheusMetrics = functionRuntime.getPrometheusMetrics();
+                            if (prometheusMetrics != null) {
+                                out.write(prometheusMetrics);
+                            }
 
                         } catch (IOException e) {
                             log.warn("Failed to collect metrics for function instance {}",

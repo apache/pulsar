@@ -75,7 +75,6 @@
       "version-2.7.2-deploy-kubernetes",
       "version-2.7.2-deploy-bare-metal",
       "version-2.7.2-deploy-bare-metal-multi-cluster",
-      "version-2.7.2-deploy-dcos",
       "version-2.7.2-deploy-docker",
       "version-2.7.2-deploy-monitoring"
     ],
