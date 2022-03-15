@@ -1879,4 +1879,17 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertEquals(admin.topics().getStats(topicName).getPublishers().size(), 1);
     }
+
+    @Test
+    public void testHttpLookupWithNotFoundError() throws Exception {
+        stopBroker();
+        isTcpLookup = false;
+        setup();
+        try {
+            pulsarClient.newProducer().topic("unknownTenant/unknownNamespace/testNamespaceNotFound").create();
+        } catch (Exception ex) {
+            assertTrue(ex instanceof PulsarClientException.NotFoundException);
+            assertTrue(ex.getMessage().contains("Namespace not found"));
+        }
+    }
 }
