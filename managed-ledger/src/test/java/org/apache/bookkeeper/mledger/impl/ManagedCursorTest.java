@@ -2240,6 +2240,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.getConfig().setMaxEntriesPerLedger(1);
         // roll a new ledger
         ledger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(ledger.getLedgersInfo().size(), 1);
+            Assert.assertEquals(ledger.getState(), ManagedLedgerImpl.State.ClosedLedger);
+        });
 
         // the algorithm looks for "expired" messages
         // starting from the first, then it moves to the last message
