@@ -173,6 +173,14 @@ public class ConcurrentOpenHashMap<K, V> {
         }
     }
 
+    long getUsedBucketCount() {
+        long usedBucketCount = 0;
+        for (Section<K, V> s : sections) {
+            usedBucketCount += s.usedBuckets;
+        }
+        return usedBucketCount;
+    }
+
     public long size() {
         long size = 0;
         for (Section<K, V> s : sections) {
@@ -441,6 +449,17 @@ public class ConcurrentOpenHashMap<K, V> {
                                 table[bucket] = EmptyKey;
                                 table[bucket + 1] = null;
                                 --usedBuckets;
+
+                                // Cleanup all the buckets that were in `DeletedKey` state,
+                                // so that we can reduce unnecessary expansions
+                                int lastBucket = (bucket - 2) & (table.length - 1);
+                                while (table[lastBucket] == DeletedKey) {
+                                    table[lastBucket] = EmptyKey;
+                                    table[lastBucket + 1] = null;
+                                    --usedBuckets;
+
+                                    lastBucket = (lastBucket - 2) & (table.length - 1);
+                                }
                             } else {
                                 table[bucket] = DeletedKey;
                                 table[bucket + 1] = null;
