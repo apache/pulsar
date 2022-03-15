@@ -259,7 +259,7 @@ public final class FieldParser {
      */
     public static Integer stringToInteger(String val) {
         String v = trim(val);
-        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+        if (StringUtils.isEmpty(v)) {
             return null;
         } else {
             return Integer.valueOf(v);
@@ -275,7 +275,7 @@ public final class FieldParser {
      */
     public static Long stringToLong(String val) {
         String v = trim(val);
-        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+        if (StringUtils.isEmpty(v)) {
             return null;
         } else {
             return Long.valueOf(v);
@@ -291,7 +291,7 @@ public final class FieldParser {
      */
     public static Double stringToDouble(String val) {
         String v = trim(val);
-        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+        if (StringUtils.isEmpty(v)) {
             return null;
         } else {
             return Double.valueOf(v);
@@ -307,7 +307,7 @@ public final class FieldParser {
      */
     public static Float stringToFloat(String val) {
         String v = trim(val);
-        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+        if (StringUtils.isEmpty(v)) {
             return null;
         } else {
             return Float.valueOf(v);
@@ -395,7 +395,7 @@ public final class FieldParser {
      */
     public static Boolean stringToBoolean(String value) {
         String v = trim(value);
-        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+        if (StringUtils.isEmpty(v)) {
             return null;
         } else {
             return Boolean.valueOf(v);
