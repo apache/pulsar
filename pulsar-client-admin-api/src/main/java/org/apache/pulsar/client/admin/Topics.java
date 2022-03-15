@@ -1576,7 +1576,6 @@ public interface Topics {
     CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp);
 
     /**
-     * Use {@link Topics#createSubscription(String, String, MessageId, boolean)} instead.
      * Create a new subscription on a topic.
      *
      * @param topic
@@ -1596,14 +1595,12 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    @Deprecated
     default void createSubscription(String topic, String subscriptionName, MessageId messageId)
             throws PulsarAdminException {
         createSubscription(topic, subscriptionName, messageId, false);
     };
 
     /**
-     * Use {@link Topics#createSubscriptionAsync(String, String, MessageId, boolean)} instead.
      * Create a new subscription on a topic.
      *
      * @param topic
@@ -1614,7 +1611,6 @@ public interface Topics {
      *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
      *            {@link MessageId#earliest} or a specific message id.
      */
-    @Deprecated
     default CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
                                                             MessageId messageId) {
         return createSubscriptionAsync(topic, subscriptionName, messageId, false);
