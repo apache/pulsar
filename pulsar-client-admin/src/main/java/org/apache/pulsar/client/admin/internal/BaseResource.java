@@ -303,7 +303,7 @@ public abstract class BaseResource {
                 });
         return future;
     }
-  
+
     protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
         try {
             return executor.get().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

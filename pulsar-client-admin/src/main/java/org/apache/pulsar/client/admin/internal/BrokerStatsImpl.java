@@ -21,7 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
