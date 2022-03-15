@@ -480,6 +480,13 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         return partitionsAutoUpdateTimeout;
     }
 
+    @VisibleForTesting
+    public CompletableFuture<Void> getOriginalLastSendFuture() {
+        return CompletableFuture.allOf(
+                producers.values().stream().map(ProducerImpl::getOriginalLastSendFuture)
+                        .toArray(CompletableFuture[]::new));
+    }
+
     @Override
     public int getNumOfPartitions() {
         return topicMetadata.numPartitions();
