@@ -54,6 +54,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
@@ -113,6 +114,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
+    private LastSendFutureWrapper lastSendFutureWrapper = LastSendFutureWrapper.create(lastSendFuture);
 
     // Globally unique producer name
     private String producerName;
@@ -882,6 +884,31 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         };
     }
+
+    private static final class LastSendFutureWrapper {
+        private final CompletableFuture<MessageId> lastSendFuture;
+        private static final int FALSE = 0;
+        private static final int TRUE = 1;
+        private static final AtomicIntegerFieldUpdater<LastSendFutureWrapper> THROW_ONCE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(LastSendFutureWrapper.class, "throwOnce");
+        private volatile int throwOnce = FALSE;
+
+        private LastSendFutureWrapper(CompletableFuture<MessageId> lastSendFuture) {
+            this.lastSendFuture = lastSendFuture;
+        }
+        static LastSendFutureWrapper create(CompletableFuture<MessageId> lastSendFuture) {
+            return new LastSendFutureWrapper(lastSendFuture);
+        }
+        public CompletableFuture<Void> handleOnce() {
+            return lastSendFuture.handle((ignore, t) -> {
+                if (t != null && THROW_ONCE_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+                    throw FutureUtil.wrapToCompletionException(t);
+                }
+                return null;
+            });
+        }
+    }
+
 
     @Override
     public CompletableFuture<Void> closeAsync() {
@@ -1840,14 +1867,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> flushAsync() {
-        CompletableFuture<MessageId> lastSendFuture;
         synchronized (ProducerImpl.this) {
             if (isBatchMessagingEnabled()) {
                 batchMessageAndSend();
             }
-            lastSendFuture = this.lastSendFuture;
+            CompletableFuture<MessageId>  lastSendFuture = this.lastSendFuture;
+            if (!(lastSendFuture == this.lastSendFutureWrapper.lastSendFuture)) {
+                this.lastSendFutureWrapper = LastSendFutureWrapper.create(lastSendFuture);
+            }
         }
-        return lastSendFuture.thenApply(ignored -> null);
+
+        return this.lastSendFutureWrapper.handleOnce();
     }
 
     @Override
@@ -2053,6 +2083,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     boolean isErrorStat() {
         return errorState;
+    }
+
+    @VisibleForTesting
+    CompletableFuture<Void> getOriginalLastSendFuture() {
+        CompletableFuture<MessageId> lastSendFuture = this.lastSendFuture;
+        return lastSendFuture.thenApply(ignore -> null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);
