@@ -555,13 +555,18 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket(offloadDriverMetadata);
         BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
+        String dataContent = DataBlockUtils.dataBlockOffloadKey(ledgerId, uid);
+        String indexContent = DataBlockUtils.indexBlockOffloadKey(ledgerId, uid);
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(ledgerId).submit(() -> {
             try {
-                readBlobstore.removeBlobs(readBucket,
-                    ImmutableList.of(DataBlockUtils.dataBlockOffloadKey(ledgerId, uid),
-                                     DataBlockUtils.indexBlockOffloadKey(ledgerId, uid)));
+                log.info("Remove Blob Data: " + dataContent);
+                readBlobstore.removeBlob(readBucket, dataContent);
+                log.info("Removed Blob Data: " + dataContent);
+                log.info("Remove Blob Index: " + indexContent);
+                readBlobstore.removeBlob(readBucket, indexContent);
+                log.info("Removed Blob Index: " + indexContent);
                 promise.complete(null);
             } catch (Throwable t) {
                 log.error("Failed delete Blob", t);
