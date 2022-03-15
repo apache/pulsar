@@ -832,10 +832,10 @@ public abstract class NamespacesBase extends AdminResource {
         if (autoTopicCreationOverride != null) {
             if (!AutoTopicCreationOverrideImpl.isValidOverride(autoTopicCreationOverride)) {
                 // To enhance error tolerance, automatic error correction
-                if(!autoTopicCreationOverride.autoFix()) {
+                if (!autoTopicCreationOverride.autoFix()) {
                     throw new RestException(Status.PRECONDITION_FAILED,
                             "Invalid configuration for autoTopicCreationOverride");
-                };
+                }
             }
             if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
                 throw new RestException(Status.NOT_ACCEPTABLE,
