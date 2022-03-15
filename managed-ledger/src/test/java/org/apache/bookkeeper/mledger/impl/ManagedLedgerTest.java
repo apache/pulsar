@@ -1981,7 +1981,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.rollCurrentLedgerIfFull();
         AtomicLong currentLedgerId = new AtomicLong(-1);
         // create a new ledger
-        Awaitility.await().untilAsserted(()-> {
+        Awaitility.await().untilAsserted(() -> {
             currentLedgerId.set(ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() - 1).getLedgerId());
             assertNotEquals(preLedgerId, currentLedgerId.get());
         });
