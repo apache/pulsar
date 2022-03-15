@@ -98,7 +98,9 @@ public abstract class AbstractMetadataDriver implements Closeable {
 
             String url;
             try {
-                url = conf.getMetadataServiceUri().replaceFirst(METADATA_STORE_SCHEME + ":", "");
+                url = conf.getMetadataServiceUri()
+                        .replaceFirst(METADATA_STORE_SCHEME + ":", "")
+                        .replace(";", ",");
             } catch (Exception e) {
                 throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
             }
