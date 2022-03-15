@@ -1116,7 +1116,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                    authoritative, true);
+                    authoritative, false);
         } catch (Exception e) {
             asyncResponse.resume(e);
             return;
