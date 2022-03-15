@@ -1245,7 +1245,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
                             << requestId);
         auto chunkMessageIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(msgId.impl_);
         Future<Result, ResponseData> future =
-            chunkMessageIdImpl
+            (chunkMessageIdImpl != nullptr)
                 ? cnx->sendRequestWithId(
                       Commands::newSeek(consumerId_, requestId,
                                         chunkMessageIdImpl->getFirstChunkMessageIdImpl()->ledgerId_,

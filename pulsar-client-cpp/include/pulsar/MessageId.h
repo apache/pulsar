@@ -60,11 +60,6 @@ class PULSAR_PUBLIC MessageId {
     static const MessageId& latest();
 
     /**
-     * return is this a chunk message id;
-     */
-    bool isChunkMessageid() const;
-
-    /**
      * Serialize the message id into a binary string for storing
      */
     void serialize(std::string& result) const;
@@ -113,6 +108,11 @@ class PULSAR_PUBLIC MessageId {
     friend class NegativeAcksTracker;
 
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
+
+    /**
+     * return is this a chunk message id;
+     */
+    bool isChunkMessageid() const;
 
     typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
     MessageIdImplPtr impl_;
