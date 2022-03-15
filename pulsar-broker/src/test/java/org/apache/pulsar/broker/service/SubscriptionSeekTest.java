@@ -586,6 +586,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         for (Consumer consumer : consumers) {
             assertFalse(connectedSinceSet.contains(consumer.getStats().getConnectedSince()));
         }
+        consumer1.close();
+        consumer2.close();
     }
 
     @Test
