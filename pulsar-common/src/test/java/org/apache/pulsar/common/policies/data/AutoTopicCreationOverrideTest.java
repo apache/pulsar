@@ -82,4 +82,16 @@ public class AutoTopicCreationOverrideTest {
                 .build();
         assertFalse(AutoTopicCreationOverrideImpl.isValidOverride(override));
     }
+
+    @Test
+    public void testAutoFixNonPartitioned() {
+        AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(2)
+                .build();
+        assertFalse(AutoTopicCreationOverrideImpl.isValidOverride(override));
+        override.autoFix();
+        assertTrue(AutoTopicCreationOverrideImpl.isValidOverride(override));
+    }
 }

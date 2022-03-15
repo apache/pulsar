@@ -40,6 +40,8 @@ public interface AutoTopicCreationOverride {
         AutoTopicCreationOverride build();
     }
 
+    boolean autoFix();
+
     static Builder builder() {
         return AutoTopicCreationOverrideImpl.builder();
     }
