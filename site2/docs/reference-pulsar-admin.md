@@ -142,6 +142,13 @@ Usage
 $ pulsar-admin brokers list cluster-name
 ```
 
+List active brokers of the local cluster
+
+Usage
+```bash
+$ pulsar-admin brokers list
+```
+
 ### `leader-broker`
 Get the information of the leader broker
 
