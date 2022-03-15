@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -67,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import lombok.Cleanup;
@@ -1958,7 +1960,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(0);
-        config.setMaxEntriesPerLedger(1);
+        config.setMaxEntriesPerLedger(2);
         config.setRetentionTime(1, TimeUnit.SECONDS);
         config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
 
@@ -1972,15 +1974,25 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(ml, ManagedLedgerImpl.State.LedgerOpened);
+        long preLedgerId = ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() -1).getLedgerId();
+        ml.pendingAddEntries.add(OpAddEntry.
+                        createNoRetainBuffer(ml, ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null));
         ml.rollCurrentLedgerIfFull();
+        AtomicLong currentLedgerId = new AtomicLong(-1);
+        // create a new ledger
+        Awaitility.await().untilAsserted(()-> {
+            currentLedgerId.set(ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() - 1).getLedgerId());
+            assertNotEquals(preLedgerId, currentLedgerId.get());
+        });
         // let retention expire
         Thread.sleep(1500);
         // delete the expired ledger
         ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
 
         // the closed and expired ledger should be deleted
-        assertTrue(ml.getLedgersInfoAsList().size() <= 1);
-        assertEquals(ml.getTotalSize(), 0);
+        assertEquals(ml.getLedgersInfoAsList().size(), 1);
+        assertEquals(currentLedgerId.get(),
+                ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() - 1).getLedgerId());
         ml.close();
     }
 
