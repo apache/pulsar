@@ -85,7 +85,7 @@ public class TestCompaction extends PulsarTestSuite {
                 assertEquals(m.getValue(), "content1");
             }
 
-            pulsarCluster.runPulsarBaseCommandOnAnyBroker("compact-topic", "-t", topic);
+            pulsarCluster.runAdminCommandOnAnyBroker("topics", "compact", topic);
 
             try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topic)
