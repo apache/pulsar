@@ -55,6 +55,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     int messageCount = 0;
     int messageDispatchCount = 0;
     int messageAckCount = 0;
+    int handleAckCount = 0;
 
     private List<ResponseEvent> responseList = new ArrayList<>();
 
@@ -138,6 +139,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         if (log.isDebugEnabled()) {
             log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
         }
+        if (command.getType().equals(BaseCommand.Type.ACK)) {
+            handleAckCount++;
+        }
         count ++;
     }
 
@@ -181,6 +185,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void close() {
 
+    }
+
+    public int getHandleAckCount() {
+        return handleAckCount;
     }
 
     public int getCount() {
