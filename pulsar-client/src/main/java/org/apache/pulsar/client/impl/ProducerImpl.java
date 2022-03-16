@@ -1866,24 +1866,37 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             OpSendMsg firstMsg = pendingMessages.peek();
-            if (firstMsg == null) {
+            if (firstMsg == null && batchMessageContainer.isEmpty()) {
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
+                long createdAt;
+                if (firstMsg != null) {
+                    createdAt = firstMsg.createdAt;
+                } else {
+                    // Because we don't flush batch messages while disconnected, we consider them "createdAt" when
+                    // they would have otherwise been flushed.
+                    createdAt = lastBatchSendNanoTime
+                            + TimeUnit.MICROSECONDS.toNanos(conf.getBatchingMaxPublishDelayMicros());
+                }
                 // If there is at least one message, calculate the diff between the message timeout and the elapsed
                 // time since first message was created.
                 long diff = conf.getSendTimeoutMs()
-                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstMsg.createdAt);
+                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - createdAt);
                 if (diff <= 0) {
                     // The diff is less than or equal to zero, meaning that the message has been timed out.
                     // Set the callback to timeout on every message, then clear the pending queue.
                     log.info("[{}] [{}] Message send timed out. Failing {} messages", topic, producerName,
-                            pendingMessages.messagesCount());
+                            pendingMessages.messagesCount() + ((batchMessageContainer.isEmpty()) ? 0 : 1));
+                    String msg = format("The producer %s can not send message to the topic %s within given timeout",
+                            producerName, topic);
+                    if (firstMsg != null) {
+                        PulsarClientException te = new PulsarClientException.TimeoutException(msg, firstMsg.sequenceId);
+                        failPendingMessages(cnx(), te);
+                    } else {
+                        failPendingBatchMessages(new PulsarClientException.TimeoutException(msg));
+                    }
 
-                    PulsarClientException te = new PulsarClientException.TimeoutException(
-                        format("The producer %s can not send message to the topic %s within given timeout",
-                            producerName, topic), firstMsg.sequenceId);
-                    failPendingMessages(cnx(), te);
                     // Since the pending queue is cleared now, set timer to expire after configured value.
                     timeToWaitMs = conf.getSendTimeoutMs();
                 } else {
