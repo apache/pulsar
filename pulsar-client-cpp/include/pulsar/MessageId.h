@@ -106,6 +106,7 @@ class PULSAR_PUBLIC MessageId {
     friend class PulsarWrapper;
     friend class PulsarFriend;
     friend class NegativeAcksTracker;
+    friend class ProducerImpl;
 
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
 

@@ -29,26 +29,6 @@
 
 namespace pulsar {
 
-class ProducerImpl;
-class ProducerChunkedMessageCtx {
-   public:
-    ProducerChunkedMessageCtx() = default;
-
-    ProducerChunkedMessageCtx(const std::shared_ptr<MessageIdImpl> firstChunkMessageId,
-                              const std::shared_ptr<MessageIdImpl> lastChunkMessageId)
-        : firstChunkMessageIdImplPtr_(firstChunkMessageId), lastChunkMessageIdImplPtr_(lastChunkMessageId) {}
-
-    std::shared_ptr<MessageIdImpl> getChunkMessageId() {
-        return std::make_shared<ChunkMessageIdImpl>(*firstChunkMessageIdImplPtr_, *lastChunkMessageIdImplPtr_)
-            ->getLastChunkMessageIdImpl();
-    }
-
-   private:
-    friend class ProducerImpl;
-    std::shared_ptr<MessageIdImpl> firstChunkMessageIdImplPtr_;
-    std::shared_ptr<MessageIdImpl> lastChunkMessageIdImplPtr_;
-};
-
 struct OpSendMsg {
     proto::MessageMetadata metadata_;
     SharedBuffer payload_;
@@ -58,14 +38,14 @@ struct OpSendMsg {
     boost::posix_time::ptime timeout_;
     uint32_t messagesCount_;
     uint64_t messagesSize_;
-    std::shared_ptr<ProducerChunkedMessageCtx> chunkedMessageCtxPtr_;
+    std::shared_ptr<MessageId> chunkedMessageIdPtr_;
 
     OpSendMsg() = default;
 
     OpSendMsg(const proto::MessageMetadata& metadata, const SharedBuffer& payload,
               const SendCallback& sendCallback, uint64_t producerId, uint64_t sequenceId, int sendTimeoutMs,
               uint32_t messagesCount, uint64_t messagesSize,
-              std::shared_ptr<ProducerChunkedMessageCtx> chunkedMessageCtxPtr)
+              const std::shared_ptr<MessageId> chunkedMessageIdPtr)
         : metadata_(metadata),  // the copy happens here because OpSendMsg of chunks are constructed with the
                                 // a shared metadata object
           payload_(payload),
@@ -75,7 +55,7 @@ struct OpSendMsg {
           timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)),
           messagesCount_(messagesCount),
           messagesSize_(messagesSize),
-          chunkedMessageCtxPtr_(chunkedMessageCtxPtr) {}
+          chunkedMessageIdPtr_(chunkedMessageIdPtr) {}
 
     void complete(Result result, const MessageId& messageId) const {
         if (sendCallback_) {
