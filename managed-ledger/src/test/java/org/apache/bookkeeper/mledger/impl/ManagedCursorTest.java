@@ -3764,8 +3764,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         };
 
         // op readPosition is bigger than maxReadPosition
+        ledger.updateMaxReadPosition(PositionImpl.get(lastPosition.getLedgerId(), -1));
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, ledger.lastConfirmedEntry, 10, callback,
-                null, PositionImpl.get(lastPosition.getLedgerId(), -1));
+                null, true);
         Field field = ManagedCursorImpl.class.getDeclaredField("readPosition");
         field.setAccessible(true);
         field.set(cursor, PositionImpl.EARLIEST);
