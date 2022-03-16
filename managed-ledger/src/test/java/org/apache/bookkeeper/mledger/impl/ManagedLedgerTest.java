@@ -1855,6 +1855,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         c2.skipEntries(1, IndividualDeletedEntries.Exclude);
         // let current ledger close
+        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(ml, ManagedLedgerImpl.State.LedgerOpened);
         ml.rollCurrentLedgerIfFull();
         // let retention expire
         Thread.sleep(1500);
@@ -3003,5 +3006,25 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
         verify(ledgerOffloader, times(1)).getOffloadPolicies();
+    }
+
+    @Test
+    public void testLedgerNotRolloverWithoutOpenState() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+
+        ManagedLedgerImpl ml = spy((ManagedLedgerImpl)factory.open("ledger-not-rollover-without-open-state", config));
+        ((PositionImpl)ml.addEntry("test1".getBytes())).getLedgerId();
+        long ledgerId2 = ((PositionImpl)ml.addEntry("test2".getBytes())).getLedgerId();
+        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        // Set state to CreatingLedger to avoid rollover
+        stateUpdater.set(ml, ManagedLedgerImpl.State.CreatingLedger);
+        ml.rollCurrentLedgerIfFull();
+        Field currentLedger = ManagedLedgerImpl.class.getDeclaredField("currentLedger");
+        currentLedger.setAccessible(true);
+        LedgerHandle lh = (LedgerHandle) currentLedger.get(ml);
+        Awaitility.await()
+                .until(() -> ledgerId2 == lh.getId());
     }
 }
