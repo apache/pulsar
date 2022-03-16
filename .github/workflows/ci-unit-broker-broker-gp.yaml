@@ -52,6 +52,7 @@ jobs:
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
+          list-files: csv
 
       - name: Check changed files
         id: check_changes
@@ -81,15 +82,15 @@ jobs:
 
       - name: run unit test 'BROKER_GROUP_1'
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && matrix.group == 'group1' }}
-        run: ./build/run_unit_group.sh BROKER_GROUP_1
+        run: CHANGED_TESTS="${{ steps.changes.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_GROUP_1
 
       - name: run unit test 'BROKER_GROUP_2'
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && matrix.group == 'group2' }}
-        run: ./build/run_unit_group.sh BROKER_GROUP_2
+        run: CHANGED_TESTS="${{ steps.changes.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_GROUP_2
 
       - name: run unit test 'BROKER_GROUP_3'
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && matrix.group == 'group3' }}
-        run: ./build/run_unit_group.sh BROKER_GROUP_3
+        run: CHANGED_TESTS="${{ steps.changes.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_GROUP_3
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
