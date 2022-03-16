@@ -1869,7 +1869,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             OpSendMsg firstMsg = pendingMessages.peek();
-            if (firstMsg == null && batchMessageContainer.isEmpty()) {
+            if (firstMsg == null && (isBatchMessagingEnabled() && batchMessageContainer.isEmpty())) {
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
@@ -1890,7 +1890,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // The diff is less than or equal to zero, meaning that the message has been timed out.
                     // Set the callback to timeout on every message, then clear the pending queue.
                     log.info("[{}] [{}] Message send timed out. Failing {} messages", topic, producerName,
-                            pendingMessages.messagesCount() + batchMessageContainer.getNumMessagesInBatch());
+                            getPendingQueueSize());
                     String msg = format("The producer %s can not send message to the topic %s within given timeout",
                             producerName, topic);
                     if (firstMsg != null) {
@@ -2164,7 +2164,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         // If any messages were enqueued while the producer was not Ready, we would have skipped
         // scheduling the batch flush task. Schedule it now, if there are messages in the batch container.
-        if (!batchMessageContainer.isEmpty()) {
+        if (isBatchMessagingEnabled() && !batchMessageContainer.isEmpty()) {
             maybeScheduleBatchFlushTask();
         }
         if (pendingRegisteringOp != null) {
