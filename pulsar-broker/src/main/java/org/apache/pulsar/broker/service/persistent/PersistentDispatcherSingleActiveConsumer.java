@@ -295,7 +295,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
 
         if (consumerEpoch > consumer.getConsumerEpoch()) {
-            log.info("set epoch: " + consumerEpoch);
+            if (log.isDebugEnabled()) {
+                log.info("[{}-{}] Update epoch, old epoch {}, new epoch {}", name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
+            }
             consumer.setConsumerEpoch(consumerEpoch);
         }
 
