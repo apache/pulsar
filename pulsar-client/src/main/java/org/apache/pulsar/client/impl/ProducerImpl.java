@@ -1890,7 +1890,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // The diff is less than or equal to zero, meaning that the message has been timed out.
                     // Set the callback to timeout on every message, then clear the pending queue.
                     log.info("[{}] [{}] Message send timed out. Failing {} messages", topic, producerName,
-                            pendingMessages.messagesCount() + ((batchMessageContainer.isEmpty()) ? 0 : 1));
+                            pendingMessages.messagesCount() + batchMessageContainer.getNumMessagesInBatch());
                     String msg = format("The producer %s can not send message to the topic %s within given timeout",
                             producerName, topic);
                     if (firstMsg != null) {
