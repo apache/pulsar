@@ -296,7 +296,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
         if (consumerEpoch > consumer.getConsumerEpoch()) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Update epoch, old epoch {}, new epoch {}", name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
+                log.debug("[{}-{}] Update epoch, old epoch [{}], new epoch [{}]", name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
             }
             consumer.setConsumerEpoch(consumerEpoch);
         }
