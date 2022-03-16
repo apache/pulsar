@@ -27,6 +27,7 @@ import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
@@ -622,13 +623,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public CompletableFuture<Void> startReplProducers() {
         // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
-        List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
-        replicators.forEach((region, replicator) -> {
-            if (configuredClusters.contains(region)) {
-                replicator.startProducer();
-            }
-        });
-        return CompletableFuture.completedFuture(null);
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                .thenAccept(optPolicies -> {
+                    if (optPolicies.isPresent()) {
+                        if (optPolicies.get().replication_clusters != null) {
+                            Set<String> configuredClusters = Sets.newTreeSet(optPolicies.get().replication_clusters);
+                            replicators.forEach((region, replicator) -> {
+                                if (configuredClusters.contains(region)) {
+                                    replicator.startProducer();
+                                }
+                            });
+                        }
+                    } else {
+                        replicators.forEach((region, replicator) -> replicator.startProducer());
+                    }
+                }).exceptionally(ex -> {
+                if (log.isDebugEnabled()) {
+                     log.debug("[{}] Error getting policies while starting repl-producers {}", topic, ex.getMessage());
+                }
+                replicators.forEach((region, replicator) -> replicator.startProducer());
+                return null;
+              });
     }
 
     public CompletableFuture<Void> stopReplProducers() {
