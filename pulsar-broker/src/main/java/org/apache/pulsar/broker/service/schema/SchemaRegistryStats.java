@@ -42,31 +42,34 @@ public class SchemaRegistryStats implements AutoCloseable {
 
 
     public SchemaRegistryStats() {
-        this.delSchemaOps = Counter.build("", "-")
+        this.delSchemaOps = Counter.build("pulsar_schema_del_ops_count", "-")
                 .labelNames(SCHEMA_ID, STATUS)
                 .create()
                 .register();
-        this.getSchemaOps = Counter.build("", "-")
+        this.getSchemaOps = Counter.build("pulsar_schema_get_ops_count", "-")
                 .labelNames(SCHEMA_ID, STATUS)
                 .create()
                 .register();
-        this.putSchemaOps = Counter.build("", "-")
+        this.putSchemaOps = Counter.build("pulsar_schema_put_ops_count", "-")
                 .labelNames(SCHEMA_ID, STATUS)
                 .create()
                 .register();
 
-        this.schemaCompatibleCount = Counter.build("", "")
+        this.schemaCompatibleCount = Counter.build("pulsar_schema_compatible_count", "-")
                 .labelNames(SCHEMA_ID)
                 .create()
                 .register();
-        this.schemaIncompatibleCount = Counter.build("", "-")
+        this.schemaIncompatibleCount = Counter.build("pulsar_schema_incompatible_count", "-")
                 .labelNames(SCHEMA_ID)
                 .create()
                 .register();
 
-        this.delSchemaLatency = this.setQuantiles(Summary.build("", "-").labelNames(SCHEMA_ID));
-        this.getSchemaLatency = this.setQuantiles(Summary.build("", "-").labelNames(SCHEMA_ID));
-        this.putSchemaLatency = this.setQuantiles(Summary.build("", "-").labelNames(SCHEMA_ID));
+        this.delSchemaLatency = this.setQuantiles(
+                Summary.build("pulsar_schema_del_ops_latency", "-").labelNames(SCHEMA_ID));
+        this.getSchemaLatency = this.setQuantiles(
+                Summary.build("pulsar_schema_get_ops_latency", "-").labelNames(SCHEMA_ID));
+        this.putSchemaLatency = this.setQuantiles(
+                Summary.build("pulsar_schema_put_ops_latency", "-").labelNames(SCHEMA_ID));
     }
 
     private Summary setQuantiles(Summary.Builder builder) {

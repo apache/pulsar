@@ -155,7 +155,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             .map(future -> future.thenCompose(stored ->
                                     Functions.bytesToSchemaInfo(stored.data)
                                             .thenApply(Functions::schemaInfoToSchema)
-                                            .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
+                                            .thenApply(schema ->
+                                                    new SchemaAndMetadata(schemaId, schema, stored.version)
+                                            )
                             ))
                             .collect(Collectors.toList());
                     log.debug("[{}] {} schemas is found", schemaId, futures.size());
@@ -226,6 +228,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
+        long start = this.clock.millis();
+
         if (force) {
             return deleteSchemaStorage(schemaId, true);
         }
