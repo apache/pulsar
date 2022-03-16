@@ -769,6 +769,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // use the Nar extraction directory as a temporary directory for downloaded files
             tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
         }
+        Files.createDirectories(tempDirectory);
         File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
         worker.getBrokerAdmin().packages().download(packageName, file.toString());
         return file;
