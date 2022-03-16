@@ -1971,18 +1971,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.addEntry("iamaverylongmessagethatshouldnotberetained".getBytes());
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         c2.skipEntries(1, IndividualDeletedEntries.Exclude);
-        // let current ledger close
-        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(ml, ManagedLedgerImpl.State.LedgerOpened);
-        long preLedgerId = ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() -1).getLedgerId();
+        long preLedgerId = ml.getLedgersInfoAsList().get(ml.ledgers.size() -1).getLedgerId();
         ml.pendingAddEntries.add(OpAddEntry.
                         createNoRetainBuffer(ml, ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null));
         ml.rollCurrentLedgerIfFull();
         AtomicLong currentLedgerId = new AtomicLong(-1);
         // create a new ledger
         Awaitility.await().untilAsserted(() -> {
-            currentLedgerId.set(ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() - 1).getLedgerId());
+            currentLedgerId.set(ml.getLedgersInfoAsList().get(ml.ledgers.size() -1).getLedgerId());
             assertNotEquals(preLedgerId, currentLedgerId.get());
         });
         // let retention expire
