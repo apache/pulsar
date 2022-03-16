@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Getter
