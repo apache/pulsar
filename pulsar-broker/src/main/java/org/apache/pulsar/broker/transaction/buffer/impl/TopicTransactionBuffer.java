@@ -179,6 +179,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void recoverExceptionally(Exception e) {
+                        if (e instanceof PulsarClientException.BrokerMetadataException) {
+                            topic.close();
+                        }
                         transactionBufferFuture.completeExceptionally(e);
                     }
                 }, this.topic, this));
