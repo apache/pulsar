@@ -639,12 +639,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         replicators.forEach((region, replicator) -> replicator.startProducer());
                     }
                 }).exceptionally(ex -> {
-             if (log.isDebugEnabled()) {
-                 log.debug("[{}] Error getting policies while starting repl-producers {}", topic, ex.getMessage());
-             }
-             replicators.forEach((region, replicator) -> replicator.startProducer());
-             return null;
-           });
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies while starting repl-producers {}", topic, ex.getMessage());
+            }
+            replicators.forEach((region, replicator) -> replicator.startProducer());
+            return null;
+        });
     }
 
     public CompletableFuture<Void> stopReplProducers() {
