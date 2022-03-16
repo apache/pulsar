@@ -60,6 +60,8 @@
     <cpe>cpe:/a:netty:netty</cpe>
   </suppress>
   <suppress>
+<!--    Zookkeeper false positive about Jetty and commons-io-->
+<!--    https://github.com/apache/zookeeper/pull/1824-->
     <notes><![CDATA[
    file name: zookeeper-3.8.0.jar
    ]]></notes>
