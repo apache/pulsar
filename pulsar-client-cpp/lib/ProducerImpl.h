@@ -35,7 +35,7 @@
 #include "PendingFailures.h"
 #include "Semaphore.h"
 #include "ChunkMessageIdImpl.h"
-
+#include "BatchMessageContainerBase.h"
 using namespace pulsar;
 
 namespace pulsar {
@@ -48,7 +48,6 @@ class PulsarFriend;
 class Producer;
 class MemoryLimitController;
 class TopicName;
-class BatchMessageContainerBase;
 
 class ProducerImpl : public HandlerBase,
                      public std::enable_shared_from_this<ProducerImpl>,

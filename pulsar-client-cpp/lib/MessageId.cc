@@ -108,8 +108,8 @@ int32_t MessageId::batchIndex() const { return impl_->batchIndex_; }
 int32_t MessageId::partition() const { return impl_->partition_; }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
-    std::function<void(std::ostream&, const MessageIdImplPtr)> printMsgIdImpl =
-        [](std::ostream& s, const MessageIdImplPtr impl) {
+    std::function<void(std::ostream&, const std::shared_ptr<MessageIdImpl>)> printMsgIdImpl =
+        [](std::ostream& s, const std::shared_ptr<MessageIdImpl> impl) {
             s << '(' << impl->ledgerId_ << ',' << impl->entryId_ << ',' << impl->partition_ << ','
               << impl->batchIndex_ << ')';
         };

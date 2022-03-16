@@ -29,7 +29,7 @@ inline MessageId toMessageId(const proto::MessageIdData& messageIdData) {
 /**
  * wirte the message_id_impl into a MessageIdData
  */
-inline void writeMessageIdData(const MessageIdImplPtr impl, proto::MessageIdData* idData) {
+inline void writeMessageIdData(const std::shared_ptr<MessageIdImpl> impl, proto::MessageIdData* idData) {
     idData->set_ledgerid(impl->ledgerId_);
     idData->set_entryid(impl->entryId_);
     if (impl->partition_ != -1) {

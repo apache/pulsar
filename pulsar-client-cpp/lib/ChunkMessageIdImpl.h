@@ -45,13 +45,13 @@ class ChunkMessageIdImpl : public MessageIdImpl, public std::enable_shared_from_
             std::make_shared<MessageIdImpl>(firstPartition, firstLedgerId, firstEntryId, firstBatchIndex);
     }
 
-    MessageIdImplPtr getFirstChunkMessageIdImpl() { return firstChunkMsgId_; }
+    std::shared_ptr<MessageIdImpl> getFirstChunkMessageIdImpl() { return firstChunkMsgId_; }
 
-    MessageIdImplPtr getLastChunkMessageIdImpl() {
+    std::shared_ptr<MessageIdImpl> getLastChunkMessageIdImpl() {
         return std::dynamic_pointer_cast<MessageIdImpl>(shared_from_this());
     }
 
    private:
-    MessageIdImplPtr firstChunkMsgId_;
+    std::shared_ptr<MessageIdImpl> firstChunkMsgId_;
 };
 }  // namespace pulsar

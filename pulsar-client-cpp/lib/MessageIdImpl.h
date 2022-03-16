@@ -48,5 +48,4 @@ class MessageIdImpl {
     friend class UnAckedMessageTrackerEnabled;
 };
 
-typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
 }  // namespace pulsar
