@@ -23,7 +23,7 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 
 public class SchemaRegistryStats implements AutoCloseable {
-    private static final String SCHEMA_ID = "schema_id";
+    private static final String SCHEMA_ID = "schema";
     private static final String STATUS = "status";
     private static final String STATUS_SUCCESS = "success";
     private static final String STATUS_FAILED = "failed";
