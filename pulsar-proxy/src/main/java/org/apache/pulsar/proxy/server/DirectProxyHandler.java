@@ -28,7 +28,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
@@ -43,11 +42,7 @@ import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLSession;
@@ -71,11 +66,11 @@ public class DirectProxyHandler {
 
     @Getter
     private final Channel inboundChannel;
+    private final ProxyConnection proxyConnection;
     @Getter
     Channel outboundChannel;
     @Getter
     private final Rate inboundChannelRequestsRate;
-    protected static Map<ChannelId, ChannelId> inboundOutboundChannelMap = new ConcurrentHashMap<>();
     private final String originalPrincipal;
     private final AuthData clientAuthData;
     private final String clientAuthMethod;
@@ -86,12 +81,13 @@ public class DirectProxyHandler {
     private final ProxyService service;
     private final Runnable onHandshakeCompleteAction;
 
-    public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl,
+    public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String brokerHostAndPort,
                               InetSocketAddress targetBrokerAddress, int protocolVersion,
                               Supplier<SslHandler> sslHandlerSupplier) {
         this.service = service;
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
+        this.proxyConnection = proxyConnection;
         this.inboundChannelRequestsRate = new Rate();
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
@@ -110,6 +106,16 @@ public class DirectProxyHandler {
             b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, brokerProxyConnectTimeoutMs);
         }
         b.group(inboundChannel.eventLoop()).channel(inboundChannel.getClass()).option(ChannelOption.AUTO_READ, false);
+
+        String remoteHost;
+        try {
+            remoteHost = parseHost(brokerHostAndPort);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to parse broker host '{}'", inboundChannel, brokerHostAndPort, e);
+            inboundChannel.close();
+            return;
+        }
+
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) {
@@ -123,20 +129,10 @@ public class DirectProxyHandler {
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                     Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
-                ch.pipeline().addLast("proxyOutboundHandler", new ProxyBackendHandler(config, protocolVersion));
+                ch.pipeline().addLast("proxyOutboundHandler",
+                        new ProxyBackendHandler(config, protocolVersion, remoteHost));
             }
         });
-
-        URI targetBroker;
-        try {
-            // targetBrokerUrl is coming in the "hostname:6650" form, so we need
-            // to extract host and port
-            targetBroker = new URI("pulsar://" + targetBrokerUrl);
-        } catch (URISyntaxException e) {
-            log.warn("[{}] Failed to parse broker url '{}'", inboundChannel, targetBrokerUrl, e);
-            inboundChannel.close();
-            return;
-        }
 
         ChannelFuture f = b.connect(targetBrokerAddress);
         outboundChannel = f.channel();
@@ -144,34 +140,28 @@ public class DirectProxyHandler {
             if (!future.isSuccess()) {
                 // Close the connection if the connection attempt has failed.
                 log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
-                        targetBrokerAddress, targetBrokerUrl, future.cause());
+                        targetBrokerAddress, brokerHostAndPort, future.cause());
                 inboundChannel.close();
                 return;
             }
-            final ProxyBackendHandler cnx = (ProxyBackendHandler) outboundChannel.pipeline()
-                    .get("proxyOutboundHandler");
-            cnx.setRemoteHostName(targetBroker.getHost());
+        });
+    }
 
-            // if enable full parsing feature
-            if (service.getProxyLogLevel() == 2) {
-                //Set a map between inbound and outbound,
-                //so can find inbound by outbound or find outbound by inbound
-                inboundOutboundChannelMap.put(outboundChannel.id(), inboundChannel.id());
-            }
+    private String parseHost(String brokerPortAndHost) {
+        int pos = brokerPortAndHost.indexOf(':');
+        if (pos > 0) {
+            return brokerPortAndHost.substring(0, pos);
+        } else {
+            throw new IllegalArgumentException("Illegal broker host:port '" + brokerPortAndHost + "'");
+        }
+    }
 
-            if (!config.isHaProxyProtocolEnabled()) {
-                return;
-            }
-
-            if (proxyConnection.hasHAProxyMessage()) {
-                outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
-            } else {
-                if (!(inboundChannel.remoteAddress() instanceof InetSocketAddress)) {
-                    return;
-                }
-                if (!(outboundChannel.localAddress() instanceof InetSocketAddress)) {
-                    return;
-                }
+    private void writeHAProxyMessage() {
+        if (proxyConnection.hasHAProxyMessage()) {
+            outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
+        } else {
+            if (inboundChannel.remoteAddress() instanceof InetSocketAddress
+                    && outboundChannel.localAddress() instanceof InetSocketAddress) {
                 InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
                 String sourceAddress = clientAddress.getAddress().getHostAddress();
                 int sourcePort = clientAddress.getPort();
@@ -179,11 +169,12 @@ public class DirectProxyHandler {
                 String destinationAddress = proxyAddress.getAddress().getHostAddress();
                 int destinationPort = proxyAddress.getPort();
                 HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
-                        HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort, destinationPort);
+                        HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort,
+                        destinationPort);
                 outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg));
                 msg.release();
             }
-        });
+        }
     }
 
     private ByteBuf encodeProxyProtocolMessage(HAProxyMessage msg) {
@@ -220,19 +211,25 @@ public class DirectProxyHandler {
     public class ProxyBackendHandler extends PulsarDecoder implements FutureListener<Void> {
 
         private BackendState state = BackendState.Init;
-        private String remoteHostName;
+        private final String remoteHostName;
         protected ChannelHandlerContext ctx;
         private final ProxyConfiguration config;
         private final int protocolVersion;
 
-        public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion) {
+        public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion, String remoteHostName) {
             this.config = config;
             this.protocolVersion = protocolVersion;
+            this.remoteHostName = remoteHostName;
         }
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
             this.ctx = ctx;
+
+            if (config.isHaProxyProtocolEnabled()) {
+                writeHAProxyMessage();
+            }
+
             // Send the Connect command to broker
             authenticationDataProvider = authentication.getAuthData(remoteHostName);
             AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
@@ -389,20 +386,20 @@ public class DirectProxyHandler {
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
                             new ParserProxyHandler(service, inboundChannel,
                                     ParserProxyHandler.FRONTEND_CONN,
-                                    connected.getMaxMessageSize()));
+                                    connected.getMaxMessageSize(), outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
                             new ParserProxyHandler(service, outboundChannel,
                                     ParserProxyHandler.BACKEND_CONN,
-                                    connected.getMaxMessageSize()));
+                                    connected.getMaxMessageSize(), inboundChannel.id()));
                 } else {
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
                             new ParserProxyHandler(service, inboundChannel,
                                     ParserProxyHandler.FRONTEND_CONN,
-                                    Commands.DEFAULT_MAX_MESSAGE_SIZE));
+                                    Commands.DEFAULT_MAX_MESSAGE_SIZE, outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
                             new ParserProxyHandler(service, outboundChannel,
                                     ParserProxyHandler.BACKEND_CONN,
-                                    Commands.DEFAULT_MAX_MESSAGE_SIZE));
+                                    Commands.DEFAULT_MAX_MESSAGE_SIZE, inboundChannel.id()));
                 }
             }
         }
@@ -416,10 +413,6 @@ public class DirectProxyHandler {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             log.warn("[{}] [{}] Caught exception: {}", inboundChannel, outboundChannel, cause.getMessage(), cause);
             ctx.close();
-        }
-
-        public void setRemoteHostName(String remoteHostName) {
-            this.remoteHostName = remoteHostName;
         }
 
         private boolean verifyTlsHostName(String hostname, ChannelHandlerContext ctx) {
