@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.ToString;
 
 @Getter
 public class ValidateResult {
