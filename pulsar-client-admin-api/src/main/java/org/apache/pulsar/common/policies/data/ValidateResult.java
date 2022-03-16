@@ -23,7 +23,6 @@ import lombok.Getter;
 import lombok.ToString;
 
 @Getter
-@ToString
 public class ValidateResult {
     private final boolean success;
     private final String errorInfo;
