@@ -4367,12 +4367,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .operationTimeout(operationTimeout, TimeUnit.MILLISECONDS)
                 .build();
 
-        @Cleanup
-        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer =
-                (MultiTopicsConsumerImpl<byte[]>) client.newConsumer().topic(topicName.toString())
-                        .autoUpdatePartitions(true)
-                        .subscriptionName("my-subscriber-name").subscribe();
-
         ProducerBuilder<byte[]> producerBuilder = client.newProducer()
                 .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
 
@@ -4393,16 +4387,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .contains("Connection refused:"));
         });
 
-        log.info("trigger partitionsAutoUpdateTimerTask run failed for consumer");
-        timeout = multiTopicsConsumer.getPartitionsAutoUpdateTimeout();
-        timeout.task().run(timeout);
-        Awaitility.await().untilAsserted(() -> {
-            assertNotNull(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
-            assertTrue(multiTopicsConsumer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
-            assertTrue(FutureUtil.getException(multiTopicsConsumer.getPartitionsAutoUpdateFuture()).get().getMessage()
-                    .contains("Connection refused:"));
-        });
-
         startBroker();
 
         log.info("trigger partitionsAutoUpdateTimerTask run successful for producer");
@@ -4412,15 +4396,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
             assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isDone());
             assertFalse(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
-        });
-
-        log.info("trigger partitionsAutoUpdateTimerTask run successful for consumer");
-        timeout = multiTopicsConsumer.getPartitionsAutoUpdateTimeout();
-        timeout.task().run(timeout);
-        Awaitility.await().untilAsserted(() -> {
-            assertNotNull(multiTopicsConsumer.getPartitionsAutoUpdateFuture());
-            assertTrue(multiTopicsConsumer.getPartitionsAutoUpdateFuture().isDone());
-            assertFalse(multiTopicsConsumer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
         });
 
         log.info("-- Exiting {} test --", methodName);
