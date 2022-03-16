@@ -24,7 +24,6 @@ import lombok.ToString;
 
 @Getter
 @ToString
-@EqualsAndHashCode
 public class ValidateResult {
     private final boolean success;
     private final String errorInfo;
