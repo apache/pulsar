@@ -42,6 +42,28 @@
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
 
+    <!-- see https://github.com/apache/pulsar/pull/14629-->
+    <suppress>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-common-1.4.32.jar
+   ]]></notes>
+        <sha1>ef50bfa2c0491a11dcc35d9822edbfd6170e1ea2</sha1>
+        <cpe>cpe:/a:jetbrains:kotlin</cpe>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-jdk7-1.4.32.jar
+   ]]></notes>
+        <sha1>3546900a3ebff0c43f31190baf87a9220e37b7ea</sha1>
+        <cve>CVE-2022-24329</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-jdk8-1.4.32.jar
+   ]]></notes>
+        <sha1>3302f9ec8a5c1ed220781dbd37770072549bd333</sha1>
+        <cve>CVE-2022-24329</cve>
+    </suppress>
     <suppress>
         <notes><![CDATA[
    file name: kotlin-stdlib-1.4.32.jar
