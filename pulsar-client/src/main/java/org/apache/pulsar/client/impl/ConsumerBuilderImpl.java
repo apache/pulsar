@@ -158,6 +158,11 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                                 if (StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
                                     conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
                                 }
+                                // when MaxRedeliverCount <= 0 in DeadLetterPolicy, we reset MaxRedeliverCount
+                                // to default value, Default: 16.
+                                if (deadLetterPolicy.getMaxRedeliverCount() <= 0) {
+                                    conf.getDeadLetterPolicy().setMaxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES);
+                                }
                             }
                             conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
                         });
