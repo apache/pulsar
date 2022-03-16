@@ -78,7 +78,6 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -271,6 +270,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private volatile CompletableFuture<Void> closeFuture;
     // key is listener name, value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
+    private NamespaceName heartbeatNamespaceV1;
     private NamespaceName heartbeatNamespaceV2;
 
     public PulsarService(ServiceConfiguration config) {
@@ -442,7 +442,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
-                asyncCloseFutures.add(this.brokerService.closeAsync());
+                CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
+                if (this.transactionMetadataStoreService != null) {
+                    asyncCloseFutures.add(brokerCloseFuture.whenComplete((__, ___) -> {
+                        // close transactionMetadataStoreService after the broker has been closed
+                        this.transactionMetadataStoreService.close();
+                        this.transactionMetadataStoreService = null;
+                    }));
+                } else {
+                    asyncCloseFutures.add(brokerCloseFuture);
+                }
                 this.brokerService = null;
             }
 
@@ -700,6 +709,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
+            heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(this.advertisedAddress, this.config);
             heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(this.advertisedAddress, this.config);
 
             // Refresh addresses and update configuration, since the port might have been dynamically assigned
@@ -803,7 +813,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     + (StringUtils.isNotEmpty(brokerServiceUrlTls) ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready, bootstrap_seconds={}", bootstrapTimeSeconds);
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
-                    config.getClusterName(), ReflectionToStringBuilder.toString(config));
+                    config.getClusterName(), config);
 
             state = State.Started;
         } catch (Exception e) {

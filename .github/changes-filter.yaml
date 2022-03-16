@@ -8,3 +8,5 @@ docs:
   - '.asf.yaml'
   - '*.md'
   - '**/*.md'
+tests:
+  - added|modified: '**/src/test/java/**/*.java'

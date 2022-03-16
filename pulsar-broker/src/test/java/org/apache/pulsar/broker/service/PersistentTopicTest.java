@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
@@ -849,7 +850,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         addConsumerToSubscription.setAccessible(true);
 
         // for count consumers on topic
-        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions =
+                ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
+                        .expectedItems(16)
+                        .concurrencyLevel(1)
+                        .build();
         subscriptions.put("sub-1", sub);
         subscriptions.put("sub-2", sub2);
         Field field = topic.getClass().getDeclaredField("subscriptions");
@@ -953,7 +958,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         addConsumerToSubscription.setAccessible(true);
 
         // for count consumers on topic
-        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions =
+                ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
+                        .expectedItems(16)
+                        .concurrencyLevel(1)
+                        .build();
         subscriptions.put("sub-1", sub);
         subscriptions.put("sub-2", sub2);
         Field field = topic.getClass().getDeclaredField("subscriptions");
@@ -1080,7 +1089,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         addConsumerToSubscription.setAccessible(true);
 
         // for count consumers on topic
-        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions =
+                ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
+                        .expectedItems(16)
+                        .concurrencyLevel(1)
+                        .build();
         subscriptions.put("sub1", sub1);
         subscriptions.put("sub2", sub2);
         Field field = topic.getClass().getDeclaredField("subscriptions");
@@ -2070,7 +2083,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testCheckInactiveSubscriptions() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
-        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions =
+                ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
+                        .expectedItems(16)
+                        .concurrencyLevel(1)
+                        .build();
         // This subscription is connected by consumer.
         PersistentSubscription nonDeletableSubscription1 = spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "nonDeletableSubscription1", cursorMock, false);
         subscriptions.put(nonDeletableSubscription1.getName(), nonDeletableSubscription1);
@@ -2160,7 +2177,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((AsyncCallbacks.ResetCursorCallback) invocationOnMock.getArguments()[1]).resetComplete(null);
             return null;
-        }).when(mockCursor).asyncResetCursor(any(), any());
+        }).when(mockCursor).asyncResetCursor(any(), anyBoolean(), any());
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
             return null;

@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import java.util.Optional;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-
-import java.util.Optional;
 
 /**
  * Function that appends something to incoming input based on config supplied.

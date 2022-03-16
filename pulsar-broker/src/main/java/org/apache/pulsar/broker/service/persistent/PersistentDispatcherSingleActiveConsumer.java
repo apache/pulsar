@@ -400,7 +400,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
         // if turn of precise dispatcher flow control, adjust the records to read
         if (consumer.isPreciseDispatcherFlowControl()) {
-            int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
+            int avgMessagesPerEntry = Math.max(1, consumer.getAvgMessagesPerEntry());
             messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
         }
 

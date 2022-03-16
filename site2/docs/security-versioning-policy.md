@@ -4,12 +4,6 @@ title: Security Policy and Supported Versions
 sidebar_label: Security Policy and Supported Versions
 ---
 
-## Reporting a Vulnerability
-
-The current process for reporting vulnerabilities is outlined here: https://www.apache.org/security/. When reporting a
-vulnerability to security@apache.org, you can copy your email to [private@pulsar.apache.org](mailto:private@pulsar.apache.org)
-to send your report to the Apache Pulsar Project Management Committee. This is a private mailing list.
-
 ## Using Pulsar's Security Features
 
 You can find documentation on Pulsar's available security features and how to use them here:

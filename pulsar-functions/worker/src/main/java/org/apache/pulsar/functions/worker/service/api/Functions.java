@@ -34,49 +34,130 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Functions<W extends WorkerService> extends Component<W> {
 
-    void registerFunction(final String tenant,
-                          final String namespace,
-                          final String functionName,
-                          final InputStream uploadedInputStream,
-                          final FormDataContentDisposition fileDetail,
-                          final String functionPkgUrl,
-                          final FunctionConfig functionConfig,
-                          final String clientRole,
-                          AuthenticationDataHttps clientAuthenticationDataHttps);
+    /**
+     * Register a new function.
+     * @param tenant The tenant of a Pulsar Function
+     * @param namespace The namespace of a Pulsar Function
+     * @param functionName The name of a Pulsar Function
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param functionPkgUrl URL path of the Pulsar Function package
+     * @param functionConfig Configuration of Pulsar Function
+     * @param clientRole Client role for running the pulsar function
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     */
+    void registerFunction(String tenant,
+                          String namespace,
+                          String functionName,
+                          InputStream uploadedInputStream,
+                          FormDataContentDisposition fileDetail,
+                          String functionPkgUrl,
+                          FunctionConfig functionConfig,
+                          String clientRole,
+                          AuthenticationDataSource clientAuthenticationDataHttps);
 
-    void updateFunction(final String tenant,
-                        final String namespace,
-                        final String functionName,
-                        final InputStream uploadedInputStream,
-                        final FormDataContentDisposition fileDetail,
-                        final String functionPkgUrl,
-                        final FunctionConfig functionConfig,
-                        final String clientRole,
-                        AuthenticationDataHttps clientAuthenticationDataHttps,
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
+    @Deprecated
+    default void registerFunction(String tenant,
+                          String namespace,
+                          String functionName,
+                          InputStream uploadedInputStream,
+                          FormDataContentDisposition fileDetail,
+                          String functionPkgUrl,
+                          FunctionConfig functionConfig,
+                          String clientRole,
+                          AuthenticationDataHttps clientAuthenticationDataHttps) {
+        registerFunction(
+                tenant,
+                namespace,
+                functionName,
+                uploadedInputStream,
+                fileDetail,
+                functionPkgUrl,
+                functionConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
+
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Function
+     * @param namespace The namespace of a Pulsar Function
+     * @param functionName The name of a Pulsar Function
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param functionPkgUrl URL path of the Pulsar Function package
+     * @param functionConfig Configuration of Pulsar Function
+     * @param clientRole Client role for running the Pulsar Function
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param updateOptions Options while updating the function
+     */
+    void updateFunction(String tenant,
+                        String namespace,
+                        String functionName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String functionPkgUrl,
+                        FunctionConfig functionConfig,
+                        String clientRole,
+                        AuthenticationDataSource clientAuthenticationDataHttps,
                         UpdateOptionsImpl updateOptions);
 
-    void updateFunctionOnWorkerLeader(final String tenant,
-                                      final String namespace,
-                                      final String functionName,
-                                      final InputStream uploadedInputStream,
-                                      final boolean delete,
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
+    @Deprecated
+    default void updateFunction(String tenant,
+                        String namespace,
+                        String functionName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String functionPkgUrl,
+                        FunctionConfig functionConfig,
+                        String clientRole,
+                        AuthenticationDataHttps clientAuthenticationDataHttps,
+                        UpdateOptionsImpl updateOptions) {
+        updateFunction(
+                tenant,
+                namespace,
+                functionName,
+                uploadedInputStream,
+                fileDetail,
+                functionPkgUrl,
+                functionConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps,
+                updateOptions);
+    }
+
+    void updateFunctionOnWorkerLeader(String tenant,
+                                      String namespace,
+                                      String functionName,
+                                      InputStream uploadedInputStream,
+                                      boolean delete,
                                       URI uri,
-                                      final String clientRole,
-                                      final AuthenticationDataSource clientAuthenticationDataHttps);
+                                      String clientRole,
+                                      AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionStatus getFunctionStatus(final String tenant,
-                                     final String namespace,
-                                     final String componentName,
-                                     final URI uri,
-                                     final String clientRole,
-                                     final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionStatus getFunctionStatus(String tenant,
+                                     String namespace,
+                                     String componentName,
+                                     URI uri,
+                                     String clientRole,
+                                     AuthenticationDataSource clientAuthenticationDataHttps);
 
-    FunctionInstanceStatusData getFunctionInstanceStatus(final String tenant,
-                                                         final String namespace,
-                                                         final String componentName,
-                                                         final String instanceId,
-                                                         final URI uri,
-                                                         final String clientRole,
-                                                         final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
+                                                         String namespace,
+                                                         String componentName,
+                                                         String instanceId,
+                                                         URI uri,
+                                                         String clientRole,
+                                                         AuthenticationDataSource clientAuthenticationDataHttps);
 
 }

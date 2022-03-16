@@ -41,7 +41,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -196,7 +195,8 @@ public class SourceApiV3ResourceTest {
     }
 
     private <T> void mockStatic(Class<T> classStatic, Consumer<MockedStatic<T>> consumer) {
-        final MockedStatic<T> mockedStatic = mockStaticContexts.computeIfAbsent(classStatic.getName(), name -> Mockito.mockStatic(classStatic));
+        final MockedStatic<T> mockedStatic =
+                mockStaticContexts.computeIfAbsent(classStatic.getName(), name -> Mockito.mockStatic(classStatic));
         consumer.accept(mockedStatic);
     }
 
@@ -739,7 +739,8 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingPackage() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {});
+            mockStatic(WorkerUtils.class, ctx -> {
+            });
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -761,7 +762,8 @@ public class SourceApiV3ResourceTest {
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingTopicName() throws Exception {
         try {
-            mockStatic(WorkerUtils.class, ctx -> {});
+            mockStatic(WorkerUtils.class, ctx -> {
+            });
 
             testUpdateSourceMissingArguments(
                     tenant,
@@ -877,8 +879,10 @@ public class SourceApiV3ResourceTest {
             Integer parallelism,
             String expectedError) throws Exception {
 
-        mockStatic(ConnectorUtils.class, c -> {});
-        mockStatic(ClassLoaderUtils.class, c -> {});
+        mockStatic(ConnectorUtils.class, c -> {
+        });
+        mockStatic(ClassLoaderUtils.class, c -> {
+        });
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
             ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
@@ -950,9 +954,11 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setTopicName(outputTopic);
         sourceConfig.setSerdeClassName(outputSerdeClassName);
 
-        mockStatic(ConnectorUtils.class, c -> {});
+        mockStatic(ConnectorUtils.class, c -> {
+        });
 
-        mockStatic(ClassLoaderUtils.class, c -> {});
+        mockStatic(ClassLoaderUtils.class, c -> {
+        });
 
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
@@ -1036,8 +1042,10 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setParallelism(parallelism);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
-        mockStatic(ConnectorUtils.class, c -> {});
-        mockStatic(ClassLoaderUtils.class, c -> {});
+        mockStatic(ConnectorUtils.class, c -> {
+        });
+        mockStatic(ClassLoaderUtils.class, c -> {
+        });
 
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(() -> FunctionCommon.extractFileFromPkgURL(any())).thenCallRealMethod();

@@ -168,7 +168,7 @@ Options
 |`-c` , `--cluster`|Cluster name||
 |`-cms` , `--configuration-metadata-store`|The configuration metadata store quorum connection string||
 |`--existing-bk-metadata-service-uri`|The metadata service URI of the existing BookKeeper cluster that you want to use||
-|`-h` , `--help`|Cluster name|false|
+|`-h` , `--help`|Help message|false|
 |`--initial-num-stream-storage-containers`|The number of storage containers of BookKeeper stream storage|16|
 |`--initial-num-transaction-coordinators`|The number of transaction coordinators assigned in a cluster|16|
 |`-uw` , `--web-service-url`|The web service URL for the new cluster||
@@ -190,7 +190,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-cms`, `--configuration-metadata-store`|Configuration meta store connection string||
+|`-cms`, `--configuration-metadata-store`|Configuration metadata store connection string||
 |`-md` , `--metadata-store`|Metadata Store service url||
 
 Example
@@ -721,6 +721,8 @@ $ pulsar-perf transaction options
 
 |Flag|Description|Default|
 |---|---|---|
+`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.|N/A
+`--auth-plugin`|Authentication plugin class name.|N/A
 `-au`, `--admin-url`|Pulsar admin URL.|N/A
 `-cf`, `--conf-file`|Configuration file.|N/A
 `-h`, `--help`|Help messages.|N/A

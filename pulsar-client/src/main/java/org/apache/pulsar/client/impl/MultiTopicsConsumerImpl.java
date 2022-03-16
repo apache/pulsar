@@ -85,10 +85,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // shared incoming queue was full
     private final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
 
-    // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
-    // resume receiving from the paused consumer partitions
-    private final int sharedQueueResumeThreshold;
-
     // sum of topicPartitions, simple topic has 1, partitioned topic equals to partition number.
     AtomicInteger allTopicPartitionsNumber;
 
@@ -142,7 +138,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.partitionedTopics = new ConcurrentHashMap<>();
         this.consumers = new ConcurrentHashMap<>();
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
-        this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
         this.allTopicPartitionsNumber = new AtomicInteger(0);
         this.startMessageId = startMessageId != null
                 ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId))
@@ -187,8 +182,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 .collect(Collectors.toList());
         FutureUtil.waitForAll(futures)
             .thenAccept(finalFuture -> {
-                if (allTopicPartitionsNumber.get() > maxReceiverQueueSize) {
-                    setMaxReceiverQueueSize(allTopicPartitionsNumber.get());
+                if (allTopicPartitionsNumber.get() > getCurrentReceiverQueueSize()) {
+                    setCurrentReceiverQueueSize(allTopicPartitionsNumber.get());
                 }
                 setState(State.Ready);
                 // We have successfully created N consumers, so we can start receiving messages now
@@ -244,7 +239,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
-                consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
+                consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
+                        consumer.getCurrentReceiverQueueSize());
                 internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
             });
         }
@@ -260,6 +256,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             messageReceived(consumer, message);
 
             int size = incomingMessages.size();
+            int maxReceiverQueueSize = getCurrentReceiverQueueSize();
+            int sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
             if (size >= maxReceiverQueueSize
                     || (size > sharedQueueResumeThreshold && !pausedConsumers.isEmpty())) {
                 // mark this consumer to be resumed later: if No more space left in shared queue,
@@ -319,7 +317,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
-        if (incomingMessages.size() <= sharedQueueResumeThreshold && !pausedConsumers.isEmpty()) {
+        if (incomingMessages.size() <= getCurrentReceiverQueueSize() / 2 && !pausedConsumers.isEmpty()) {
             while (true) {
                 ConsumerImpl<T> consumer = pausedConsumers.poll();
                 if (consumer == null) {
@@ -1076,8 +1074,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         FutureUtil.waitForAll(futureList)
             .thenAccept(finalFuture -> {
-                if (allTopicPartitionsNumber.get() > maxReceiverQueueSize) {
-                    setMaxReceiverQueueSize(allTopicPartitionsNumber.get());
+                if (allTopicPartitionsNumber.get() > getCurrentReceiverQueueSize()) {
+                    setCurrentReceiverQueueSize(allTopicPartitionsNumber.get());
                 }
 
                 // We have successfully created new consumers, so we can start receiving messages for them
@@ -1439,7 +1437,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
         CompletableFuture
-            .allOf(messageIdFutures.entrySet().stream().map(Map.Entry::getValue).toArray(CompletableFuture<?>[]::new))
+            .allOf(messageIdFutures.values().toArray(new CompletableFuture<?>[0]))
             .whenComplete((ignore, ex) -> {
                 Builder<String, MessageId> builder = ImmutableMap.builder();
                 messageIdFutures.forEach((key, future) -> {
@@ -1469,5 +1467,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (msg != null) {
             acknowledgeCumulativeAsync(msg);
         }
+    }
+
+    @Override
+    protected void setCurrentReceiverQueueSize(int newSize) {
+        checkArgument(newSize > 0, "receiver queue size should larger than 0");
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] setMaxReceiverQueueSize={}, previous={}", topic, subscription,
+                    getCurrentReceiverQueueSize(), newSize);
+        }
+        CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, newSize);
+        resumeReceivingFromPausedConsumersIfNeeded();
     }
 }

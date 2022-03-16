@@ -102,7 +102,7 @@ else() # GCC or Clang are mostly compatible:
     # Options unique to Clang or GCC:
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-Qunused-arguments) 
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.1))
         add_compile_options(-Wno-stringop-truncation)
     endif()
 endif()

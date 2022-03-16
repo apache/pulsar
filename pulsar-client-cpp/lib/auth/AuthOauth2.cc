@@ -23,7 +23,6 @@
 #include <stdexcept>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <lib/LogUtils.h>
 DECLARE_LOG_OBJECT()
@@ -86,22 +85,12 @@ CachedToken::~CachedToken() {}
 
 // Oauth2CachedToken
 
-static int64_t currentTimeMillis() {
-    using namespace boost::posix_time;
-    using boost::posix_time::milliseconds;
-    using boost::posix_time::seconds;
-    static ptime time_t_epoch(boost::gregorian::date(1970, 1, 1));
-
-    time_duration diff = microsec_clock::universal_time() - time_t_epoch;
-    return diff.total_milliseconds();
-}
-
 Oauth2CachedToken::Oauth2CachedToken(Oauth2TokenResultPtr token) {
     latest_ = token;
 
     int64_t expiredIn = token->getExpiresIn();
     if (expiredIn > 0) {
-        expiresAt_ = expiredIn + currentTimeMillis();
+        expiresAt_ = Clock::now() + std::chrono::seconds(expiredIn);
     } else {
         throw std::runtime_error("ExpiresIn in Oauth2TokenResult invalid value: " +
                                  std::to_string(expiredIn));
@@ -113,7 +102,7 @@ AuthenticationDataPtr Oauth2CachedToken::getAuthData() { return authData_; }
 
 Oauth2CachedToken::~Oauth2CachedToken() {}
 
-bool Oauth2CachedToken::isExpired() { return expiresAt_ < currentTimeMillis(); }
+bool Oauth2CachedToken::isExpired() { return expiresAt_ < Clock::now(); }
 
 // OauthFlow
 

@@ -48,6 +48,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -796,5 +797,29 @@ public class TransactionTest extends TransactionTestBase {
         transaction.abort().get();
         timeout = (Timeout) field.get(transaction);
         Assert.assertTrue(timeout.isCancelled());
+    }
+
+    @Test
+    public void testNotChangeMaxReadPositionAndAddAbortTimesWhenCheckIfNoSnapshot() throws Exception {
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(NAMESPACE1 + "/test", true)
+                .get().get();
+        TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
+        Field field = TopicTransactionBuffer.class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
+        field.setAccessible(true);
+        AtomicLong changeMaxReadPositionAndAddAbortTimes = (AtomicLong) field.get(buffer);
+        Field field1 = TopicTransactionBufferState.class.getDeclaredField("state");
+        field1.setAccessible(true);
+
+        Awaitility.await().untilAsserted(() -> {
+                    TopicTransactionBufferState.State state = (TopicTransactionBufferState.State) field1.get(buffer);
+                    Assert.assertEquals(state, TopicTransactionBufferState.State.NoSnapshot);
+        });
+        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+
+        buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1));
+        Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
+
     }
 }
