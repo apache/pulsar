@@ -187,7 +187,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekForBatchMessageAndSpecifiedBatchIndex() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
+        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchMessageAndSpecifiedBatchIndex";
         String subscriptionName = "my-subscription-batch";
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
