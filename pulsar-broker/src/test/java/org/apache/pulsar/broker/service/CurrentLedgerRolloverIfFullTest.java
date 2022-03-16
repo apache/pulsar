@@ -115,10 +115,8 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
                 .pollInterval(Duration.ofMillis(1000L))
                 .untilAsserted(() -> {
                     Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-                    Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
-                    MLDataFormats.ManagedLedgerInfo.LedgerInfo lastLhAfterRollover =
-                            managedLedger.getLedgersInfoAsList().get(managedLedger.getLedgersInfoAsList().size() - 1);
-                    Assert.assertEquals(lastLh.getLedgerId(), lastLhAfterRollover.getLedgerId());
+                    Assert.assertEquals(lastLh.getLedgerId(),
+                            managedLedger.getLedgersInfoAsList().get(0).getLedgerId());
                 });
         producer.send(new byte[1024 * 1024]);
         Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
@@ -128,13 +126,10 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         Awaitility.await()
                 .untilAsserted(()-> {
                     Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-                    Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
-                    MLDataFormats.ManagedLedgerInfo.LedgerInfo lastLhAfterRolloverAndSendAgain =
-                            managedLedger.getLedgersInfoAsList().get(managedLedger.getLedgersInfoAsList().size() - 1);
-                    Assert.assertNotEquals(lastLh.getLedgerId(), lastLhAfterRolloverAndSendAgain.getLedgerId());
+                    Assert.assertNotEquals(lastLh.getLedgerId(),
+                            managedLedger.getLedgersInfoAsList().get(0).getLedgerId());
                 });
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo lastLhAfterRolloverAndSendAgain =
-                managedLedger.getLedgersInfoAsList().get(managedLedger.getLedgersInfoAsList().size() - 1);
+        long lastLhIdAfterRolloverAndSendAgain = managedLedger.getLedgersInfoAsList().get(0).getLedgerId();
 
         // Mock pendingAddEntries
         OpAddEntry op = OpAddEntry.
@@ -143,18 +138,13 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         pendingAddEntries.setAccessible(true);
         ConcurrentLinkedQueue<OpAddEntry> queue = (ConcurrentLinkedQueue<OpAddEntry>) pendingAddEntries.get(managedLedger);
         queue.add(op);
-
         // When ml has pending write messages, ml will create a new ledger and close and delete the previous ledger
         Awaitility.await()
                 .untilAsserted(()-> {
-                    // trigger a ledger rollover
                     managedLedger.rollCurrentLedgerIfFull();
                     Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-                    Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
-                    MLDataFormats.ManagedLedgerInfo.LedgerInfo lastLhAfterRolloverWithNonEmptyPendingAddEntry =
-                            managedLedger.getLedgersInfoAsList().get(managedLedger.getLedgersInfoAsList().size() - 1);
-                    Assert.assertNotEquals(lastLhAfterRolloverWithNonEmptyPendingAddEntry.getLedgerId(),
-                            lastLhAfterRolloverAndSendAgain.getLedgerId());
+                    Assert.assertNotEquals(managedLedger.getLedgersInfoAsList().get(0).getLedgerId(),
+                            lastLhIdAfterRolloverAndSendAgain);
                 });
     }
 }
