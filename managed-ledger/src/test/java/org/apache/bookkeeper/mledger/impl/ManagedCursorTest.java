@@ -2235,15 +2235,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("fourth".getBytes(Encoding));
         Position last = ledger.addEntry("last-expired".getBytes(Encoding));
 
-        // roll a new ledger
-        int numLedgersBefore = ledger.getLedgersInfo().size();
         ledger.getConfig().setMaxEntriesPerLedger(1);
-        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
+        // roll a new ledger
         ledger.rollCurrentLedgerIfFull();
-        Awaitility.await().atMost(20, TimeUnit.SECONDS)
-                .until(() -> ledger.getLedgersInfo().size() > numLedgersBefore);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(ledger.getLedgersInfo().size(), 1);
+            Assert.assertEquals(ledger.getState(), ManagedLedgerImpl.State.ClosedLedger);
+        });
 
         // the algorithm looks for "expired" messages
         // starting from the first, then it moves to the last message

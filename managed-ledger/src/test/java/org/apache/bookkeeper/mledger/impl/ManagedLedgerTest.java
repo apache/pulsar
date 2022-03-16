@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -67,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import lombok.Cleanup;
@@ -1811,7 +1813,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.addEntry("data".getBytes());
         
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+            assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+            assertEquals(ledger.getState(), ManagedLedgerImpl.State.ClosedLedger);
         });   
     }
 
@@ -1958,7 +1961,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionSizeInMB(0);
-        config.setMaxEntriesPerLedger(1);
+        config.setMaxEntriesPerLedger(2);
         config.setRetentionTime(1, TimeUnit.SECONDS);
         config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
 
@@ -1968,19 +1971,25 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.addEntry("iamaverylongmessagethatshouldnotberetained".getBytes());
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         c2.skipEntries(1, IndividualDeletedEntries.Exclude);
-        // let current ledger close
-        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(ml, ManagedLedgerImpl.State.LedgerOpened);
+        long preLedgerId = ml.getLedgersInfoAsList().get(ml.ledgers.size() -1).getLedgerId();
+        ml.pendingAddEntries.add(OpAddEntry.
+                        createNoRetainBuffer(ml, ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null));
         ml.rollCurrentLedgerIfFull();
+        AtomicLong currentLedgerId = new AtomicLong(-1);
+        // create a new ledger
+        Awaitility.await().untilAsserted(() -> {
+            currentLedgerId.set(ml.getLedgersInfoAsList().get(ml.ledgers.size() -1).getLedgerId());
+            assertNotEquals(preLedgerId, currentLedgerId.get());
+        });
         // let retention expire
         Thread.sleep(1500);
         // delete the expired ledger
         ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
 
         // the closed and expired ledger should be deleted
-        assertTrue(ml.getLedgersInfoAsList().size() <= 1);
-        assertEquals(ml.getTotalSize(), 0);
+        assertEquals(ml.getLedgersInfoAsList().size(), 1);
+        assertEquals(currentLedgerId.get(),
+                ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() - 1).getLedgerId());
         ml.close();
     }
 
@@ -2245,10 +2254,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         stateUpdater.setAccessible(true);
         stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
         managedLedger.rollCurrentLedgerIfFull();
-        Awaitility.await().untilAsserted(() -> assertEquals(managedLedger.getLedgersInfo().size(), 3));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getLedgersInfo().size(), 2);
+            assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.ClosedLedger);
+        });
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(0).getEntries());
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(1).getEntries());
-        assertEquals(0, managedLedger.getLedgersInfoAsList().get(2).getEntries());
         log.info("### ledgers {}", managedLedger.getLedgersInfo());
 
         long firstLedger = managedLedger.getLedgersInfo().firstKey();
@@ -3142,12 +3153,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger
-        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
         ledger.rollCurrentLedgerIfFull();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1));
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledger.getTotalSize(), 0));
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(ledger.getState(), ManagedLedgerImpl.State.ClosedLedger));
     }
 
     @Test
