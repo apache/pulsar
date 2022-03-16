@@ -157,7 +157,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private ScheduledFuture<?> batchFlushTask;
     // The time, in nanos, of the last batch send. This field ensures that we don't deliver batches via the
     // batchFlushTask before the batchingMaxPublishDelayMicros duration has passed.
-    private long lastBatchSendNanos;
+    private long lastBatchSendNanoTime;
 
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
@@ -1998,16 +1998,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             log.trace("[{}] [{}] Batching the messages from the batch container from flush thread",
                     topic, producerName);
         }
-        // Set to null here to prevent the unnecessary attempt to cancel this task.
         this.batchFlushTask = null;
-        // If we're not ready, don't reschedule flush and don't try to send.
+        // If we're not ready, don't schedule another flush and don't try to send.
         if (getState() != State.Ready) {
             return;
         }
-        // Reschedule if/when we get triggered just after a recent task
-        long microsSinceLastFlush = (System.nanoTime() - lastBatchSendNanos) / 1000;
-        if (microsSinceLastFlush < conf.getBatchingMaxPublishDelayMicros()) {
-            scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros() - microsSinceLastFlush);
+        // If a batch was sent more recently than the BatchingMaxPublishDelayMicros, schedule another flush to run just
+        // at BatchingMaxPublishDelayMicros after the last send.
+        long microsSinceLastSend = TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - lastBatchSendNanoTime);
+        if (microsSinceLastSend < conf.getBatchingMaxPublishDelayMicros()) {
+            scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros() - microsSinceLastSend);
             return;
         }
         batchMessageAndSend(true);
@@ -2015,18 +2015,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // must acquire semaphore before enqueuing
     private void batchMessageAndSend(boolean shouldScheduleNextBatchFlush) {
-        lastBatchSendNanos = System.nanoTime();
-        if (this.batchFlushTask != null) {
-            // Cancel batch flush task since we're sending the batch now.
-            this.batchFlushTask.cancel(false);
-            this.batchFlushTask = null;
-        }
         if (log.isTraceEnabled()) {
             log.trace("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
                     batchMessageContainer.getNumMessagesInBatch());
         }
         if (!batchMessageContainer.isEmpty()) {
             try {
+                lastBatchSendNanoTime = System.nanoTime();
                 List<OpSendMsg> opSendMsgs;
                 if (batchMessageContainer.isMultiBatches()) {
                     opSendMsgs = batchMessageContainer.createOpSendMsgs();
@@ -2042,9 +2037,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } catch (Throwable t) {
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
                 log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
-            }
-            if (shouldScheduleNextBatchFlush) {
-                maybeScheduleBatchFlushTask();
+            } finally {
+                if (shouldScheduleNextBatchFlush) {
+                    maybeScheduleBatchFlushTask();
+                }
             }
         }
     }
