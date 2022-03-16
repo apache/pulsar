@@ -22,10 +22,11 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.PulsarTestClient;
 import org.apache.pulsar.common.stats.Metrics;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -49,6 +50,11 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
+    @Override
+    protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
+        return PulsarTestClient.create(clientBuilder);
+    }
+
     @Test
     public void testManagedCursorMetrics() throws Exception {
         final String subName = "my-sub";
@@ -63,14 +69,18 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         metricsList = metrics.generate();
         Assert.assertTrue(metricsList.isEmpty());
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        PulsarTestClient pulsarClient = (PulsarTestClient) this.pulsarClient;
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) this.pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName(subName)
+                .isAckReceiptEnabled(true)
                 .subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        @Cleanup
+        Producer<byte[]> producer = this.pulsarClient.newProducer()
                 .topic(topicName)
                 .create();
 
@@ -83,6 +93,8 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
             consumer.acknowledge(consumer.receive().getMessageId());
         }
+
+        Awaitility.await().until(() -> pulsarClient.getConnection(topicName).get().getPendingRequests().size() == 0);
         metricsList = metrics.generate();
         Assert.assertFalse(metricsList.isEmpty());
         Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerSucceed"), 0L);
