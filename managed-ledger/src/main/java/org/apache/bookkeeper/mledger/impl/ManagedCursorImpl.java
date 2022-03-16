@@ -30,7 +30,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
@@ -41,6 +40,7 @@ import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +102,17 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedCursorImpl implements ManagedCursor {
+    private static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
+        if (e1.getLedgerId() != e2.getLedgerId()) {
+            return e1.getLedgerId() < e2.getLedgerId() ? -1 : 1;
+        }
 
+        if (e1.getEntryId() != e2.getEntryId()) {
+            return e1.getEntryId() < e2.getEntryId() ? -1 : 1;
+        }
+
+        return 0;
+    };
     protected final BookKeeper bookkeeper;
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
@@ -1275,9 +1285,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     entries.add(entry);
                     if (--pendingCallbacks == 0) {
                         if (sortEntries) {
-                            entries.sort((e1, e2) -> ComparisonChain.start()
-                                    .compare(e1.getLedgerId(), e2.getLedgerId())
-                                    .compare(e1.getEntryId(), e2.getEntryId()).result());
+                            entries.sort(ENTRY_COMPARATOR);
                         }
                         callback.readEntriesComplete(entries, ctx);
                     }
