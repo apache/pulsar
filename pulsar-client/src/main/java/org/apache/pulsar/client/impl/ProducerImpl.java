@@ -149,11 +149,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final ConnectionHandler connectionHandler;
 
-    // A batch flush task is only ever scheduled when a message is added to a message batch without also triggering a
-    // flush for that batch. When a batch is sent, we attempt to cancel the batch flush task so that we can restart it
-    // when the next message is added to an incomplete batch. The goal is to optimize batch density while also ensuring
-    // that a producer never waits longer than the configured batchingMaxPublishDelayMicros.
-    // Only update from within synchronized block on this producer
+    // A batch flush task is scheduled when one of the following is true:
+    // - A message is added to a message batch without also triggering a flush for that batch.
+    // - A batch flush task executes with messages in the batchMessageContainer, thus actually triggering messages.
+    // - A message was sent more recently than the configured BatchingMaxPublishDelayMicros. In this case, the task is
+    //   scheduled to run BatchingMaxPublishDelayMicros after the most recent send time.
+    // The goal is to optimize batch density while also ensuring that a producer never waits longer than the configured
+    // batchingMaxPublishDelayMicros to send a batch.
+    // Only update from within synchronized block on this producer.
     private ScheduledFuture<?> batchFlushTask;
     // The time, in nanos, of the last batch send. This field ensures that we don't deliver batches via the
     // batchFlushTask before the batchingMaxPublishDelayMicros duration has passed.
