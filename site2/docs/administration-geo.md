@@ -4,6 +4,7 @@ title: Pulsar geo-replication
 sidebar_label: Geo-replication
 ---
 
+## Enable geo-replication for a namespace
 
 You must enable geo-replication on a [per-tenant basis](#concepts-multi-tenancy) in Pulsar. For example, you can enable geo-replication between two specific clusters only when a tenant has access to both clusters.
 
@@ -11,8 +12,8 @@ Geo-replication is managed at the namespace level, which means you only need to 
 
 Complete the following tasks to enable geo-replication for a namespace:
 
-* [Enable geo-replication namespaces](#enable-geo-replication-namespaces)
-* Configure that namespace to replicate across two or more provisioned clusters
+* [Enable a geo-replication namespace](#enable-geo-replication-at-namespace-level)
+* [Configure that namespace to replicate across two or more provisioned clusters](admin-api-namespaces.md/#configure-replication-clusters)
 
 Any message published on *any* topic in that namespace is replicated to all clusters in the specified set.
 
@@ -26,13 +27,19 @@ Applications can create producers and consumers in any of the clusters, even whe
 
 Producers and consumers can publish messages to and consume messages from any cluster in a Pulsar instance. However, subscriptions cannot only be local to the cluster where the subscriptions are created but also can be transferred between clusters after replicated subscription is enabled. Once replicated subscription is enabled, you can keep subscription state in synchronization. Therefore, a topic can be asynchronously replicated across multiple geographical regions. In case of failover, a consumer can restart consuming messages from the failure point in a different cluster.
 
+![](assets/geo-replication.png)
+
 In the aforementioned example, the **T1** topic is replicated among three clusters, **Cluster-A**, **Cluster-B**, and **Cluster-C**.
 
 All messages produced in any of the three clusters are delivered to all subscriptions in other clusters. In this case, **C1** and **C2** consumers receive all messages that **P1**, **P2**, and **P3** producers publish. Ordering is still guaranteed on a per-producer basis.
 
 ## Configure replication
 
-The following example connects three clusters: **us-east**, **us-west**, and **us-cent**.
+This section guides you through the steps to configure geo-replicated clusters.
+1. [Connect replication clusters](#connect-replication-clusters)
+2. [Grant permissions to properties](#grant-permissions-to-properties)
+3. [Enable geo-replication](#enable-geo-replication)
+4. [Use topics with geo-replication](#use-topics-with-geo-replication)
 
 ### Connect replication clusters
 
@@ -205,3 +212,31 @@ Consumer<String> consumer = client.newConsumer(Schema.STRING)
 
 * When you enable replicated subscription, you're creating a consistent distributed snapshot to establish an association between message ids from different clusters. The snapshots are taken periodically. The default value is `1 second`. It means that a consumer failing over to a different cluster can potentially receive 1 second of duplicates. You can also configure the frequency of the snapshot in the `broker.conf` file.
 * Only the base line cursor position is synced in replicated subscriptions while the individual acknowledgments are not synced. This means the messages acknowledged out-of-order could end up getting delivered again, in the case of a cluster failover.
+
+## Migrate data between clusters using geo-replication
+
+Using geo-replication to migrate data between clusters is a special use case of the [active-active replication pattern](concepts-replication.md/#active-active-replication) when you don't have a large amount of data.
+
+1. Create your new cluster.
+2. Add the new cluster to your old cluster.
+```shell
+  bin/pulsar-admin cluster create new-cluster
+```
+3. Add the new cluster to your tenant.
+```shell
+  bin/pulsar-admin tenants update my-tenant --cluster old-cluster,new-cluster
+```
+4. Set the clusters on your namespace.
+```shell
+  bin/pulsar-admin namespaces set-clusters my-tenant/my-ns --cluster old-cluster,new-cluster
+```
+5. Update your applications using [replicated subscriptions](#replicated-subscriptions).
+6. Validate subscription replication is active.
+```shell
+  bin/pulsar-admin topics stats-internal public/default/t1
+```
+7. Move your consumers and producers to the new cluster by modifying the values of `serviceURL`.
+
+> Note
+> * The replication starts from step 4, which means existing messages in your old cluster are not replicated. 
+> * If you have some older messages to migrate, you can pre-create the replication subscriptions for each topic and set it at the earliest position by using `pulsar-admin topics create-subscription -s pulsar.repl.new-cluster -m earliest <topic>`.
