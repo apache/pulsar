@@ -35,28 +35,6 @@ cd pulsar/pulsar-client-cpp
 brew link --force boost
 brew link --force protobuf260 || true ## Older images have protobuf 2.6.0 and not linked
 
-# Python 2
-brew unlink python
-brew unlink boost-python3
-brew link --force python@2
-brew link --force boost-python
-
-cmake . -DBUILD_TESTS=OFF \
-		-DLINK_STATIC=ON  \
-		-DPYTHON_LIBRARY=/usr/local/Frameworks/Python.framework/Versions/2.7/lib/libpython2.7.dylib
-make _pulsar -j8
-pushd python
-python2 setup.py bdist_wheel
-popd
-
-#### Python 3
-brew unlink python@2
-brew unlink boost-python
-brew link --force python
-brew link --force boost-python3
-
-make clean
-rm CMakeCache.txt
 cmake . -DBUILD_TESTS=OFF \
 		-DLINK_STATIC=ON  \
 		-DPYTHON_LIBRARY=/usr/local/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7.dylib \
