@@ -1428,11 +1428,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return partitionsAutoUpdateTimeout;
     }
 
-    @VisibleForTesting
-    public CompletableFuture<Void> getPartitionsAutoUpdateFuture() {
-        return partitionsAutoUpdateFuture;
-    }
-
     @Override
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         CompletableFuture<MessageId> returnFuture = new CompletableFuture<>();
