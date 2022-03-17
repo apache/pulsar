@@ -349,14 +349,22 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     private void setMessageRoutingMode() throws PulsarClientException {
         if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        } else if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
+            return;
+        }
+        if (conf.getCustomMessageRouter() == null) {
+            checkMessageRoutingModeValid(conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition,
+                    "When 'messageRouter' is null, 'messageRoutingMode' should not be set as " + MessageRoutingMode.CustomPartition);
+        } else {
+            checkMessageRoutingModeValid(conf.getMessageRoutingMode() == null
+                            || conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition,
+                    "When 'messageRouter' is set, 'messageRoutingMode' should be set as " + MessageRoutingMode.CustomPartition);
             messageRoutingMode(MessageRoutingMode.CustomPartition);
-        } else if ((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() == null)
-                || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() != null)) {
-            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' "
-                    + "should be set as " + MessageRoutingMode.CustomPartition);
+        }
+    }
+
+    private void checkMessageRoutingModeValid(boolean expression, String errorMessage) throws PulsarClientException {
+        if (!expression) {
+            throw new PulsarClientException(errorMessage);
         }
     }
 
