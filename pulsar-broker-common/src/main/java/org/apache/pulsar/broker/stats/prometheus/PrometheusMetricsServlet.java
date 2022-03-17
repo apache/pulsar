@@ -32,8 +32,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.pulsar.broker.PulsarService;
-import org.eclipse.jetty.http.HttpStatus;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +74,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
             try {
                 res.setStatus(HTTP_STATUS_OK_200);
                 res.setContentType("text/plain");
-                generateMetrics(cluster, res.getOutputStream());
+                generateMetrics(cluster, res.getOutputStream(), useBuffer);
             } catch (Exception e) {
                 long end = System.currentTimeMillis();
                 long time = end - start;
@@ -103,7 +102,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
         }));
     }
 
-    protected void generateMetrics(String cluster, ServletOutputStream outputStream) throws IOException {
+    protected void generateMetrics(String cluster, ServletOutputStream outputStream, boolean useBuffer) throws IOException {
         PrometheusMetricsGeneratorUtils.generate(cluster, outputStream, metricsProviders);
     }
 

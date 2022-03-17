@@ -111,8 +111,8 @@ public class PrometheusMetricsGenerator {
                                              boolean includeConsumerMetrics, boolean includeProducerMetrics,
                                              boolean splitTopicAndPartitionIndexLabel, OutputStream out,
                                              List<PrometheusRawMetricsProvider> metricsProviders,
-                                             boolean useCache) throws IOException {
-        if (!useCache) {
+                                             boolean useBuffer) throws IOException {
+        if (!useBuffer) {
             ByteBuf buf = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                     splitTopicAndPartitionIndexLabel, metricsProviders);
             writeBufferOut(buf, out);
@@ -304,39 +304,6 @@ public class PrometheusMetricsGenerator {
         }
     }
 
-    private static void generateSystemMetrics(SimpleTextOutputStream stream, String cluster) {
-        Enumeration<MetricFamilySamples> metricFamilySamples = CollectorRegistry.defaultRegistry.metricFamilySamples();
-        while (metricFamilySamples.hasMoreElements()) {
-            MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
-
-            // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(' ')
-                    .write(getTypeStr(metricFamily.type)).write('\n');
-
-            for (int i = 0; i < metricFamily.samples.size(); i++) {
-                Sample sample = metricFamily.samples.get(i);
-                stream.write(sample.name);
-                stream.write("{cluster=\"").write(cluster).write('"');
-                for (int j = 0; j < sample.labelNames.size(); j++) {
-                    String labelValue = sample.labelValues.get(j);
-                    if (labelValue != null) {
-                        labelValue = labelValue.replace("\"", "\\\"");
-                    }
-
-                    stream.write(",");
-                    stream.write(sample.labelNames.get(j));
-                    stream.write("=\"");
-                    stream.write(labelValue);
-                    stream.write('"');
-                }
-
-                stream.write("} ");
-                stream.write(Collector.doubleToGoString(sample.value));
-                stream.write('\n');
-            }
-        }
-    }
-
     /**
      * read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
      * not modify buffer readIndex/writeIndex here.
@@ -350,22 +317,6 @@ public class PrometheusMetricsGenerator {
         int readableBytes = buf.readableBytes();
         for (int i = 0; i < readableBytes; i++) {
             out.write(buf.getByte(readIndex + i));
-        }
-    }
-
-    static String getTypeStr(Collector.Type type) {
-        switch (type) {
-        case COUNTER:
-            return "counter";
-        case GAUGE:
-            return "gauge";
-        case SUMMARY        :
-            return "summary";
-        case HISTOGRAM:
-            return "histogram";
-        case UNTYPED:
-        default:
-            return "untyped";
         }
     }
 }
