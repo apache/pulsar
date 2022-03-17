@@ -72,7 +72,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         this.schemaStorage = schemaStorage;
         this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
-        this.stats = new SchemaRegistryStats(configuration.getManagedLedgerStatsPeriodSeconds(),
+        this.stats = SchemaRegistryStats.getInstance(configuration.getManagedLedgerStatsPeriodSeconds(),
                 configuration.getClusterName());
     }
 

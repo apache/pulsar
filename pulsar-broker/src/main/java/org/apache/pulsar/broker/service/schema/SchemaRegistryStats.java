@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class SchemaRegistryStats implements AutoCloseable {
     private static final String SCHEMA_ID = "schema";
@@ -29,6 +30,7 @@ class SchemaRegistryStats implements AutoCloseable {
     private static final String STATUS_SUCCESS = "success";
     private static final String STATUS_FAILED = "failed";
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99};
+    private static final AtomicBoolean CLOSED = new AtomicBoolean(false);
 
     private final Counter delSchemaOps;
     private final Counter getSchemaOps;
@@ -40,11 +42,19 @@ class SchemaRegistryStats implements AutoCloseable {
     private final Summary delSchemaLatency;
     private final Summary getSchemaLatency;
     private final Summary putSchemaLatency;
-
     private final String clusterName;
 
+    private static volatile SchemaRegistryStats instance;
 
-    SchemaRegistryStats(final int interval, final String cluster) {
+    static synchronized SchemaRegistryStats getInstance(final int interval, final String cluster) {
+        if (null == instance) {
+            instance = new SchemaRegistryStats(interval, cluster);
+        }
+
+        return instance;
+    }
+
+    private SchemaRegistryStats(final int interval, final String cluster) {
         this.clusterName = cluster;
 
         this.delSchemaOps = Counter.build("pulsar_schema_del_ops_count", "-")
@@ -133,13 +143,15 @@ class SchemaRegistryStats implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        CollectorRegistry.defaultRegistry.unregister(this.delSchemaOps);
-        CollectorRegistry.defaultRegistry.unregister(this.getSchemaOps);
-        CollectorRegistry.defaultRegistry.unregister(this.putSchemaOps);
-        CollectorRegistry.defaultRegistry.unregister(this.schemaCompatibleCount);
-        CollectorRegistry.defaultRegistry.unregister(this.schemaIncompatibleCount);
-        CollectorRegistry.defaultRegistry.unregister(this.delSchemaLatency);
-        CollectorRegistry.defaultRegistry.unregister(this.getSchemaLatency);
-        CollectorRegistry.defaultRegistry.unregister(this.putSchemaLatency);
+        if (CLOSED.compareAndSet(false, true)) {
+            CollectorRegistry.defaultRegistry.unregister(this.delSchemaOps);
+            CollectorRegistry.defaultRegistry.unregister(this.getSchemaOps);
+            CollectorRegistry.defaultRegistry.unregister(this.putSchemaOps);
+            CollectorRegistry.defaultRegistry.unregister(this.schemaCompatibleCount);
+            CollectorRegistry.defaultRegistry.unregister(this.schemaIncompatibleCount);
+            CollectorRegistry.defaultRegistry.unregister(this.delSchemaLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.getSchemaLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.putSchemaLatency);
+        }
     }
 }

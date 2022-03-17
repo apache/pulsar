@@ -1493,9 +1493,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         return parsed;
     }
 
-    static class Metric {
-        Map<String, String> tags = new TreeMap<>();
-        double value;
+    public static class Metric {
+        public Map<String, String> tags = new TreeMap<>();
+        public double value;
 
         @Override
         public String toString() {
