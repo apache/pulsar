@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +55,8 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -133,6 +136,9 @@ public class ProxyService implements Closeable {
     private final Map<String, TopicStats> topicStats;
     @Getter
     private AdditionalServlets proxyAdditionalServlets;
+
+    private PrometheusMetricsServlet metricsServlet;
+    private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
@@ -250,6 +256,8 @@ public class ProxyService implements Closeable {
             this.serviceUrlTls = null;
         }
 
+        createMetricsServlet();
+
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
         // so that the protocol handlers can access broker service properly.
@@ -257,6 +265,14 @@ public class ProxyService implements Closeable {
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
                 this.proxyExtensions.newChannelInitializers();
         startProxyExtensions(protocolHandlerChannelInitializers, bootstrap);
+    }
+
+    private synchronized void createMetricsServlet() {
+        this.metricsServlet = new PrometheusMetricsServlet(-1L, proxyConfig.getClusterName());
+        if (pendingMetricsProviders != null) {
+            pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+            this.pendingMetricsProviders = null;
+        }
     }
 
     // This call is used for starting additional protocol handlers
@@ -335,6 +351,8 @@ public class ProxyService implements Closeable {
             proxyAdditionalServlets = null;
         }
 
+        resetMetricsServlet();
+
         if (localMetadataStore != null) {
             try {
                 localMetadataStore.close();
@@ -354,6 +372,10 @@ public class ProxyService implements Closeable {
         for (EventLoopGroup group : extensionsWorkerGroups) {
             group.shutdownGracefully();
         }
+    }
+
+    private synchronized void resetMetricsServlet() {
+        metricsServlet = null;
     }
 
     public String getServiceUrl() {
@@ -412,6 +434,21 @@ public class ProxyService implements Closeable {
 
     public Authentication getProxyClientAuthenticationPlugin() {
         return this.proxyClientAuthentication;
+    }
+
+    public synchronized PrometheusMetricsServlet getMetricsServlet() {
+        return metricsServlet;
+    }
+
+    public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+        if (metricsServlet == null) {
+            if (pendingMetricsProviders == null) {
+                pendingMetricsProviders = new LinkedList<>();
+            }
+            pendingMetricsProviders.add(metricsProvider);
+        } else {
+            this.metricsServlet.addRawMetricsProvider(metricsProvider);
+        }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
