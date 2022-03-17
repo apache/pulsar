@@ -155,8 +155,8 @@ client = Client("pulsar://my-cluster:6650", authentication=AuthenticationOauth2(
 
 ### Node.js client
 
-To enable OAuth2 authentication in node.js client, you need to configure OAuth2 authentication.
-This example shows how to configure OAuth2 authentication in node.js client.
+To enable OAuth2 authentication in Node.js client, you need to configure OAuth2 authentication.
+This example shows how to configure OAuth2 authentication in Node.js client.
 
 ```JavaScript
     const Pulsar = require('pulsar-client');
@@ -193,6 +193,7 @@ This example shows how to configure OAuth2 authentication in node.js client.
       await client.close();
     })();
 ```
+> Note: The support for OAuth2 authentication is only available in Node.js client 1.6.2 and later versions.
 
 ## CLI configuration
 

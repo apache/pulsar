@@ -39,7 +39,7 @@ You can find the following examples for different client authentication plugins:
 
 ### Proxy/Broker authentication plugin
 
-On the proxy/broker side, you need to configure the corresponding plugin to validate the credentials that the client sends. The Proxy and Broker can support multiple authentication providers at the same time.
+On the proxy/broker side, you need to configure the corresponding plugin to validate the credentials that the client sends. The proxy and broker can support multiple authentication providers at the same time.
 
 In `conf/broker.conf`, you can choose to specify a list of valid providers:
 
@@ -50,7 +50,7 @@ authenticationProviders=
 
 For the implementation of the `org.apache.pulsar.broker.authentication.AuthenticationProvider` interface, refer to [here](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProvider.java).
 
-You can find the following examples for different Broker authentication plugins:
+You can find the following examples for different broker authentication plugins:
 
  * [Mutual TLS](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java)
  * [Athenz](https://github.com/apache/pulsar/blob/master/pulsar-broker-auth-athenz/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderAthenz.java)
@@ -62,7 +62,7 @@ You can find the following examples for different Broker authentication plugins:
 
 Authorization is the operation that checks whether a particular "role" or "principal" has permission to perform a certain operation.
 
-By default, you can use the embedded authorization provider provided by Pulsar. You can also configure a different authorization provider through a plugin. Note that although the Authentication plugin is designed for use in both the Proxy and Broker, the Authorization plugin is designed only for use on the Broker.
+By default, you can use the embedded authorization provider provided by Pulsar. You can also configure a different authorization provider through a plugin. Note that although the Authentication plugin is designed for use in both the proxy and broker, the Authorization plugin is designed only for use on the broker.
 
 ### Broker authorization plugin
 
