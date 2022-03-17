@@ -167,22 +167,22 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void beginTxn(long tcId, String txnID) {
+    public void txnOpened(long tcId, String txnID) {
         if (interceptors == null || interceptors.isEmpty()) {
             return;
         }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            value.beginTxn(tcId, txnID);
+            value.txnOpened(tcId, txnID);
         }
     }
 
     @Override
-    public void endTxn(String txnID, long txnAction) {
+    public void txnEnded(String txnID, long txnAction) {
         if (interceptors == null || interceptors.isEmpty()) {
             return;
         }
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            value.endTxn(txnID, txnAction);
+            value.txnEnded(txnID, txnAction);
         }
     }
 

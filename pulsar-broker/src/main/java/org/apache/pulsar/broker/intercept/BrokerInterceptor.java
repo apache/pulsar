@@ -129,7 +129,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param tcId Transaction Coordinator Id
      * @param txnID Transaction ID
      */
-    default void beginTxn(long tcId, String txnID) {
+    default void txnOpened(long tcId, String txnID) {
     }
 
     /**
@@ -138,7 +138,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      * @param txnID Transaction ID
      * @param txnAction Transaction Action
      */
-    default void endTxn(String txnID, long txnAction) {
+    default void txnEnded(String txnID, long txnAction) {
     }
     /**
      * Called by the broker while new command incoming.
