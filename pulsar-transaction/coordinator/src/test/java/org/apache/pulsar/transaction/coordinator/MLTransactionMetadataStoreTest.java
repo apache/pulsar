@@ -47,6 +47,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.ClosedLedger;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -168,8 +169,9 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
             stateUpdater.setAccessible(true);
             stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
             managedLedger.rollCurrentLedgerIfFull();
-            Awaitility.await().until(() -> {
-                return !managedLedger.ledgerExists(position.getLedgerId());
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertTrue(managedLedger.ledgerExists(position.getLedgerId()));
+                Assert.assertEquals(managedLedger.getState(), ClosedLedger);
             });
         }
         mlTransactionLog.closeAsync().get();

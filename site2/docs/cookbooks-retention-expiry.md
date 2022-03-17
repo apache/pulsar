@@ -160,7 +160,6 @@ You can control the allowable size and/or time of backlogs, at the namespace lev
 
 The diagram below illustrates the concept of backlog quota.
 ![](assets/backlog-quota.svg)
-![](assets/backlog-quota.png)
 
 Setting a backlog quota involves setting:
 
