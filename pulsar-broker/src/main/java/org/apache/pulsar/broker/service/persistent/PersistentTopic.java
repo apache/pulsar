@@ -3039,6 +3039,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                     .ifPresent(DispatchRateLimiter::updateDispatchRate));
 
+            if (policies.getReplicationClusters() != null) {
+                checkReplicationAndRetryOnFailure();
+            }
+
             checkDeduplicationStatus();
 
             preCreateSubscriptionForCompactionIfNeeded();
