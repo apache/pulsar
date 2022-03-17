@@ -22,7 +22,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 
-public class SchemaRegistryStats implements AutoCloseable {
+class SchemaRegistryStats implements AutoCloseable {
     private static final String SCHEMA_ID = "schema";
     private static final String STATUS = "status";
     private static final String STATUS_SUCCESS = "success";
@@ -41,7 +41,7 @@ public class SchemaRegistryStats implements AutoCloseable {
     private final Summary putSchemaLatency;
 
 
-    public SchemaRegistryStats() {
+    SchemaRegistryStats() {
         this.delSchemaOps = Counter.build("pulsar_schema_del_ops_count", "-")
                 .labelNames(SCHEMA_ID, STATUS)
                 .create()
@@ -79,47 +79,47 @@ public class SchemaRegistryStats implements AutoCloseable {
         return builder.create().register();
     }
 
-    public void recordDelSuccess(String schemaId) {
+    void recordDelSuccess(String schemaId) {
         this.delSchemaOps.labels(schemaId, STATUS_SUCCESS).inc();
     }
 
-    public void recordDelFailed(String schemaId) {
+    void recordDelFailed(String schemaId) {
         this.delSchemaOps.labels(schemaId, STATUS_FAILED).inc();
     }
 
-    public void recordGetSuccess(String schemaId) {
+    void recordGetSuccess(String schemaId) {
         this.getSchemaOps.labels(schemaId, STATUS_SUCCESS).inc();
     }
 
-    public void recordGetFailed(String schemaId) {
+    void recordGetFailed(String schemaId) {
         this.getSchemaOps.labels(schemaId, STATUS_FAILED).inc();
     }
 
-    public void recordPutSuccess(String schemaId) {
+    void recordPutSuccess(String schemaId) {
         this.putSchemaOps.labels(schemaId, STATUS_SUCCESS).inc();
     }
 
-    public void recordPutFailed(String schemaId) {
+    void recordPutFailed(String schemaId) {
         this.putSchemaOps.labels(schemaId, STATUS_FAILED).inc();
     }
 
-    public void recordDelLatency(String schemaId, long millis) {
+    void recordDelLatency(String schemaId, long millis) {
         this.delSchemaLatency.labels(schemaId).observe(millis);
     }
 
-    public void recordGetLatency(String schemaId, long millis) {
+    void recordGetLatency(String schemaId, long millis) {
         this.getSchemaLatency.labels(schemaId).observe(millis);
     }
 
-    public void recordPutLatency(String schemaId, long millis) {
+    void recordPutLatency(String schemaId, long millis) {
         this.putSchemaLatency.labels(schemaId).observe(millis);
     }
 
-    public void recordSchemaIncompatible(String schemaId) {
+    void recordSchemaIncompatible(String schemaId) {
         this.schemaIncompatibleCount.labels(schemaId).inc();
     }
 
-    public void recordSchemaCompatible(String schemaId) {
+    void recordSchemaCompatible(String schemaId) {
         this.schemaCompatibleCount.labels(schemaId).inc();
     }
 
