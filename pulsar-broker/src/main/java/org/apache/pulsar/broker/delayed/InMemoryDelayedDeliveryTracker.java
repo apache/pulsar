@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import com.google.common.collect.ComparisonChain;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -82,18 +81,15 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             // trying to dispatch to the consumer.
             return false;
         }
-
-        synchronized (this) {
-            if (ComparisonChain.start().compare(ledgerId, lastLedgerId).compare(entryId, lastEntryId).result() <= 0) {
-                if (log.isWarnEnabled()) {
-                    log.warn("[{}] Add message  {}:{}  less than last {} {} ", dispatcher.getName(), ledgerId, entryId,
-                            lastLedgerId, lastEntryId);
-                }
-                return true;
+        if (ledgerId < lastLedgerId || (ledgerId == lastLedgerId && entryId <= lastEntryId)) {
+            if (log.isInfoEnabled()) {
+                log.info("[{}] Add message  {}:{}  less than last {} {} ", dispatcher.getName(), ledgerId, entryId,
+                        lastLedgerId, lastEntryId);
             }
-            lastLedgerId = ledgerId;
-            lastEntryId = entryId;
+            return true;
         }
+        lastLedgerId = ledgerId;
+        lastEntryId = entryId;
         priorityQueue.add(deliveryAt, ledgerId, entryId);
         updateTimer();
         return true;
