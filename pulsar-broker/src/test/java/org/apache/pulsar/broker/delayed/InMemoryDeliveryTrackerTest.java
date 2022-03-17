@@ -185,4 +185,40 @@ public class InMemoryDeliveryTrackerTest {
         assertEquals(tracker.getNumberOfDelayedMessages(), 2);
     }
 
+
+    /**
+     * Adding a message that is less than last position
+     */
+    @Test
+    public void testAddRemoveDuplicate() {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        Timer timer = mock(Timer.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock);
+
+        clockTime.set(0);
+
+        assertTrue(tracker.addMessage(3, 3, 100));
+        assertTrue(tracker.addMessage(2, 4, 200));
+
+        //2<3 should skip
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+
+        assertTrue(tracker.addMessage(3, 3, 100));
+
+        //3==3 and 3==3 skip
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+
+        //4>3 add
+        assertTrue(tracker.addMessage(4, 2, 100));
+
+        assertEquals(tracker.getNumberOfDelayedMessages(), 2);
+    }
+
 }
