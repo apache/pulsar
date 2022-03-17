@@ -90,7 +90,8 @@ public class BrokersBase extends AdminResource {
     public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse,
                                  @PathParam("cluster") String cluster) {
         validateSuperUserAccessAsync()
-                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
+                .thenCompose(__ -> cluster == null ? CompletableFuture.completedFuture(null)
+                        : validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
                 .thenAccept(activeBrokers -> {
                     LOG.info("[{}] Successfully to get active brokers, cluster={}", clientAppId(), cluster);
@@ -117,16 +118,7 @@ public class BrokersBase extends AdminResource {
                     @ApiResponse(code = 401, message = "Authentication required"),
                     @ApiResponse(code = 403, message = "This operation requires super-user access") })
     public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse) throws Exception {
-        validateSuperUserAccessAsync()
-                .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
-                .thenAccept(activeBrokers -> {
-                    LOG.info("[{}] Successfully to get active brokers", clientAppId());
-                    asyncResponse.resume(activeBrokers);
-                }).exceptionally(ex -> {
-                    LOG.error("[{}] Fail to get active brokers", clientAppId(), ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        getActiveBrokers(asyncResponse, null);
     }
 
     @GET
