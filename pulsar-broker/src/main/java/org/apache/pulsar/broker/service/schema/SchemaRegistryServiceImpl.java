@@ -44,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
@@ -66,18 +67,20 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private final SchemaRegistryStats stats;
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, ServiceConfiguration configuration,
                               Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock) {
         this.schemaStorage = schemaStorage;
         this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
-        this.stats = new SchemaRegistryStats();
+        this.stats = new SchemaRegistryStats(configuration.getManagedLedgerStatsPeriodSeconds(),
+                configuration.getClusterName());
     }
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, Map<SchemaType, SchemaCompatibilityCheck>
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, ServiceConfiguration configuration,
+                              Map<SchemaType, SchemaCompatibilityCheck>
             compatibilityChecks) {
-        this(schemaStorage, compatibilityChecks, Clock.systemUTC());
+        this(schemaStorage, configuration, compatibilityChecks, Clock.systemUTC());
     }
 
     @Override
