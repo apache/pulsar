@@ -148,6 +148,8 @@ public class DirectProxyHandler {
         f.addListener(future -> {
             if (!future.isSuccess()) {
                 // Close the connection if the connection attempt has failed.
+                log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
+                        targetBrokerAddress, targetBrokerUrl, future.cause());
                 inboundChannel.close();
                 return;
             }
