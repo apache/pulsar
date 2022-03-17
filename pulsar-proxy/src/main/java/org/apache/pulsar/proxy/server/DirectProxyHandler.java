@@ -105,7 +105,8 @@ public class DirectProxyHandler {
         if (brokerProxyConnectTimeoutMs > 0) {
             b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, brokerProxyConnectTimeoutMs);
         }
-        b.group(inboundChannel.eventLoop()).channel(inboundChannel.getClass()).option(ChannelOption.AUTO_READ, false);
+        b.group(inboundChannel.eventLoop())
+                .channel(inboundChannel.getClass());
 
         String remoteHost;
         try {
@@ -237,7 +238,6 @@ public class DirectProxyHandler {
             command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
             outboundChannel.writeAndFlush(command);
-            outboundChannel.read();
         }
 
         @Override
@@ -298,7 +298,6 @@ public class DirectProxyHandler {
                 }
 
                 outboundChannel.writeAndFlush(request);
-                outboundChannel.read();
             } catch (Exception e) {
                 log.error("Error mutual verify", e);
             }
@@ -308,9 +307,7 @@ public class DirectProxyHandler {
         public void operationComplete(Future<Void> future) {
             // This is invoked when the write operation on the paired connection
             // is completed
-            if (future.isSuccess()) {
-                outboundChannel.read();
-            } else {
+            if (!future.isSuccess()) {
                 log.warn("[{}] [{}] Failed to write on proxy connection. Closing both connections.", inboundChannel,
                         outboundChannel, future.cause());
                 inboundChannel.close();
@@ -347,11 +344,7 @@ public class DirectProxyHandler {
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
             inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize))
                     .addListener(future -> {
-                        if (future.isSuccess()) {
-                            // Start reading from both connections
-                            inboundChannel.read();
-                            outboundChannel.read();
-                        } else {
+                        if (!future.isSuccess()) {
                             log.warn("[{}] [{}] Failed to write to inbound connection. Closing both connections.",
                                     inboundChannel,
                                     outboundChannel, future.cause());
