@@ -451,7 +451,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
 
-    @Test
+    @Test(timeOut=30000)
     public void testTransactionBufferRecoverThrowBrokerMetadataException() throws Exception {
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowBrokerMetadataException";
         @Cleanup
@@ -481,6 +481,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         Field field = PulsarService.class.getDeclaredField("transactionBufferSnapshotService");
         field.setAccessible(true);
+        TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal =
+                (TransactionBufferSnapshotService) field.get(getPulsarServiceList().get(0));
         field.set(getPulsarServiceList().get(0), transactionBufferSnapshotService);
 
         // recover again will throw BrokerMetadataException then close topic
@@ -491,6 +493,15 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             close.setAccessible(true);
             assertTrue((boolean) close.get(originalTopic));
         });
+        field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceOriginal);
+
+        // topic recover success
+        txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        txn.commit().get();
     }
 
 }
