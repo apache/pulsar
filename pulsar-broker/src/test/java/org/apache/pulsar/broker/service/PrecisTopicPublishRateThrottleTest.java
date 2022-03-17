@@ -143,62 +143,43 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
     }
 
     @Test
-    public void testMultiLevelPublishRate() throws Exception{
+    public void testBrokerLevelPublishRateDynamicUpdate() throws Exception{
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
+        final String topic = "persistent://prop/ns-abc/testMultiLevelPublishRate";
         org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic("persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting")
+            .topic(topic)
             .producerName("producer-name")
             .create();
-        testPublishRate(producer, 30, 20, 10, 10);
-        Thread.sleep(1000);
-        testPublishRate(producer, 30, 20, -1, 20);
-        Thread.sleep(1000);
-        testPublishRate(producer, 30, -1, -1, 30);
-        Thread.sleep(1000);
-        testPublishRate(producer, -1, -1, 10, 10);
-        super.internalCleanup();
-    }
 
-    private void testPublishRate(org.apache.pulsar.client.api.Producer<byte[]> producer, int brokerRate, int nsRate,
-                                 int topicRate, int expectedRate) throws Exception {
-        PublishRate topicPublishRate = new PublishRate(1, topicRate);
-        PublishRate nsPublishRate = new PublishRate(1, nsRate);
-        final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
-        admin.topicPolicies().setPublishRate(topic, topicPublishRate);
+        final int rateInMsg = 10;
+        final long rateInByte = 20;
+
+        // maxPublishRatePerTopicInMessages
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "" + rateInMsg);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getPublishRate(topic), topicPublishRate));
-        admin.namespaces().setPublishRate("prop/ns-abc", nsPublishRate);
-        Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getPublishRate("prop/ns-abc"), nsPublishRate));
-        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "" + brokerRate);
+            .untilAsserted(() ->
+                Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
+                    "" + rateInMsg));
+        Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
+        Assert.assertNotNull(topicRef);
+        PrecisPublishLimiter limiter = ((PrecisPublishLimiter) ((AbstractTopic) topicRef).topicPublishRateLimiter);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg));
+        Assert.assertEquals(limiter.publishMaxByteRate, 0);
+
+        // maxPublishRatePerTopicInBytes
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "" + rateInByte);
         Awaitility.await()
             .untilAsserted(() ->
                 Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInBytes"),
-                    "" + brokerRate));
+                    "" + rateInByte));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.publishMaxByteRate, rateInByte));
+        Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg);
 
-        Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
-        Assert.assertNotNull(topicRef);
-        MessageId messageId = null;
-        try {
-            // first will be success, and will set auto read to false
-            messageId = producer.sendAsync(new byte[expectedRate]).get(500, TimeUnit.MILLISECONDS);
-            Assert.assertNotNull(messageId);
-            // second will be blocked
-            producer.sendAsync(new byte[expectedRate]).get(500, TimeUnit.MILLISECONDS);
-            Assert.fail("should failed, because producer blocked by topic publish rate limiting");
-        } catch (TimeoutException e) {
-            // No-op
-        }
-        Thread.sleep(1000);
-        try {
-            messageId = producer.sendAsync(new byte[expectedRate]).get(1, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            // No-op
-        }
-        Assert.assertNotNull(messageId);
+        producer.close();
+        super.internalCleanup();
     }
 }
