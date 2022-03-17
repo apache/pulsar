@@ -26,7 +26,7 @@
 namespace pulsar {
 DECLARE_LOG_OBJECT();
 
-static const std::array<double, 4> probs = {0.5, 0.9, 0.99, 0.999};
+static const std::array<double, 4> probs = {{0.5, 0.9, 0.99, 0.999}};
 
 std::string ProducerStatsImpl::latencyToString(const LatencyAccumulator& obj) {
     boost::accumulators::detail::extractor_result<
