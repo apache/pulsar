@@ -353,11 +353,13 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         }
         if (conf.getCustomMessageRouter() == null) {
             checkMessageRoutingModeValid(conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition,
-                    "When 'messageRouter' is null, 'messageRoutingMode' should not be set as " + MessageRoutingMode.CustomPartition);
+                    "When 'messageRouter' is null, 'messageRoutingMode' should not be set as "
+                            + MessageRoutingMode.CustomPartition);
         } else {
             checkMessageRoutingModeValid(conf.getMessageRoutingMode() == null
                             || conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition,
-                    "When 'messageRouter' is set, 'messageRoutingMode' should be set as " + MessageRoutingMode.CustomPartition);
+                    "When 'messageRouter' is set, 'messageRoutingMode' should be set as "
+                            + MessageRoutingMode.CustomPartition);
             messageRoutingMode(MessageRoutingMode.CustomPartition);
         }
     }
