@@ -3043,10 +3043,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 checkReplicationAndRetryOnFailure();
             }
 
-            if (policies.getReplicationClusters() != null) {
-                checkReplicationAndRetryOnFailure();
-            }
-
             checkDeduplicationStatus();
 
             preCreateSubscriptionForCompactionIfNeeded();
