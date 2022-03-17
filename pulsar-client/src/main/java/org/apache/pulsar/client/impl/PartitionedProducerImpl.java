@@ -351,7 +351,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] partitions number. old: {}, new: {}",
-                        topic, oldPartitionNumber, currentPartitionNumber);
+                            topic, oldPartitionNumber, currentPartitionNumber);
                 }
 
                 if (oldPartitionNumber == currentPartitionNumber) {
@@ -402,10 +402,14 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                     }
                 } else {
                     log.error("[{}] not support shrink topic partitions. old: {}, new: {}",
-                        topic, oldPartitionNumber, currentPartitionNumber);
+                            topic, oldPartitionNumber, currentPartitionNumber);
                     future.completeExceptionally(new NotSupportedException("not support shrink topic partitions"));
                 }
                 return future;
+            }).exceptionally(throwable -> {
+                log.error("[{}] Auto getting partitions failed", topic, throwable);
+                future.completeExceptionally(throwable);
+                return null;
             });
 
             return future;
@@ -437,6 +441,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             }
         }
     };
+
+    @VisibleForTesting
+    public CompletableFuture<Void> getPartitionsAutoUpdateFuture() {
+        return partitionsAutoUpdateFuture;
+    }
 
     @VisibleForTesting
     public Timeout getPartitionsAutoUpdateTimeout() {
