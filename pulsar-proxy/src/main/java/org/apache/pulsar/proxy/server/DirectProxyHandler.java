@@ -148,7 +148,7 @@ public class DirectProxyHandler {
     }
 
     private String parseHost(String brokerPortAndHost) {
-        int pos = brokerPortAndHost.indexOf(':');
+        int pos = brokerPortAndHost.lastIndexOf(':');
         if (pos > 0) {
             return brokerPortAndHost.substring(0, pos);
         } else {
