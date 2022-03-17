@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -726,12 +727,12 @@ public class ResendRequestTest extends BrokerTestBase {
 
     @SuppressWarnings("unchecked")
     private BlockingQueue<Message<byte[]>> printIncomingMessageQueue(Consumer<byte[]> consumer) throws Exception {
-        BlockingQueue<Message<byte[]>> imq = null;
+        GrowableArrayBlockingQueue<Message<byte[]>> imq = null;
         ConsumerBase<byte[]> c = (ConsumerBase<byte[]>) consumer;
         Field field = ConsumerBase.class.getDeclaredField("incomingMessages");
         field.setAccessible(true);
-        imq = (BlockingQueue<Message<byte[]>>) field.get(c);
-        log.info("Incoming MEssage Queue: {}", imq);
+        imq = (GrowableArrayBlockingQueue<Message<byte[]>>) field.get(c);
+        log.info("Incoming MEssage Queue: {}", imq.toList());
         return imq;
     }
 

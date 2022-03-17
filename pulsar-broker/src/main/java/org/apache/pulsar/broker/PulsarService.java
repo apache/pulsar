@@ -105,8 +105,8 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -244,7 +244,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     // packages management service
     private Optional<PackagesManagement> packagesManagement = Optional.empty();
-    private PrometheusMetricsServlet metricsServlet;
+    private PulsarPrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
     private MetadataStoreExtended localMetadataStore;
@@ -413,7 +413,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             }
 
-            metricsServlet = null;
+            resetMetricsServlet();
 
             if (this.webSocketService != null) {
                 this.webSocketService.close();
@@ -570,6 +570,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    private synchronized void resetMetricsServlet() {
+        metricsServlet = null;
+    }
+
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory(getClass().getSimpleName() + "-shutdown"));
@@ -697,16 +701,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.brokerAdditionalServlets = AdditionalServlets.load(config);
 
             this.webService = new WebService(this);
-            this.metricsServlet = new PrometheusMetricsServlet(
-                    this, config.isExposeTopicLevelMetricsInPrometheus(),
-                    config.isExposeConsumerLevelMetricsInPrometheus(),
-                    config.isExposeProducerLevelMetricsInPrometheus(),
-                    config.isSplitTopicAndPartitionLabelInPrometheus());
-            if (pendingMetricsProviders != null) {
-                pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
-                this.pendingMetricsProviders = null;
-            }
-
+            createMetricsServlet();
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
             heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(this.advertisedAddress, this.config);
@@ -824,8 +819,20 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    private synchronized void createMetricsServlet() {
+        this.metricsServlet = new PulsarPrometheusMetricsServlet(
+                this, config.isExposeTopicLevelMetricsInPrometheus(),
+                config.isExposeConsumerLevelMetricsInPrometheus(),
+                config.isExposeProducerLevelMetricsInPrometheus(),
+                config.isSplitTopicAndPartitionLabelInPrometheus());
+        if (pendingMetricsProviders != null) {
+            pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+            this.pendingMetricsProviders = null;
+        }
+    }
+
     private void addWebServerHandlers(WebService webService,
-                                      PrometheusMetricsServlet metricsServlet,
+                                      PulsarPrometheusMetricsServlet metricsServlet,
                                       ServiceConfiguration config)
             throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
@@ -1515,7 +1522,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return resourceUsageTransportManager;
     }
 
-    public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+    public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
         if (metricsServlet == null) {
             if (pendingMetricsProviders == null) {
                 pendingMetricsProviders = new LinkedList<>();
