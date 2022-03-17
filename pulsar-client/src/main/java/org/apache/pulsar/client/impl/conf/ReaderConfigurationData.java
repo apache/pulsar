@@ -62,6 +62,9 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean poolMessages = false;
 
+    private boolean autoUpdatePartitions = true;
+    private long autoUpdatePartitionsIntervalSeconds = 60;
+
     private transient List<ReaderInterceptor<T>> readerInterceptorList;
 
     @JsonIgnore

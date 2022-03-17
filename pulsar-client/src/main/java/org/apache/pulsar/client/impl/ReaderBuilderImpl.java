@@ -232,9 +232,22 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> intercept(List<ReaderInterceptor<T>> readerInterceptorList) {
-        if (readerInterceptorList != null) {
-            this.conf.setReaderInterceptorList(readerInterceptorList);
+    public ReaderBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
+        this.conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+        checkArgument(interval > 0, "interval needs to be > 0");
+        this.conf.setAutoUpdatePartitionsIntervalSeconds(unit.toSeconds(interval));
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors) {
+        if (interceptors != null) {
+            this.conf.setReaderInterceptorList(Arrays.asList(interceptors));
         }
         return this;
     }

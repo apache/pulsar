@@ -27,8 +27,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -38,6 +38,7 @@ import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -67,6 +68,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
     @DataProvider(name = "receiverQueueSize")
     public Object[][] getReceiverQueueSize() {
         return new Object[][] { { 0 }, { 1000 } };
+    }
+
+    /**
+     * 0 indicate the topic is non-partition topic
+     */
+    @DataProvider(name = "topicPartition")
+    public Object[][] getTopicPartition() {
+        return new Object[][] {{ 0 }, { 3 }};
     }
 
     @Test
@@ -738,46 +747,37 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
-    public void testReaderInterceptor() throws Exception {
+    @Test(timeOut = 1000 * 30, dataProvider = "topicPartition")
+    public void testReaderInterceptor(int topicPartition) throws Exception {
+        String topic = "reader-interceptor-" + topicPartition + "-" + RandomStringUtils.randomAlphabetic(5);
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
 
-        ReaderInterceptor<byte[]> readerInterceptor1 = new ReaderInterceptor<byte[]>() {
+        class ReaderInterceptorImpl implements ReaderInterceptor<byte[]> {
+            final AtomicInteger beforeReadCount = new AtomicInteger();
+            final AtomicInteger newPartition = new AtomicInteger(0);
+
             @Override
             public void close() {
-                log.info("close reader interceptor1");
+                // nothing to do
             }
 
             @Override
             public Message<byte[]> beforeRead(Reader<byte[]> reader, Message<byte[]> message) {
-                log.info("reader interceptor 1 beforeRead");
+                beforeReadCount.incrementAndGet();
                 return message;
             }
 
             @Override
             public void onPartitionsChange(String topicName, int partitions) {
-
+                newPartition.set(partitions);
             }
-        };
+        }
 
-        ReaderInterceptor<byte[]> readerInterceptor2 = new ReaderInterceptor<byte[]>() {
-            @Override
-            public void close() {
-                log.info("close reader interceptor2");
-            }
+        ReaderInterceptorImpl interceptor1 = new ReaderInterceptorImpl();
+        ReaderInterceptorImpl interceptor2 = new ReaderInterceptorImpl();
 
-            @Override
-            public Message<byte[]> beforeRead(Reader<byte[]> reader, Message<byte[]> message) {
-                log.info("reader interceptor 2 beforeRead");
-                return message;
-            }
-
-            @Override
-            public void onPartitionsChange(String topicName, int partitions) {
-
-            }
-        };
-
-        String topic = "reader-interceptor-test-" + RandomStringUtils.randomAlphabetic(5);
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
@@ -787,15 +787,38 @@ public class InterceptorsTest extends ProducerConsumerBase {
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
-                .intercept(Lists.newArrayList(readerInterceptor1, readerInterceptor2))
+                .intercept(interceptor1, interceptor2)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .create();
 
-        for (int i = 0; i < 10; i++) {
+        int msgCount = 10;
+        produceAndConsume(msgCount, producer, reader);
+        Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount);
+        Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount);
+
+        if (topicPartition > 0) {
+            final int newPartition = topicPartition + 3;
+            admin.topics().updatePartitionedTopic(topic, newPartition);
+            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
+                    () -> {
+                        Assert.assertEquals(interceptor1.newPartition.get(), newPartition);
+                        Assert.assertEquals(interceptor2.newPartition.get(), newPartition);
+                    });
+            produceAndConsume(msgCount * 2, producer, reader);
+            Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount * 3);
+            Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount * 3);
+        }
+    }
+
+    private void produceAndConsume(int msgCount, Producer<byte[]> producer, Reader<byte[]> reader)
+            throws PulsarClientException {
+        for (int i = 0; i < msgCount; i++) {
             producer.newMessage().value(("msg - " + i).getBytes()).send();
         }
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < msgCount; i++) {
             Message<byte[]> message = reader.readNext();
+            Assert.assertNotNull(message);
         }
     }
 
