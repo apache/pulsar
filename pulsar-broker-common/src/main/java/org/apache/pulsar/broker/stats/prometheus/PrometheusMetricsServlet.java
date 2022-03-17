@@ -102,7 +102,8 @@ public class PrometheusMetricsServlet extends HttpServlet {
         }));
     }
 
-    protected void generateMetrics(String cluster, ServletOutputStream outputStream, boolean useBuffer) throws IOException {
+    protected void generateMetrics(String cluster, ServletOutputStream outputStream,
+                                   boolean useBuffer) throws IOException {
         PrometheusMetricsGeneratorUtils.generate(cluster, outputStream, metricsProviders);
     }
 
