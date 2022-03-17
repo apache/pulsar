@@ -271,13 +271,13 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             }
 
             brokerProxyValidator.resolveAndCheckTargetAddress(proxyToBrokerUrl)
-                    .thenAccept(address -> ctx().executor().submit(() -> {
+                    .thenAcceptAsync(address -> {
                         // Client already knows which broker to connect. Let's open a
                         // connection there and just pass bytes in both directions
                         state = State.ProxyConnectionToBroker;
                         directProxyHandler = new DirectProxyHandler(service, this, proxyToBrokerUrl, address,
                                 protocolVersionToAdvertise, sslHandlerSupplier);
-                    }))
+                    }, ctx.executor())
                     .exceptionally(throwable -> {
                         if (throwable instanceof TargetAddressDeniedException
                                 || throwable.getCause() instanceof TargetAddressDeniedException) {
