@@ -438,11 +438,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 conf.setAckTimeoutMillis(DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER);
             }
 
-            // when MaxRedeliverCount <= 0 in DeadLetterPolicy, we reset MaxRedeliverCount
-            // to default value, Default: 16.
-            if (deadLetterPolicy.getMaxRedeliverCount() <= 0) {
-                deadLetterPolicy.setMaxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES);
-            }
+            checkArgument(deadLetterPolicy.getMaxRedeliverCount() > 0, "MaxRedeliverCount must not be > 0.");
             conf.setDeadLetterPolicy(deadLetterPolicy);
         }
         return this;
