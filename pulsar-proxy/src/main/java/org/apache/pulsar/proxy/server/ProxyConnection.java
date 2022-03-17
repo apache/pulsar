@@ -185,6 +185,17 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+        if (directProxyHandler != null && directProxyHandler.outboundChannel != null) {
+            // handle backpressure
+            // stop/resume reading input from connection between the proxy and the broker
+            // when the writability of the connection between the client and the proxy changes
+            directProxyHandler.outboundChannel.config().setAutoRead(ctx.channel().isWritable());
+        }
+        super.channelWritabilityChanged(ctx);
+    }
+
+    @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
             haProxyMessage = (HAProxyMessage) msg;

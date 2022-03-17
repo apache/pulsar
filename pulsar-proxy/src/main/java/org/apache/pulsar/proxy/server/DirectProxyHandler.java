@@ -176,6 +176,8 @@ public class DirectProxyHandler {
         }
     }
 
+
+
     private ByteBuf encodeProxyProtocolMessage(HAProxyMessage msg) {
         // Max length of v1 version proxy protocol message is 108
         ByteBuf out = Unpooled.buffer(108);
@@ -236,6 +238,15 @@ public class DirectProxyHandler {
             command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
             outboundChannel.writeAndFlush(command);
+        }
+
+        @Override
+        public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+            // handle backpressure
+            // stop/resume reading input from connection between the client and the proxy
+            // when the writability of the connection between the proxy and the broker changes
+            inboundChannel.config().setAutoRead(ctx.channel().isWritable());
+            super.channelWritabilityChanged(ctx);
         }
 
         @Override
