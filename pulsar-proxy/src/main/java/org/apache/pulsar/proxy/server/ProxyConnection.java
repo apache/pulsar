@@ -24,8 +24,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -65,7 +63,7 @@ import org.slf4j.LoggerFactory;
  * Handles incoming discovery request from client and sends appropriate response back to client.
  *
  */
-public class ProxyConnection extends PulsarHandler implements FutureListener<Void> {
+public class ProxyConnection extends PulsarHandler {
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnection.class);
     // ConnectionPool is used by the proxy to issue lookup requests
     private ConnectionPool connectionPool;
@@ -209,21 +207,18 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 directProxyHandler.getInboundChannelRequestsRate().recordEvent(bytes);
                 ProxyService.BYTES_COUNTER.inc(bytes);
             }
-            directProxyHandler.outboundChannel.writeAndFlush(msg).addListener(this);
+            directProxyHandler.outboundChannel.writeAndFlush(msg)
+                    .addListener(future -> {
+                        if (!future.isSuccess()) {
+                            LOG.warn("[{}] Error in writing to outbound channel. Closing", remoteAddress,
+                                    future.cause());
+                            directProxyHandler.outboundChannel.close();
+                        }
+                    });
             break;
 
         default:
             break;
-        }
-    }
-
-    @Override
-    public void operationComplete(Future<Void> future) {
-        // This is invoked when the write operation on the paired connection is
-        // completed
-        if (!future.isSuccess()) {
-            LOG.warn("[{}] Error in writing to outbound channel. Closing", remoteAddress, future.cause());
-            directProxyHandler.outboundChannel.close();
         }
     }
 

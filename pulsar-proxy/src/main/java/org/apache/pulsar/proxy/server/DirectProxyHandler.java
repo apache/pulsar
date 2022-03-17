@@ -39,8 +39,6 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -209,7 +207,7 @@ public class DirectProxyHandler {
         Init, HandshakeCompleted
     }
 
-    public class ProxyBackendHandler extends PulsarDecoder implements FutureListener<Void> {
+    public class ProxyBackendHandler extends PulsarDecoder {
 
         private BackendState state = BackendState.Init;
         private final String remoteHostName;
@@ -258,7 +256,14 @@ public class DirectProxyHandler {
                 if (msg instanceof ByteBuf) {
                     ProxyService.BYTES_COUNTER.inc(((ByteBuf) msg).readableBytes());
                 }
-                inboundChannel.writeAndFlush(msg).addListener(this);
+                inboundChannel.writeAndFlush(msg)
+                        .addListener(future -> {
+                            if (!future.isSuccess()) {
+                                log.warn("[{}] [{}] Failed to write on proxy connection. Closing both connections.",
+                                        inboundChannel, outboundChannel, future.cause());
+                                inboundChannel.close();
+                            }
+                        });
                 break;
 
             default:
@@ -300,17 +305,6 @@ public class DirectProxyHandler {
                 outboundChannel.writeAndFlush(request);
             } catch (Exception e) {
                 log.error("Error mutual verify", e);
-            }
-        }
-
-        @Override
-        public void operationComplete(Future<Void> future) {
-            // This is invoked when the write operation on the paired connection
-            // is completed
-            if (!future.isSuccess()) {
-                log.warn("[{}] [{}] Failed to write on proxy connection. Closing both connections.", inboundChannel,
-                        outboundChannel, future.cause());
-                inboundChannel.close();
             }
         }
 
