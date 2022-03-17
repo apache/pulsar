@@ -30,6 +30,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
@@ -239,8 +240,9 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     @Override
     public ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
-        checkArgument(interval > 0, "interval needs to be > 0");
-        this.conf.setAutoUpdatePartitionsIntervalSeconds(unit.toSeconds(interval));
+        long intervalSeconds = unit.toSeconds(interval);
+        checkArgument(intervalSeconds >= 1, "Auto update partition interval needs to be >= 1 second");
+        this.conf.setAutoUpdatePartitionsIntervalSeconds(intervalSeconds);
         return this;
     }
 

@@ -39,7 +39,7 @@ public class ReaderInterceptorUtil {
         if (interceptorList == null || interceptorList.isEmpty()) {
             return null;
         }
-        List<ConsumerInterceptor<T>> consumerInterceptorList = new ArrayList<>();
+        List<ConsumerInterceptor<T>> consumerInterceptorList = new ArrayList<>(interceptorList.size());
         for (ReaderInterceptor<T> readerInterceptor : interceptorList) {
             consumerInterceptorList.add(getInterceptor(reader, readerInterceptor));
         }
