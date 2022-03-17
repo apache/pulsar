@@ -1869,7 +1869,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             OpSendMsg firstMsg = pendingMessages.peek();
-            if (firstMsg == null && (isBatchMessagingEnabled() && batchMessageContainer.isEmpty())) {
+            if (firstMsg == null && (batchMessageContainer == null || batchMessageContainer.isEmpty())) {
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
