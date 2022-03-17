@@ -35,14 +35,26 @@ public interface ReaderInterceptor<T> {
     void close();
 
     /**
-     * Before read message.
+     * This is called just before the message is returned by
+     * {@link Reader#readNext()}, {@link ReaderListener#received(Reader, Message)}
+     * or the {@link java.util.concurrent.CompletableFuture} returned by
+     * {@link Reader#readNextAsync()} completes.
+     *
+     * This method is based on {@link ConsumerInterceptor#beforeConsume(Consumer, Message)},
+     * so it has the same features.
+     *
+     * @param reader the reader which contains the interceptor
+     * @param message the message to be read by the client.
+     * @return message that is either modified by the interceptor or same message
+     *         passed into the method.
      */
     Message<T> beforeRead(Reader<T> reader, Message<T> message);
 
     /**
+     * This method is called when partitions of the topic (partitioned-topic) changes.
      *
-     * @param topicName
-     * @param partitions
+     * @param topicName topic name
+     * @param partitions new updated number of partitions
      */
     default void onPartitionsChange(String topicName, int partitions) {
 
