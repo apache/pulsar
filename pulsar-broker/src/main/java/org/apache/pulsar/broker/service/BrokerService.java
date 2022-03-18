@@ -2216,6 +2216,15 @@ public class BrokerService implements Closeable {
                 (publisherThrottlingTickTimeMillis) -> {
                     setupBrokerPublishRateLimiterMonitor();
                 });
+
+        // add listener to update topic publish-rate dynamic config
+        registerConfigurationListener("maxPublishRatePerTopicInMessages",
+            maxPublishRatePerTopicInMessages -> updateMaxPublishRatePerTopicInMessages()
+        );
+        registerConfigurationListener("maxPublishRatePerTopicInBytes",
+            maxPublishRatePerTopicInMessages -> updateMaxPublishRatePerTopicInMessages()
+        );
+
         // add listener to notify broker publish-rate dynamic config
         registerConfigurationListener("brokerPublisherThrottlingMaxMessageRate",
                 (brokerPublisherThrottlingMaxMessageRate) ->
@@ -2250,6 +2259,16 @@ public class BrokerService implements Closeable {
         } else {
             brokerDispatchRateLimiter.updateDispatchRate();
         }
+    }
+
+    private void updateMaxPublishRatePerTopicInMessages() {
+        this.pulsar().getExecutor().submit(() ->
+            forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    ((AbstractTopic) topic).updateBrokerPublishRate();
+                    ((AbstractTopic) topic).updatePublishDispatcher();
+                }
+            }));
     }
 
     private void updateBrokerPublisherThrottlingMaxRate() {
