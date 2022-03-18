@@ -307,6 +307,8 @@ public class PersistentSubscription implements Subscription {
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
+            // clear delay message avoid duplicate.
+            dispatcher.clearDelayedMessages();
             deactivateCursor();
             topic.getManagedLedger().removeWaitingCursor(cursor);
 
