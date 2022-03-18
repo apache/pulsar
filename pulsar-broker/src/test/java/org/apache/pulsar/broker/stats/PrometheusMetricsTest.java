@@ -1398,6 +1398,47 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         pulsarClient.close();
     }
 
+    public void testWebExecutorMetrics() throws Exception {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
+        Collection<Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
+        Collection<Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
+        Collection<Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
+        Collection<Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
+
+        Assert.assertEquals(maxThreads.size(), 1);
+        Assert.assertEquals(minThreads.size(), 1);
+        Assert.assertEquals(activeThreads.size(), 1);
+        Assert.assertEquals(idleThreads.size(), 1);
+        Assert.assertEquals(currentThreads.size(), 1);
+        
+        for (Metric metric : maxThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+        for (Metric metric : minThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+        for (Metric metric : activeThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value >= 0);
+        }
+        for (Metric metric : idleThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value >= 0);
+        }
+        for (Metric metric : currentThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+    }
+
+
     @Test
     public void testSplitTopicAndPartitionLabel() throws Exception {
         String ns1 = "prop/ns-abc1";
