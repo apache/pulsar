@@ -37,7 +37,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public abstract class AbstractMetadataDriver implements Closeable {
 
-    protected static final String METADATA_STORE_SCHEME = "metadata-store";
+    public static final String METADATA_STORE_SCHEME = "metadata-store";
 
     public static final String METADATA_STORE_INSTANCE = "metadata-store-instance";
 
