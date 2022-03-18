@@ -851,7 +851,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 this.sink.open(new HashMap<>(), contextImpl);
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec.toString(),
+                    log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec,
                             contextImpl.toString());
                 }
                 this.sink.open(ObjectMapperFactory.getThreadLocal().readValue(sinkSpec.getConfigs(),
