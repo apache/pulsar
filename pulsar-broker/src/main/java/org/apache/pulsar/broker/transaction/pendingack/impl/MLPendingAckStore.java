@@ -284,7 +284,6 @@ public class MLPendingAckStore implements PendingAckStore {
                 log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
                         managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
 
-                log.error("Transaction log write transaction operation error", exception);
                 if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException
                         && managedLedger instanceof ManagedLedgerImpl
                         && ManagedLedgerImpl.State.WriteFailed == ((ManagedLedgerImpl) managedLedger).getState()) {
