@@ -59,4 +59,70 @@
     <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-classes@.*$</packageUrl>
     <cpe>cpe:/a:netty:netty</cpe>
   </suppress>
+  <suppress>
+<!--    Zookkeeper false positive about Jetty and commons-io-->
+<!--    https://github.com/apache/zookeeper/pull/1824-->
+    <notes><![CDATA[
+   file name: zookeeper-3.8.0.jar
+   ]]></notes>
+    <sha1>e395c1d8a71557b7569cc6a83487b2e30e2e58fe</sha1>
+    <cve>CVE-2021-28164</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-3.8.0.jar
+   ]]></notes>
+    <sha1>e395c1d8a71557b7569cc6a83487b2e30e2e58fe</sha1>
+    <cve>CVE-2021-29425</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-3.8.0.jar
+   ]]></notes>
+    <sha1>e395c1d8a71557b7569cc6a83487b2e30e2e58fe</sha1>
+    <cve>CVE-2021-34429</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-prometheus-metrics-3.8.0.jar
+   ]]></notes>
+    <sha1>849e8ece2845cb0185d721233906d487a7f1e4cf</sha1>
+    <cve>CVE-2021-28164</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-prometheus-metrics-3.8.0.jar
+   ]]></notes>
+    <sha1>849e8ece2845cb0185d721233906d487a7f1e4cf</sha1>
+    <cve>CVE-2021-29425</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-prometheus-metrics-3.8.0.jar
+   ]]></notes>
+    <sha1>849e8ece2845cb0185d721233906d487a7f1e4cf</sha1>
+    <cve>CVE-2021-34429</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-jute-3.8.0.jar
+   ]]></notes>
+    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
+    <cve>CVE-2021-28164</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-jute-3.8.0.jar
+   ]]></notes>
+    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
+    <cve>CVE-2021-29425</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: zookeeper-jute-3.8.0.jar
+   ]]></notes>
+    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
+    <cve>CVE-2021-34429</cve>
+  </suppress>
+
 </suppressions>

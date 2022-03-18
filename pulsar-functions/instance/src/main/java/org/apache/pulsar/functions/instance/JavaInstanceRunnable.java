@@ -90,7 +90,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // input topic consumer & output topic producer
     private final ClientBuilder clientBuilder;
-    private PulsarClientImpl client;
+    private final PulsarClientImpl client;
     private final PulsarAdmin pulsarAdmin;
 
     private LogAppender logAppender;
@@ -125,14 +125,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final Map<String, String> properties;
 
     private final ClassLoader instanceClassLoader;
-    private ClassLoader functionClassLoader;
+    private final ClassLoader functionClassLoader;
 
     // a flog to determine if member variables have been initialized as part of setup().
     // used for out of band API calls like operations involving stats
     private transient boolean isInitialized = false;
 
     // a read write lock for stats operations
-    private ReadWriteLock statsLock = new ReentrantReadWriteLock();
+    private final ReadWriteLock statsLock = new ReentrantReadWriteLock();
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 ClientBuilder clientBuilder,
