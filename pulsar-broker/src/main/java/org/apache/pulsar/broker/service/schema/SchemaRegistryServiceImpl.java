@@ -44,7 +44,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
@@ -67,20 +66,18 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private final SchemaRegistryStats stats;
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, ServiceConfiguration configuration,
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
                               Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock) {
         this.schemaStorage = schemaStorage;
         this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
-        this.stats = SchemaRegistryStats.getInstance(configuration.getManagedLedgerStatsPeriodSeconds(),
-                configuration.getClusterName());
+        this.stats = SchemaRegistryStats.getInstance();
     }
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, ServiceConfiguration configuration,
-                              Map<SchemaType, SchemaCompatibilityCheck>
-            compatibilityChecks) {
-        this(schemaStorage, configuration, compatibilityChecks, Clock.systemUTC());
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
+                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks) {
+        this(schemaStorage, compatibilityChecks, Clock.systemUTC());
     }
 
     @Override
@@ -141,7 +138,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         } else {
                             log.debug("[{}] Schema is present", schemaId);
                         }
-                        this.stats.recordGetSuccess(schemaId);
                         this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
                     }
                 });
@@ -150,7 +146,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
         long start = this.clock.millis();
-        this.stats.recordGetSuccess(schemaId);
 
         return schemaStorage.getAll(schemaId)
                 .thenApply(schemas -> {
@@ -170,7 +165,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     if (t != null) {
                         this.stats.recordGetFailed(schemaId);
                     } else {
-                        this.stats.recordGetSuccess(schemaId);
                         this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
                     }
                 });
@@ -219,7 +213,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                 this.stats.recordPutFailed(schemaId);
                             } else {
                                 log.debug("[{}] Put schema finished", schemaId);
-                                this.stats.recordPutSuccess(schemaId);
                                 this.stats.recordPutLatency(schemaId, this.clock.millis() - start);
                             }
                         });
@@ -245,7 +238,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         this.stats.recordDelFailed(schemaId);
                     } else {
                         log.debug("[{}] User {} delete schema finished", schemaId, user);
-                        this.stats.recordDelSuccess(schemaId);
                         this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
                     }
                 });
@@ -258,11 +250,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+        long start = this.clock.millis();
+
         return schemaStorage.delete(schemaId, forcefully)
                 .whenComplete((v, t) -> {
                     if (t != null) {
+                        this.stats.recordDelFailed(schemaId);
                         log.error("[{}] Delete schema storage failed", schemaId);
                     } else {
+                        this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
                         log.debug("[{}] Delete schema storage finished", schemaId);
                     }
                 });

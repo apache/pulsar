@@ -28,10 +28,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import com.google.common.collect.Multimap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -86,7 +91,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, pulsar.getConfiguration(), checkMap, MockClock);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -108,31 +113,29 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         String metricsStr = new String(output.toByteArray(), StandardCharsets.UTF_8);
         Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> delMetrics = metrics.get("pulsar_schema_del_ops_count");
-        for (PrometheusMetricsTest.Metric metric : delMetrics) {
-            Assert.assertEquals(metric.tags.get("cluster"), pulsar.getConfiguration().getClusterName());
+        Collection<PrometheusMetricsTest.Metric> delMetrics = metrics.get("pulsar_schema_del_ops_failed_count");
+        Assert.assertEquals(delMetrics.size(), 0);
+        Collection<PrometheusMetricsTest.Metric> getMetrics = metrics.get("pulsar_schema_get_ops_failed_count");
+        Assert.assertEquals(getMetrics.size(), 0);
+        Collection<PrometheusMetricsTest.Metric> putMetrics = metrics.get("pulsar_schema_put_ops_failed_count");
+        Assert.assertEquals(putMetrics.size(), 0);
+
+        Collection<PrometheusMetricsTest.Metric> deleteLatency = metrics.get("pulsar_schema_del_ops_latency_count");
+        for (PrometheusMetricsTest.Metric metric : deleteLatency) {
             Assert.assertEquals(metric.tags.get("schema"), schemaId1);
-            if (metric.tags.get("status").equals("success")) {
-                Assert.assertEquals(metric.value, 1);
-            }
+            Assert.assertTrue(metric.value > 0);
         }
 
-        Collection<PrometheusMetricsTest.Metric> getMetrics = metrics.get("pulsar_schema_get_ops_count");
-        for (PrometheusMetricsTest.Metric metric : getMetrics) {
-            Assert.assertEquals(metric.tags.get("cluster"), pulsar.getConfiguration().getClusterName());
+        Collection<PrometheusMetricsTest.Metric> getLatency = metrics.get("pulsar_schema_get_ops_latency_count");
+        for (PrometheusMetricsTest.Metric metric : getLatency) {
             Assert.assertEquals(metric.tags.get("schema"), schemaId1);
-            if (metric.tags.get("status").equals("success")) {
-                Assert.assertTrue(metric.value > 0);
-            }
+            Assert.assertTrue(metric.value > 0);
         }
 
-        Collection<PrometheusMetricsTest.Metric> putMetrics = metrics.get("pulsar_schema_put_ops_count");
-        for (PrometheusMetricsTest.Metric metric : putMetrics) {
-            Assert.assertEquals(metric.tags.get("cluster"), pulsar.getConfiguration().getClusterName());
+        Collection<PrometheusMetricsTest.Metric> putLatency = metrics.get("pulsar_schema_put_ops_latency_count");
+        for (PrometheusMetricsTest.Metric metric : putLatency) {
             Assert.assertEquals(metric.tags.get("schema"), schemaId1);
-            if (metric.tags.get("status").equals("success")) {
-                Assert.assertEquals(metric.value, 1);
-            }
+            Assert.assertTrue(metric.value > 0);
         }
     }
 

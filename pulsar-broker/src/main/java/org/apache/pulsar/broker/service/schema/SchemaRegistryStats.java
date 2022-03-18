@@ -25,133 +25,101 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 class SchemaRegistryStats implements AutoCloseable {
     private static final String SCHEMA_ID = "schema";
-    private static final String STATUS = "status";
-    private static final String CLUSTER = "cluster";
-    private static final String STATUS_SUCCESS = "success";
-    private static final String STATUS_FAILED = "failed";
-    private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99};
+    private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999, 1};
     private static final AtomicBoolean CLOSED = new AtomicBoolean(false);
 
-    private final Counter delSchemaOps;
-    private final Counter getSchemaOps;
-    private final Counter putSchemaOps;
+    private final Counter getOpsFailedCounter;
+    private final Counter putOpsFailedCounter;
+    private final Counter deleteOpsFailedCounter;
 
-    private final Counter schemaIncompatibleCount;
-    private final Counter schemaCompatibleCount;
+    private final Counter compatibleCounter;
+    private final Counter incompatibleCounter;
 
-    private final Summary delSchemaLatency;
-    private final Summary getSchemaLatency;
-    private final Summary putSchemaLatency;
-    private final String clusterName;
+    private final Summary deleteOpsLatency;
+    private final Summary getOpsLatency;
+    private final Summary putOpsLatency;
 
     private static volatile SchemaRegistryStats instance;
 
-    static synchronized SchemaRegistryStats getInstance(final int interval, final String cluster) {
+    static synchronized SchemaRegistryStats getInstance() {
         if (null == instance) {
-            instance = new SchemaRegistryStats(interval, cluster);
+            instance = new SchemaRegistryStats();
         }
 
         return instance;
     }
 
-    private SchemaRegistryStats(final int interval, final String cluster) {
-        this.clusterName = cluster;
+    private SchemaRegistryStats() {
+        this.deleteOpsFailedCounter = Counter.build("pulsar_schema_del_ops_failed_count", "-")
+                .labelNames(SCHEMA_ID).create().register();
+        this.getOpsFailedCounter = Counter.build("pulsar_schema_get_ops_failed_count", "-")
+                .labelNames(SCHEMA_ID).create().register();
+        this.putOpsFailedCounter = Counter.build("pulsar_schema_put_ops_failed_count", "-")
+                .labelNames(SCHEMA_ID).create().register();
 
-        this.delSchemaOps = Counter.build("pulsar_schema_del_ops_count", "-")
-                .labelNames(CLUSTER, SCHEMA_ID, STATUS)
-                .create()
-                .register();
-        this.getSchemaOps = Counter.build("pulsar_schema_get_ops_count", "-")
-                .labelNames(CLUSTER, SCHEMA_ID, STATUS)
-                .create()
-                .register();
-        this.putSchemaOps = Counter.build("pulsar_schema_put_ops_count", "-")
-                .labelNames(CLUSTER, SCHEMA_ID, STATUS)
-                .create()
-                .register();
+        this.compatibleCounter = Counter.build("pulsar_schema_compatible_count", "-")
+                .labelNames(SCHEMA_ID).create().register();
+        this.incompatibleCounter = Counter.build("pulsar_schema_incompatible_count", "-")
+                .labelNames(SCHEMA_ID).create().register();
 
-        this.schemaCompatibleCount = Counter.build("pulsar_schema_compatible_count", "-")
-                .labelNames(CLUSTER, SCHEMA_ID)
-                .create()
-                .register();
-        this.schemaIncompatibleCount = Counter.build("pulsar_schema_incompatible_count", "-")
-                .labelNames(CLUSTER, SCHEMA_ID)
-                .create()
-                .register();
-
-        this.delSchemaLatency = this.setQuantiles(
-                Summary.build("pulsar_schema_del_ops_latency", "-")
-                        .maxAgeSeconds(interval).labelNames(CLUSTER, SCHEMA_ID));
-        this.getSchemaLatency = this.setQuantiles(
-                Summary.build("pulsar_schema_get_ops_latency", "-")
-                        .maxAgeSeconds(interval).labelNames(CLUSTER, SCHEMA_ID));
-        this.putSchemaLatency = this.setQuantiles(
-                Summary.build("pulsar_schema_put_ops_latency", "-")
-                        .maxAgeSeconds(interval).labelNames(CLUSTER, SCHEMA_ID));
+        this.deleteOpsLatency = this.buildSummary("pulsar_schema_del_ops_latency", "-");
+        this.getOpsLatency = this.buildSummary("pulsar_schema_get_ops_latency", "-");
+        this.putOpsLatency = this.buildSummary("pulsar_schema_put_ops_latency", "-");
     }
 
-    private Summary setQuantiles(Summary.Builder builder) {
+    private Summary buildSummary(String name, String help) {
+        Summary.Builder builder = Summary.build(name, help).labelNames(SCHEMA_ID);
+
         for (double quantile : QUANTILES) {
             builder.quantile(quantile, 0.01D);
         }
+
         return builder.create().register();
     }
 
-    void recordDelSuccess(String schemaId) {
-        this.delSchemaOps.labels(clusterName, schemaId, STATUS_SUCCESS).inc();
-    }
-
     void recordDelFailed(String schemaId) {
-        this.delSchemaOps.labels(clusterName, schemaId, STATUS_FAILED).inc();
-    }
-
-    void recordGetSuccess(String schemaId) {
-        this.getSchemaOps.labels(clusterName, schemaId, STATUS_SUCCESS).inc();
+        this.deleteOpsFailedCounter.labels(schemaId).inc();
     }
 
     void recordGetFailed(String schemaId) {
-        this.getSchemaOps.labels(clusterName, schemaId, STATUS_FAILED).inc();
-    }
-
-    void recordPutSuccess(String schemaId) {
-        this.putSchemaOps.labels(clusterName, schemaId, STATUS_SUCCESS).inc();
+        this.getOpsFailedCounter.labels(schemaId).inc();
     }
 
     void recordPutFailed(String schemaId) {
-        this.putSchemaOps.labels(clusterName, schemaId, STATUS_FAILED).inc();
+        this.putOpsFailedCounter.labels(schemaId).inc();
     }
 
     void recordDelLatency(String schemaId, long millis) {
-        this.delSchemaLatency.labels(clusterName, schemaId).observe(millis);
+        this.deleteOpsLatency.labels(schemaId).observe(millis);
     }
 
     void recordGetLatency(String schemaId, long millis) {
-        this.getSchemaLatency.labels(clusterName, schemaId).observe(millis);
+        this.getOpsLatency.labels(schemaId).observe(millis);
     }
 
     void recordPutLatency(String schemaId, long millis) {
-        this.putSchemaLatency.labels(clusterName, schemaId).observe(millis);
+        this.putOpsLatency.labels(schemaId).observe(millis);
     }
 
     void recordSchemaIncompatible(String schemaId) {
-        this.schemaIncompatibleCount.labels(clusterName, schemaId).inc();
+        this.incompatibleCounter.labels(schemaId).inc();
     }
 
     void recordSchemaCompatible(String schemaId) {
-        this.schemaCompatibleCount.labels(clusterName, schemaId).inc();
+        this.compatibleCounter.labels(schemaId).inc();
     }
 
     @Override
     public void close() throws Exception {
         if (CLOSED.compareAndSet(false, true)) {
-            CollectorRegistry.defaultRegistry.unregister(this.delSchemaOps);
-            CollectorRegistry.defaultRegistry.unregister(this.getSchemaOps);
-            CollectorRegistry.defaultRegistry.unregister(this.putSchemaOps);
-            CollectorRegistry.defaultRegistry.unregister(this.schemaCompatibleCount);
-            CollectorRegistry.defaultRegistry.unregister(this.schemaIncompatibleCount);
-            CollectorRegistry.defaultRegistry.unregister(this.delSchemaLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.getSchemaLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.putSchemaLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.deleteOpsFailedCounter);
+            CollectorRegistry.defaultRegistry.unregister(this.getOpsFailedCounter);
+            CollectorRegistry.defaultRegistry.unregister(this.putOpsFailedCounter);
+            CollectorRegistry.defaultRegistry.unregister(this.compatibleCounter);
+            CollectorRegistry.defaultRegistry.unregister(this.incompatibleCounter);
+            CollectorRegistry.defaultRegistry.unregister(this.deleteOpsLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.getOpsLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.putOpsLatency);
         }
     }
 }

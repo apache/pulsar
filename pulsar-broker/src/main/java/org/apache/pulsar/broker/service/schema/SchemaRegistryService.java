@@ -50,7 +50,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(compatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
                 return SchemaRegistryServiceWithSchemaDataValidator.of(
-                        new SchemaRegistryServiceImpl(schemaStorage, configuration, checkers));
+                        new SchemaRegistryServiceImpl(schemaStorage, checkers));
             } catch (Exception e) {
                 LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
             }
