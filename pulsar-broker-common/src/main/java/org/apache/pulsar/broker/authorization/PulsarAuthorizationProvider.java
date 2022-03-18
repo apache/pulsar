@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.authorization;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -156,7 +155,12 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
         return canProduceAsync(topicName, role, authenticationData)
-                .thenCompose(__ -> canConsumeAsync(topicName, role, authenticationData, null));
+                .thenCompose(canProduce -> {
+                    if (canProduce) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return canConsumeAsync(topicName, role, authenticationData, null);
+                });
     }
 
     @Override
@@ -180,20 +184,18 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     private CompletableFuture<Boolean> allowConsumeOrProduceOpsAsync(NamespaceName namespaceName,
                                                                      String role,
                                                                      AuthenticationDataSource authenticationData) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData,
-                                                    Sets.newHashSet(AuthAction.consume, AuthAction.produce));
-
+        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.consume)
+                .thenCompose(canConsumer -> {
+                    if (canConsumer) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.produce);
+                });
     }
 
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
                                                                        AuthenticationDataSource authenticationData,
                                                                        AuthAction authAction) {
-        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, Sets.newHashSet(authAction));
-    }
-
-    private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
-                                                                       AuthenticationDataSource authenticationData,
-                                                                       Set<AuthAction> authActions) {
         return pulsarResources.getNamespaceResources().getPoliciesAsync(namespaceName).thenApply(policies -> {
             if (!policies.isPresent()) {
                 if (log.isDebugEnabled()) {
@@ -203,14 +205,14 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 Map<String, Set<AuthAction>> namespaceRoles = policies.get()
                         .auth_policies.getNamespaceAuthentication();
                 Set<AuthAction> namespaceActions = namespaceRoles.get(role);
-                if (namespaceActions != null && namespaceActions.containsAll(authActions)) {
+                if (namespaceActions != null && namespaceActions.contains(authAction)) {
                     // The role has namespace level permission
                     return true;
                 }
 
                 // Using wildcard
                 if (conf.isAuthorizationAllowWildcardsMatching()) {
-                    if (checkWildcardPermission(role, authActions, namespaceRoles)) {
+                    if (checkWildcardPermission(role, authAction, namespaceRoles)) {
                         // The role has namespace level permission by wildcard match
                         return true;
                     }
@@ -421,16 +423,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             }
         }
         return false;
-    }
-
-    private boolean checkWildcardPermission(String checkedRole, Set<AuthAction> checkedActions,
-                                            Map<String, Set<AuthAction>> permissionMap) {
-        for (AuthAction authAction : checkedActions) {
-            if (!checkWildcardPermission(checkedRole, authAction, permissionMap)) {
-                return false;
-            }
-        }
-        return true;
     }
 
 
