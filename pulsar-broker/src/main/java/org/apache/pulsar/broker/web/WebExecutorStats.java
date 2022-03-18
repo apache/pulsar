@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.web;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class WebExecutorStats implements AutoCloseable {
