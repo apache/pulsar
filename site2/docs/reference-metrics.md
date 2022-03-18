@@ -111,6 +111,7 @@ The following metrics are available for broker:
   - [Authentication metrics](#authentication-metrics)
   - [Connection metrics](#connection-metrics)
   - [Jetty metrics](#jetty-metrics)
+  - [Web service executor metrics](#web-service-executor-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -494,6 +495,22 @@ All the jetty metrics are labelled with the following labels:
 | jetty_responses_total | Counter | Number of responses, labeled by status code. The `code` label can be "1xx", "2xx", "3xx", "4xx", or "5xx". |
 | jetty_stats_seconds | Gauge | Time in seconds stats have been collected for. |
 | jetty_responses_bytes_total | Counter | Total number of bytes across all responses. |
+
+### Web service executor metrics
+
+> For a functions-worker running separately from brokers, its Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
+
+All the web service executor metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_web_executor_max_threads | GAUGE | The max threads of pulsar-web  thread pool |
+| pulsar_web_executor_min_threads | GAUGE | The max threads of pulsar-web thread pool |
+| pulsar_web_executor_idle_threads | GAUGE | The idle threads of pulsar-web thread pool |
+| pulsar_web_executor_active_threads | GAUGE | How many threads doing task of pulsar-web thread pool |
+| pulsar_web_executor_current_threads | GAUGE | How many threads in the pulsar-web thread pool now |
 
 ## Pulsar Functions
 
