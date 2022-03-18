@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -219,13 +220,7 @@ public class ProxyConnection extends PulsarHandler {
                 ProxyService.BYTES_COUNTER.inc(bytes);
             }
             directProxyHandler.outboundChannel.writeAndFlush(msg)
-                    .addListener(future -> {
-                        if (!future.isSuccess()) {
-                            LOG.warn("[{}] Error in writing to outbound channel. Closing", remoteAddress,
-                                    future.cause());
-                            directProxyHandler.outboundChannel.close();
-                        }
-                    });
+                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
             break;
 
         default:
@@ -270,7 +265,7 @@ public class ProxyConnection extends PulsarHandler {
                 ctx()
                         .writeAndFlush(
                                 Commands.newError(-1, ServerError.ServiceNotReady, "Target broker isn't available."))
-                        .addListener(future -> ctx().close());
+                        .addListener(ChannelFutureListener.CLOSE);
                 return;
             }
 
@@ -300,7 +295,7 @@ public class ProxyConnection extends PulsarHandler {
                                 .writeAndFlush(
                                         Commands.newError(-1, ServerError.ServiceNotReady,
                                                 "Target broker cannot be validated."))
-                                .addListener(future -> ctx().close());
+                                .addListener(ChannelFutureListener.CLOSE);
                         return null;
                     });
         } else {
@@ -309,7 +304,8 @@ public class ProxyConnection extends PulsarHandler {
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
             lookupProxyHandler = new LookupProxyHandler(service, this);
-            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise));
+            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise))
+                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         }
     }
 
@@ -328,7 +324,8 @@ public class ProxyConnection extends PulsarHandler {
         }
 
         // auth not complete, continue auth with client side.
-        ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, protocolVersionToAdvertise));
+        ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, protocolVersionToAdvertise))
+                .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         if (LOG.isDebugEnabled()) {
             LOG.debug("[{}] Authentication in progress client by method {}.",
                 remoteAddress, authMethod);
@@ -406,8 +403,8 @@ public class ProxyConnection extends PulsarHandler {
             doAuthentication(clientData);
         } catch (Exception e) {
             LOG.warn("[{}] Unable to authenticate: ", remoteAddress, e);
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate"));
-            close();
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate"))
+                    .addListener(ChannelFutureListener.CLOSE);
         }
     }
 
@@ -428,8 +425,8 @@ public class ProxyConnection extends PulsarHandler {
         } catch (Exception e) {
             String msg = "Unable to handleAuthResponse";
             LOG.warn("[{}] {} ", remoteAddress, msg, e);
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
-            close();
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg))
+                    .addListener(ChannelFutureListener.CLOSE);
         }
     }
 
@@ -460,25 +457,6 @@ public class ProxyConnection extends PulsarHandler {
     protected void handleLookup(CommandLookupTopic lookup) {
         checkArgument(state == State.ProxyLookupRequests);
         lookupProxyHandler.handleLookup(lookup);
-    }
-
-    private synchronized void close() {
-        if (state != State.Closed) {
-            state = State.Closed;
-            if (directProxyHandler != null && directProxyHandler.outboundChannel != null) {
-                directProxyHandler.outboundChannel.close();
-                directProxyHandler = null;
-            }
-            if (connectionPool != null) {
-                try {
-                    connectionPool.close();
-                    connectionPool = null;
-                } catch (Exception e) {
-                    LOG.error("Error closing connection pool", e);
-                }
-            }
-            ctx.close();
-        }
     }
 
     ClientConfigurationData createClientConfiguration() {

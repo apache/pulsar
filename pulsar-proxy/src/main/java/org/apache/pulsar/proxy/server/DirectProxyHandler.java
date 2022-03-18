@@ -26,6 +26,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -157,7 +158,8 @@ public class DirectProxyHandler {
 
     private void writeHAProxyMessage() {
         if (proxyConnection.hasHAProxyMessage()) {
-            outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
+            outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()))
+                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         } else {
             if (inboundChannel.remoteAddress() instanceof InetSocketAddress
                     && outboundChannel.localAddress() instanceof InetSocketAddress) {
@@ -170,7 +172,8 @@ public class DirectProxyHandler {
                 HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
                         HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort,
                         destinationPort);
-                outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg));
+                outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg))
+                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
                 msg.release();
             }
         }
@@ -237,7 +240,8 @@ public class DirectProxyHandler {
             ByteBuf command;
             command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
-            outboundChannel.writeAndFlush(command);
+            outboundChannel.writeAndFlush(command)
+                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         }
 
         @Override
@@ -268,13 +272,7 @@ public class DirectProxyHandler {
                     ProxyService.BYTES_COUNTER.inc(((ByteBuf) msg).readableBytes());
                 }
                 inboundChannel.writeAndFlush(msg)
-                        .addListener(future -> {
-                            if (!future.isSuccess()) {
-                                log.warn("[{}] [{}] Failed to write on proxy connection. Closing both connections.",
-                                        inboundChannel, outboundChannel, future.cause());
-                                inboundChannel.close();
-                            }
-                        });
+                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
                 break;
 
             default:
@@ -313,7 +311,8 @@ public class DirectProxyHandler {
                     log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
                 }
 
-                outboundChannel.writeAndFlush(request);
+                outboundChannel.writeAndFlush(request)
+                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
             } catch (Exception e) {
                 log.error("Error mutual verify", e);
             }
@@ -348,14 +347,7 @@ public class DirectProxyHandler {
             int maxMessageSize =
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
             inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize))
-                    .addListener(future -> {
-                        if (!future.isSuccess()) {
-                            log.warn("[{}] [{}] Failed to write to inbound connection. Closing both connections.",
-                                    inboundChannel,
-                                    outboundChannel, future.cause());
-                            inboundChannel.close();
-                        }
-                    });
+                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         }
 
         private void startDirectProxying(CommandConnected connected) {
