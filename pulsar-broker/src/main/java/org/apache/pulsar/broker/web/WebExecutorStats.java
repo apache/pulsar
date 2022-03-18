@@ -23,7 +23,7 @@ import io.prometheus.client.Gauge;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class WebExecutorStats implements AutoCloseable {
-    private final static AtomicBoolean CLOSED = new AtomicBoolean(false);
+    private static final AtomicBoolean CLOSED = new AtomicBoolean(false);
 
     private final Gauge maxThreads;
     private final Gauge minThreads;
@@ -72,8 +72,8 @@ class WebExecutorStats implements AutoCloseable {
         this.activeThreads = Gauge.build("pulsar_web_executor_active_threads", "-").create()
                 .setChild(new Gauge.Child() {
                     public double get() {
-                        return WebExecutorStats.this.executor.getThreads() -
-                                WebExecutorStats.this.executor.getIdleThreads();
+                        return WebExecutorStats.this.executor.getThreads()
+                                - WebExecutorStats.this.executor.getIdleThreads();
                     }
                 })
                 .register();
