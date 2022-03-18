@@ -529,7 +529,7 @@ Connector metrics contain **source** metrics and **sink** metrics.
 - **Source** metrics
 
   | Name | Type | Description |
-    |---|---|---|
+  |---|---|---|
   pulsar_source_written_total|Counter|The total number of records written to a Pulsar topic.
   pulsar_source_written_total_1min|Counter|The total number of records written to a Pulsar topic in the last 1 minute.
   pulsar_source_received_total|Counter|The total number of records received from source.
@@ -546,7 +546,7 @@ Connector metrics contain **source** metrics and **sink** metrics.
 - **Sink** metrics
 
   | Name | Type | Description |
-    |---|---|---|
+  |---|---|---|
   pulsar_sink_written_total|Counter| The total number of records processed by a sink.
   pulsar_sink_written_total_1min|Counter| The total number of records processed by a sink in the last 1 minute.
   pulsar_sink_received_total_1min|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute.
