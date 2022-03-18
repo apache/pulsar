@@ -1409,7 +1409,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
         TimeWindow<Object> timeWindow = new TimeWindow<>(2, (int) TimeUnit.SECONDS.toMillis(period));
 
-        for (int a = 0; a < 10; a++) {
+        for (int a = 0; a < 4; a++) {
             long start = System.currentTimeMillis();
             ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
             PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut1, null);
