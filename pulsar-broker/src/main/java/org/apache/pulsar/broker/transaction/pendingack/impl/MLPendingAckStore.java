@@ -284,8 +284,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
                         managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
 
-                if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException
-                        && managedLedger instanceof ManagedLedgerImpl) {
+                if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
                     managedLedger.readyToCreateNewLedger();
                 }
                 buf.release();

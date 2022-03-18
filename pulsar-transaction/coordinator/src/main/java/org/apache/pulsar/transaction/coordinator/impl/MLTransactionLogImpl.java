@@ -163,8 +163,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Transaction log write transaction operation error", exception);
-                if (exception instanceof ManagedLedgerAlreadyClosedException
-                        && managedLedger instanceof ManagedLedgerImpl) {
+                if (exception instanceof ManagedLedgerAlreadyClosedException) {
                     managedLedger.readyToCreateNewLedger();
                 }
                 buf.release();
