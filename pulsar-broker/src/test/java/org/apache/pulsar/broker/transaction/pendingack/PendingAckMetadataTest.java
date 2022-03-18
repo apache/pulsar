@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.pendingack;
 
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -67,12 +68,11 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
 
             }
         }, null);
-        completableFuture.get().openCursor("test");
-        completableFuture.get().openCursor("sub");
+
+        ManagedCursor cursor = completableFuture.get().openCursor("test");
+        ManagedCursor subCursor = completableFuture.get().openCursor("test");
         MLPendingAckStore pendingAckStore =
-                new MLPendingAckStore(completableFuture.get(),
-                        completableFuture.get().openCursor("test"),
-                        completableFuture.get().openCursor("sub"));
+                new MLPendingAckStore(completableFuture.get(), cursor, subCursor);
 
         Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
         field.setAccessible(true);
@@ -89,6 +89,10 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
             assertTrue(e.getCause().getCause() instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
         }
         pendingAckStore.appendAbortMark(new TxnID(1, 1), CommandAck.AckType.Cumulative).get();
+
+        completableFuture.get().close();
+        cursor.close();
+        subCursor.close();
     }
 
 }
