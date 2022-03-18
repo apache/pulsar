@@ -94,7 +94,9 @@ public class WebServiceTest {
     private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
 
+    @Test
     public void testWebExecutorMetrics() throws Exception {
+        setupEnv(true, "1.0", true, false, false, false, -1, false);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
