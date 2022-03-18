@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -280,6 +286,15 @@ public class ConsumerBuilderImplTest {
                 .maxNumMessages(0)
                 .maxNumBytes(0)
                 .timeout(0, TimeUnit.MILLISECONDS)
+                .build());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testRedeliverCountOfDeadLetterPolicy() {
+        consumerBuilderImpl.deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(0)
+                .deadLetterTopic("test-dead-letter-topic")
+                .retryLetterTopic("test-retry-letter-topic")
                 .build());
     }
 
