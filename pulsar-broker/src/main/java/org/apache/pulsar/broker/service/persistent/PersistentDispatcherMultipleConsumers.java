@@ -142,6 +142,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 shouldRewindBeforeReadingOrReplaying = true;
             } else {
                 cursor.rewind();
+                clearDelayedMessages();
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
@@ -480,6 +481,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
             cursor.rewind();
+            clearDelayedMessages();
             shouldRewindBeforeReadingOrReplaying = false;
             readMoreEntries();
             return;
@@ -527,6 +529,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.info("[{}] rewind because no available consumer found from total {}", name, consumerList.size());
                 entries.subList(start, entries.size()).forEach(Entry::release);
                 cursor.rewind();
+                clearDelayedMessages();
                 return;
             }
 
@@ -646,6 +649,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (shouldRewindBeforeReadingOrReplaying) {
             shouldRewindBeforeReadingOrReplaying = false;
             cursor.rewind();
+            clearDelayedMessages();
         }
 
         if (readType == ReadType.Normal) {
