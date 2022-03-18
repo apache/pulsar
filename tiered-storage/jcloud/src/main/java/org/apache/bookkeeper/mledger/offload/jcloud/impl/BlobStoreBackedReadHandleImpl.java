@@ -153,7 +153,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     } else if (entryId < nextExpectedId
                         && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
                         log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
-                        + ", seeking to the right position", entries, nextExpectedId);
+                        + ", seeking to the right position", entryId, nextExpectedId);
                         inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                     } else if (entryId > lastEntry) {
                         // in the normal case, the entry id should increment in order. But if there has random access in

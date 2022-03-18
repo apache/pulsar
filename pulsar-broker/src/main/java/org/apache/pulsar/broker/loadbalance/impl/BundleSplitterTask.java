@@ -94,9 +94,11 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                         if (bundleCount < maxBundleCount) {
                             bundleCache.add(bundle);
                         } else {
-                            log.warn(
-                                    "Could not split namespace bundle {} because namespace {} has too many bundles: {}",
-                                    bundle, namespace, bundleCount);
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "Could not split namespace bundle {} because namespace {} has too many bundles:"
+                                                + "{}", bundle, namespace, bundleCount);
+                            }
                         }
                     } catch (Exception e) {
                         log.warn("Error while getting bundle count for namespace {}", namespace, e);
