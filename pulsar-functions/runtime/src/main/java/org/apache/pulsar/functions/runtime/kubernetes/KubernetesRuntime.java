@@ -336,6 +336,15 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public void stop() throws Exception {
+        // Because we're about to delete the function pods, we don't want the channel to attempt loading DNS, which
+        // will cease to exist if the deletion succeeds. However, we don't want to shut down the channel until
+        // the StatefulSet and Service are actually deleted.
+        if (channel != null) {
+            for (ManagedChannel cn : channel) {
+                cn.enterIdle();
+            }
+        }
+
         deleteStatefulSet();
         deleteService();
 
