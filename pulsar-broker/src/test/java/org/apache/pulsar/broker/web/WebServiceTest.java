@@ -97,6 +97,17 @@ public class WebServiceTest {
     @Test
     public void testWebExecutorMetrics() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
+        WebExecutorThreadPool webServiceExecutor = new WebExecutorThreadPool(
+                pulsar.getConfiguration().getNumHttpServerThreads(),
+                "pulsar-web-test");
+        WebExecutorStats.getStats(webServiceExecutor);
+        webServiceExecutor.execute(() -> {
+            try {
+                Thread.sleep(0);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
