@@ -39,6 +39,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -4350,5 +4351,53 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(r2.get() >= 1);
             assertEquals(resultSet.size(), total);
         });
+    }
+
+    @Test
+    public void testPartitionsAutoUpdate() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 3;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/partitionsAutoUpdate-1");
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+        int operationTimeout = 2000; // MILLISECONDS
+        @Cleanup final PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .operationTimeout(operationTimeout, TimeUnit.MILLISECONDS)
+                .build();
+
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer()
+                .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> partitionedProducer =
+                (PartitionedProducerImpl<byte[]>) producerBuilder.autoUpdatePartitions(true).create();
+
+        // Trigger the Connection refused exception
+        stopBroker();
+
+        log.info("trigger partitionsAutoUpdateTimerTask run failed for producer");
+        Timeout timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+            assertTrue(FutureUtil.getException(partitionedProducer.getPartitionsAutoUpdateFuture()).get().getMessage()
+                    .contains("Connection refused:"));
+        });
+
+        startBroker();
+
+        log.info("trigger partitionsAutoUpdateTimerTask run successful for producer");
+        timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isDone());
+            assertFalse(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+        });
+
+        log.info("-- Exiting {} test --", methodName);
     }
 }

@@ -23,6 +23,7 @@ import io.netty.util.concurrent.Future;
 import java.util.List;
 import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -83,4 +84,11 @@ public interface PulsarCommandSender {
 
     void sendTcClientConnectResponse(long requestId);
 
+    void sendNewTxnResponse(long requestId, TxnID txnID, long tcID);
+
+    void sendNewTxnErrorResponse(long requestId, long txnID, ServerError error, String message);
+
+    void sendEndTxnResponse(long requestId, TxnID txnID, int txnAction);
+
+    void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
 }
