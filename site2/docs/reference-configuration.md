@@ -378,7 +378,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
-
+| exposeBufferedBrokerMetrics | The configuration is for those broker which there are more than one metrics system access the `/metrics` endpoint. For the purpose of reduce `CPU` and `Memory` usage, the generated metrics data in the interval(`managedLedgerStatsPeriodSeconds`) will be cached, all `/metrics` requests in the `interval` with return same metrics | false |
 
 #### Deprecated parameters of Broker
 The following parameters have been deprecated in the `conf/broker.conf` file.
