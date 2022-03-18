@@ -90,8 +90,7 @@ public class BrokersBase extends AdminResource {
     public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse,
                                  @PathParam("cluster") String cluster) {
         validateSuperUserAccessAsync()
-                .thenCompose(__ -> cluster == null ? CompletableFuture.completedFuture(null)
-                        : validateClusterOwnershipAsync(cluster))
+                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
                 .thenAccept(activeBrokers -> {
                     LOG.info("[{}] Successfully to get active brokers, cluster={}", clientAppId(), cluster);
