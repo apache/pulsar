@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
+import java.util.concurrent.CountDownLatch;
+
 import lombok.Cleanup;
+
 import org.apache.pulsar.client.api.PulsarClientException.MemoryBufferIsFullError;
-import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.client.impl.PulsarTestClient;
-import org.awaitility.Awaitility;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 @Test(groups = "broker-api")
 public class MemoryLimitTest extends ProducerConsumerBase {
@@ -64,30 +62,27 @@ public class MemoryLimitTest extends ProducerConsumerBase {
             throws Exception {
         String topic = newTopicName();
 
-        ClientBuilder clientBuilder = PulsarClient.builder()
+        @Cleanup
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .memoryLimit(100, SizeUnit.KILO_BYTES);
+                .memoryLimit(100, SizeUnit.KILO_BYTES)
+                .build();
 
         @Cleanup
-        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
-
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
+        Producer<byte[]> producer = client.newProducer()
                 .topic(topic)
                 .blockIfQueueFull(false)
-                .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
-        // make sure all message pending at pendingMessages queue
-        // connection with broker can not be established, so handleSendReceipt will not be invoked while sending message
-        client.dropOpSendMessages();
         final int n = 101;
+        CountDownLatch latch = new CountDownLatch(n);
+
         for (int i = 0; i < n; i++) {
-            producer.sendAsync(new byte[1024]);
+            producer.sendAsync(new byte[1024]).thenRun(() -> {
+                latch.countDown();
+            });
         }
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(5))
-                .until(() -> producer.getPendingQueueSize() == n);
+
         assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
 
         try {
@@ -97,10 +92,8 @@ public class MemoryLimitTest extends ProducerConsumerBase {
             // Expected
         }
 
-        client.allowReconnecting();
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(30))
-                .until(() -> producer.getPendingQueueSize() == 0);
+        latch.await();
+
         assertEquals(client.getMemoryLimitController().currentUsage(), 0);
 
         // We should now be able to send again
@@ -112,40 +105,41 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         String t1 = newTopicName();
         String t2 = newTopicName();
 
-        ClientBuilder clientBuilder = PulsarClient.builder()
+        @Cleanup
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .memoryLimit(100, SizeUnit.KILO_BYTES);
+                .memoryLimit(100, SizeUnit.KILO_BYTES)
+                .build();
 
         @Cleanup
-        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
-
-        @Cleanup
-        ProducerImpl<byte[]> p1 = (ProducerImpl<byte[]>) client.newProducer()
+        Producer<byte[]> p1 = client.newProducer()
                 .topic(t1)
                 .blockIfQueueFull(false)
-                .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
         @Cleanup
-        ProducerImpl<byte[]> p2 = (ProducerImpl<byte[]>) client.newProducer()
+        Producer<byte[]> p2 = client.newProducer()
                 .topic(t2)
                 .blockIfQueueFull(false)
-                .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
-        client.dropOpSendMessages();
         final int n = 101;
+        CountDownLatch latch = new CountDownLatch(n);
+
         for (int i = 0; i < n / 2; i++) {
-            p1.sendAsync(new byte[1024]);
-            p2.sendAsync(new byte[1024]);
+            p1.sendAsync(new byte[1024]).thenRun(() -> {
+                latch.countDown();
+            });
+            p2.sendAsync(new byte[1024]).thenRun(() -> {
+                latch.countDown();
+            });
         }
 
         // Last message in order to reach the limit
-        p1.sendAsync(new byte[1024]);
+        p1.sendAsync(new byte[1024]).thenRun(() -> {
+            latch.countDown();
+        });
 
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(5))
-                .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == n);
         assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
 
         try {
@@ -162,10 +156,8 @@ public class MemoryLimitTest extends ProducerConsumerBase {
             // Expected
         }
 
-        client.allowReconnecting();
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(30))
-                .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == 0);
+        latch.await();
+
         assertEquals(client.getMemoryLimitController().currentUsage(), 0);
 
         // We should now be able to send again
