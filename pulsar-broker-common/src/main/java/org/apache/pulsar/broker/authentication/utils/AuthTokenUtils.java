@@ -102,6 +102,9 @@ public class AuthTokenUtils {
     public static byte[] readKeyFromUrl(String keyConfUrl) throws IOException {
         if (keyConfUrl.startsWith("data:") || keyConfUrl.startsWith("file:")) {
             try {
+                if (keyConfUrl.startsWith("file:")) {
+                    keyConfUrl = keyConfUrl.trim();
+                }
                 return IOUtils.toByteArray(URL.createURL(keyConfUrl));
             } catch (IOException e) {
                 throw e;
