@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -34,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -491,5 +493,53 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         admin.topics().skipAllMessages(topic, subName);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+    }
+
+    @Test
+    public void testDelayedDeliveryWithConsumerCloseAndRecreate()
+            throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedDelivery");
+
+        @Cleanup
+        Consumer<String> consumer = buildConsumer(topic);
+
+        // Simulate race condition with high frequency of calls to dispatcher.readMoreEntries()
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar
+                .getBrokerService().getTopicReference(topic).get();
+        PersistentSubscription subscription = persistentTopic.getSubscription("shared-sub");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.newMessage()
+                .value("msg-delay")
+                .deliverAfter(30, TimeUnit.SECONDS)
+                .sendAsync();
+
+        producer.flush();
+
+        producer.close();
+
+        // create and close 10 times
+        for (int i = 0; i < 10; i++) {
+            consumer.closeAsync();
+            consumer = buildConsumer(topic);
+        }
+        // wait for InMemoryDelayedDeliveryTracker  was invoked
+        TimeUnit.SECONDS.sleep(5);
+
+        // expect only once
+        assertEquals(subscription.dispatcher.getNumberOfDelayedMessages(), 1);
+    }
+
+    private Consumer<String> buildConsumer(String topic) throws PulsarClientException {
+        return pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1) // Use small prefecthing to simulate the multiple read batches
+                .subscribe();
     }
 }
