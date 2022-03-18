@@ -35,19 +35,14 @@ import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.stats.metrics.LedgerOffloaderMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
@@ -128,10 +123,6 @@ public class PrometheusMetricsGenerator {
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
-            if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
-                generateLedgerOffloaderMetrics(pulsar, stream, includeTopicMetrics);
-            }
-
             if (metricsProviders != null) {
                 for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
                     metricsProvider.generate(stream);
@@ -168,52 +159,6 @@ public class PrometheusMetricsGenerator {
         // generate loadBalance metrics
         parseMetricsToPrometheusMetrics(pulsar.getLoadManager().get().getLoadBalancingMetrics(),
                 clusterName, Collector.Type.GAUGE, stream);
-    }
-
-
-    private static void generateLedgerOffloaderMetrics(PulsarService pulsar, SimpleTextOutputStream stream,
-                                                       boolean includeTopicMetrics) {
-        List<Metrics> metricList = new LinkedList<>();
-        if (includeTopicMetrics) {
-            pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
-                bundlesMap.forEach((bundle, topicsMap) -> {
-                    topicsMap.forEach((topicName, topic) -> {
-                        if (topic instanceof PersistentTopic) {
-                            //check offlaoder
-                            PersistentTopic persistentTopic = (PersistentTopic) topic;
-                            LedgerOffloader offloader =
-                                    persistentTopic.getManagedLedger().getConfig().getLedgerOffloader();
-                            if (!(offloader instanceof NullLedgerOffloader)) {
-                                try {
-                                    List<Metrics> metrics =
-                                            new LedgerOffloaderMetrics(pulsar, true, namespace, topicName).generate();
-                                    metricList.addAll(metrics);
-                                } catch (Exception ex) {
-                                    log.error("generate ledger offloader topic level metrics error. topic name:[{}]",
-                                            topicName, ex);
-                                }
-                            }
-                        }
-                    });
-                });
-            });
-        } else {
-            pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
-                try {
-                    List<Metrics> metrics =
-                            new LedgerOffloaderMetrics(pulsar, false, namespace, "").generate();
-                    log.debug("namespace:" + namespace
-                            + " generate ledger offloader namespace level metrics succeed, size:" + metrics.size());
-                    metricList.addAll(metrics);
-                } catch (Exception ex) {
-                    log.error("generate ledger offloader namespace level metrics error. namespace:[{}]", namespace, ex);
-                }
-            });
-        }
-        if (metricList.size() > 0) {
-            String clusterName = pulsar.getConfiguration().getClusterName();
-            parseMetricsToPrometheusMetrics(metricList, clusterName, Collector.Type.GAUGE, stream);
-        }
     }
 
     private static void parseMetricsToPrometheusMetrics(Collection<Metrics> metrics, String cluster,

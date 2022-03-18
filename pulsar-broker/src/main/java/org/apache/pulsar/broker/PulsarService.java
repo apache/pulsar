@@ -73,6 +73,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
@@ -1248,6 +1249,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
+                //initialize ledger offloader stats
+                LedgerOffloaderStats.initialize(config.isExposeManagedLedgerMetricsInPrometheus(),
+                        config.isExposeTopicLevelMetricsInPrometheus());
+
                 Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
                         offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
 

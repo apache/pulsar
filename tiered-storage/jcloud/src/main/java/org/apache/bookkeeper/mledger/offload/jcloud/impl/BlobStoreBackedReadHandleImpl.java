@@ -36,7 +36,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
@@ -224,7 +224,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                   BlobStore blobStore, String bucket, String key, String indexKey,
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize,
-                                  LedgerOffloaderMXBeanImpl mxBean, String managedLedgerName)
+                                  LedgerOffloaderStats offloaderStats, String managedLedgerName)
             throws IOException {
         int retryCount = 3;
         OffloadIndexBlock index = null;
@@ -237,7 +237,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         while (retryCount-- > 0) {
             long readIndexStartTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
-            mxBean.recordReadOffloadIndexLatency(managedLedgerName,
+            offloaderStats.recordReadOffloadIndexLatency(managedLedgerName,
                     System.nanoTime() - readIndexStartTime, TimeUnit.NANOSECONDS);
             versionCheck.check(indexKey, blob);
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
@@ -258,9 +258,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         }
 
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
-                versionCheck,
-                index.getDataObjectLength(),
-                readBufferSize, mxBean, managedLedgerName);
+                versionCheck, index.getDataObjectLength(), readBufferSize, offloaderStats, managedLedgerName);
 
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
     }

@@ -98,9 +98,6 @@ public interface LedgerOffloader {
      */
     String getOffloadDriverName();
 
-
-    LedgerOffloaderMXBean getStats();
-
     /**
      * Get offload driver metadata.
      *

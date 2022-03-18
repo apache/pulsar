@@ -40,12 +40,11 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle.OfferEntryResult;
-import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
@@ -106,7 +105,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private final int streamingBlockSize;
     private volatile ManagedLedger ml;
     private OffloadIndexBlockV2Builder streamingIndexBuilder;
-    private final LedgerOffloaderMXBeanImpl mxBean;
+    private final LedgerOffloaderStats offloaderStats;
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
@@ -144,7 +143,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 config.getBucket(), config.getRegion());
 
         blobStores.putIfAbsent(config.getBlobStoreLocation(), config.getBlobStore());
-        this.mxBean = new LedgerOffloaderMXBeanImpl(config.getDriver());
+        this.offloaderStats = LedgerOffloaderStats.getInstance();
         log.info("The ledger offloader was created.");
     }
 
@@ -207,7 +206,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
 
                     try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
-                            readHandle, startEntry, blockSize, this.mxBean, topicName)) {
+                            readHandle, startEntry, blockSize, this.offloaderStats, topicName)) {
 
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long) blockSize);
@@ -226,7 +225,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         }
                         entryBytesWritten += blockStream.getBlockEntryBytesCount();
                         partId++;
-                        this.mxBean.recordOffloadBytes(topicName, blockStream.getBlockEntryBytesCount());
+                        this.offloaderStats.recordOffloadBytes(topicName, blockStream.getBlockEntryBytesCount());
                     }
 
                     dataObjectLength += blockSize;
@@ -242,8 +241,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                     log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
                             config.getBucket(), dataBlockKey, mpu.id(), throwable);
                 }
-                this.mxBean.recordWriteToStorageError(topicName);
-                this.mxBean.recordOffloadError(topicName);
+                this.offloaderStats.recordWriteToStorageError(topicName);
+                this.offloaderStats.recordOffloadError(topicName);
                 promise.completeExceptionally(t);
                 return;
             }
@@ -272,8 +271,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                             config.getBucket(), dataBlockKey, throwable);
                 }
 
-                this.mxBean.recordWriteToStorageError(topicName);
-                this.mxBean.recordOffloadError(topicName);
+                this.offloaderStats.recordWriteToStorageError(topicName);
+                this.offloaderStats.recordOffloadError(topicName);
                 promise.completeExceptionally(t);
                 return;
             }
@@ -520,7 +519,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         readBucket, key, indexKey,
                         DataBlockUtils.VERSION_CHECK,
                         ledgerId, config.getReadBufferSizeInBytes(),
-                        this.mxBean, offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
+                        this.offloaderStats, offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
             } catch (Throwable t) {
                 log.error("Failed readOffloaded: ", t);
                 promise.completeExceptionally(t);
@@ -554,7 +553,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         readBucket, keys, indexKeys,
                         DataBlockUtils.VERSION_CHECK,
                         ledgerId, config.getReadBufferSizeInBytes(),
-                        this.mxBean, offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
+                        this.offloaderStats, offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
             } catch (Throwable t) {
                 log.error("Failed readOffloaded: ", t);
                 promise.completeExceptionally(t);
@@ -613,11 +612,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         Properties properties = new Properties();
         properties.putAll(config.getConfigProperties());
         return OffloadPoliciesImpl.create(properties);
-    }
-
-    @Override
-    public LedgerOffloaderMXBean getStats() {
-        return this.mxBean;
     }
 
     @Override

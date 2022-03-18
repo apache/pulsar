@@ -22,7 +22,7 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
-import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -42,7 +42,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     private final ByteBuf buffer;
     private final long objectLen;
     private final int bufferSize;
-    private LedgerOffloaderMXBeanImpl mxBean;
+    private LedgerOffloaderStats offloaderStats;
     private String managedLedgerName;
 
     private long cursor;
@@ -67,9 +67,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
                                           VersionCheck versionCheck,
                                           long objectLen, int bufferSize,
-                                          LedgerOffloaderMXBeanImpl mxBean, String managedLedgerName) {
+                                          LedgerOffloaderStats offloaderStats, String managedLedgerName) {
         this(blobStore, bucket, key, versionCheck, objectLen, bufferSize);
-        this.mxBean = mxBean;
+        this.offloaderStats = offloaderStats;
         this.managedLedgerName = managedLedgerName;
     }
 
@@ -89,10 +89,10 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             try {
                 long startReadTime = System.nanoTime();
                 Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
-                if (this.mxBean != null) {
-                    this.mxBean.recordReadOffloadDataLatency(managedLedgerName,
+                if (this.offloaderStats != null) {
+                    this.offloaderStats.recordReadOffloadDataLatency(managedLedgerName,
                             System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
-                    this.mxBean.recordReadOffloadBytes(managedLedgerName, endRange - startRange + 1);
+                    this.offloaderStats.recordReadOffloadBytes(managedLedgerName, endRange - startRange + 1);
                 }
                 versionCheck.check(key, blob);
 
@@ -108,8 +108,8 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                     cursor += buffer.readableBytes();
                 }
             } catch (Throwable e) {
-                if (null != this.mxBean) {
-                    this.mxBean.recordReadOffloadError(this.managedLedgerName);
+                if (null != this.offloaderStats) {
+                    this.offloaderStats.recordReadOffloadError(this.managedLedgerName);
                 }
                 throw new IOException("Error reading from BlobStore", e);
             }
