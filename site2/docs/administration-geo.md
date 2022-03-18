@@ -27,7 +27,7 @@ Applications can create producers and consumers in any of the clusters, even whe
 
 Producers and consumers can publish messages to and consume messages from any cluster in a Pulsar instance. However, subscriptions cannot only be local to the cluster where the subscriptions are created but also can be transferred between clusters after replicated subscription is enabled. Once replicated subscription is enabled, you can keep subscription state in synchronization. Therefore, a topic can be asynchronously replicated across multiple geographical regions. In case of failover, a consumer can restart consuming messages from the failure point in a different cluster.
 
-![](assets/geo-replication.png)
+![A typical geo-replication example with full-mesh pattern](assets/geo-replication.png)
 
 In the aforementioned example, the **T1** topic is replicated among three clusters, **Cluster-A**, **Cluster-B**, and **Cluster-C**.
 
