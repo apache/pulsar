@@ -42,7 +42,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 public class PulsarFunctionTestUtils {
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
-        URL url = new URL(String.format("http://%s:%s/metrics?useBuffer=false", "localhost", metricsPort));
+        URL url = new URL(String.format("http://%s:%s/metrics", "localhost", metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));

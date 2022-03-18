@@ -63,18 +63,12 @@ public class PrometheusMetricsServlet extends HttpServlet {
         AsyncContext context = request.startAsync();
         context.setTimeout(metricsServletTimeoutMs);
         executor.execute(safeRun(() -> {
-            boolean useBuffer = true;
-            //param for internal tests.
-            String param = request.getParameter("useBuffer");
-            if (StringUtils.isNotBlank(param)) {
-                useBuffer = param.equalsIgnoreCase("true");
-            }
             long start = System.currentTimeMillis();
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             try {
                 res.setStatus(HTTP_STATUS_OK_200);
                 res.setContentType("text/plain");
-                generateMetrics(cluster, res.getOutputStream(), useBuffer);
+                generateMetrics(cluster, res.getOutputStream());
             } catch (Exception e) {
                 long end = System.currentTimeMillis();
                 long time = end - start;
@@ -102,8 +96,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
         }));
     }
 
-    protected void generateMetrics(String cluster, ServletOutputStream outputStream,
-                                   boolean useBuffer) throws IOException {
+    protected void generateMetrics(String cluster, ServletOutputStream outputStream) throws IOException {
         PrometheusMetricsGeneratorUtils.generate(cluster, outputStream, metricsProviders);
     }
 
