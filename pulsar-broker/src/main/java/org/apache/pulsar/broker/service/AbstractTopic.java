@@ -1193,4 +1193,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public long getFilteredEntriesCount() {
         return this.filteredEntriesCounter.longValue();
     }
+
+    public void updateBrokerPublishRate() {
+        topicPolicies.getPublishRate().updateBrokerValue(
+            publishRateInBroker(brokerService.pulsar().getConfiguration()));
+    }
 }
