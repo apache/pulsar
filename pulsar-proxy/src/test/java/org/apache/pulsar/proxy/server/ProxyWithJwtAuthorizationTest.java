@@ -374,12 +374,13 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     @Test
     void testGetMetrics() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        startProxy();
         PulsarResources resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
                 new ZKMetadataStore(mockZooKeeperGlobal));
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
                 new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
@@ -391,7 +392,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         }
         proxyConfig.setAuthenticateMetricsEndpoint(true);
         webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
                 new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
         try {
