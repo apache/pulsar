@@ -106,10 +106,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Integer workerPortTls;
     @FieldContext(
             category = CATEGORY_WORKER,
-            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to false."
                     + "'authenticationEnabled' must also be set for this to take effect."
     )
-    private boolean authenticateMetricsEndpoint = true;
+    private boolean authenticateMetricsEndpoint = false;
     @FieldContext(
             category = CATEGORY_WORKER,
             doc = "Whether the '/metrics' endpoint should return default prometheus metrics. Defaults to false."

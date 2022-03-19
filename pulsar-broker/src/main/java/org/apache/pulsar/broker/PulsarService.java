@@ -855,7 +855,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Add metrics servlet
         webService.addServlet("/metrics",
                 new ServletHolder(metricsServlet),
-                false, attributeMap);
+                config.isAuthenticateMetricsEndpoint(), attributeMap);
 
         // Add websocket service
         addWebSocketServiceHandler(webService, attributeMap, config);

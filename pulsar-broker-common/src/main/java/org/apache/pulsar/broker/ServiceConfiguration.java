@@ -2273,6 +2273,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     /**** --- Metrics. --- ****/
     @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to false."
+                    + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = false;
+    @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export topic level metrics otherwise namespace level"
     )
