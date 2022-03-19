@@ -180,7 +180,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected volatile boolean paused;
 
-    protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentOpenHashMap<>();
+    protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap =
+            ConcurrentOpenHashMap.<String, ChunkedMessageCtx>newBuilder().build();
     private int pendingChunkedMessageCount = 0;
     protected long expireTimeOfIncompleteChunkedMessageMillis = 0;
     private boolean expireChunkMessageTaskScheduled = false;
@@ -1915,20 +1916,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (messageIds == null || messageIds.isEmpty()) {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
-        List<MessageIdData> data = new ArrayList<>(messageIds.size());
-        List<CompletableFuture<Void>> futures = new ArrayList<>(messageIds.size());
-        messageIds.forEach(messageId -> {
+        List<CompletableFuture<MessageIdData>> futures = messageIds.stream().map(messageId -> {
             CompletableFuture<Boolean> future = processPossibleToDLQ(messageId);
-            futures.add(future.thenAccept(sendToDLQ -> {
+            return future.thenApply(sendToDLQ -> {
                 if (!sendToDLQ) {
-                    data.add(new MessageIdData()
+                    return new MessageIdData()
                             .setPartition(messageId.getPartitionIndex())
                             .setLedgerId(messageId.getLedgerId())
-                            .setEntryId(messageId.getEntryId()));
+                            .setEntryId(messageId.getEntryId());
                 }
-            }));
-        });
-        return FutureUtil.waitForAll(futures).thenCompose(v -> CompletableFuture.completedFuture(data));
+                return null;
+            });
+        }).collect(Collectors.toList());
+        return FutureUtil.waitForAll(futures).thenApply(v ->
+                futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()));
     }
 
     private CompletableFuture<Boolean> processPossibleToDLQ(MessageIdImpl messageId) {

@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
@@ -144,7 +145,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
                         if (destinyPath.getParent() != null) {
                             Files.createDirectories(destinyPath.getParent());
                         }
-                        Files.copy(inputStream, destinyPath);
+                        Files.copy(inputStream, destinyPath, StandardCopyOption.REPLACE_EXISTING);
                         future.complete(null);
                     } catch (IOException e) {
                         future.completeExceptionally(e);
