@@ -571,7 +571,7 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
             @QueryParam("splitAlgorithmName") String splitAlgorithmName,
-            @ApiParam("splitBoundaries") List<Long> splitBoundaries) {
+            @QueryParam("splitBoundaries") List<Long> splitBoundaries) {
         try {
             validateNamespaceName(tenant, namespace);
             internalSplitNamespaceBundle(asyncResponse,
