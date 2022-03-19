@@ -97,17 +97,6 @@ public class WebServiceTest {
     @Test
     public void testWebExecutorMetrics() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
-        WebExecutorThreadPool webServiceExecutor = new WebExecutorThreadPool(
-                pulsar.getConfiguration().getNumHttpServerThreads(),
-                "pulsar-web-test");
-        WebExecutorStats.getStats(webServiceExecutor);
-        webServiceExecutor.execute(() -> {
-            try {
-                Thread.sleep(0);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        });
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -118,12 +107,6 @@ public class WebServiceTest {
         Collection<PrometheusMetricsTest.Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
         Collection<PrometheusMetricsTest.Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
         Collection<PrometheusMetricsTest.Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
-
-        Assert.assertEquals(maxThreads.size(), 1);
-        Assert.assertEquals(minThreads.size(), 1);
-        Assert.assertEquals(activeThreads.size(), 1);
-        Assert.assertEquals(idleThreads.size(), 1);
-        Assert.assertEquals(currentThreads.size(), 1);
 
         for (PrometheusMetricsTest.Metric metric : maxThreads) {
             Assert.assertNotNull(metric.tags.get("cluster"));
