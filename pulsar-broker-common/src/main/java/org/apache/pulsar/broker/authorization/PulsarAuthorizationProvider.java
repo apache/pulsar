@@ -112,7 +112,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     } else {
                         if (isNotBlank(subscription)) {
-                            // validate if role is authorize to access subscription. (skip validatation if authorization
+                            // validate if role is authorized to access subscription. (skip validation if authorization
                             // list is empty)
                             Set<String> roles = policies.get().auth_policies
                                     .getSubscriptionAuthentication().get(subscription);
@@ -122,18 +122,20 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             }
 
                             // validate if subscription-auth mode is configured
-                            switch (policies.get().subscription_auth_mode) {
-                                case Prefix:
-                                    if (!subscription.startsWith(role)) {
-                                        PulsarServerException ex = new PulsarServerException(String.format(
-                                                "Failed to create consumer - The subscription name needs to be"
-                                                + " prefixed by the authentication role, like %s-xxxx for topic: %s",
-                                                role, topicName));
-                                        return FutureUtil.failedFuture(ex);
-                                    }
-                                    break;
-                                default:
-                                    break;
+                            if (policies.get().subscription_auth_mode != null) {
+                                switch (policies.get().subscription_auth_mode) {
+                                    case Prefix:
+                                        if (!subscription.startsWith(role)) {
+                                            PulsarServerException ex = new PulsarServerException(String.format(
+                                                 "Failed to create consumer - The subscription name needs to be"
+                                                 + " prefixed by the authentication role, like %s-xxxx for topic: %s",
+                                                 role, topicName));
+                                            return FutureUtil.failedFuture(ex);
+                                        }
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
                         }
                     }
