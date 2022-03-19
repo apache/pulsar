@@ -60,6 +60,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -1289,6 +1290,27 @@ public class BrokerServiceTest extends BrokerTestBase {
             sb.append(str);
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
+    }
+
+    @Test
+    public void testPublishRateLimiterMonitor() {
+        BrokerService.PublishRateLimiterMonitor monitor = new BrokerService.PublishRateLimiterMonitor("test");
+        AtomicInteger checkCnt = new AtomicInteger(0);
+        AtomicInteger refreshCnt = new AtomicInteger(0);
+        monitor.startOrUpdate(100, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
+        Assert.assertEquals(monitor.getTickTimeMs(), 100);
+        Awaitility.await().until(() -> checkCnt.get() > 0);
+        Awaitility.await().until(() -> refreshCnt.get() > 0);
+
+        monitor.startOrUpdate(500, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
+        Assert.assertEquals(monitor.getTickTimeMs(), 500);
+        checkCnt.set(0);
+        refreshCnt.set(0);
+        Awaitility.await().until(() -> checkCnt.get() > 0);
+        Awaitility.await().until(() -> refreshCnt.get() > 0);
+
+        monitor.stop();
+        Assert.assertEquals(monitor.getTickTimeMs(), 0);
     }
 
     @Test
