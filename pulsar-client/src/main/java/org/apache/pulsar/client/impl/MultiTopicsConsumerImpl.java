@@ -1513,7 +1513,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(newSize > 0, "receiver queue size should larger than 0");
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] setMaxReceiverQueueSize={}, previous={}", topic, subscription,
-                    getCurrentReceiverQueueSize(), newSize);
+                    newSize, getCurrentReceiverQueueSize());
         }
         CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, newSize);
         resumeReceivingFromPausedConsumersIfNeeded();
