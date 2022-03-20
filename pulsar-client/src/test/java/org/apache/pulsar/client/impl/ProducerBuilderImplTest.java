@@ -38,6 +38,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 /**
@@ -84,6 +85,7 @@ public class ProducerBuilderImplTest {
         Producer producer = producerBuilderImpl.topic(TOPIC_NAME)
                 .create();
         assertNotNull(producer);
+        assertEquals(producerBuilderImpl.getConf().getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
     }
 
     @Test
@@ -93,6 +95,7 @@ public class ProducerBuilderImplTest {
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
         assertNotNull(producer);
+        assertEquals(producerBuilderImpl.getConf().getMessageRoutingMode(), MessageRoutingMode.SinglePartition);
     }
 
     @Test
@@ -102,6 +105,7 @@ public class ProducerBuilderImplTest {
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
         assertNotNull(producer);
+        assertEquals(producerBuilderImpl.getConf().getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
     }
 
     @Test
@@ -111,6 +115,7 @@ public class ProducerBuilderImplTest {
                 .messageRouter(new CustomMessageRouter())
                 .create();
         assertNotNull(producer);
+        assertEquals(producerBuilderImpl.getConf().getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
     }
 
     @Test
@@ -121,6 +126,7 @@ public class ProducerBuilderImplTest {
                 .messageRouter(new CustomMessageRouter())
                 .create();
         assertNotNull(producer);
+        assertEquals(producerBuilderImpl.getConf().getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
     }
 
     @Test(expectedExceptions = PulsarClientException.class)
