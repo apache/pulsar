@@ -334,7 +334,8 @@ public class BrokerService implements Closeable {
                         new DefaultThreadFactory("pulsar-compaction-monitor"));
         this.consumedLedgersMonitor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
-        this.brokerPublishRateLimiterMonitor = new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
+        this.brokerPublishRateLimiterMonitor =
+                new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
@@ -695,7 +696,7 @@ public class BrokerService implements Closeable {
         }
 
         @VisibleForTesting
-        synchronized protected long getTickTimeMs() {
+        protected synchronized long getTickTimeMs() {
             return tickTimeMs;
         }
     }
