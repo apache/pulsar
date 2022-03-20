@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -248,16 +247,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferHandlerSemaphore() throws Exception {
-
-        Field field = TransactionBufferClientImpl.class.getDeclaredField("tbHandler");
-        field.setAccessible(true);
-        TransactionBufferHandlerImpl transactionBufferHandler = (TransactionBufferHandlerImpl) field.get(tbClient);
-
-        field = TransactionBufferHandlerImpl.class.getDeclaredField("semaphore");
-        field.setAccessible(true);
-        field.set(transactionBufferHandler, new Semaphore(2));
-
-
         String topic = "persistent://" + namespace + "/testTransactionBufferHandlerSemaphore";
         String subName = "test";
 

@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.source;
 
 import lombok.Data;
-
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.functions.FunctionConfig;

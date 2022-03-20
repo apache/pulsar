@@ -240,10 +240,7 @@ Messages can be acknowledged individually or cumulatively. For details about mes
 - Acknowledge messages individually.
 
     ```c#
-    await foreach (var message in consumer.Messages())
-    {
-        Console.WriteLine("Received: " + Encoding.UTF8.GetString(message.Data.ToArray()));
-    }
+    await consumer.Acknowledge(message);
     ```
 
 - Acknowledge messages cumulatively.

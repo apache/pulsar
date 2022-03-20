@@ -687,7 +687,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
      * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
      *
-     * @default 100
+     * The default value is 10.
      *
      * @param maxPendingChuckedMessage
      * @return
@@ -712,7 +712,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
      * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
      *
-     * @default 100
+     * The default value is 10.
      *
      * @param maxPendingChunkedMessage
      * @return

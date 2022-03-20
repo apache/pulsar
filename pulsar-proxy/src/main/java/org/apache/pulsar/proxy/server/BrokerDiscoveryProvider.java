@@ -67,7 +67,7 @@ public class BrokerDiscoveryProvider implements Closeable {
         try {
             this.pulsarResources = pulsarResources;
             this.metadataStoreCacheLoader = new MetadataStoreCacheLoader(pulsarResources,
-                    config.getZookeeperSessionTimeoutMs());
+                    config.getMetadataStoreSessionTimeoutMillis());
         } catch (Exception e) {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);

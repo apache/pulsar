@@ -39,7 +39,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -49,9 +51,13 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -62,6 +68,8 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BatchMessageTest extends BrokerTestBase {
+
+    private static final Logger log = LoggerFactory.getLogger(BatchMessageTest.class);
 
     @BeforeClass
     @Override
@@ -92,6 +100,15 @@ public class BatchMessageTest extends BrokerTestBase {
         return new Object[][] {
                 { BatcherBuilder.DEFAULT },
                 { BatcherBuilder.KEY_BASED }
+        };
+    }
+
+    @DataProvider(name = "testSubTypeAndEnableBatch")
+    public Object[][] testSubTypeAndEnableBatch() {
+        return new Object[][] { { SubscriptionType.Shared, Boolean.TRUE },
+                { SubscriptionType.Failover, Boolean.TRUE },
+                { SubscriptionType.Shared, Boolean.FALSE },
+                { SubscriptionType.Failover, Boolean.FALSE }
         };
     }
 
@@ -917,6 +934,81 @@ public class BatchMessageTest extends BrokerTestBase {
 
         producer.close();
         consumer1.close();
+    }
+
+    @Test(dataProvider="testSubTypeAndEnableBatch")
+    private void testDecreaseUnAckMessageCountWithAckReceipt(SubscriptionType subType,
+                                                             boolean enableBatch) throws Exception {
+        final int messageCount = 50;
+        final String topicName = "persistent://prop/ns-abc/testDecreaseWithAckReceipt" + UUID.randomUUID();
+        final String subscriptionName = "sub-batch-1";
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient
+                .newConsumer(Schema.BYTES)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(subType)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .enableBatching(enableBatch)
+                .topic(topicName)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .create();
+
+        CountDownLatch countDownLatch = new CountDownLatch(messageCount);
+        for (int i = 0; i < messageCount; i++) {
+            producer.sendAsync((i + "").getBytes()).thenAccept(msgId -> {
+                log.info("Published message with msgId: {}", msgId);
+                countDownLatch.countDown();
+            });
+            // To generate batch message with different batch size
+            // 31 total batches, 5 batches with 3 messages, 8 batches with 2 messages and 37 batches with 1 message
+            if (((i / 3) % (i % 3 + 1)) == 0) {
+                producer.flush();
+            }
+        }
+
+        countDownLatch.await();
+
+        for (int i = 0; i < messageCount; i++) {
+            Message<byte[]> message = consumer.receive();
+            if (enableBatch) {
+                // only ack messages which batch index < 2, which means we will not to ack the
+                // whole batch for the batch that with more than 2 messages
+                if (((BatchMessageIdImpl) message.getMessageId()).getBatchIndex() < 2) {
+                    consumer.acknowledgeAsync(message).get();
+                }
+            } else {
+                if (i % 2 == 0) {
+                    consumer.acknowledgeAsync(message).get();
+                }
+            }
+        }
+
+        String topic = TopicName.get(topicName).toString();
+        PersistentSubscription persistentSubscription =  (PersistentSubscription) pulsar.getBrokerService()
+                .getTopic(topic, false).get().get().getSubscription(subscriptionName);
+
+        Awaitility.await().untilAsserted(() -> {
+            if (subType == SubscriptionType.Shared) {
+                if (enableBatch) {
+                    if (conf.isAcknowledgmentAtBatchIndexLevelEnabled()) {
+                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 1);
+                    } else {
+                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 5 * 3);
+                    }
+                } else {
+                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+                }
+            } else {
+                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
+            }
+        });
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BatchMessageTest.class);

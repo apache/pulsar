@@ -146,6 +146,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("version"));
         verify(mockBrokers).getVersion();
+
+        brokers.run(split("shutdown -m 10 -f"));
+        verify(mockBrokers).shutDownBrokerGracefully(10,true);
     }
 
     @Test
@@ -1313,7 +1316,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).revokePermissions("persistent://myprop/clust/ns1/ds1", "admin");
 
         cmdTopics.run(split("list myprop/clust/ns1"));
-        verify(mockTopics).getList("myprop/clust/ns1", null);
+        verify(mockTopics).getList("myprop/clust/ns1", null, null);
 
         cmdTopics.run(split("lookup persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).lookupTopic("persistent://myprop/clust/ns1/ds1");
@@ -1406,7 +1409,11 @@ public class PulsarAdminToolTest {
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
-        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false);
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -r"));
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, true);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, null);
@@ -1851,7 +1858,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, null);
 
         topics.run(split("list myprop/ns1"));
-        verify(mockTopics).getList("myprop/ns1", null);
+        verify(mockTopics).getList("myprop/ns1", null, null);
 
         NonPersistentTopics mockNonPersistentTopics = mock(NonPersistentTopics.class);
         when(admin.nonPersistentTopics()).thenReturn(mockNonPersistentTopics);
@@ -2071,7 +2078,11 @@ public class PulsarAdminToolTest {
 
         cmdSchemas = new CmdSchemas(() -> admin);
         cmdSchemas.run(split("delete persistent://tn1/ns1/tp1"));
-        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1");
+        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1", false);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("delete persistent://tn1/ns1/tp1 -f"));
+        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1", true);
 
         cmdSchemas = new CmdSchemas(() -> admin);
         String schemaFile = PulsarAdminToolTest.class.getClassLoader()

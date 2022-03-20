@@ -48,6 +48,7 @@ jobs:
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
+          list-files: csv
 
       - name: Check changed files
         id: check_changes
@@ -77,7 +78,7 @@ jobs:
 
       - name: run unit test 'BROKER_CLIENT_API'
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: ./build/run_unit_group.sh BROKER_CLIENT_API
+        run: CHANGED_TESTS="${{ steps.changes.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_CLIENT_API
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()

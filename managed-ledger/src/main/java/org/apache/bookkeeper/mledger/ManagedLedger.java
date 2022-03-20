@@ -293,6 +293,13 @@ public interface ManagedLedger {
     void deleteCursor(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Remove a ManagedCursor from this ManagedLedger's waitingCursors.
+     *
+     * @param cursor the ManagedCursor
+     */
+    void removeWaitingCursor(ManagedCursor cursor);
+
+    /**
      * Open a ManagedCursor asynchronously.
      *
      * @see #openCursor(String)
@@ -649,4 +656,10 @@ public interface ManagedLedger {
      * @return the future of managed ledger internal stats
      */
     CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata);
+
+    /**
+     * Check current inactive ledger (based on {@link ManagedLedgerConfig#getInactiveLedgerRollOverTimeMs()} and
+     * roll over that ledger if inactive.
+     */
+    void checkInactiveLedgerAndRollOver();
 }

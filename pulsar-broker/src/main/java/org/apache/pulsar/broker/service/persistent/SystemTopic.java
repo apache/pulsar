@@ -24,6 +24,8 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 
 public class SystemTopic extends PersistentTopic {
 
@@ -70,8 +72,13 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompactionEnabled() {
-        // All system topics are using compaction, even though is not explicitly set in the policies.
-        return CompletableFuture.completedFuture(true);
+    public boolean isCompactionEnabled() {
+        // All system topics are using compaction except `HealthCheck`,
+        // even though is not explicitly set in the policies.
+        TopicName name = TopicName.get(topic);
+        NamespaceName heartbeatNamespaceV1 = brokerService.pulsar().getHeartbeatNamespaceV1();
+        NamespaceName heartbeatNamespaceV2 = brokerService.pulsar().getHeartbeatNamespaceV2();
+        return !name.getNamespaceObject().equals(heartbeatNamespaceV1)
+                && !name.getNamespaceObject().equals(heartbeatNamespaceV2);
     }
 }

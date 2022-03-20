@@ -66,17 +66,31 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String globalZookeeperServers;
 
     @Deprecated
-    @FieldContext(doc = "Connection string of configuration store servers")
+    @FieldContext(
+            deprecated = true,
+            doc = "Connection string of configuration store servers")
     private String configurationStoreServers;
 
     @FieldContext(doc = "Connection string of configuration metadata store servers")
     private String configurationMetadataStoreUrl;
 
-    @FieldContext(doc = "ZooKeeper session timeout in milliseconds")
-    private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(doc = "Metadata store session timeout in milliseconds.")
+    private long metadataStoreSessionTimeoutMillis = 30_000;
 
-    @FieldContext(doc = "ZooKeeper cache expiry time in seconds")
-    private int zooKeeperCacheExpirySeconds = 300;
+    @FieldContext(doc = "Metadata store cache expiry time in seconds.")
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @FieldContext(
+            deprecated = true,
+            doc = "ZooKeeper session timeout in milliseconds. "
+                        + "@deprecated - Use metadataStoreSessionTimeoutMillis instead.")
+    private long zooKeeperSessionTimeoutMillis = -1;
+
+    @FieldContext(
+            deprecated = true,
+            doc = "ZooKeeper cache expiry time in seconds. "
+                        + "@deprecated - Use metadataStoreCacheExpirySeconds instead.")
+    private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(doc = "Port to use to server HTTP request")
     private Optional<Integer> webServicePort = Optional.of(8080);
@@ -163,4 +177,12 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
+
+    public long getMetadataStoreSessionTimeoutMillis() {
+        return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
 }

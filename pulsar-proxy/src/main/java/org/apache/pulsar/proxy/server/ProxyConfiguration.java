@@ -49,6 +49,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_BROKER_DISCOVERY = "Broker Discovery";
     @Category
+    private static final String CATEGORY_BROKER_PROXY = "Broker Proxy";
+    @Category
     private static final String CATEGORY_AUTHENTICATION = "Proxy Authentication";
     @Category
     private static final String CATEGORY_AUTHORIZATION = "Proxy Authorization";
@@ -117,24 +119,43 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String configurationMetadataStoreUrl;
 
     @FieldContext(
-        category = CATEGORY_BROKER_DISCOVERY,
-        doc = "ZooKeeper session timeout (in milliseconds)"
+            category = CATEGORY_SERVER,
+            doc = "Metadata store session timeout in milliseconds."
     )
-    private int zookeeperSessionTimeoutMs = 30_000;
+    private int metadataStoreSessionTimeoutMillis = 30_000;
+
     @FieldContext(
-            category = CATEGORY_BROKER_DISCOVERY,
-            doc = "ZooKeeper cache expiry time in seconds"
-        )
-    private int zooKeeperCacheExpirySeconds = 300;
+            category = CATEGORY_SERVER,
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
+    )
+    private int zookeeperSessionTimeoutMs = -1;
+
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_BROKER_DISCOVERY,
+        deprecated = true,
+        doc = "ZooKeeper cache expiry time in seconds. "
+                + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
+    )
+    private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The service url points to the broker cluster"
+        doc = "The service url points to the broker cluster. URL must have the pulsar:// prefix."
     )
     private String brokerServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls service url points to the broker cluster"
+        doc = "The tls service url points to the broker cluster. URL must have the pulsar+ssl:// prefix."
     )
     private String brokerServiceURLTLS;
 
@@ -161,6 +182,43 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURLTLS;
+
+    @FieldContext(category = CATEGORY_BROKER_PROXY,
+            doc = "When enabled, checks that the target broker is active before connecting. "
+                    + "zookeeperServers and configurationStoreServers must be configured in proxy configuration "
+                    + "for retrieving the active brokers.")
+    private boolean checkActiveBrokers = false;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Broker proxy connect timeout.\n"
+                    + "The timeout value for Broker proxy connect timeout is in millisecond. Set to 0 to disable."
+    )
+    private int brokerProxyConnectTimeoutMs = 10000;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Broker proxy read timeout.\n"
+                    + "The timeout value for Broker proxy read timeout is in millisecond. Set to 0 to disable."
+    )
+    private int brokerProxyReadTimeoutMs = 75000;
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target host names. "
+                    + "Supports multiple comma separated entries and a wildcard.")
+    private String brokerProxyAllowedHostNames = "*";
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target ip addresses or ip networks / netmasks. "
+                    + "Supports multiple comma separated entries.")
+    private String brokerProxyAllowedIPAddresses = "*";
+
+    @FieldContext(
+            category = CATEGORY_BROKER_PROXY,
+            doc = "Allowed broker target ports")
+    private String brokerProxyAllowedTargetPorts = "6650,6651";
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -755,5 +813,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
         public String toString() {
             return String.format("HttpReverseProxyConfig(%s, path=%s, proxyTo=%s)", name, path, proxyTo);
         }
+    }
+
+    public int getMetadataStoreSessionTimeoutMillis() {
+        return zookeeperSessionTimeoutMs > 0 ? zookeeperSessionTimeoutMs : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
     }
 }

@@ -21,16 +21,15 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
 
 @Slf4j
 public class ClusterServiceCoordinator implements AutoCloseable {
@@ -58,7 +57,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
         this.leaderService = leaderService;
         this.isLeader = isLeader;
         this.executor = Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build());
+                new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build());
     }
 
     public void addTask(String taskName, long interval, Runnable task) {

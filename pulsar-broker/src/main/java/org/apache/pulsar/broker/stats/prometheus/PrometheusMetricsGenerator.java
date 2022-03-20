@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.generateSystemMetrics;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.getTypeStr;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
@@ -34,7 +34,6 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -227,55 +226,6 @@ public class PrometheusMetricsGenerator {
             stream.write(writer.toString());
         } catch (IOException e) {
             // nop
-        }
-    }
-
-    private static void generateSystemMetrics(SimpleTextOutputStream stream, String cluster) {
-        Enumeration<MetricFamilySamples> metricFamilySamples = CollectorRegistry.defaultRegistry.metricFamilySamples();
-        while (metricFamilySamples.hasMoreElements()) {
-            MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
-
-            // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(' ')
-                    .write(getTypeStr(metricFamily.type)).write('\n');
-
-            for (int i = 0; i < metricFamily.samples.size(); i++) {
-                Sample sample = metricFamily.samples.get(i);
-                stream.write(sample.name);
-                stream.write("{cluster=\"").write(cluster).write('"');
-                for (int j = 0; j < sample.labelNames.size(); j++) {
-                    String labelValue = sample.labelValues.get(j);
-                    if (labelValue != null) {
-                        labelValue = labelValue.replace("\"", "\\\"");
-                    }
-
-                    stream.write(",");
-                    stream.write(sample.labelNames.get(j));
-                    stream.write("=\"");
-                    stream.write(labelValue);
-                    stream.write('"');
-                }
-
-                stream.write("} ");
-                stream.write(Collector.doubleToGoString(sample.value));
-                stream.write('\n');
-            }
-        }
-    }
-
-    static String getTypeStr(Collector.Type type) {
-        switch (type) {
-        case COUNTER:
-            return "counter";
-        case GAUGE:
-            return "gauge";
-        case SUMMARY        :
-            return "summary";
-        case HISTOGRAM:
-            return "histogram";
-        case UNTYPED:
-        default:
-            return "untyped";
         }
     }
 

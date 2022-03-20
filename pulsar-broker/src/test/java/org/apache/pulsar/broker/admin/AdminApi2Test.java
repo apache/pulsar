@@ -63,17 +63,21 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.admin.Topics.QueryParam;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -814,6 +818,40 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "test", "invalid-group");
         assertEquals(namespaces2.size(), 0);
+    }
+
+    @Test
+    public void testPersistentTopicList() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String topicName = "non-persistent://" + namespace + "/bundle-topic";
+        admin.namespaces().createNamespace(namespace, 20);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+        int totalTopics = 100;
+
+        Set<String> topicNames = Sets.newHashSet();
+        for (int i = 0; i < totalTopics; i++) {
+            topicNames.add(topicName + i);
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName + i).create();
+            producer.close();
+        }
+
+        Set<String> topics = Sets.newHashSet();
+        String bundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                .getBundle(TopicName.get(topicName + "0")).getBundleRange();
+        for (int i = 0; i < totalTopics; i++) {
+            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i).get();
+            if (bundle.equals(pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundle(TopicName.get(topicName + i)).getBundleRange())) {
+                topics.add(topic.getName());
+            }
+        }
+
+        Set<String> topicsInNs = Sets
+                .newHashSet(
+                        admin.topics().getList(namespace, null, Collections.singletonMap(QueryParam.Bundle, bundle)));
+        assertEquals(topicsInNs.size(), topics.size());
+        topicsInNs.removeAll(topics);
+        assertEquals(topicsInNs.size(), 0);
     }
 
     @Test
@@ -2222,7 +2260,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         producer2.close();
     }
 
-
     @Test(dataProvider = "isV1")
     public void testNonPartitionedTopic(boolean isV1) throws Exception {
         String tenant = "prop-xyz";
@@ -2269,5 +2306,84 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, true);
         // validate subscription is created for new partition.
         assertNotNull(admin.topics().getStats(partitionedTopicName + "-partition-" + 6).getSubscriptions().get(subName1));
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testPartitionedStatsAggregationByProducerName(String topicType) throws Exception {
+        conf.setAggregatePublisherStatsByProducerName(true);
+        final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name";
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 5;
+                    }
+                })
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            producer1.newMessage()
+                    .key(String.valueOf(i % 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+            producer2.newMessage()
+                    .key(String.valueOf(i % 5 + 5))
+                    .value(("message".getBytes(StandardCharsets.UTF_8)))
+                    .send();
+        }
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.getPartitions().size(), 10);
+        assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 10);
+        assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
+        assertEquals(topicStats.getPublishers().size(), 2);
+        topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testPartitionedStatsAggregationByProducerNamePerPartition(String topicType) throws Exception {
+        conf.setAggregatePublisherStatsByProducerName(true);
+        final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name-per-pt";
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
+                .create();
+
+        @Cleanup
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 1)
+                .create();
+
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
+        assertEquals(topicStats.getPartitions().size(), 2);
+        assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 2);
+        assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
+        assertEquals(topicStats.getPublishers().size(), 2);
+        topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
 }

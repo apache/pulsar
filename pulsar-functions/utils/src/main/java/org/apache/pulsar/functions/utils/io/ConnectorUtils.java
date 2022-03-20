@@ -27,7 +27,6 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.Exceptions;
@@ -137,7 +137,8 @@ public class ConnectorUtils {
         return retval;
     }
 
-    public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory, String narExtractionDirectory) throws IOException {
+    public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory,
+                                                                 String narExtractionDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for connectors in {}", path);
 
@@ -151,7 +152,10 @@ public class ConnectorUtils {
             for (Path archive : stream) {
                 try {
 
-                    NarClassLoader ncl = NarClassLoader.getFromArchive(new File(archive.toString()), Collections.emptySet(), narExtractionDirectory);
+                    NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                            .narFile(new File(archive.toString()))
+                            .extractionDirectory(narExtractionDirectory)
+                            .build();
 
                     Connector.ConnectorBuilder connectorBuilder = Connector.builder();
                     ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(ncl);
@@ -160,13 +164,15 @@ public class ConnectorUtils {
                     connectorBuilder.archivePath(archive);
                     if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
                         if (!StringUtils.isEmpty(cntDef.getSourceConfigClass())) {
-                            connectorBuilder.sourceConfigFieldDefinitions(ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSourceConfigClass()));
+                            connectorBuilder.sourceConfigFieldDefinitions(ConnectorUtils
+                                    .getConnectorConfigDefinition(ncl, cntDef.getSourceConfigClass()));
                         }
                     }
 
                     if (!StringUtils.isEmpty(cntDef.getSinkClass())) {
                         if (!StringUtils.isEmpty(cntDef.getSinkConfigClass())) {
-                            connectorBuilder.sinkConfigFieldDefinitions(ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSinkConfigClass()));
+                            connectorBuilder.sinkConfigFieldDefinitions(
+                                    ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSinkConfigClass()));
                         }
                     }
 

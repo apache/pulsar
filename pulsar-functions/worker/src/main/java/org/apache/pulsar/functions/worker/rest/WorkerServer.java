@@ -19,11 +19,16 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import io.prometheus.client.jetty.JettyStatisticsCollector;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import javax.servlet.DispatcherType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
-import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
+import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -44,13 +49,6 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-
-import javax.servlet.DispatcherType;
 
 @Slf4j
 public class WorkerServer {
@@ -107,7 +105,7 @@ public class WorkerServer {
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
         HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+        handlerCollection.setHandlers(new Handler[]{contexts, new DefaultHandler(), requestLogHandler});
 
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();

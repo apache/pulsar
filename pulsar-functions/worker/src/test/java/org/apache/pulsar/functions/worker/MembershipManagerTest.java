@@ -29,11 +29,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -48,8 +46,8 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -81,7 +79,8 @@ public class MembershipManagerTest {
 
         when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
 
-        when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class)))
+                .thenReturn(mockConsumerBuilder);
 
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
@@ -191,7 +190,8 @@ public class MembershipManagerTest {
                 mock(WorkerStatsManager.class),
                 mock(ErrorNotifier.class)));
 
-        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
+        MembershipManager membershipManager =
+                spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
@@ -230,7 +230,8 @@ public class MembershipManagerTest {
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
         assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
+        Function.Instance instance =
+                Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
         assertNotNull(membershipManager.unsignedFunctionDurations.get(instance));
 
         membershipManager.unsignedFunctionDurations.put(instance,
@@ -280,7 +281,8 @@ public class MembershipManagerTest {
                 functionMetaDataManager,
                 mock(WorkerStatsManager.class),
                 mock(ErrorNotifier.class)));
-        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
+        MembershipManager membershipManager =
+                spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));
@@ -314,7 +316,8 @@ public class MembershipManagerTest {
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
         assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
+        Function.Instance instance =
+                Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
         assertNotNull(membershipManager.unsignedFunctionDurations.get(instance));
 
         membershipManager.unsignedFunctionDurations.put(instance,
@@ -362,7 +365,8 @@ public class MembershipManagerTest {
                 functionMetaDataManager,
                 mock(WorkerStatsManager.class),
                 mock(ErrorNotifier.class)));
-        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
+        MembershipManager membershipManager =
+                spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(WorkerInfo.of("worker-1", "host-1", 8000));

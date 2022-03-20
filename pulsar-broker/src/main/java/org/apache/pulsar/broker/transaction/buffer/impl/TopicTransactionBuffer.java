@@ -104,25 +104,43 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
+        this.recover();
+    }
+
+    private void recover() {
         this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
-                        if (!changeToReadyState()) {
-                            log.error("[{}]Transaction buffer recover fail", topic.getName());
-                        } else {
-                            timer.newTimeout(TopicTransactionBuffer.this,
-                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                            transactionBufferFuture.complete(null);
+                        synchronized (TopicTransactionBuffer.this) {
+                            // sync maxReadPosition change to LAC when TopicTransaction buffer have not recover
+                            // completely the normal message have been sent to broker and state is
+                            // not Ready can't sync maxReadPosition when no ongoing transactions
+                            if (ongoingTxns.isEmpty()) {
+                                maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
+                            }
+                            if (!changeToReadyState()) {
+                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                            } else {
+                                timer.newTimeout(TopicTransactionBuffer.this,
+                                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                                transactionBufferFuture.complete(null);
+                            }
                         }
                     }
 
                     @Override
                     public void noNeedToRecover() {
-                        if (!changeToNoSnapshotState()) {
-                            log.error("[{}]Transaction buffer recover fail", topic.getName());
-                        } else {
-                            transactionBufferFuture.complete(null);
+                        synchronized (TopicTransactionBuffer.this) {
+                            // sync maxReadPosition change to LAC when TopicTransaction buffer have not recover
+                            // completely the normal message have been sent to broker and state is
+                            // not NoSnapshot can't sync maxReadPosition
+                            maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
+                            if (!changeToNoSnapshotState()) {
+                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                            } else {
+                                transactionBufferFuture.complete(null);
+                            }
                         }
                     }
 
@@ -161,6 +179,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void recoverExceptionally(Exception e) {
+                        if (e instanceof PulsarClientException.BrokerMetadataException) {
+                            log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
+                                    + "transaction buffer throw exception", topic.getName(), e);
+                            topic.close();
+                        }
                         transactionBufferFuture.completeExceptionally(e);
                     }
                 }, this.topic, this));
@@ -456,7 +479,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (TopicTransactionBuffer.this) {
             if (checkIfNoSnapshot()) {
                 maxReadPosition = position;
-                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
             } else if (checkIfReady()) {
                 if (ongoingTxns.isEmpty()) {
                     maxReadPosition = position;

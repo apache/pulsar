@@ -28,10 +28,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -217,7 +219,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     @Override
     public ChannelPromise sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
             int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-            RedeliveryTracker redeliveryTracker) {
+            RedeliveryTracker redeliveryTracker, long epoch) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
         ctx.channel().eventLoop().execute(() -> {
@@ -270,7 +272,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 ctx.write(
                         cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,
                                 redeliveryCount, metadataAndPayload,
-                                batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName),
+                                batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName, epoch),
                         ctx.voidPromise());
                 entry.release();
             }
@@ -297,6 +299,49 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     @Override
     public void sendTcClientConnectResponse(long requestId) {
         sendTcClientConnectResponse(requestId, null, null);
+    }
+
+    @Override
+    public void sendNewTxnResponse(long requestId, TxnID txnID, long tcID) {
+        BaseCommand command = Commands.newTxnResponse(requestId, txnID.getLeastSigBits(),
+                txnID.getMostSigBits());
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        cnx.ctx().writeAndFlush(outBuf);
+        if (this.interceptor != null) {
+            this.interceptor.txnOpened(tcID, txnID.toString());
+        }
+    }
+
+    @Override
+    public void sendNewTxnErrorResponse(long requestId, long txnID, ServerError error, String message) {
+        BaseCommand command = Commands.newTxnResponse(requestId, txnID, error, message);
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        cnx.ctx().writeAndFlush(outBuf);
+    }
+
+    @Override
+    public void sendEndTxnResponse(long requestId, TxnID txnID, int txnAction) {
+        BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getLeastSigBits(),
+                txnID.getMostSigBits());
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        cnx.ctx().writeAndFlush(outBuf);
+        if (this.interceptor != null) {
+            this.interceptor.txnEnded(txnID.toString(), txnAction);
+        }
+    }
+
+    @Override
+    public void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message) {
+        BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(), error, message);
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        cnx.ctx().writeAndFlush(outBuf);
+        if (this.interceptor != null) {
+            this.interceptor.txnEnded(txnID.toString(), TxnAction.ABORT_VALUE);
+        }
     }
 
     private void safeIntercept(BaseCommand command, ServerCnx cnx) {
