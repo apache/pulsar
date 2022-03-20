@@ -573,6 +573,7 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("splitAlgorithmName") String splitAlgorithmName,
             @ApiParam("splitBoundaries") List<Long> splitBoundaries) {
         try {
+            checkNotNull(tenant);
             validateNamespaceName(tenant, namespace);
             internalSplitNamespaceBundle(asyncResponse,
                     bundleRange, authoritative, unload, splitAlgorithmName, splitBoundaries);
