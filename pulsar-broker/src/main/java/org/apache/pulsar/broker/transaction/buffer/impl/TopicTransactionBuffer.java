@@ -178,8 +178,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     }
 
                     @Override
-                    public void recoverExceptionally(Exception e) {
-                        if (e instanceof PulsarClientException.BrokerMetadataException) {
+                    public void recoverExceptionally(Throwable e) {
+                        if (e instanceof PulsarClientException.BrokerMetadataException
+                                || e instanceof PulsarClientException.BrokerPersistenceException) {
                             log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
                                     + "transaction buffer throw exception", topic.getName(), e);
                             topic.close();
@@ -631,7 +632,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 callBack.recoverComplete();
             }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this))
                     .exceptionally(e -> {
-                callBack.recoverExceptionally(new Exception(e));
+                callBack.recoverExceptionally(e.getCause());
                 log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
                 return null;
             });

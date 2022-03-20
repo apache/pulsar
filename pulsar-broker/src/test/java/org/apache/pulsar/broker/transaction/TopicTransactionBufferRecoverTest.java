@@ -502,6 +502,32 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         txn.commit().get();
+
+        PersistentTopic newTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(new PulsarClientException.BrokerPersistenceException("test"));
+        doReturn(completableFuture)
+                .when(transactionBufferSnapshotService).createReader(any());
+        field.set(getPulsarServiceList().get(0), transactionBufferSnapshotService);
+        // recover again will throw BrokerPersistenceException then close topic
+        new TopicTransactionBuffer(newTopic);
+
+        Awaitility.await().untilAsserted(() -> {
+            // isFenced means closed
+            Field close = AbstractTopic.class.getDeclaredField("isFenced");
+            close.setAccessible(true);
+            assertTrue((boolean) close.get(newTopic));
+        });
+        field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceOriginal);
+
+        // topic recover success
+        txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        txn.commit().get();
     }
 
 }
