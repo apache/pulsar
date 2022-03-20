@@ -233,7 +233,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
-    private final PublishRateLimiterMonitor brokerPublishRateLimiterMonitor;
+    protected final PublishRateLimiterMonitor brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
@@ -683,11 +683,7 @@ public class BrokerService implements Closeable {
 
         synchronized void stop() {
             if (this.scheduler != null) {
-                try {
-                    this.scheduler.awaitTermination(30, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    log.warn("failed to shutdown RateLimiterMonitor {}", name, e);
-                }
+                this.scheduler.shutdownNow();
                 // make sure topics are not being throttled
                 refreshTask.run();
                 this.scheduler = null;
