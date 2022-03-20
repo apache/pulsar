@@ -379,6 +379,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 new ZKMetadataStore(mockZooKeeperGlobal));
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        proxyConfig.setAuthenticateMetricsEndpoint(false);
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
                 new BrokerDiscoveryProvider(proxyConfig, resource));
