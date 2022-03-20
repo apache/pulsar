@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.PulsarService.isTransactionInternalName;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
@@ -321,41 +322,40 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> revokePermissions(String topicUri, String role) {
-        Policies policies;
-        try {
-            policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-        } catch (Exception e) {
-            log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
-            return FutureUtil.failedFuture(new RestException(e));
-        }
-        if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)
-                || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
-            log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}", clientAppId(),
-                    role, topicUri);
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Permissions are not set at the topic level"));
-        }
-
-        // Write the new policies to metadata store
-         return namespaceResources().setPoliciesAsync(namespaceName, p -> {
-            p.auth_policies.getTopicAuthentication().get(topicUri).remove(role);
-            return p;
-        }).thenAccept(__ -> log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role,
-                 topicUri)
-
-        ).exceptionally(ex -> {
-            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-            log.error("[{}] Failed revoke access for role {} - topic {}", clientAppId(), role, topicUri, realCause);
-            throw new RestException(realCause);
-
-        });
+        return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
+                policiesOptional -> {
+                    Policies policies = policiesOptional.orElseThrow(() ->
+                            new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                    if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)
+                            || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
+                        log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
+                                clientAppId(), role, topicUri);
+                        return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                "Permissions are not set at the topic level"));
+                    }
+                    if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)
+                            || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
+                        log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
+                                clientAppId(), role, topicUri);
+                        return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                "Permissions are not set at the topic level"));
+                    }
+                    // Write the new policies to metadata store
+                    return namespaceResources().setPoliciesAsync(namespaceName, p -> {
+                        p.auth_policies.getTopicAuthentication().get(topicUri).remove(role);
+                        return p;
+                    }).thenAccept(__ ->
+                            log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role,
+                            topicUri)
+                    );
+                }
+        );
     }
 
     protected void internalRevokePermissionsOnTopic(AsyncResponse asyncResponse, String role) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccessAsync().thenCompose(__ ->
+        validateAdminAccessForTenantAsync(namespaceName.getTenant())
+                .thenAccept(__ -> validatePoliciesReadOnlyAccessAsync().thenCompose(unused1 ->
             getPartitionedTopicMetadataAsync(topicName, true, false)
                 .thenCompose(metadata -> {
                     int numPartitions = metadata.partitions;
@@ -369,12 +369,13 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     return future.thenComposeAsync(unused -> revokePermissions(topicName.toString(), role))
                             .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
-                })).exceptionally(ex -> {
-            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-            log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicName, realCause);
-            resumeAsyncResponseExceptionally(asyncResponse, realCause);
-            return null;
-        });
+                }))
+            ).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicName, realCause);
+                    resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                    return null;
+                });
     }
 
     protected void internalCreateNonPartitionedTopic(boolean authoritative, Map<String, String> properties) {
@@ -3878,7 +3879,8 @@ public class PersistentTopicsBase extends AdminResource {
             } catch (RestException e) {
                 try {
                     validateAdminAccessForTenant(pulsar,
-                            clientAppId, originalPrincipal, topicName.getTenant(), authenticationData);
+                            clientAppId, originalPrincipal, topicName.getTenant(), authenticationData,
+                            pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
                 } catch (RestException authException) {
                     log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
                     throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
