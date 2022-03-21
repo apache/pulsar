@@ -352,11 +352,11 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             return;
         }
         if (conf.getCustomMessageRouter() == null) {
-            checkMessageRoutingModeValid(conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition,
+            checkMessageRoutingArgument(conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition,
                     "When 'messageRouter' is null, 'messageRoutingMode' should not be set as "
                             + MessageRoutingMode.CustomPartition);
         } else {
-            checkMessageRoutingModeValid(conf.getMessageRoutingMode() == null
+            checkMessageRoutingArgument(conf.getMessageRoutingMode() == null
                             || conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition,
                     "When 'messageRouter' is set, 'messageRoutingMode' should be set as "
                             + MessageRoutingMode.CustomPartition);
@@ -364,7 +364,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         }
     }
 
-    private void checkMessageRoutingModeValid(boolean expression, String errorMessage) throws PulsarClientException {
+    private void checkMessageRoutingArgument(boolean expression, String errorMessage) throws PulsarClientException {
         if (!expression) {
             throw new PulsarClientException(errorMessage);
         }
