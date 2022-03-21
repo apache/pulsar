@@ -304,7 +304,7 @@ public class ProcessRuntimeTest {
         }
         if (null != depsDir) {
             assertEquals(args.size(), totalArgCount);
-            extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir.toString();
+            extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
             portArg = 25;
             metricsPortArg = 27;
