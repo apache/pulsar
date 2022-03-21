@@ -111,7 +111,7 @@ class PULSAR_PUBLIC MessageId {
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
 
     /**
-     * return is this a chunk message id;
+     * @return true if it's a chunk message id;
      */
     bool isChunkMessageid() const;
 
