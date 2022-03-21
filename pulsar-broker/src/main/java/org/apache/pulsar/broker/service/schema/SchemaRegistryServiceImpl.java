@@ -205,7 +205,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return false;
     }
 
-    private CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
+    @Override
+    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
         switch (strategy) {
             case FORWARD_TRANSITIVE:
