@@ -68,7 +68,7 @@ chmod 444 certs/ca.cert.pem
 
 > **Tips**
 >
-> The default `openssl` on macOS doesn't work for commands above. You must upgrade the `openssl` via Homebrew:
+> The default `openssl` on macOS doesn't work for the commands above. You must upgrade the `openssl` via Homebrew:
 >
 > ```bash
 > brew install openssl
