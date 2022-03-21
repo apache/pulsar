@@ -1,9 +1,9 @@
 
 ## Apache Pulsar Release Notes
 
-### 2.8.2
+### 2.8.3
 
-#### 2022-03-10
+#### 2022-03-21
 
 ### Important Notices
 
