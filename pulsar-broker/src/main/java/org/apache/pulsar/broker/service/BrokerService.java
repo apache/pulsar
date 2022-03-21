@@ -234,7 +234,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
-    private ScheduledExecutorService brokerPublishRateLimiterMonitor;
+    protected final PublishRateLimiterMonitor brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
@@ -335,7 +335,8 @@ public class BrokerService implements Closeable {
                         new DefaultThreadFactory("pulsar-compaction-monitor"));
         this.consumedLedgersMonitor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
-
+        this.brokerPublishRateLimiterMonitor =
+                new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
@@ -639,39 +640,61 @@ public class BrokerService implements Closeable {
      * Schedules and monitors publish-throttling for broker that has publish-throttling configured. It also
      * disables and shutdowns publish-rate-limiter monitor for broker task if broker disables it.
      */
-    public synchronized void setupBrokerPublishRateLimiterMonitor() {
+    public void setupBrokerPublishRateLimiterMonitor() {
         // set broker PublishRateLimiterMonitor
         long brokerTickTimeMs = pulsar().getConfiguration().getBrokerPublisherThrottlingTickTimeMillis();
         if (brokerTickTimeMs > 0) {
-            if (this.brokerPublishRateLimiterMonitor == null) {
-                this.brokerPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
-                    new DefaultThreadFactory("pulsar-broker-publish-rate-limiter-monitor"));
-                // schedule task that sums up publish-rate across all cnx on a topic,
-                // and check the rate limit exceeded or not.
-                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                    safeRun(() -> checkBrokerPublishThrottlingRate()),
-                    brokerTickTimeMs,
-                    brokerTickTimeMs,
-                    TimeUnit.MILLISECONDS);
-                // schedule task that refreshes rate-limiting bucket
-                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                    safeRun(() -> refreshBrokerPublishRate()),
-                    1,
-                    1,
-                    TimeUnit.SECONDS);
-            }
+            brokerPublishRateLimiterMonitor.startOrUpdate(brokerTickTimeMs,
+                    this::checkBrokerPublishThrottlingRate, this::refreshBrokerPublishRate);
         } else {
             // disable publish-throttling for broker.
-            if (this.brokerPublishRateLimiterMonitor != null) {
-                try {
-                    this.brokerPublishRateLimiterMonitor.awaitTermination(30, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    log.warn("failed to shutdown brokerPublishRateLimiterMonitor", e);
+            brokerPublishRateLimiterMonitor.stop();
+        }
+    }
+
+    protected static class PublishRateLimiterMonitor {
+        private final String name;
+        private ScheduledExecutorService scheduler = null;
+        private long tickTimeMs = 0;
+        private Runnable refreshTask;
+
+        public PublishRateLimiterMonitor(String name) {
+            this.name = name;
+        }
+
+        synchronized void startOrUpdate(long tickTimeMs, Runnable checkTask, Runnable refreshTask) {
+            if (this.scheduler != null) {
+                // we have old task running.
+                if (this.tickTimeMs == tickTimeMs) {
+                    // tick time not changed.
+                    return;
                 }
-                // make sure topics are not being throttled
-                refreshBrokerPublishRate();
-                this.brokerPublishRateLimiterMonitor = null;
+                stop();
             }
+            //start monitor.
+            scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(name));
+            // schedule task that sums up publish-rate across all cnx on a topic ,
+            // and check the rate limit exceeded or not.
+            scheduler.scheduleAtFixedRate(safeRun(checkTask), tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);
+            // schedule task that refreshes rate-limiting bucket
+            scheduler.scheduleAtFixedRate(safeRun(refreshTask), 1, 1, TimeUnit.SECONDS);
+            this.tickTimeMs = tickTimeMs;
+            this.refreshTask = refreshTask;
+        }
+
+        synchronized void stop() {
+            if (this.scheduler != null) {
+                this.scheduler.shutdownNow();
+                // make sure topics are not being throttled
+                refreshTask.run();
+                this.scheduler = null;
+                this.tickTimeMs = 0;
+            }
+        }
+
+        @VisibleForTesting
+        protected synchronized long getTickTimeMs() {
+            return tickTimeMs;
         }
     }
 
@@ -812,7 +835,7 @@ public class BrokerService implements Closeable {
                                                 backlogQuotaChecker,
                                                 topicOrderedExecutor,
                                                 topicPublishRateLimiterMonitor,
-                                                brokerPublishRateLimiterMonitor,
+                                                brokerPublishRateLimiterMonitor.scheduler,
                                                 deduplicationSnapshotMonitor)
                                         .handle());
 
