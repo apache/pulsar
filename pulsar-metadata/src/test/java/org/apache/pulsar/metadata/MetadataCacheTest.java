@@ -611,7 +611,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
         for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
+            if (predicate.test(null)) {
                 return true;
             }
             Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
