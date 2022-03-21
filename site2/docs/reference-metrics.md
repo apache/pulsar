@@ -498,7 +498,7 @@ All the jetty metrics are labelled with the following labels:
 
 ### Web service executor metrics
 
-> For a functions-worker running separately from brokers, its Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
+> For functions workers running separately from brokers, their Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
 
 All the web service executor metrics are labelled with the following labels:
 
@@ -507,10 +507,10 @@ All the web service executor metrics are labelled with the following labels:
 | Name | Type | Description |
 |---|---|---|
 | pulsar_web_executor_max_threads | GAUGE | The max threads of pulsar-web  thread pool |
-| pulsar_web_executor_min_threads | GAUGE | The max threads of pulsar-web thread pool |
+| pulsar_web_executor_min_threads | GAUGE | The min threads of pulsar-web thread pool |
 | pulsar_web_executor_idle_threads | GAUGE | The idle threads of pulsar-web thread pool |
-| pulsar_web_executor_active_threads | GAUGE | How many threads doing task of pulsar-web thread pool |
-| pulsar_web_executor_current_threads | GAUGE | How many threads in the pulsar-web thread pool now |
+| pulsar_web_executor_active_threads | GAUGE | The number of threads performing tasks of pulsar-web thread pool |
+| pulsar_web_executor_current_threads | GAUGE | The number of threads in the pulsar-web thread pool |
 
 ## Pulsar Functions
 
