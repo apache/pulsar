@@ -278,8 +278,7 @@ if (BUILD_PYTHON_WRAPPER)
         # For python3 the lib name is boost_python3
         set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python39;python310;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
     else ()
-        # Regular boost_python
-        set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
+        MESSAGE(FATAL_ERROR "Python 2.7 no longer supported")
     endif ()
 
     foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
