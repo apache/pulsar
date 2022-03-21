@@ -768,6 +768,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+        resetState();
     }
 
     @SuppressWarnings("deprecation")
