@@ -20,7 +20,7 @@ Value / data payload | The data carried by the message. All Pulsar messages cont
 Key | Messages are optionally tagged with keys, which is useful for things like [topic compaction](concepts-topic-compaction.md).
 Properties | An optional key/value map of user-defined properties.
 Producer name | The name of the producer who produces the message. If you do not specify a producer name, the default name is used. 
-Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of a message is assigned by its producer, indicating its order in that sequence.<br />Sequence ID can be used for message deduplication. If `brokerDeduplicationEnabled` is set to `true`, the sequence ID of each message is unique within a partition or a non-partitioned topic. 
+Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of a message is initially assigned by its producer, indicating its order in that sequence, and can also be customized.<br />Sequence ID can be used for message deduplication. If `brokerDeduplicationEnabled` is set to `true`, the sequence ID of each message is unique within a producer of a topic (non-partitioned) or a partition.  
 Message ID | The message ID of a message is assigned by bookies as soon as the message is persistently stored. Message ID indicates a message’s specific position in a ledger and is unique within a Pulsar cluster.
 Publish time | The timestamp of when the message is published. The timestamp is automatically applied by the producer.
 Event time | An optional timestamp attached to a message by applications. For example, applications attach a timestamp on when the message is processed. If nothing is set to event time, the value is `0`. 
