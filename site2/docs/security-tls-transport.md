@@ -75,7 +75,7 @@ chmod 444 certs/ca.cert.pem
 > export PATH="/usr/local/Cellar/openssl@3/3.0.1/bin:$PATH"
 > ```
 >
-> The version `3.0.1` might change in future, please use the actual path from the output of `brew install` command.
+> The version `3.0.1` might change in the future. Use the actual path from the output of `brew install` command.
 
 4. After you answer the question prompts, CA-related files are stored in the `./my-ca` directory. Within that directory:
 
