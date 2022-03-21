@@ -7,16 +7,16 @@
 
 ### Important Notices
 
-- Fixed detecting number of NICs in EC2 [#14252](https://github.com/apache/pulsar/pull/14252). In the event that Pulsar cannot determine the NIC speed from the host, please set `loadBalancerOverrideBrokerNicSpeedGbps`.
+- Fix detecting number of NICs in EC2 [#14252](https://github.com/apache/pulsar/pull/14252). In the event that Pulsar cannot determine the NIC speed from the host, please set `loadBalancerOverrideBrokerNicSpeedGbps`.
 - Bump BookKeeper 4.14.3 [12906](https://github.com/apache/pulsar/pull/12906)
 - Add broker config `isAllowAutoUpdateSchema` [12786](https://github.com/apache/pulsar/pull/12786)
 
 ### Security
-- Upgrade Postgre driver to 42.2.25 to get rid of CVE-2022-21724 [14119](https://github.com/apache/pulsar/pull/14119)
-- Getting rid of CVEs in Solr connector [13822](https://github.com/apache/pulsar/pull/13822)
-- Getting rid of CVEs in InfluxDB connector [13821](https://github.com/apache/pulsar/pull/13821)
-- Getting rid of CVEs in batch-data-generator [13820](https://github.com/apache/pulsar/pull/13820)
-- Getting rid of CVEs brought in with aerospike [13819](https://github.com/apache/pulsar/pull/13819)
+- Upgrade Postgres driver to 42.2.25 to get rid of CVE-2022-21724 [14119](https://github.com/apache/pulsar/pull/14119)
+- Get rid of CVEs in Solr connector [13822](https://github.com/apache/pulsar/pull/13822)
+- Get rid of CVEs in InfluxDB connector [13821](https://github.com/apache/pulsar/pull/13821)
+- Get rid of CVEs in batch-data-generator [13820](https://github.com/apache/pulsar/pull/13820)
+- Get rid of CVEs brought in with aerospike [13819](https://github.com/apache/pulsar/pull/13819)
 - [owasp] suppress false positive Avro CVE-2021-43045 [13764](https://github.com/apache/pulsar/pull/13764)
 - Upgrade protobuf to 3.16.1 to address CVE-2021-22569 [13695](https://github.com/apache/pulsar/pull/13695)
 - Upgrade Jackson to 2.12.6 [13694](https://github.com/apache/pulsar/pull/13694)
@@ -54,13 +54,13 @@
 - Fix call sync method in async rest API for ``internalGetSubscriptionsForNonPartitionedTopic`` [13745](https://github.com/apache/pulsar/pull/13745)
 - Fix the deadlock while using zookeeper thread to create ledger [13744](https://github.com/apache/pulsar/pull/13744)
 - Fix inefficient forEach loop [13742](https://github.com/apache/pulsar/pull/13742)
-- [Issuse 13640] Fix non persistent topic subscription error. [13685](https://github.com/apache/pulsar/pull/13685)
+- [Issue 13640] Fix non persistent topic subscription error. [13685](https://github.com/apache/pulsar/pull/13685)
 - Fix invalid rack name cause bookie join rack failed [13683](https://github.com/apache/pulsar/pull/13683)
 - Avoid call sync method in async rest API for force delete subscription  [13668](https://github.com/apache/pulsar/pull/13668)
 - Avoid call sync method in async rest API for delete subscription [13666](https://github.com/apache/pulsar/pull/13666)
 - Fix getInternalStats occasional lack of LeaderInfo [13656](https://github.com/apache/pulsar/pull/13656)
 - Fix reader skipped remaining compacted data during the topic unloading. [13629](https://github.com/apache/pulsar/pull/13629)
-- [ Issue 13479 ] Fixed internal topic effect by InactiveTopicPolicy. [13611](https://github.com/apache/pulsar/pull/13611)
+- [Issue 13479] Fixed internal topic effect by InactiveTopicPolicy. [13611](https://github.com/apache/pulsar/pull/13611)
 - Fix bug :Infinity value for CPU or Bandwidth usage [13609](https://github.com/apache/pulsar/pull/13609)
 - Change ``ContextClassLoader`` to ``NarClassLoader`` in BrokerInterceptor [13589](https://github.com/apache/pulsar/pull/13589)
 - Fix NPE when unloading namespace bundle [13571](https://github.com/apache/pulsar/pull/13571)
@@ -111,7 +111,7 @@
 - Replace deprecated "adopt" OpenJDK distribution with "temurin" in GitHub Actions config [12945](https://github.com/apache/pulsar/pull/12945)
 
 ### Pulsar CLI
-- feat(cli): support autorecovery service in pulsar cli [12985](https://github.com/apache/pulsar/pull/12985)
+- Feat(cli): support autorecovery service in pulsar cli [12985](https://github.com/apache/pulsar/pull/12985)
 - [pulsar-perf] Write histogram files for consume command [12569](https://github.com/apache/pulsar/pull/12569)
 
 ### Java Client
@@ -124,10 +124,10 @@
 - Use `scheduleWithFixedDelay` instead of `scheduleAtFixedRate` for java producer batch timer [14125](https://github.com/apache/pulsar/pull/14125)
 - Add a default timeout for OAuth2 Metadata Resolver [14056](https://github.com/apache/pulsar/pull/14056)
 - Fix send chunking message failed when ordering key is set. [13699](https://github.com/apache/pulsar/pull/13699)
-- fixed Producer semaphore permit release issue [13682](https://github.com/apache/pulsar/pull/13682)
+- Fixed Producer semaphore permit release issue [13682](https://github.com/apache/pulsar/pull/13682)
 - Fix the wrong multi-topic has message available behavior [13634](https://github.com/apache/pulsar/pull/13634)
 - Use PulsarByteBufAllocator to allocate buffer for chunks [13536](https://github.com/apache/pulsar/pull/13536)
-- fix resources leak when create producer failed [13505](https://github.com/apache/pulsar/pull/13505)
+- Fix resources leak when create producer failed [13505](https://github.com/apache/pulsar/pull/13505)
 - Fix semaphore and memory leak when chunks failed to enqueue [13454](https://github.com/apache/pulsar/pull/13454)
 - Fix invalid setting of enabled ciphers to fix warning from BoringSSL [13435](https://github.com/apache/pulsar/pull/13435)
 - [Producer] Change the time units from ns to ms [13057](https://github.com/apache/pulsar/pull/13057)
@@ -143,14 +143,14 @@
 - [Broker] Fix getting the last message-id from an empty compact ledger [13476](https://github.com/apache/pulsar/pull/13476)
 
 ### Functions
-- fix(functions): missing runtime set in GoInstanceConfig [13031](https://github.com/apache/pulsar/pull/13031)
+- Fix(functions): missing runtime set in GoInstanceConfig [13031](https://github.com/apache/pulsar/pull/13031)
 - [function] pulsar admin exposes secrets for function [12950](https://github.com/apache/pulsar/pull/12950)
 
 ### Pulsar IO
-- pulsar admin exposes secret for source and sink [13059](https://github.com/apache/pulsar/pull/13059)
-- pass client builder if no service url provided to debezium connector  [12145](https://github.com/apache/pulsar/pull/12145)
+- Pulsar admin exposes secret for source and sink [13059](https://github.com/apache/pulsar/pull/13059)
+- Pass client builder if no service url provided to debezium connector  [12145](https://github.com/apache/pulsar/pull/12145)
 - [Cherry-pick] Pass client builder to debezium database history [12112](https://github.com/apache/pulsar/pull/12112)
-- pass client builder if no service url provided to debezium connector [14040](https://github.com/apache/pulsar/pull/14040)
+- Pass client builder if no service url provided to debezium connector [14040](https://github.com/apache/pulsar/pull/14040)
 
 ### Key-Shared Subscription
 - [Issue 12885] Fix unordered consuming case in Key_Shared subscription. [12890](https://github.com/apache/pulsar/pull/12890)
@@ -159,7 +159,7 @@
 - AbstractMetadataStore: invalidate childrenCache correctly when node created [14177](https://github.com/apache/pulsar/pull/14177)
 
 ### Metrics
-- fix: bug when allAll bucket [13467](https://github.com/apache/pulsar/pull/13467)
+- Fix: bug when allAll bucket [13467](https://github.com/apache/pulsar/pull/13467)
 
 ### Pulsar proxy
 - Fix port exhaustion and connection issues in Pulsar Proxy [14078](https://github.com/apache/pulsar/pull/14078)
