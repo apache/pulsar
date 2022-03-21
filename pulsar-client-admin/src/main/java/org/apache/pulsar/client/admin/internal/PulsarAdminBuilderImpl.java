@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.Authentication;
@@ -44,6 +46,8 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
+        checkArgument(StringUtils.isNotBlank(conf.getServiceUrl()), "Service URL needs to be specified");
+
         return new PulsarAdminImpl(conf.getServiceUrl(), conf, connectTimeout, connectTimeoutUnit, readTimeout,
                 readTimeoutUnit, requestTimeout, requestTimeoutUnit, autoCertRefreshTime,
                 autoCertRefreshTimeUnit, clientBuilderClassLoader);
