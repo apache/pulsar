@@ -80,16 +80,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         this(Clock.systemUTC());
     }
 
-    @VisibleForTesting
-    SchemaRegistryServiceImpl(Clock clock) {
-        this.clock = clock;
-    }
-
-    @VisibleForTesting
-    SchemaRegistryServiceImpl() {
-        this(Clock.systemUTC());
-    }
-
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
