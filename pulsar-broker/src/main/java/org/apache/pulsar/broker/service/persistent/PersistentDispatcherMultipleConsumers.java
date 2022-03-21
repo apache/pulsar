@@ -146,6 +146,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
+            delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::clear);
         }
 
         if (isConsumersExceededOnSubscription()) {
