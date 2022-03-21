@@ -80,7 +80,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
         List<Entry> entries = cursor.readEntries(N);
         assertEquals(N, entries.size());
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
     }
 
     @Test
@@ -132,18 +132,18 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         List<Entry> entries = cursor.readEntries(1);
         assertEquals(1, entries.size());
         assertEquals("entry-0", new String(entries.get(0).getData()));
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         // entry-1 which was half-committed will get fully committed during the recovery phase
         entries = cursor.readEntries(1);
         assertEquals(1, entries.size());
         assertEquals("entry-1", new String(entries.get(0).getData()));
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         entries = cursor.readEntries(1);
         assertEquals(1, entries.size());
         assertEquals("entry-2", new String(entries.get(0).getData()));
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
         factory.shutdown();
     }
 
@@ -198,7 +198,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
                             cursor.markDelete(entries.get(0).getPosition());
                         }
 
-                        entries.forEach(e -> e.release());
+                        entries.forEach(Entry::release);
                         Thread.sleep(2);
                     }
                 } catch (Exception e) {
@@ -430,7 +430,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
         List<Entry> entries = cursor.readEntries(N);
         assertEquals(N, entries.size());
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
         ledger.close();
 
         ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(
