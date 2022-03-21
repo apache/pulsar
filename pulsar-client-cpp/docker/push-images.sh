@@ -26,8 +26,6 @@ set -e
 DOCKER_ORG=apachepulsar
 
 PYTHON_VERSIONS=(
-   '2.7 cp27-cp27mu'
-   '2.7 cp27-cp27m'
    '3.5 cp35-cp35m'
    '3.6 cp36-cp36m'
    '3.7 cp37-cp37m'

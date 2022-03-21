@@ -24,8 +24,6 @@
 set -e
 
 PYTHON_VERSIONS=(
-   '2.7 cp27-cp27mu manylinux1'
-   '2.7 cp27-cp27m manylinux1'
    '3.5 cp35-cp35m manylinux2014'
    '3.6 cp36-cp36m manylinux2014'
    '3.7 cp37-cp37m manylinux2014'
