@@ -52,8 +52,9 @@ Each namespace has a system topic named `__change_events`. This system topic sto
 
 1. Pulsar Admin clients communicate with the Admin Restful API to update topic-level policies.
 2. Any broker that receives the Admin HTTP request publishes a topic policy change event to the corresponding system topic (`__change_events`) of the namespace.
-3. Each broker that owns a namespace bundle(s) subscribes to the system topic (`__change_events`) to receive the change events of the namespace. It then applies the change events to the policy cache.
-4. Once the policy cache is updated, the broker sends the response back to the Pulsar Admin clients.
+3. Each broker that owns a namespace bundle(s) subscribes to the system topic (`__change_events`) to receive the change events of the namespace.
+4. Each broker applies the change events to its policy cache.
+5. Once the policy cache is updated, the broker sends the response back to the Pulsar Admin clients.
 
 > **Note** <br />
 > By default, the system topic is disabled. To enable topic-level policy, you need to enable the system topic by setting `systemtopicenabled` to `true` in the `conf/broker.conf` or `conf/standalone.conf` file.
