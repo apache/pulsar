@@ -24,6 +24,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -153,6 +155,11 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         List<Map<String, String>> configs = connector.taskConfigs(1);
         Preconditions.checkNotNull(configs);
         Preconditions.checkArgument(configs.size() == 1);
+
+        // configs may contain immutable/unmodifiable maps
+        configs = configs.stream()
+                .map(HashMap::new)
+                .collect(Collectors.toList());
 
         configs.forEach(x -> {
             x.put(OFFSET_STORAGE_TOPIC_CONFIG, kafkaSinkConfig.getOffsetStorageTopic());
