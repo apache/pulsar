@@ -184,7 +184,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         if (e instanceof PulsarClientException) {
                             log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
                                     + "transaction buffer throw exception", topic.getName(), e);
-                            topic.close();
+                            topic.close(true);
                         }
                         transactionBufferFuture.completeExceptionally(e);
                     }
