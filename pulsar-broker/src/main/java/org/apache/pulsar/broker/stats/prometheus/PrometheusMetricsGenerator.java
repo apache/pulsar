@@ -112,9 +112,9 @@ public class PrometheusMetricsGenerator {
                                              boolean splitTopicAndPartitionIndexLabel, OutputStream out,
                                              List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         ByteBuf buffer;
-        boolean exposeBufferedBrokerMetrics = pulsar.getConfiguration().isExposeBufferedBrokerMetrics();
+        boolean exposeBufferMetrics = pulsar.getConfiguration().isEnableExposeBufferMetrics();
 
-        if (!exposeBufferedBrokerMetrics) {
+        if (!exposeBufferMetrics) {
             buffer = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
                     splitTopicAndPartitionIndexLabel, metricsProviders);
         } else {
@@ -148,26 +148,28 @@ public class PrometheusMetricsGenerator {
             log.debug("Current window start {}, current cached buf size {}", window.start(), buffer.readableBytes());
         }
 
-        if (out instanceof HttpOutput) {
-            HttpOutput output = (HttpOutput) out;
-            //no mem_copy and memory allocations here
-            ByteBuffer[] buffers = buffer.nioBuffers();
-            for (ByteBuffer buffer0 : buffers) {
-                output.write(buffer0);
+        try {
+            if (out instanceof HttpOutput) {
+                HttpOutput output = (HttpOutput) out;
+                //no mem_copy and memory allocations here
+                ByteBuffer[] buffers = buffer.nioBuffers();
+                for (ByteBuffer buffer0 : buffers) {
+                    output.write(buffer0);
+                }
+            } else {
+                //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
+                //not modify buffer readIndex/writeIndex here.
+                int readIndex = buffer.readerIndex();
+                int readableBytes = buffer.readableBytes();
+                for (int i = 0; i < readableBytes; i++) {
+                    out.write(buffer.getByte(readIndex + i));
+                }
             }
-        } else {
-            //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
-            //not modify buffer readIndex/writeIndex here.
-            int readIndex = buffer.readerIndex();
-            int readableBytes = buffer.readableBytes();
-            for (int i = 0; i < readableBytes; i++) {
-                out.write(buffer.getByte(readIndex + i));
+        } finally {
+            if (!exposeBufferMetrics && buffer.refCnt() > 0) {
+                buffer.release();
+                log.debug("Metrics buffer released.");
             }
-        }
-
-        if (!exposeBufferedBrokerMetrics) {
-            buffer.release();
-            log.debug("Metrics buffer released.");
         }
     }
 

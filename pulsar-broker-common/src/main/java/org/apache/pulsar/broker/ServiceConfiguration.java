@@ -2281,9 +2281,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = "If true, export buffered broker metrics"
+            doc = "If true, export buffered metrics"
     )
-    private boolean exposeBufferedBrokerMetrics = false;
+    private boolean enableExposeBufferMetrics = false;
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export consumer level metrics otherwise namespace level"
