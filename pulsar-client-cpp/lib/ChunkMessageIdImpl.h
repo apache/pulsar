@@ -30,28 +30,15 @@ class MessageIdImpl;
 class ChunkMessageIdImpl : public MessageIdImpl, public std::enable_shared_from_this<ChunkMessageIdImpl> {
    public:
     ChunkMessageIdImpl(const MessageIdImpl& firstChunkMsgId, const MessageIdImpl& lastChunkMsgId)
-        : MessageIdImpl(lastChunkMsgId.partition_, lastChunkMsgId.ledgerId_, lastChunkMsgId.entryId_,
-                        lastChunkMsgId.batchIndex_) {
-        firstChunkMsgId_ =
-            std::make_shared<MessageIdImpl>(firstChunkMsgId.partition_, firstChunkMsgId.ledgerId_,
-                                            firstChunkMsgId.entryId_, firstChunkMsgId.batchIndex_);
-    }
+        : MessageIdImpl(lastChunkMsgId), firstChunkMsgId_(firstChunkMsgId) {}
 
-    ChunkMessageIdImpl(int32_t firstPartition, int64_t firstLedgerId, int64_t firstEntryId,
-                       int32_t firstBatchIndex, int32_t lastPartition, int64_t lastLedgerId,
-                       int64_t lastEntryId, int32_t lastBatchIndex)
-        : MessageIdImpl(lastPartition, lastLedgerId, lastEntryId, lastBatchIndex) {
-        firstChunkMsgId_ =
-            std::make_shared<MessageIdImpl>(firstPartition, firstLedgerId, firstEntryId, firstBatchIndex);
-    }
+    const MessageIdImpl& getFirstChunkMessageIdImpl() { return firstChunkMsgId_; }
 
-    std::shared_ptr<MessageIdImpl> getFirstChunkMessageIdImpl() { return firstChunkMsgId_; }
-
-    std::shared_ptr<MessageIdImpl> getLastChunkMessageIdImpl() {
+    std::shared_ptr<MessageIdImpl> getLastChunkMessageIdImplPtr() {
         return std::dynamic_pointer_cast<MessageIdImpl>(shared_from_this());
     }
 
    private:
-    std::shared_ptr<MessageIdImpl> firstChunkMsgId_;
+    MessageIdImpl firstChunkMsgId_;
 };
 }  // namespace pulsar

@@ -1248,8 +1248,8 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
             (chunkMessageIdImpl != nullptr)
                 ? cnx->sendRequestWithId(
                       Commands::newSeek(consumerId_, requestId,
-                                        chunkMessageIdImpl->getFirstChunkMessageIdImpl()->ledgerId_,
-                                        chunkMessageIdImpl->getFirstChunkMessageIdImpl()->entryId_),
+                                        chunkMessageIdImpl->getFirstChunkMessageIdImpl().ledgerId_,
+                                        chunkMessageIdImpl->getFirstChunkMessageIdImpl().entryId_),
                       requestId)
                 : cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
 

@@ -493,8 +493,6 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
             msgMetadata.set_total_chunk_msg_size(compressedSize);
         }
 
-        std::shared_ptr<MessageId> chunkedMessageIdPtr;
-        if (totalChunks > 1) chunkedMessageIdPtr = std::make_shared<MessageId>();
         int beginIndex = 0;
         for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
             if (sendChunks) {
@@ -512,7 +510,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
 
             sendMessage(OpSendMsg{msgMetadata, encryptedPayload,
                                   (chunkId == totalChunks - 1) ? callback : nullptr, producerId_, sequenceId,
-                                  conf_.getSendTimeout(), 1, uncompressedSize, chunkedMessageIdPtr});
+                                  conf_.getSendTimeout(), 1, uncompressedSize, MessageId()});
         }
     }
 }
@@ -861,14 +859,13 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         int totalChunks = op.metadata_.num_chunks_from_msg();
         if (totalChunks > 1) {
             if (op.metadata_.chunk_id() == 0) {
-                op.chunkedMessageIdPtr_ = std::make_shared<MessageId>(
-                    partition_, rawMessageId.ledgerId(), rawMessageId.entryId(), rawMessageId.batchIndex());
+                op.chunkedMessageId_ = MessageId(partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),
+                                                 rawMessageId.batchIndex());
             } else if (op.metadata_.chunk_id() == totalChunks - 1) {
                 MessageId lastMessageId(partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),
                                         rawMessageId.batchIndex());
-                op.chunkedMessageIdPtr_ =
-                    std::make_shared<MessageId>(*(op.chunkedMessageIdPtr_), lastMessageId);
-                messageId = MessageId(*(op.chunkedMessageIdPtr_), lastMessageId);
+                op.chunkedMessageId_ = MessageId(op.chunkedMessageId_, lastMessageId);
+                messageId = MessageId(op.chunkedMessageId_, lastMessageId);
             }
         }
         lock.unlock();

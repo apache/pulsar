@@ -50,10 +50,7 @@ MessageId::MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32
 MessageId::MessageId(const MessageId& firstMessageId, const MessageId& lastMessageId) {
     auto firstImpl = firstMessageId.impl_;
     auto lastImpl = lastMessageId.impl_;
-    impl_ = std::make_shared<ChunkMessageIdImpl>(
-                firstImpl->partition_, firstImpl->ledgerId_, firstImpl->entryId_, firstImpl->batchIndex_,
-                lastImpl->partition_, lastImpl->ledgerId_, lastImpl->entryId_, lastImpl->batchIndex_)
-                ->getLastChunkMessageIdImpl();
+    impl_ = std::make_shared<ChunkMessageIdImpl>(*firstImpl, *lastImpl)->getLastChunkMessageIdImplPtr();
 }
 
 const MessageId& MessageId::earliest() {
@@ -73,7 +70,7 @@ bool MessageId::isChunkMessageid() const {
 
 void MessageId::serialize(std::string& result) const {
     proto::MessageIdData idData;
-    writeMessageIdData(impl_, &idData);
+    writeMessageIdData(*impl_, &idData);
     if (isChunkMessageid()) {
         auto chunkMsgIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_);
         writeMessageIdData(chunkMsgIdImpl->getFirstChunkMessageIdImpl(),
@@ -108,18 +105,18 @@ int32_t MessageId::batchIndex() const { return impl_->batchIndex_; }
 int32_t MessageId::partition() const { return impl_->partition_; }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
-    std::function<void(std::ostream&, const std::shared_ptr<MessageIdImpl>)> printMsgIdImpl =
-        [](std::ostream& s, const std::shared_ptr<MessageIdImpl> impl) {
-            s << '(' << impl->ledgerId_ << ',' << impl->entryId_ << ',' << impl->partition_ << ','
-              << impl->batchIndex_ << ')';
-        };
+    std::function<void(std::ostream&, const MessageIdImpl&)> printMsgIdImpl = [](std::ostream& s,
+                                                                                 const MessageIdImpl& impl) {
+        s << '(' << impl.ledgerId_ << ',' << impl.entryId_ << ',' << impl.partition_ << ','
+          << impl.batchIndex_ << ')';
+    };
     auto chunkMessageidImplPtr = std::dynamic_pointer_cast<ChunkMessageIdImpl>(messageId.impl_);
     if (chunkMessageidImplPtr != nullptr) {
         printMsgIdImpl(s, chunkMessageidImplPtr->getFirstChunkMessageIdImpl());
         s << "->";
-        printMsgIdImpl(s, messageId.impl_);
+        printMsgIdImpl(s, *(messageId.impl_));
     } else {
-        printMsgIdImpl(s, messageId.impl_);
+        printMsgIdImpl(s, *(messageId.impl_));
     }
     return s;
 }
