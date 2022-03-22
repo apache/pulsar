@@ -630,7 +630,7 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle3 = new PendingAckHandleImpl(persistentSubscription);
 
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle2.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle3.getStats().state, "Ready"));
     }
 
     @Test
