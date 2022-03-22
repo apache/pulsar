@@ -36,11 +36,26 @@ public abstract class BaseKinesisConfig implements Serializable {
     private String awsEndpoint = "";
 
     @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Kinesis end-point port. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
+    )
+    private Integer awsEndpointPort;
+
+    @FieldDoc(
         required = false,
         defaultValue = "",
         help = "Appropriate aws region. E.g. us-west-1, us-west-2"
     )
     private String awsRegion = "";
+
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "Tell to Kinesis Client to skip certificate validation. This is useful while performing local tests, it's recommended to always validate certificate in production environment."
+    )
+    private Boolean skipCertificateValidation = false;
 
     @FieldDoc(
         required = true,
