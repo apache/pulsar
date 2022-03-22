@@ -86,9 +86,9 @@ public class KafkaConnectData {
                 case BOOLEAN:
                     return jsonNode.booleanValue();
                 case NUMBER:
-                    jsonNode.doubleValue();
+                    return jsonNode.doubleValue();
                 case STRING:
-                    jsonNode.textValue();
+                    return jsonNode.textValue();
                 default:
                     throw new DataException("Don't know how to convert " + jsonNode
                             + " to Connect data (schema is null).");
