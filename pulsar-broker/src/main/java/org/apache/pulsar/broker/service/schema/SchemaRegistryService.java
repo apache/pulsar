@@ -38,7 +38,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
         } catch (Exception e) {
             LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
         }
-        return new DefaultSchemaRegistryService();
+        return new SchemaRegistryServiceDisabled();
     }
 
     void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage) throws PulsarServerException;

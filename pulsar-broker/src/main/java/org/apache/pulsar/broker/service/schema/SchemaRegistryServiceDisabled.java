@@ -29,7 +29,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
-public class DefaultSchemaRegistryService implements SchemaRegistryService {
+public class SchemaRegistryServiceDisabled implements SchemaRegistryService {
     @Override
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
         return completedFuture(null);
