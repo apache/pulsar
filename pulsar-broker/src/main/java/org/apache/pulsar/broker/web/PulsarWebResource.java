@@ -771,7 +771,12 @@ public abstract class PulsarWebResource {
                 .getPoliciesAsync(namespace).thenAccept(policiesResult -> {
             if (policiesResult.isPresent()) {
                 Policies policies = policiesResult.get();
-                if (policies.replication_clusters.isEmpty()) {
+                if (policies.deleted) {
+                    String msg = String.format("Namespace %s is deleted", namespace.toString());
+                    log.warn(msg);
+                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                            "Namespace is deleted"));
+                } else if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(
                             "Namespace does not have any clusters configured : local_cluster=%s ns=%s",
                             localCluster, namespace.toString());
@@ -791,11 +796,6 @@ public abstract class PulsarWebResource {
 
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                } else if (policies.deleted) {
-                    String msg = String.format("Namespace %s is deleted", namespace.toString());
-                    log.warn(msg);
-                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
-                            "Namespace is deleted"));
                 } else {
                     validationFuture.complete(null);
                 }
