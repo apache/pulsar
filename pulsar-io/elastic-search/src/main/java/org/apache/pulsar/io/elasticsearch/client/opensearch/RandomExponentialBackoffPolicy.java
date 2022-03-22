@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.elasticsearch;
+package org.apache.pulsar.io.elasticsearch.client.opensearch;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import org.apache.pulsar.io.elasticsearch.RandomExponentialRetry;
 import org.opensearch.action.bulk.BackoffPolicy;
 import org.opensearch.common.unit.TimeValue;
 
