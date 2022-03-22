@@ -1285,8 +1285,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private void setSchemaRegistryName(SchemaStorage schemaStorage) {
+        String schemaRegistryClassName = "org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService";
         if (schemaStorage == null) {
-            this.config.setSchemaRegistryClassName("org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService");
+            this.config.setSchemaRegistryClassName(schemaRegistryClassName);
         }
     }
 
