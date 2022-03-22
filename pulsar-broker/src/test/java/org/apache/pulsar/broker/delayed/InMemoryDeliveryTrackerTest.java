@@ -60,7 +60,7 @@ public class InMemoryDeliveryTrackerTest {
         when(clock.millis()).then(x -> clockTime.get());
 
         @Cleanup
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock);
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, clock);
 
         assertFalse(tracker.hasMessageAvailable());
 
@@ -131,7 +131,7 @@ public class InMemoryDeliveryTrackerTest {
         });
 
         @Cleanup
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock);
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, clock);
 
         assertTrue(tasks.isEmpty());
         assertTrue(tracker.addMessage(2, 2, 20));
@@ -156,33 +156,6 @@ public class InMemoryDeliveryTrackerTest {
 
         task.run(mock(Timeout.class));
         verify(dispatcher).readMoreEntries();
-    }
-
-    /**
-     * Adding a message that is about to expire within the tick time should lead
-     * to a rejection from the tracker.
-     */
-    @Test
-    public void testAddWithinTickTime() {
-        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
-
-        Timer timer = mock(Timer.class);
-
-        AtomicLong clockTime = new AtomicLong();
-        Clock clock = mock(Clock.class);
-        when(clock.millis()).then(x -> clockTime.get());
-
-        @Cleanup
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock);
-
-        clockTime.set(0);
-
-        assertFalse(tracker.addMessage(1, 1, 10));
-        assertFalse(tracker.addMessage(2, 2, 99));
-        assertTrue(tracker.addMessage(3, 3, 100));
-        assertTrue(tracker.addMessage(4, 4, 200));
-
-        assertEquals(tracker.getNumberOfDelayedMessages(), 2);
     }
 
 }

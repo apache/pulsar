@@ -850,8 +850,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 delayedDeliveryTracker = Optional
                         .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
             }
-
-            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
         }
     }
@@ -860,7 +858,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (!redeliveryMessages.isEmpty()) {
             return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
         } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
-            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
         } else {
             return Collections.emptySet();

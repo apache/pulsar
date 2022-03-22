@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeSet;
+import com.google.common.collect.TreeRangeSet;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -37,6 +41,8 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     private final PersistentDispatcherMultipleConsumers dispatcher;
 
+    private final ConcurrentHashMap<Long, RangeSet<Long>> unSentExpireMessage;
+
     // Reference to the shared (per-broker) timer for delayed delivery
     private final Timer timer;
 
@@ -46,20 +52,17 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // Timestamp at which the timeout is currently set
     private long currentTimeoutTarget;
 
-    private long tickTimeMillis;
-
     private final Clock clock;
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis) {
-        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC());
+    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer) {
+        this(dispatcher, timer, Clock.systemUTC());
     }
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
-                                   long tickTimeMillis, Clock clock) {
+    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, Clock clock) {
         this.dispatcher = dispatcher;
         this.timer = timer;
-        this.tickTimeMillis = tickTimeMillis;
         this.clock = clock;
+        this.unSentExpireMessage = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -69,15 +72,11 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
                     deliveryAt - now);
         }
-        if (deliveryAt < (now + tickTimeMillis)) {
-            // It's already about time to deliver this message. We add the buffer of
-            // `tickTimeMillis` because messages can be extracted from the tracker
-            // slightly before the expiration time. We don't want the messages to
-            // go back into the delay tracker (for a brief amount of time) when we're
-            // trying to dispatch to the consumer.
+        RangeSet<Long> rangeSet = unSentExpireMessage.get(ledgerId);
+        if (rangeSet != null && rangeSet.contains(entryId)) {
+            rangeSet.remove(Range.openClosed(entryId - 1, entryId));
             return false;
         }
-
         priorityQueue.add(deliveryAt, ledgerId, entryId);
         updateTimer();
         return true;
@@ -89,8 +88,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     @Override
     public boolean hasMessageAvailable() {
         // Avoid the TimerTask run before reach the timeout.
-        long cutOffTime = clock.millis() + tickTimeMillis;
-        boolean hasMessageAvailable = !priorityQueue.isEmpty() && priorityQueue.peekN1() <= cutOffTime;
+        boolean hasMessageAvailable = !priorityQueue.isEmpty() && priorityQueue.peekN1() <= clock.millis();
         if (!hasMessageAvailable) {
             // prevent the first delay message later than cutoffTime
             updateTimer();
@@ -105,23 +103,21 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     public Set<PositionImpl> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
         Set<PositionImpl> positions = new TreeSet<>();
-        long now = clock.millis();
-        // Pick all the messages that will be ready within the tick time period.
-        // This is to avoid keeping rescheduling the timer for each message at
-        // very short delay
-        long cutoffTime = now + tickTimeMillis;
-
         while (n > 0 && !priorityQueue.isEmpty()) {
             long timestamp = priorityQueue.peekN1();
-            if (timestamp > cutoffTime) {
+            if (timestamp > clock.millis()) {
                 break;
             }
 
             long ledgerId = priorityQueue.peekN2();
             long entryId = priorityQueue.peekN3();
             positions.add(new PositionImpl(ledgerId, entryId));
-
             priorityQueue.pop();
+            RangeSet<Long> rangeSet = unSentExpireMessage.computeIfAbsent(ledgerId, k -> {
+                RangeSet<Long> longTreeRangeSet = TreeRangeSet.create();
+                return longTreeRangeSet;
+            });
+            rangeSet.add(Range.openClosed(entryId -1, entryId));
             --n;
         }
 
@@ -130,13 +126,6 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         }
         updateTimer();
         return positions;
-    }
-
-    @Override
-    public void resetTickTime(long tickTime) {
-        if (this.tickTimeMillis != tickTime){
-            this.tickTimeMillis = tickTime;
-        }
     }
 
     @Override

@@ -29,18 +29,15 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
 
     private Timer timer;
 
-    private long tickTimeMillis;
-
     @Override
     public void initialize(ServiceConfiguration config) {
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
                 config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
-        this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
     }
 
     @Override
     public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis);
+        return new InMemoryDelayedDeliveryTracker(dispatcher, timer);
     }
 
     @Override

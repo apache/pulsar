@@ -55,14 +55,6 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
      */
     Set<PositionImpl> getScheduledMessages(int maxMessages);
 
-
-    /**
-     *  Reset tick time use zk policies cache.
-     * @param tickTime
-     *          The tick time for when retrying on delayed delivery messages
-     */
-    void resetTickTime(long tickTime);
-
     /**
      * Clear all delayed messages from the tracker.
      */
