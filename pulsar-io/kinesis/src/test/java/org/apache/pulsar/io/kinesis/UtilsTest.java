@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.kinesis;
 
 import static java.util.Base64.getDecoder;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -38,9 +39,9 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.source.RecordWithEncryptionContext;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
+import org.mockito.Mockito;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
@@ -203,23 +204,27 @@ public class UtilsTest {
         return new RecordImpl(data, properties, Optional.ofNullable(ctx));
     }
 
-    class RecordImpl implements RecordWithEncryptionContext<byte[]> {
+    class RecordImpl implements Record<byte[]> {
         byte[] data;
         Map<String, String> properties;
         Optional<EncryptionContext> ectx;
+        org.apache.pulsar.client.api.Message message;
 
         public RecordImpl(byte[] data, Map<String, String> properties, Optional<EncryptionContext> ectx) {
             this.data = data;
             this.properties = properties;
             this.ectx = ectx;
+            message = Mockito.mock(org.apache.pulsar.client.api.Message.class);
+            when(message.getEncryptionCtx()).thenReturn(ectx);
         }
 
         public Map<String, String> getProperties() {
             return properties;
         }
 
-        public Optional<EncryptionContext> getEncryptionCtx() {
-            return ectx;
+        @Override
+        public Optional<org.apache.pulsar.client.api.Message<byte[]>> getMessage() {
+            return Optional.of(message);
         }
 
         @Override
