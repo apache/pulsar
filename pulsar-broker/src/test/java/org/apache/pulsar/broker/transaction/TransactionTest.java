@@ -620,6 +620,17 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle2 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
                 assertEquals(pendingAckHandle2.getStats().state, "Ready"));
+
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("test"), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+
+        PendingAckHandleImpl pendingAckHandle3 = new PendingAckHandleImpl(persistentSubscription);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(pendingAckHandle2.getStats().state, "Ready"));
     }
 
     @Test
