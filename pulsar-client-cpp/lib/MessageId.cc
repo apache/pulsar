@@ -64,15 +64,11 @@ const MessageId& MessageId::latest() {
     return _latest;
 }
 
-bool MessageId::isChunkMessageid() const {
-    return std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_) != nullptr;
-}
-
 void MessageId::serialize(std::string& result) const {
     proto::MessageIdData idData;
     writeMessageIdData(*impl_, &idData);
-    if (isChunkMessageid()) {
-        auto chunkMsgIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_);
+    auto chunkMsgIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(impl_);
+    if (chunkMsgIdImpl != nullptr) {
         writeMessageIdData(chunkMsgIdImpl->getFirstChunkMessageIdImpl(),
                            idData.mutable_first_chunk_message_id());
     }
