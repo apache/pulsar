@@ -22,8 +22,11 @@ import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.net.ServiceURI;
@@ -43,6 +46,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -373,6 +377,17 @@ public class PulsarClusterMetadataSetup {
                         __ -> new PartitionedTopicMetadata(numPartitions)).get();
             }
         }
+        if (!topicName.isPersistent()) {
+            return;
+        }
+        // Create PartitionTopics, not just metadata
+        if (!resources.getTopicResources().persistentTopicExists(topicName).get()) {
+            List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
+            for (int i = 0; i < numPartitions; i++) {
+                futures.add(tryCreatePartitionAsync(i, topicName, resources));
+            }
+            FutureUtil.waitForAll(futures).get();
+        }
     }
 
     public static MetadataStoreExtended initMetadataStore(String connection, int sessionTimeout) throws Exception {
@@ -383,6 +398,37 @@ public class PulsarClusterMetadataSetup {
             ((MetadataStoreLifecycle) store).initializeCluster().get();
         }
         return store;
+    }
+
+    private static CompletableFuture<Void> tryCreatePartitionAsync(final int partition,
+                                                                   TopicName topicName,
+                                                                   PulsarResources pulsarResources) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        pulsarResources.getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
+                .thenAccept(r -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Topic partition {} created.", topicName.getPartition(partition));
+                    }
+                    result.complete(null);
+                }).exceptionally(ex -> {
+            if (ex.getCause() instanceof MetadataStoreException.AlreadyExistsException) {
+                log.info("Topic partition {} is exists, doing nothing.",
+                        topicName.getPartition(partition));
+                result.complete(null);
+            } else if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                log.warn("Partitioned topic {} is already created.",
+                        topicName.getPartition(partition));
+                // metadata-store api returns BadVersionException if node already exists while creating the
+                // resource
+                result.complete(null);
+            } else {
+                log.error("Fail to create topic partition {}",
+                        topicName.getPartition(partition), ex.getCause());
+                result.completeExceptionally(ex.getCause());
+            }
+            return null;
+        });
+        return result;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataSetup.class);

@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -30,6 +31,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -73,16 +75,20 @@ public class TransactionTest extends TransactionTestBase {
      * 1. The balance update messages count should be double transfer message count.
      * 2. The balance update messages amount sum should be 0.
      */
-    @Test(dataProvider = "ServiceUrls")
-    public void transferNormalTest(Supplier<String> serviceUrl) throws Exception {
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testTransferNormal(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         log.info("transfer normal test start.");
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl.get()).build();
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
 
         final int transferCount = 20;
         final String transferTopic = "transfer-" + randomName(6);
-        final String balanceUpdateTopic = "balance-update-" + randomName(6);
+        admin.topics().createNonPartitionedTopic(transferTopic);
 
+        final String balanceUpdateTopic = "balance-update-" + randomName(6);
+        admin.topics().createNonPartitionedTopic(balanceUpdateTopic);
         @Cleanup
         Producer<TransferOperation> transferProducer = pulsarClient
                 .newProducer(Schema.JSON(TransferOperation.class))
@@ -159,4 +165,16 @@ public class TransactionTest extends TransactionTestBase {
         log.info("transfer normal test finish.");
     }
 
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testAutoCreatePartitionTopicOfTC(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+        log.info("create transaction coordinator test start.");
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
+
+        Assert.assertTrue(admin.topics().getList(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getNamespace())
+                .contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString()));
+
+        log.info("create transaction coordinator test finish.");
+    }
 }
