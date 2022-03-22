@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.proxy.server;
 
+import io.netty.channel.ChannelId;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
     private String connType;
 
     private int maxMessageSize;
+    private final ChannelId peerChannelId;
     private final ProxyService service;
 
 
@@ -64,11 +66,13 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
     private static Map<String, String> producerHashMap = new ConcurrentHashMap<>();
     private static Map<String, String> consumerHashMap = new ConcurrentHashMap<>();
 
-    public ParserProxyHandler(ProxyService service, Channel channel, String type, int maxMessageSize) {
+    public ParserProxyHandler(ProxyService service, Channel channel, String type, int maxMessageSize,
+                              ChannelId peerChannelId) {
         this.service = service;
         this.channel = channel;
         this.connType = type;
         this.maxMessageSize = maxMessageSize;
+        this.peerChannelId = peerChannelId;
     }
 
     private void logging(Channel conn, BaseCommand.Type cmdtype, String info, List<RawMessage> messages) throws Exception{
@@ -143,7 +147,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         logging(ctx.channel() , cmd.getType() , "" , null);
                         break;
                     }
-                    topicName = TopicName.get(ParserProxyHandler.consumerHashMap.get(String.valueOf(cmd.getMessage().getConsumerId()) + "," + DirectProxyHandler.inboundOutboundChannelMap.get(ctx.channel().id())));
+                    topicName = TopicName.get(ParserProxyHandler.consumerHashMap.get(cmd.getMessage().getConsumerId()                            + "," + peerChannelId));
                     msgBytes = new MutableLong(0);
                     MessageParser.parseMessage(topicName,  -1L,
                                 -1L,buffer,(message) -> {
