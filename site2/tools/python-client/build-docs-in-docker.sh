@@ -18,22 +18,25 @@
 # under the License.
 #
 
-SCRIPT_DIR=`dirname "$0"`
-cd $SCRIPT_DIR
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
-VERSION=`${ROOT_DIR}/src/get-project-version.py`
+set -e
 
-set -x -e
+BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
+# Use python 3.8 for now because it works for 2.7, 2.8, and 2.9.
+PYTHON_VERSION="${PYTHON_VERSION:-3.8}"
+PYTHON_SPEC="${PYTHON_SPEC:-cp38-cp38}"
+# ROOT_DIR should be an absolute path so that Docker accepts it as a valid volumes path
+ROOT_DIR=`cd $(dirname $0)/../../..; pwd`
+cd $ROOT_DIR
 
-cd ${ROOT_DIR}
-mkdir -p site2/website/static/swagger/${VERSION}
-cp pulsar-broker/target/docs/*.json site2/website/static/swagger/${VERSION}/
+echo "Build Python docs for python version $PYTHON_VERSION, spec $PYTHON_SPEC, and pulsar version ${PULSAR_VERSION}"
 
-SCRIPT_DIR=`dirname "$0"`
+IMAGE=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC
 
-cd $SCRIPT_DIR
+echo "Using image: $IMAGE"
 
-./doxygen-doc-gen.sh
+VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
+COMMAND="/pulsar/site2/tools/python-client/generate-python-client-docs.sh"
+DOCKER_CMD="docker run -e PULSAR_VERSION=${PULSAR_VERSION} --entrypoint ${COMMAND} -i ${VOLUME_OPTION} ${IMAGE}"
 
-./javadoc-gen.sh
+$DOCKER_CMD

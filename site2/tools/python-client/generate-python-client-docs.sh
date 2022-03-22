@@ -18,22 +18,13 @@
 # under the License.
 #
 
-SCRIPT_DIR=`dirname "$0"`
-cd $SCRIPT_DIR
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
-VERSION=`${ROOT_DIR}/src/get-project-version.py`
+set -e
 
-set -x -e
+PULSAR_VERSION="${PULSAR_VERSION:-2.9.1}"
 
-cd ${ROOT_DIR}
-mkdir -p site2/website/static/swagger/${VERSION}
-cp pulsar-broker/target/docs/*.json site2/website/static/swagger/${VERSION}/
+python -m pip install --upgrade pip
 
-SCRIPT_DIR=`dirname "$0"`
-
-cd $SCRIPT_DIR
-
-./doxygen-doc-gen.sh
-
-./javadoc-gen.sh
+pip install pdoc
+pip install pulsar-client==${PULSAR_VERSION}
+pdoc pulsar -o /pulsar/site2/website/static/python-client/${PULSAR_VERSION}
