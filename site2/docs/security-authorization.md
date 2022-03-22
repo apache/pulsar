@@ -103,7 +103,8 @@ PulsarAdmin admin = PulsarAdmin.builder()
 
 When a client is identified with multiple roles in a token (the type of role claim in the token is an array) during the authentication process, Pulsar supports to check the permissions of all the roles and further authorize the client as long as one of its roles has the required permissions.
 
-> Note: This authorization method is only compatible with [JWT authentication](security-jwt.md).
+> **Note**<br />
+> This authorization method is only compatible with [JWT authentication](security-jwt.md).
 
 To enable the support, configure the authorization provider as `MultiRolesTokenAuthorizationProvider` in the `conf/broker.conf` file.
 
