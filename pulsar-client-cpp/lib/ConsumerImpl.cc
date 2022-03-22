@@ -427,11 +427,9 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
                 auto firstMsgIdImplPtr = chunkedMsgCtx.getChunkedMessageIds()[0].impl_;
                 auto lastMsgIdImplPtr =
                     chunkedMsgCtx.getChunkedMessageIds()[chunkedMsgCtx.numChunks() - 1].impl_;
-                chunkMessageId = std::make_shared<MessageId>(
-                    MessageId(firstMsgIdImplPtr->partition_, firstMsgIdImplPtr->ledgerId_,
-                              firstMsgIdImplPtr->entryId_, firstMsgIdImplPtr->batchIndex_),
-                    MessageId(lastMsgIdImplPtr->partition_, lastMsgIdImplPtr->ledgerId_,
-                              lastMsgIdImplPtr->entryId_, lastMsgIdImplPtr->batchIndex_));
+                chunkMessageId = std::make_shared<MessageId>();
+                chunkMessageId->impl_ =
+                    std::make_shared<ChunkMessageIdImpl>(*firstMsgIdImplPtr, *lastMsgIdImplPtr);
             }
             chunkedMessageCache_.remove(metadata.uuid());
             payload = optionalPayload.value();
@@ -439,12 +437,10 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
             return;
         }
     }
-    Message m;
-    if (chunkMessageId != nullptr) {
-        m = Message(*chunkMessageId, metadata, payload);
-    } else {
-        m = Message(msg, metadata, payload, partitionIndex_);
-    }
+    const auto msgId = chunkMessageId ? (*chunkMessageId)
+                                      : MessageId(partitionIndex_, msg.message_id().ledgerid(),
+                                                  msg.message_id().entryid(), -1);
+    Message m(msgId, metadata, payload);
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
     m.impl_->setRedeliveryCount(msg.redelivery_count());
@@ -1243,16 +1239,8 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
         uint64_t requestId = client->newRequestId();
         LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
                             << requestId);
-        auto chunkMessageIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(msgId.impl_);
         Future<Result, ResponseData> future =
-            (chunkMessageIdImpl != nullptr)
-                ? cnx->sendRequestWithId(
-                      Commands::newSeek(consumerId_, requestId,
-                                        chunkMessageIdImpl->getFirstChunkMessageIdImpl().ledgerId_,
-                                        chunkMessageIdImpl->getFirstChunkMessageIdImpl().entryId_),
-                      requestId)
-                : cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
-
+            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
         if (callback) {
             future.addListener(
                 std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));

@@ -18,6 +18,7 @@
  */
 #include "Commands.h"
 #include "MessageImpl.h"
+#include "ChunkMessageIdImpl.h"
 #include "VersionInternal.h"
 #include "pulsar/MessageBuilder.h"
 #include "LogUtils.h"
@@ -464,21 +465,16 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     commandSeek->set_request_id(requestId);
 
     MessageIdData& messageIdData = *commandSeek->mutable_message_id();
-    messageIdData.set_ledgerid(messageId.ledgerId());
-    messageIdData.set_entryid(messageId.entryId());
-    return writeMessageWithSize(cmd);
-}
 
-SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, int64_t ledgerId, int64_t entryId) {
-    BaseCommand cmd;
-    cmd.set_type(BaseCommand::SEEK);
-    CommandSeek* commandSeek = cmd.mutable_seek();
-    commandSeek->set_consumer_id(consumerId);
-    commandSeek->set_request_id(requestId);
-
-    MessageIdData& messageIdData = *commandSeek->mutable_message_id();
-    messageIdData.set_ledgerid(ledgerId);
-    messageIdData.set_entryid(entryId);
+    auto chunkMessageIdImpl = std::dynamic_pointer_cast<ChunkMessageIdImpl>(messageId.impl_);
+    if (chunkMessageIdImpl != nullptr) {
+        const auto& firstMsgId = chunkMessageIdImpl->getFirstChunkMessageIdImpl();
+        messageIdData.set_ledgerid(firstMsgId.ledgerId_);
+        messageIdData.set_entryid(firstMsgId.entryId_);
+    } else {
+        messageIdData.set_ledgerid(messageId.ledgerId());
+        messageIdData.set_entryid(messageId.entryId());
+    }
     return writeMessageWithSize(cmd);
 }
 

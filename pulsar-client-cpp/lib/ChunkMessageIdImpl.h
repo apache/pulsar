@@ -34,10 +34,6 @@ class ChunkMessageIdImpl : public MessageIdImpl, public std::enable_shared_from_
 
     const MessageIdImpl& getFirstChunkMessageIdImpl() { return firstChunkMsgId_; }
 
-    std::shared_ptr<MessageIdImpl> getLastChunkMessageIdImplPtr() {
-        return std::dynamic_pointer_cast<MessageIdImpl>(shared_from_this());
-    }
-
    private:
     MessageIdImpl firstChunkMsgId_;
 };

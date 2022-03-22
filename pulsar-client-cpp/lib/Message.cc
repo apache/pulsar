@@ -60,16 +60,6 @@ Message::Message() : impl_() {}
 
 Message::Message(MessageImplPtr& impl) : impl_(impl) {}
 
-Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metadata, SharedBuffer& payload,
-                 int32_t partition)
-    : impl_(std::make_shared<MessageImpl>()) {
-    impl_->messageId =
-        MessageId(partition, msg.message_id().ledgerid(), msg.message_id().entryid(), /* batchId */
-                  -1);
-    impl_->metadata = metadata;
-    impl_->payload = payload;
-}
-
 Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload)
     : impl_(std::make_shared<MessageImpl>()) {
     impl_->messageId = messageID;

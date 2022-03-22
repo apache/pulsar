@@ -50,7 +50,7 @@ MessageId::MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32
 MessageId::MessageId(const MessageId& firstMessageId, const MessageId& lastMessageId) {
     auto firstImpl = firstMessageId.impl_;
     auto lastImpl = lastMessageId.impl_;
-    impl_ = std::make_shared<ChunkMessageIdImpl>(*firstImpl, *lastImpl)->getLastChunkMessageIdImplPtr();
+    impl_ = std::make_shared<ChunkMessageIdImpl>(*firstImpl, *lastImpl);
 }
 
 const MessageId& MessageId::earliest() {

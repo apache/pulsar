@@ -173,8 +173,6 @@ class PULSAR_PUBLIC Message {
     MessageImplPtr impl_;
 
     Message(MessageImplPtr& impl);
-    Message(const proto::CommandMessage& msg, proto::MessageMetadata& data, SharedBuffer& payload,
-            int32_t partition);
     Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload);
     /// Used for Batch Messages
     Message(const MessageId& messageId, proto::MessageMetadata& metadata, SharedBuffer& payload,
