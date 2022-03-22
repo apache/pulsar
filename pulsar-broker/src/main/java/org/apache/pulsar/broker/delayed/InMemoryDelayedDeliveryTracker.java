@@ -131,6 +131,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     @Override
     public void clear() {
         this.priorityQueue.clear();
+        this.unSentExpireMessage.clear();
     }
 
     @Override
