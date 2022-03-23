@@ -276,7 +276,6 @@ public class MLTransactionLogImpl implements TransactionLog {
                 isReadable = false;
             }
             log.error("Transaction log init fail error!", exception);
-            outstandingReadsRequests.decrementAndGet();
         }
 
     }
