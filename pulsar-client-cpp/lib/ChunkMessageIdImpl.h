@@ -32,7 +32,7 @@ class ChunkMessageIdImpl : public MessageIdImpl, public std::enable_shared_from_
     ChunkMessageIdImpl(const MessageIdImpl& firstChunkMsgId, const MessageIdImpl& lastChunkMsgId)
         : MessageIdImpl(lastChunkMsgId), firstChunkMsgId_(firstChunkMsgId) {}
 
-    const MessageIdImpl& getFirstChunkMessageIdImpl() { return firstChunkMsgId_; }
+    const MessageIdImpl& getFirstChunkMessageIdImpl() const { return firstChunkMsgId_; }
 
    private:
     MessageIdImpl firstChunkMsgId_;
