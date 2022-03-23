@@ -77,11 +77,6 @@ public class CmdClusters extends CmdBase {
                             "You must specify tls-trust-store-type, tls-trust-store and tls-trust-store-pwd"
                                     + " when enable tls-enable-keystore");
                 }
-            } else {
-                if (StringUtils.isBlank(clusterData.getBrokerClientTrustCertsFilePath())) {
-                    throw new RuntimeException("You must specify tls-trust-certs-filepath"
-                            + " when tls-enable-keystore is not enable");
-                }
             }
         }
     }

@@ -1633,17 +1633,12 @@ public class ServerCnxTest {
                 any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(300);
-                new Thread(() -> {
-                    ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
-                            .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                }).start();
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            Thread.sleep(300);
+            new Thread(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
+                    .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
-                return null;
-            }
+            return null;
         }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                 any(OpenLedgerCallback.class), any(Supplier.class), any());
 
