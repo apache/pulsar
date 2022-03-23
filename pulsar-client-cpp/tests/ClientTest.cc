@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 
 #include "HttpHelper.h"
+#include "PulsarFriend.h"
 
 #include <future>
 #include <pulsar/Client.h>
@@ -174,5 +175,31 @@ TEST(ClientTest, testGetNumberOfReferences) {
     numberOfConsumers = 0;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
+    client.close();
+}
+
+TEST(ClientTest, testReferenceCount) {
+    Client client(lookupUrl);
+    const std::string topic = "client-test-reference-count-" + std::to_string(time(nullptr));
+
+    auto &producers = PulsarFriend::getProducers(client);
+    auto &consumers = PulsarFriend::getConsumers(client);
+
+    {
+        Producer producer;
+        ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+        ASSERT_EQ(producers.size(), 1);
+        ASSERT_EQ(producers[0].use_count(), 1);
+
+        Consumer consumer;
+        ASSERT_EQ(ResultOk, client.subscribe(topic, "my-sub", consumer));
+        ASSERT_EQ(consumers.size(), 1);
+        ASSERT_EQ(consumers[0].use_count(), 1);
+    }
+
+    ASSERT_EQ(producers.size(), 1);
+    ASSERT_EQ(producers[0].use_count(), 0);
+    ASSERT_EQ(consumers.size(), 1);
+    ASSERT_EQ(consumers[0].use_count(), 0);
     client.close();
 }
