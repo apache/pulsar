@@ -492,4 +492,50 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         admin.topics().skipAllMessages(topic, subName);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
     }
+
+    @Test
+    public void testDelayedDeliveryWithAllConsumersDisconnecting() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelays");
+
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        c1.close();
+
+        // Attach a new consumer. Since there are no consumers connected, this will trigger the cursor rewind
+        @Cleanup
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1)
+                .subscribe();
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        Message<String> msg = c2.receive(10, TimeUnit.SECONDS);
+        assertNotNull(msg);
+
+        // No more messages
+        msg = c2.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+    }
 }

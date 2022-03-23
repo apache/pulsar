@@ -179,6 +179,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void recoverExceptionally(Exception e) {
+                        if (e instanceof PulsarClientException.BrokerMetadataException) {
+                            log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
+                                    + "transaction buffer throw exception", topic.getName(), e);
+                            topic.close();
+                        }
                         transactionBufferFuture.completeExceptionally(e);
                     }
                 }, this.topic, this));
@@ -474,7 +479,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (TopicTransactionBuffer.this) {
             if (checkIfNoSnapshot()) {
                 maxReadPosition = position;
-                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
             } else if (checkIfReady()) {
                 if (ongoingTxns.isEmpty()) {
                     maxReadPosition = position;

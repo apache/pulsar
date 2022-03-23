@@ -1097,24 +1097,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
 
     @Override
-    public void createSubscription(String topic, String subscriptionName, MessageId messageId)
+    public void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated)
             throws PulsarAdminException {
-        try {
-            TopicName tn = validateTopic(topic);
-            String encodedSubName = Codec.encode(subscriptionName);
-            WebTarget path = topicPath(tn, "subscription", encodedSubName);
-            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        sync(() -> createSubscriptionAsync(topic, subscriptionName, messageId, replicated));
     }
 
     @Override
     public CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
-            MessageId messageId) {
+            MessageId messageId, boolean replicated) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
+        path = path.queryParam("replicated", replicated);
         return asyncPutRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
     }
 

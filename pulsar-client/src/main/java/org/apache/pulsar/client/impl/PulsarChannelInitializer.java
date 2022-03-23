@@ -32,7 +32,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ObjectCache;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -72,7 +74,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         if (tlsEnabled) {
             if (tlsEnabledWithKeyStore) {
                 AuthenticationDataProvider authData1 = conf.getAuthentication().getAuthData();
-
+                if (StringUtils.isBlank(conf.getTlsTrustStorePath())) {
+                    throw new PulsarClientException("Failed to create TLS context, the tlsTrustStorePath"
+                            + " need to be configured if useKeyStoreTls enabled");
+                }
                 nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
                             conf.getSslProvider(),
                             conf.isTlsAllowInsecureConnection(),
