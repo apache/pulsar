@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
@@ -30,11 +29,8 @@ import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidTopicNameException;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBufferSnapshotService {
@@ -43,11 +39,9 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
     private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
-    private final PulsarService pulsarService;
-    public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client, PulsarService pulsarService) {
+    public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client) {
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.clients = new ConcurrentHashMap<>();
-        this.pulsarService = pulsarService;
     }
 
     @Override
@@ -64,17 +58,9 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
                     new InvalidTopicNameException("Can't create SystemTopicBaseTxnBufferSnapshotService, "
                             + "because the topicName is null!"));
         }
-        return CompletableFuture.completedFuture(clients.computeIfAbsent(systemTopicName, (v) -> {
-            SchemaInfo snapshotSchemaInfo = Schema.AVRO(TransactionBufferSnapshot.class).getSchemaInfo();
-            pulsarService.getSchemaRegistryService().putSchemaIfAbsent(systemTopicName.getSchemaName(),
-                    SchemaData.builder().data(snapshotSchemaInfo.getSchema()).isDeleted(false)
-                            .timestamp(System.currentTimeMillis())
-                            .type(snapshotSchemaInfo.getType()).user("")
-                            .props(snapshotSchemaInfo.getProperties()).build(),
-                    pulsarService.getConfig().getSchemaCompatibilityStrategy());
-            return namespaceEventsSystemTopicFactory
-                        .createTransactionBufferSystemTopicClient(topicName.getNamespaceObject(), this);
-            }));
+        return CompletableFuture.completedFuture(clients.computeIfAbsent(systemTopicName,
+                (v) -> namespaceEventsSystemTopicFactory
+                        .createTransactionBufferSystemTopicClient(topicName.getNamespaceObject(), this)));
     }
 
     @Override

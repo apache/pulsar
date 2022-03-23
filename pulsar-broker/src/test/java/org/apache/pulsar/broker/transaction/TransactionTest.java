@@ -842,8 +842,11 @@ public class TransactionTest extends TransactionTestBase {
         TopicName transactionBufferTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(
                         TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
-
-        SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(transactionBufferTopicName.toString());
-        Assert.assertNotNull(schemaInfo);
+        Awaitility.await().untilAsserted(() -> {
+            SchemaInfo schemaInfo = admin
+                    .schemas()
+                    .getSchemaInfo(transactionBufferTopicName.toString());
+            Assert.assertNotNull(schemaInfo);
+        });
     }
 }
