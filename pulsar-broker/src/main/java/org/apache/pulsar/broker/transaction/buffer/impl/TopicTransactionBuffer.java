@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -179,13 +180,20 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void recoverExceptionally(Throwable e) {
-                        transactionBufferFuture.completeExceptionally(e);
+
                         // when create reader or writer fail throw PulsarClientException,
                         // should close this topic and then reinit this topic
                         if (e instanceof PulsarClientException) {
+                            // if transaction buffer recover fail throw PulsarClientException,
+                            // we need to change the PulsarClientException to ServiceUnitNotReadyException,
+                            // the tc do op will retry
+                            transactionBufferFuture.completeExceptionally
+                                    (new BrokerServiceException.ServiceUnitNotReadyException(e.getMessage()));
                             log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
                                     + "transaction buffer throw exception", topic.getName(), e);
                             topic.close(true);
+                        } else {
+                            transactionBufferFuture.completeExceptionally(e);
                         }
                     }
                 }, this.topic, this, takeSnapshotWriter));
