@@ -179,6 +179,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void recoverExceptionally(Throwable e) {
+                        transactionBufferFuture.completeExceptionally(e);
                         // when create reader or writer fail throw PulsarClientException,
                         // should close this topic and then reinit this topic
                         if (e instanceof PulsarClientException) {
@@ -186,7 +187,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     + "transaction buffer throw exception", topic.getName(), e);
                             topic.close(true);
                         }
-                        transactionBufferFuture.completeExceptionally(e);
                     }
                 }, this.topic, this, takeSnapshotWriter));
     }
