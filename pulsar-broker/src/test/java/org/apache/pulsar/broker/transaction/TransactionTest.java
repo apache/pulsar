@@ -855,5 +855,6 @@ public class TransactionTest extends TransactionTestBase {
                     .getSchemaInfo(transactionBufferTopicName1.toString());
             Assert.assertNotNull(schemaInfo1);
         });
+        pulsarServiceList.get(0).getConfiguration().setAllowAutoUpdateSchemaEnabled(true);
     }
 }

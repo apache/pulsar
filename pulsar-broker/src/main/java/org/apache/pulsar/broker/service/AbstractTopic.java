@@ -55,7 +55,6 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
@@ -609,8 +608,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     private boolean allowAutoUpdateSchema() {
-        if (topic.contains(EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT)
-                || topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)) {
+        if (brokerService.isSystemTopic(topic)) {
             return true;
         }
         if (isAllowAutoUpdateSchema == null) {
