@@ -27,12 +27,13 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileStoreTestBase;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,7 +46,7 @@ import static org.testng.Assert.assertTrue;
 
 public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private final PulsarMockBookKeeper bk;
-    private String topic = "public/default/persistent/testOffload";
+    private String topic = "public/default/testOffload";
     private String storagePath = createStoragePath(topic);
     private LedgerHandle lh;
     private ReadHandle toWrite;
@@ -74,6 +75,13 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
         return bk.newOpenLedgerOp().withLedgerId(lh.getId())
                 .withPassword("foobar".getBytes()).withDigestType(DigestType.CRC32).execute().get();
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    @Override
+    public void start() throws Exception {
+        LedgerOffloaderStats.initialize(true, true, null, 60);
+        super.start();
     }
 
     @Test
@@ -113,27 +121,27 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
     @Test
     public void testOffloadAndReadMetrics() throws Exception {
-//        LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
-//        UUID uuid = UUID.randomUUID();
-//        offloader.offload(toWrite, uuid, map).get();
-//
-//        LedgerOffloaderStatsImpl mbean = (LedgerOffloaderStatsImpl) offloader.getStats();
-//        assertTrue(mbean.getOffloadErrors(topic) == 0);
-//        assertTrue(mbean.getOffloadRate(topic).getValueRate() > 0);
-//        assertTrue(mbean.getReadLedgerLatencyBuckets(topic).getCount() > 0);
-//        assertTrue(mbean.getWriteToStorageErrors(topic) == 0);
-//
-//        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
-//        LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-//        Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
-//        while (toTestIter.hasNext()) {
-//            LedgerEntry toTestEntry = toTestIter.next();
-//        }
-//
-//        assertTrue(mbean.getReadOffloadErrors(topic) == 0);
-//        assertTrue(mbean.getReadOffloadRate(topic).getValueRate() > 0);
-//        assertTrue(mbean.getReadOffloadDataLatencyBuckets(topic).getCount() > 0);
-//        assertTrue(mbean.getReadOffloadIndexLatencyBuckets(topic).getCount() > 0);
+        LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, map).get();
+
+        LedgerOffloaderStats offloaderStats = LedgerOffloaderStats.getInstance();
+        assertTrue(offloaderStats.getOffloadError(topic) == 0);
+        assertTrue(offloaderStats.getOffloadBytes(topic) > 0);
+        assertTrue(offloaderStats.getReadLedgerLatency(topic).count > 0);
+        assertTrue(offloaderStats.getWriteStorageError(topic) == 0);
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
+        LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
+        Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
+        while (toTestIter.hasNext()) {
+            LedgerEntry toTestEntry = toTestIter.next();
+        }
+
+        assertTrue(offloaderStats.getReadOffloadError(topic) == 0);
+        assertTrue(offloaderStats.getReadOffloadBytes(topic) > 0);
+        assertTrue(offloaderStats.getReadOffloadDataLatency(topic).count > 0);
+        assertTrue(offloaderStats.getReadOffloadIndexLatency(topic).count > 0);
     }
 
     @Test

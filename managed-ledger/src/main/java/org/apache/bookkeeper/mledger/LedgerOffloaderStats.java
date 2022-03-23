@@ -18,15 +18,25 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
-import org.apache.bookkeeper.common.annotation.InterfaceAudience;
-import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.pulsar.common.naming.TopicName;
+
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
+
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
+import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.naming.TopicName;
 
 
 /**
@@ -34,27 +44,31 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
-public class LedgerOffloaderStats {
+public final class LedgerOffloaderStats implements Runnable {
     private static final String TOPIC_LABEL = "topic";
     private static final String NAMESPACE_LABEL = "namespace";
 
+    private final boolean exposeLedgerMetrics;
+    private final boolean exposeTopicLevelMetrics;
+    private final int interval;
+
     private Counter offloadError;
-    private Counter offloadBytes;
+    private Gauge offloadRate;
     private Summary readLedgerLatency;
     private Counter writeStorageError;
     private Counter readOffloadError;
-    private Counter readOffloadBytes;
+    private Gauge readOffloadRate;
     private Summary readOffloadIndexLatency;
     private Summary readOffloadDataLatency;
 
     private Map<String, String> topic2Namespace;
-    private final boolean exposeLedgerMetrics;
-    private final boolean exposeTopicLevelMetrics;
+    private Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
 
     private static volatile LedgerOffloaderStats instance;
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
 
-    private LedgerOffloaderStats(boolean exposeLedgerMetrics, boolean exposeTopicLevelMetrics) {
+    private LedgerOffloaderStats(boolean exposeLedgerMetrics, boolean exposeTopicLevelMetrics, int interval) {
+        this.interval = interval;
         this.exposeLedgerMetrics = exposeLedgerMetrics;
         this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
         if (!exposeLedgerMetrics) {
@@ -62,16 +76,19 @@ public class LedgerOffloaderStats {
         }
 
         this.topic2Namespace = new ConcurrentHashMap<>();
+        this.offloadAndReadOffloadBytesMap = new ConcurrentHashMap<>();
+
         String[] labels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL} : new String[]{NAMESPACE_LABEL};
 
-        this.offloadError = Counter.build("brk_ledgeroffloader_offload_error", "")
+        this.offloadError = Counter.build("brk_ledgeroffloader_offload_error", "-")
                 .labelNames(labels).create().register();
-        this.offloadBytes = Counter.build("brk_ledgeroffloader_offload_bytes", "-")
+        this.offloadRate = Gauge.build("brk_ledgeroffloader_offload_rate", "-")
                 .labelNames(labels).create().register();
+
         this.readOffloadError = Counter.build("brk_ledgeroffloader_read_offload_error", "-")
                 .labelNames(labels).create().register();
-        this.readOffloadBytes = Counter.build("brk_ledgeroffloader_read_offload_bytes", "-")
+        this.readOffloadRate = Gauge.build("brk_ledgeroffloader_read_offload_rate", "-")
                 .labelNames(labels).create().register();
         this.writeStorageError = Counter.build("brk_ledgeroffloader_write_storage_error", "-")
                 .labelNames(labels).create().register();
@@ -89,12 +106,8 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.offloadError.labels(namespace, topic).inc();
-        } else {
-            this.offloadError.labels(namespace).inc();
-        }
+        String[] labelValues = this.labelValues(topic);
+        this.offloadError.labels(labelValues).inc();
     }
 
     public void recordOffloadBytes(String topic, long size) {
@@ -102,12 +115,9 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.offloadBytes.labels(namespace, topic).inc(size);
-        } else {
-            this.offloadBytes.labels(namespace).inc(size);
-        }
+        Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
+                .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
+        pair.getLeft().add(size);
     }
 
     public void recordReadLedgerLatency(String topic, long latency, TimeUnit unit) {
@@ -115,12 +125,8 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.readLedgerLatency.labels(namespace, topic).observe(unit.toMicros(latency));
-        } else {
-            this.readLedgerLatency.labels(namespace).observe(unit.toMicros(latency));
-        }
+        String[] labelValues = this.labelValues(topic);
+        this.readLedgerLatency.labels(labelValues).observe(unit.toMicros(latency));
     }
 
     public void recordWriteToStorageError(String topic) {
@@ -128,12 +134,8 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.writeStorageError.labels(namespace, topic).inc();
-        } else {
-            this.writeStorageError.labels(namespace).inc();
-        }
+        String[] labelValues = this.labelValues(topic);
+        this.writeStorageError.labels(labelValues).inc();
     }
 
     public void recordReadOffloadError(String topic) {
@@ -141,12 +143,8 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.readOffloadError.labels(namespace, topic).inc();
-        } else {
-            this.readOffloadError.labels(namespace).inc();
-        }
+        String[] labelValues = this.labelValues(topic);
+        this.readOffloadError.labels(labelValues).inc();
     }
 
     public void recordReadOffloadBytes(String topic, long size) {
@@ -154,12 +152,9 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.readOffloadBytes.labels(namespace, topic).inc(size);
-        } else {
-            this.readOffloadBytes.labels(namespace).inc(size);
-        }
+        Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
+                .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
+        pair.getRight().add(size);
     }
 
     public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {
@@ -167,12 +162,8 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.readOffloadIndexLatency.labels(namespace, topic).observe(unit.toMicros(latency));
-        } else {
-            this.readOffloadIndexLatency.labels(namespace).observe(unit.toMicros(latency));
-        }
+        String[] labelValues = this.labelValues(topic);
+        this.readOffloadIndexLatency.labels(labelValues).observe(unit.toMicros(latency));
     }
 
     public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {
@@ -180,24 +171,24 @@ public class LedgerOffloaderStats {
             return;
         }
 
-        String namespace = this.getNamespace(topic);
-        if (exposeTopicLevelMetrics) {
-            this.readOffloadDataLatency.labels(namespace, topic).observe(unit.toMicros(latency));
-        } else {
-            this.readOffloadDataLatency.labels(namespace).observe(unit.toMicros(latency));
-        }
+        String[] labelValues = this.labelValues(topic);
+        this.readOffloadDataLatency.labels(labelValues).observe(unit.toMicros(latency));
     }
 
 
-    private String getNamespace(String topic) {
-        return this.topic2Namespace.computeIfAbsent(topic, __ -> TopicName.get(topic).getNamespace());
+    private String[] labelValues(String topic) {
+        String namespace = this.topic2Namespace.computeIfAbsent(topic, __ -> TopicName.get(__).getNamespace());
+        return this.exposeTopicLevelMetrics ? new String[]{namespace, topic} : new String[]{namespace};
     }
 
 
     public static void initialize(boolean exposeLedgerMetrics,
-                                  boolean exposeTopicLevelMetrics) {
+                                  boolean exposeTopicLevelMetrics, ScheduledExecutorService executor, int interval) {
         if (INITIALIZED.compareAndSet(false, true)) {
-            instance = new LedgerOffloaderStats(exposeLedgerMetrics, exposeTopicLevelMetrics);
+            instance = new LedgerOffloaderStats(exposeLedgerMetrics, exposeTopicLevelMetrics, interval);
+            if (exposeLedgerMetrics && null != executor) {
+                executor.scheduleAtFixedRate(instance, interval, interval, TimeUnit.SECONDS);
+            }
         }
     }
 
@@ -207,5 +198,91 @@ public class LedgerOffloaderStats {
         }
 
         return instance;
+    }
+
+    @Override
+    public void run() {
+        this.offloadAndReadOffloadBytesMap.forEach((topic, pair) -> {
+            String[] labelValues = this.labelValues(topic);
+
+            double interval = this.interval;
+            long offloadBytes = pair.getLeft().sumThenReset();
+            long readOffloadBytes = pair.getRight().sumThenReset();
+
+            this.offloadRate.labels(labelValues).set(offloadBytes / interval);
+            this.readOffloadRate.labels(labelValues).set(readOffloadBytes / interval);
+        });
+    }
+
+    @VisibleForTesting
+    public long getOffloadBytes(String topic) {
+        if (this.exposeTopicLevelMetrics) {
+            Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap.get(topic);
+            return pair.getLeft().sum();
+        }
+
+        String namespace = this.topic2Namespace.get(topic);
+        List<String> topics = this.offloadAndReadOffloadBytesMap.keySet().stream()
+                .filter(topicName -> topicName.contains(namespace)).collect(Collectors.toList());
+
+        long totalBytes = 0;
+        for (String key : topics) {
+            totalBytes += this.offloadAndReadOffloadBytesMap.get(key).getLeft().sum();
+        }
+        return totalBytes;
+    }
+
+    @VisibleForTesting
+    public long getOffloadError(String topic) {
+        String[] labels = this.labelValues(topic);
+        return (long) this.offloadError.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public long getWriteStorageError(String topic) {
+        String[] labels = this.labelValues(topic);
+        return (long) this.writeStorageError.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public long getReadOffloadError(String topic) {
+        String[] labels = this.labelValues(topic);
+        return (long) this.readOffloadError.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public long getReadOffloadBytes(String topic) {
+        if (this.exposeTopicLevelMetrics) {
+            Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap.get(topic);
+            return pair.getRight().sum();
+        }
+
+        String namespace = this.topic2Namespace.get(topic);
+        List<String> topics = this.offloadAndReadOffloadBytesMap.keySet().stream()
+                .filter(topicName -> topicName.contains(namespace)).collect(Collectors.toList());
+
+        long totalBytes = 0;
+        for (String key : topics) {
+            totalBytes += this.offloadAndReadOffloadBytesMap.get(key).getRight().sum();
+        }
+        return totalBytes;
+    }
+
+    @VisibleForTesting
+    public Summary.Child.Value getReadLedgerLatency(String topic) {
+        String[] labels = this.labelValues(topic);
+        return this.readLedgerLatency.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public Summary.Child.Value getReadOffloadIndexLatency(String topic) {
+        String[] labels = this.labelValues(topic);
+        return this.readOffloadIndexLatency.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public Summary.Child.Value getReadOffloadDataLatency(String topic) {
+        String[] labels = this.labelValues(topic);
+        return this.readOffloadDataLatency.labels(labels).get();
     }
 }

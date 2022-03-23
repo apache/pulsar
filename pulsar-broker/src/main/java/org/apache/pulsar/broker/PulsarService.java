@@ -1245,13 +1245,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public synchronized LedgerOffloader createManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies)
             throws PulsarServerException {
         try {
+            //initialize ledger offloader stats
+            LedgerOffloaderStats.initialize(config.isExposeManagedLedgerMetricsInPrometheus(),
+                    config.isExposeTopicLevelMetricsInPrometheus(), this.executor,
+                    config.getManagedLedgerStatsPeriodSeconds());
             if (StringUtils.isNotBlank(offloadPolicies.getManagedLedgerOffloadDriver())) {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                //initialize ledger offloader stats
-                LedgerOffloaderStats.initialize(config.isExposeManagedLedgerMetricsInPrometheus(),
-                        config.isExposeTopicLevelMetricsInPrometheus());
 
                 Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
                         offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
