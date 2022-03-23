@@ -1036,11 +1036,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     partitionIndex -> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
+                        configurationData.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
                                 partitionIndex, subFuture, createIfDoesNotExist, schema);
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();
+                            } else {
+                                newConsumer.resume();
                             }
                             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         }
@@ -1062,10 +1065,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
                         return existingValue;
                     } else {
+                        internalConfig.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
                                 -1, subFuture, createIfDoesNotExist, schema);
                         if (paused) {
                             newConsumer.pause();
+                        } else {
+                            newConsumer.resume();
                         }
                         return newConsumer;
                     }
@@ -1384,11 +1390,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         int partitionIndex = TopicName.getPartitionIndex(partitionName);
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
+                        configurationData.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
                                 partitionIndex, subFuture, true, schema);
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();
+                            } else {
+                                newConsumer.resume();
                             }
                             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         }
