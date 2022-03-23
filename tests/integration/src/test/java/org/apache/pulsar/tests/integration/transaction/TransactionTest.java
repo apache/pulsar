@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.transaction;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -172,10 +173,15 @@ public class TransactionTest extends TransactionTestBase {
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
 
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(admin.topics().getList(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getNamespace())
-                .contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())));
-
+        Awaitility.await().until(() -> {
+            List<String> topics = admin.topics().getList(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getNamespace());
+            for (String t : topics) {
+                if (t.contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())) {
+                    return true;
+                }
+            }
+            return false;
+        });
         log.info("create transaction coordinator test finish.");
     }
 }
