@@ -106,8 +106,9 @@ When a client is identified with multiple roles in a token (the type of role cla
 > **Note**<br />
 > This authorization method is only compatible with [JWT authentication](security-jwt.md).
 
-To enable the support, configure the authorization provider as `MultiRolesTokenAuthorizationProvider` in the `conf/broker.conf` file.
+To enable this authorization method, configure the authorization provider as `MultiRolesTokenAuthorizationProvider` in the `conf/broker.conf` file.
 
  ```properties
  # Authorization provider fully qualified class-name
  authorizationProvider=org.apache.pulsar.broker.authorization.MultiRolesTokenAuthorizationProvider
+```
