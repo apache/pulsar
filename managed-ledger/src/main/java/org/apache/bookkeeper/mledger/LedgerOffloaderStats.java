@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.naming.TopicName;
@@ -175,6 +176,9 @@ public final class LedgerOffloaderStats implements Runnable {
 
 
     private String[] labelValues(String topic) {
+        if (StringUtils.isBlank(topic)) {
+            return this.exposeTopicLevelMetrics ? new String[]{"unknown", "unknown"} : new String[]{"unknown"};
+        }
         String namespace = this.topic2Namespace.computeIfAbsent(topic, __ -> TopicName.get(__).getNamespace());
         return this.exposeTopicLevelMetrics ? new String[]{namespace, topic} : new String[]{namespace};
     }
