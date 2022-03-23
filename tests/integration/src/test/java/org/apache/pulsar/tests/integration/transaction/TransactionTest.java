@@ -172,8 +172,9 @@ public class TransactionTest extends TransactionTestBase {
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
 
-        Assert.assertTrue(admin.topics().getList(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getNamespace())
-                .contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString()));
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(admin.topics().getList(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getNamespace())
+                .contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())));
 
         log.info("create transaction coordinator test finish.");
     }
