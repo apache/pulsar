@@ -793,7 +793,7 @@ public class PerformanceProducer {
                                 totalEndTxnOpSuccessNum.increment();
                                 numTxnOpSuccess.increment();
                             }).exceptionally(exception -> {
-                                log.error("Commit transaction {} failed with exception",
+                                log.error("Abort transaction {} failed with exception",
                                         transaction.getTxnID().toString(),
                                         exception);
                                 totalEndTxnOpFailNum.increment();
