@@ -711,9 +711,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
                     || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
+            } else {
+                outstandingReadsRequests.decrementAndGet();
             }
             recover.callBackException(exception);
-            outstandingReadsRequests.decrementAndGet();
         }
     }
 }
