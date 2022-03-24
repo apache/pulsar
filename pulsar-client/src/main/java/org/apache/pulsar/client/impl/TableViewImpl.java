@@ -52,6 +52,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, T> data;
+    private final Map<String, T> immutableData;
 
     private final ConcurrentMap<String, Reader<T>> readers;
 
@@ -63,6 +64,7 @@ public class TableViewImpl<T> implements TableView<T> {
         this.schema = schema;
         this.conf = conf;
         this.data = new ConcurrentHashMap<>();
+        this.immutableData = Collections.unmodifiableMap(data);
         this.readers = new ConcurrentHashMap<>();
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
@@ -134,17 +136,17 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public Set<Map.Entry<String, T>> entrySet() {
-       return Collections.unmodifiableSet(data.entrySet());
+       return immutableData.entrySet();
     }
 
     @Override
     public Set<String> keySet() {
-        return Collections.unmodifiableSet(data.keySet());
+        return immutableData.keySet();
     }
 
     @Override
     public Collection<T> values() {
-        return Collections.unmodifiableCollection(data.values());
+        return immutableData.values();
     }
 
     @Override
