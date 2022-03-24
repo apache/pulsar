@@ -188,13 +188,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             // we need to change the PulsarClientException to ServiceUnitNotReadyException,
                             // the tc do op will retry
                             transactionBufferFuture.completeExceptionally
-                                    (new BrokerServiceException.ServiceUnitNotReadyException(e.getMessage()));
+                                    (new BrokerServiceException.ServiceUnitNotReadyException(e.getMessage(), e));
                             log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
                                     + "transaction buffer throw exception", topic.getName(), e);
-                            topic.close(true);
                         } else {
                             transactionBufferFuture.completeExceptionally(e);
                         }
+                        topic.close(true);
                     }
                 }, this.topic, this, takeSnapshotWriter));
     }
