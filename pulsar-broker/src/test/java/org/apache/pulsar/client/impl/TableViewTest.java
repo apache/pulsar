@@ -128,6 +128,13 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(tv.size(), count * 2);
         });
         Assert.assertEquals(tv.keySet(), keys2);
+        // Test return new collection
+        tv.keySet().clear();
+        tv.values().clear();
+        tv.entrySet().clear();
+        Assert.assertEquals(tv.keySet(), keys2);
+        Assert.assertEquals(tv.entrySet().size(), keys2.size());
+        Assert.assertEquals(tv.values().size(), keys2.size());
     }
 
     @Test(timeOut = 30 * 1000)

@@ -133,17 +133,17 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public Set<Map.Entry<String, T>> entrySet() {
-       return data.entrySet();
+       return new HashSet<>(data.entrySet());
     }
 
     @Override
     public Set<String> keySet() {
-        return data.keySet();
+        return new HashSet<>(data.keySet());
     }
 
     @Override
     public Collection<T> values() {
-        return data.values();
+        return new ArrayList<>(data.values());
     }
 
     @Override
