@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import javax.servlet.ServletContext;
@@ -623,12 +622,14 @@ public abstract class PulsarWebResource {
      */
     protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
         try {
-            validateTopicOwnershipAsync(topicName, authoritative).join();
-        } catch (CompletionException ce) {
-            if (ce.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) ce.getCause();
+            validateTopicOwnershipAsync(topicName, authoritative)
+                    .get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
             } else {
-                throw new RestException(ce.getCause());
+                throw new RestException(realCause);
             }
         }
     }
