@@ -172,7 +172,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                 + " permissions. {}", topicName.toString(), role, ex.getMessage());
 
                     }
-                    return null;
+                    throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
 
