@@ -494,6 +494,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
         }
 
         int beginIndex = 0;
+        auto msgIdPtr = std::make_shared<MessageId>();
         for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
             if (sendChunks) {
                 msgMetadata.set_chunk_id(chunkId);
@@ -507,10 +508,9 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
                 handleFailedResult(ResultCryptoError);
                 return;
             }
-
             sendMessage(OpSendMsg{msgMetadata, encryptedPayload,
                                   (chunkId == totalChunks - 1) ? callback : nullptr, producerId_, sequenceId,
-                                  conf_.getSendTimeout(), 1, uncompressedSize, MessageId()});
+                                  conf_.getSendTimeout(), 1, uncompressedSize, msgIdPtr});
         }
     }
 }
@@ -859,13 +859,9 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         int totalChunks = op.metadata_.num_chunks_from_msg();
         if (totalChunks > 1) {
             if (op.metadata_.chunk_id() == 0) {
-                op.chunkedMessageId_ = MessageId(partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),
-                                                 rawMessageId.batchIndex());
+                op.firstChunkedMessageIdPtr_->impl_ = messageId.impl_;
             } else if (op.metadata_.chunk_id() == totalChunks - 1) {
-                MessageId lastMessageId(partition_, rawMessageId.ledgerId(), rawMessageId.entryId(),
-                                        rawMessageId.batchIndex());
-                op.chunkedMessageId_ = MessageId(op.chunkedMessageId_, lastMessageId);
-                messageId = MessageId(op.chunkedMessageId_, lastMessageId);
+                messageId = MessageId(*(op.firstChunkedMessageIdPtr_), messageId);
             }
         }
         lock.unlock();

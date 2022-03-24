@@ -38,14 +38,14 @@ struct OpSendMsg {
     boost::posix_time::ptime timeout_;
     uint32_t messagesCount_;
     uint64_t messagesSize_;
-    MessageId chunkedMessageId_;
+    std::shared_ptr<MessageId> firstChunkedMessageIdPtr_;
 
     OpSendMsg() = default;
 
     OpSendMsg(const proto::MessageMetadata& metadata, const SharedBuffer& payload,
               const SendCallback& sendCallback, uint64_t producerId, uint64_t sequenceId, int sendTimeoutMs,
               uint32_t messagesCount, uint64_t messagesSize,
-              const MessageId& chunkedMessageId)
+              const std::shared_ptr<MessageId>& firstChunkedMessageIdPtr)
         : metadata_(metadata),  // the copy happens here because OpSendMsg of chunks are constructed with the
                                 // a shared metadata object
           payload_(payload),
@@ -55,7 +55,7 @@ struct OpSendMsg {
           timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)),
           messagesCount_(messagesCount),
           messagesSize_(messagesSize),
-          chunkedMessageId_(chunkedMessageId) {}
+          firstChunkedMessageIdPtr_(firstChunkedMessageIdPtr) {}
 
     void complete(Result result, const MessageId& messageId) const {
         if (sendCallback_) {

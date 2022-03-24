@@ -32,10 +32,10 @@
 #include "stats/ProducerStatsImpl.h"
 #include "PulsarApi.pb.h"
 #include "OpSendMsg.h"
+#include "BatchMessageContainerBase.h"
 #include "PendingFailures.h"
 #include "Semaphore.h"
-#include "ChunkMessageIdImpl.h"
-#include "BatchMessageContainerBase.h"
+
 using namespace pulsar;
 
 namespace pulsar {

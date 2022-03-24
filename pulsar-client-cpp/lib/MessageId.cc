@@ -84,12 +84,9 @@ MessageId MessageId::deserialize(const std::string& serializedMessageId) {
         throw std::invalid_argument("Failed to parse serialized message id");
     }
     if (idData.has_first_chunk_message_id()) {
-        auto firData = idData.first_chunk_message_id();
-        return MessageId(
-            MessageId(firData.partition(), firData.ledgerid(), firData.entryid(), firData.batch_index()),
-            MessageId(idData.partition(), idData.ledgerid(), idData.entryid(), idData.batch_index()));
+        return {toMessageId(idData.first_chunk_message_id()), toMessageId(idData)};
     }
-    return MessageId(idData.partition(), idData.ledgerid(), idData.entryid(), idData.batch_index());
+    return toMessageId(idData);
 }
 
 int64_t MessageId::ledgerId() const { return impl_->ledgerId_; }
@@ -101,18 +98,17 @@ int32_t MessageId::batchIndex() const { return impl_->batchIndex_; }
 int32_t MessageId::partition() const { return impl_->partition_; }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
-    std::function<void(std::ostream&, const MessageIdImpl&)> printMsgIdImpl = [](std::ostream& s,
-                                                                                 const MessageIdImpl& impl) {
+    auto printMsgIdImpl = [&s](const MessageIdImpl& impl) {
         s << '(' << impl.ledgerId_ << ',' << impl.entryId_ << ',' << impl.partition_ << ','
           << impl.batchIndex_ << ')';
     };
     auto chunkMessageidImplPtr = std::dynamic_pointer_cast<ChunkMessageIdImpl>(messageId.impl_);
     if (chunkMessageidImplPtr != nullptr) {
-        printMsgIdImpl(s, chunkMessageidImplPtr->getFirstChunkMessageIdImpl());
+        printMsgIdImpl(chunkMessageidImplPtr->getFirstChunkMessageIdImpl());
         s << "->";
-        printMsgIdImpl(s, *(messageId.impl_));
+        printMsgIdImpl(*(messageId.impl_));
     } else {
-        printMsgIdImpl(s, *(messageId.impl_));
+        printMsgIdImpl(*(messageId.impl_));
     }
     return s;
 }
