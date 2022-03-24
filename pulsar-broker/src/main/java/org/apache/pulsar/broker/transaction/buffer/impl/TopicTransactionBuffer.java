@@ -217,7 +217,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     completableFuture.complete(null);
                 }
             }).exceptionally(exception -> {
-                log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception);
+                log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception.getCause());
                 completableFuture.completeExceptionally(exception.getCause());
                 return null;
             });
@@ -295,7 +295,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 commitMarker.release();
             }
         }).exceptionally(exception -> {
-            log.error("Transaction {} commit on topic {}.", txnID.toString(), topic.getName(), exception);
+            log.error("Transaction {} commit on topic {}.", txnID.toString(), topic.getName(), exception.getCause());
             completableFuture.completeExceptionally(exception.getCause());
             return null;
         });
@@ -341,7 +341,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 abortMarker.release();
             }
         }).exceptionally(exception -> {
-            log.error("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
+            log.error("Transaction {} abort on topic {}.", txnID.toString(), topic.getName(), exception.getCause());
             completableFuture.completeExceptionally(exception.getCause());
             return null;
         });
