@@ -22,6 +22,7 @@ package org.apache.pulsar.client.impl;
 import io.netty.util.Timeout;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -133,17 +134,17 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public Set<Map.Entry<String, T>> entrySet() {
-       return new HashSet<>(data.entrySet());
+       return Collections.unmodifiableSet(data.entrySet());
     }
 
     @Override
     public Set<String> keySet() {
-        return new HashSet<>(data.keySet());
+        return Collections.unmodifiableSet(data.keySet());
     }
 
     @Override
     public Collection<T> values() {
-        return new ArrayList<>(data.values());
+        return Collections.unmodifiableCollection(data.values());
     }
 
     @Override
