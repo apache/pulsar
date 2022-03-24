@@ -228,7 +228,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     private boolean isPhysicalNic(Path path) {
         try {
-            if (path.toString().contains("/virtual/") || path.toRealPath().toString().contains("/virtual/")) {
+            if (path.toRealPath().toString().contains("/virtual/")) {
                 return false;
             }
             // Check the type to make sure it's ethernet (type "1")
