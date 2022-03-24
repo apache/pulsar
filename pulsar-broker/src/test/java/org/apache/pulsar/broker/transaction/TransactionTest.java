@@ -836,7 +836,8 @@ public class TransactionTest extends TransactionTestBase {
     public void testAutoCreateSchemaForTransactionSnapshot() throws Exception {
         String namespace = TENANT + "/ns2";
         String topic = namespace + "/test";
-        pulsarServiceList.get(0).getConfiguration().setAllowAutoUpdateSchemaEnabled(false);
+        pulsarServiceList.forEach((pulsarService ->
+                pulsarService.getConfiguration().setAllowAutoUpdateSchemaEnabled(false)));
         admin.namespaces().createNamespace(namespace);
         admin.topics().createNonPartitionedTopic(topic);
         TopicName transactionBufferTopicName =
@@ -855,6 +856,7 @@ public class TransactionTest extends TransactionTestBase {
                     .getSchemaInfo(transactionBufferTopicName1.toString());
             Assert.assertNotNull(schemaInfo1);
         });
-        pulsarServiceList.get(0).getConfiguration().setAllowAutoUpdateSchemaEnabled(true);
+        pulsarServiceList.forEach((pulsarService ->
+                pulsarService.getConfiguration().setAllowAutoUpdateSchemaEnabled(true)));
     }
 }
