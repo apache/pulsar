@@ -575,6 +575,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         }
                     }
                     if (!hasSnapshot) {
+                        reader.closeAsync().exceptionally(e -> {
+                            log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
+                            return null;
+                        });
                         callBack.noNeedToRecover();
                         return;
                     }
