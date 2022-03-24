@@ -710,9 +710,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
                 isReadable = false;
+            } else {
+                outstandingReadsRequests.decrementAndGet();
             }
             recover.callBackException(exception);
-            outstandingReadsRequests.decrementAndGet();
         }
     }
 }
