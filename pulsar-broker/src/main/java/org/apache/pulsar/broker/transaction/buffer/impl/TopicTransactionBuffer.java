@@ -575,10 +575,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         }
                     }
                     if (!hasSnapshot) {
-                        reader.closeAsync().exceptionally(e -> {
-                            log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                            return null;
-                        });
+                        closeReader(reader);
                         callBack.noNeedToRecover();
                         return;
                     }
@@ -586,16 +583,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     log.error("[{}]Transaction buffer recover fail when read "
                             + "transactionBufferSnapshot!", topic.getName(), pulsarClientException);
                     callBack.recoverExceptionally(pulsarClientException);
-                    reader.closeAsync().exceptionally(e -> {
-                        log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                        return null;
-                    });
+                    closeReader(reader);
                     return;
                 }
-                reader.closeAsync().exceptionally(e -> {
-                    log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                    return null;
-                });
+                closeReader(reader);
 
                 ManagedCursor managedCursor;
                 try {
@@ -658,6 +649,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         private void callBackException(ManagedLedgerException e) {
             log.error("Transaction buffer recover fail when recover transaction entry!", e);
             this.exceptionNumber.getAndIncrement();
+        }
+
+        private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {
+            reader.closeAsync().exceptionally(e -> {
+                log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
+                return null;
+            });
         }
     }
 
