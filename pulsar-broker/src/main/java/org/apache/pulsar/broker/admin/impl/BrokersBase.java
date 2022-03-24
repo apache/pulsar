@@ -106,7 +106,6 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/")
     @ApiOperation(
             value = "Get the list of active brokers (web service addresses) in the local cluster."
                     + "If authorization is not enabled",
