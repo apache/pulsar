@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.transaction;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
