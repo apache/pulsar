@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeRecord;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
@@ -91,6 +92,11 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.JSON) {
             JsonNode nativeGenericRecord = (JsonNode) record.getValue().getNativeObject();
             log.info("NodeType from JsonNode generic object {}", nativeGenericRecord.getNodeType());
+        }
+
+        // testing that actually the Sink is able to use Native JSON
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.PROTOBUF_NATIVE) {
+            log.info("NodeType from PROTOBUF_NATIVE generic object {}", ((GenericProtobufNativeRecord) record.getValue()).getNativeObject());
         }
 
         record.ack();
