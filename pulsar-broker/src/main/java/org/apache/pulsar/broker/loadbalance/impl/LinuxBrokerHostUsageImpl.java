@@ -227,10 +227,10 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private boolean isPhysicalNic(Path path) {
-        if (path.toString().contains("/virtual/")) {
-            return false;
-        }
         try {
+            if (path.toString().contains("/virtual/") || path.toRealPath().toString().contains("/virtual/")) {
+                return false;
+            }
             // Check the type to make sure it's ethernet (type "1")
             String type = new String(Files.readAllBytes(path.resolve("type")), StandardCharsets.UTF_8).trim();
             // wireless NICs don't report speed, ignore them.
