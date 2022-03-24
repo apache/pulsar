@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata;
 
-import static org.apache.pulsar.metadata.MetadataCacheTest.assertEqualsAndRetry;
 import static org.testng.Assert.assertEquals;
 import java.util.EnumSet;
 import java.util.Optional;
