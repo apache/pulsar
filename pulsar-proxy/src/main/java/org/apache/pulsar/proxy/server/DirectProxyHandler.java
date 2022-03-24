@@ -100,6 +100,7 @@ public class DirectProxyHandler {
         // switches when passing data between the 2
         // connections
         b.option(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
+        b.option(ChannelOption.SO_KEEPALIVE, true);
         int brokerProxyConnectTimeoutMs = service.getConfiguration().getBrokerProxyConnectTimeoutMs();
         if (brokerProxyConnectTimeoutMs > 0) {
             b.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, brokerProxyConnectTimeoutMs);

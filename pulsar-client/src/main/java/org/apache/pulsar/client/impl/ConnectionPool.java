@@ -82,6 +82,7 @@ public class ConnectionPool implements AutoCloseable {
 
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, conf.getConnectionTimeoutMs());
         bootstrap.option(ChannelOption.TCP_NODELAY, conf.isUseTcpNoDelay());
+        bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
         bootstrap.option(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
 
         try {

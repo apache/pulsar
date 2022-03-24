@@ -215,6 +215,7 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+        bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
@@ -301,6 +302,7 @@ public class ProxyService implements Closeable {
             bootstrap = new ServerBootstrap();
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+            bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
             bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                     new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
