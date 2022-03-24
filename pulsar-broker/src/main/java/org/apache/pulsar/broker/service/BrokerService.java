@@ -233,7 +233,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
-    private ScheduledExecutorService topicPublishRateLimiterMonitor;
+    protected final PublishRateLimiterMonitor topicPublishRateLimiterMonitor;
     protected final PublishRateLimiterMonitor brokerPublishRateLimiterMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
@@ -335,6 +335,8 @@ public class BrokerService implements Closeable {
                         new DefaultThreadFactory("pulsar-compaction-monitor"));
         this.consumedLedgersMonitor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
+        this.topicPublishRateLimiterMonitor =
+                new PublishRateLimiterMonitor("pulsar-topic-publish-rate-limiter-monitor");
         this.brokerPublishRateLimiterMonitor =
                 new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
@@ -607,32 +609,15 @@ public class BrokerService implements Closeable {
      * Schedules and monitors publish-throttling for all owned topics that has publish-throttling configured. It also
      * disables and shutdowns publish-rate-limiter monitor task if broker disables it.
      */
-    public synchronized void setupTopicPublishRateLimiterMonitor() {
+    public void setupTopicPublishRateLimiterMonitor() {
         // set topic PublishRateLimiterMonitor
         long topicTickTimeMs = pulsar().getConfiguration().getTopicPublisherThrottlingTickTimeMillis();
         if (topicTickTimeMs > 0) {
-            if (this.topicPublishRateLimiterMonitor == null) {
-                this.topicPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
-                        new DefaultThreadFactory("pulsar-topic-publish-rate-limiter-monitor"));
-                // schedule task that sums up publish-rate across all cnx on a topic
-                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
-                        topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
-                // schedule task that refreshes rate-limiting bucket
-                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
-                        TimeUnit.SECONDS);
-            }
+            topicPublishRateLimiterMonitor.startOrUpdate(topicTickTimeMs,
+                    this::checkTopicPublishThrottlingRate, this::refreshTopicPublishRate);
         } else {
             // disable publish-throttling for all topics
-            if (this.topicPublishRateLimiterMonitor != null) {
-                try {
-                    this.topicPublishRateLimiterMonitor.awaitTermination(30, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    log.warn("failed to shutdown topicPublishRateLimiterMonitor", e);
-                }
-                // make sure topics are not being throttled
-                refreshTopicPublishRate();
-                this.topicPublishRateLimiterMonitor = null;
-            }
+            topicPublishRateLimiterMonitor.stop();
         }
     }
 
@@ -834,7 +819,7 @@ public class BrokerService implements Closeable {
                                                 consumedLedgersMonitor,
                                                 backlogQuotaChecker,
                                                 topicOrderedExecutor,
-                                                topicPublishRateLimiterMonitor,
+                                                topicPublishRateLimiterMonitor.scheduler,
                                                 brokerPublishRateLimiterMonitor.scheduler,
                                                 deduplicationSnapshotMonitor)
                                         .handle());

@@ -66,13 +66,14 @@ cd ${ROOT_DIR}/site2/website
 yarn
 yarn write-translations
 
-if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
+# The crowdin upload and download take a long time to run, and have resulted in timeouts. In order to ensure that the
+# website is still able to get published, we only run the download and upload if current hour is 0-5.
+# This leads to executing crowdin-upload and crowdin-download once per day when website build is scheduled
+# to run with cron expression '0 */6 * * *'
+CURRENT_HOUR=$(date +%H)
+if [[ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" || $CURRENT_HOUR -lt 6 ]]; then
   # upload only if environment variable CROWDIN_UPLOAD=1 is set
-  # or current hour is 0-5
-  # this leads to executing crowdin-upload once per day when website build is scheduled
-  # to run with cron expression '0 */6 * * *'
-  CURRENT_HOUR=$(date +%H)
-  if [[ "$CROWDIN_UPLOAD" == "1" || $CURRENT_HOUR -lt 6 ]]; then
+  if [[ "$CROWDIN_UPLOAD" == "1" ]]; then
     yarn run crowdin-upload
   fi
   yarn run crowdin-download
@@ -109,4 +110,4 @@ cp -R ${ROOT_DIR}/generated-site/api ${ROOT_DIR}/generated-site/content
 cp -R ./build/pulsar/* ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/tools ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/site2/website/static/swagger/* ${ROOT_DIR}/generated-site/content/swagger/
-cp -R ${ROOT_DIR}/site2/website/static/python ${ROOT_DIR}/generated-site/content/python
+cp -R ${ROOT_DIR}/site2/website/static/python-client ${ROOT_DIR}/generated-site/content/python

@@ -1551,10 +1551,7 @@ void ClientConnection::close(Result result) {
         consumerStatsRequestTimer_.reset();
     }
 
-    if (connectTimeoutTask_) {
-        connectTimeoutTask_->stop();
-        connectTimeoutTask_.reset();
-    }
+    connectTimeoutTask_->stop();
 
     lock.unlock();
     LOG_INFO(cnxString_ << "Connection closed");
