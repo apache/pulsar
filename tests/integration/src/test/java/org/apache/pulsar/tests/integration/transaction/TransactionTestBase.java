@@ -45,6 +45,7 @@ public abstract class TransactionTestBase extends PulsarTestSuite {
                     "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider");
             brokerContainer.withEnv("acknowledgmentAtBatchIndexLevelEnabled", "true");
             brokerContainer.withEnv("allowAutoTopicCreation", "false");
+            brokerContainer.withEnv("systemTopicEnabled", "true");
         }
     }
 

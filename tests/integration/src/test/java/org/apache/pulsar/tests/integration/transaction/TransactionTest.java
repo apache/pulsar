@@ -174,7 +174,8 @@ public class TransactionTest extends TransactionTestBase {
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.get()).build();
 
         Awaitility.await().until(() -> {
-            List<String> topics = admin.topics().getList(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getNamespace());
+            List<String> topics = admin.topics()
+                    .getPartitionedTopicList(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getNamespace());
             for (String t : topics) {
                 if (t.contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())) {
                     return true;
