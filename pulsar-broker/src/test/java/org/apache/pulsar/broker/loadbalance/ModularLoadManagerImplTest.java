@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl.TIME_AVERAGE_BROKER_ZPATH;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -35,6 +36,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -51,6 +53,7 @@ import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TimeAverageBrokerData;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
@@ -144,7 +147,7 @@ public class ModularLoadManagerImplTest {
         config1.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
-        config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
 
         config1.setAdvertisedAddress("localhost");
         config1.setBrokerShutdownTimeoutMs(0L);
@@ -164,7 +167,7 @@ public class ModularLoadManagerImplTest {
         config2.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
-        config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setAdvertisedAddress("localhost");
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setBrokerServicePort(Optional.of(0));
@@ -586,7 +589,7 @@ public class ModularLoadManagerImplTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         PulsarService pulsar = new PulsarService(config);
@@ -601,5 +604,32 @@ public class ModularLoadManagerImplTest {
         }
 
         pulsar.close();
+    }
+
+    @Test
+    public void testRemoveDeadBrokerTimeAverageData() throws Exception {
+        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
+        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        assertEquals(lm.getAvailableBrokers().size(), 2);
+
+        pulsar2.close();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(lm.getAvailableBrokers().size(), 1);
+        });
+        lm.updateAll();
+
+        List<String> data =  pulsar1.getLocalMetadataStore()
+                .getMetadataCache(TimeAverageBrokerData.class).getChildren(TIME_AVERAGE_BROKER_ZPATH).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar1.getLeaderElectionService().isLeader());
+        });
+
+        assertEquals(data.size(), 1);
+
+
+
+
     }
 }

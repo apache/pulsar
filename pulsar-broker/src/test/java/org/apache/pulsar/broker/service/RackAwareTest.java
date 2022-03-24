@@ -201,5 +201,121 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         }
     }
 
+    public void testRackUpdate() throws Exception {
+        // 1. reset configurations for rack-aware
+        cleanup();
+        config = new ServiceConfiguration();
+        config.setBookkeeperClientMinNumRacksPerWriteQuorum(2);
+        config.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
+        setup();
+
+        // 2. test create ledger(ensemble size = 2) with only one rack
+        //   rack-0     bookie-1
+        //   rack-0     bookie-2
+        //   rack-0     bookie-3
+
+        final String group = "default";
+        for (int i = 0; i < NUM_BOOKIES / 2; i++) {
+            String bookie = bookies.get(i).getLocalAddress().toString();
+            BookieInfo bi = BookieInfo.builder()
+                    .rack("rack-0")
+                    .hostname("bookie-" + (i + 1))
+                    .build();
+            log.info("setting rack for bookie at {} -- {}", bookie, bi);
+            admin.bookies().updateBookieRackInfo(bookie, group, bi);
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            byte[] data = bkEnsemble.getZkClient()
+                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
+                    new Gson().fromJson(new String(data), TreeMap.class);
+            assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES / 2);
+
+            Set<String> racks = rackInfoMap.values().stream()
+                    .map(Map::values)
+                    .flatMap(bookieId -> bookieId.stream().map(rackInfo -> rackInfo.get("rack")))
+                    .collect(Collectors.toSet());
+            assertEquals(racks.size(), 1);
+            assertTrue(racks.contains("rack-0"));
+        });
+
+        BookKeeper bkc = this.pulsar.getBookKeeperClient();
+
+        // 3. test create ledger
+        try {
+            bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
+            fail("Should be failed due to no enough rack can be found");
+        } catch (BKException.BKNotEnoughBookiesException e) {
+            // ignore
+        }
+
+        // 4. add another rack, rack-1
+        //   rack-1     bookie-4
+        //   rack-1     bookie-5
+        //   rack-1     bookie-6
+        for (int i = NUM_BOOKIES / 2; i < NUM_BOOKIES; i++) {
+            String bookie = bookies.get(i).getLocalAddress().toString();
+            BookieInfo bi = BookieInfo.builder()
+                    .rack("rack-1")
+                    .hostname("bookie-" + (i + 1))
+                    .build();
+            log.info("setting rack for bookie at {} -- {}", bookie, bi);
+            admin.bookies().updateBookieRackInfo(bookie, group, bi);
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            byte[] data = bkEnsemble.getZkClient()
+                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
+                    new Gson().fromJson(new String(data), TreeMap.class);
+            assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES);
+
+            Set<String> racks = rackInfoMap.values().stream()
+                    .map(Map::values)
+                    .flatMap(bookieId -> bookieId.stream().map(rackInfo -> rackInfo.get("rack")))
+                    .collect(Collectors.toSet());
+            assertEquals(racks.size(), 2);
+            assertTrue(racks.containsAll(Lists.newArrayList("rack-0", "rack-1")));
+        });
+
+        // 5. create ledger required for 2 racks
+        for (int i = 0; i < 2; i++) {
+            LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
+            log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
+            lh.close();
+        }
+
+        // 6. remove rack-0
+        for (int i = 0; i < NUM_BOOKIES / 2; i++) {
+            String bookie = bookies.get(i).getLocalAddress().toString();
+            admin.bookies().deleteBookieRackInfo(bookie);
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            byte[] data = bkEnsemble.getZkClient()
+                    .getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
+                    new Gson().fromJson(new String(data), TreeMap.class);
+            assertEquals(rackInfoMap.get(group).size(), NUM_BOOKIES / 2);
+
+            Set<String> racks = rackInfoMap.values().stream()
+                    .map(Map::values)
+                    .flatMap(bookieId -> bookieId.stream().map(rackInfo -> rackInfo.get("rack")))
+                    .collect(Collectors.toSet());
+            assertEquals(racks.size(), 1);
+            assertTrue(racks.contains("rack-1"));
+        });
+
+        // 7. test create ledger
+        try {
+            bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
+            fail("Should be failed due to no enough rack can be found");
+        } catch (BKException.BKNotEnoughBookiesException e) {
+            // ignore
+        }
+
+    }
+
     private static final Logger log = LoggerFactory.getLogger(RackAwareTest.class);
 }

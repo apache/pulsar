@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -108,6 +109,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     protected Field uriField;
     protected UriInfo uriInfo;
     private NonPersistentTopics nonPersistentTopic;
+    private NamespaceResources namespaceResources;
 
     @BeforeClass
     public void initPersistentTopics() throws Exception {
@@ -133,6 +135,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         nonPersistentTopic = spy(NonPersistentTopics.class);
         nonPersistentTopic.setServletContext(new MockServletContext());
         nonPersistentTopic.setPulsar(pulsar);
+        namespaceResources = mock(NamespaceResources.class);
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
         doReturn(null).when(nonPersistentTopic).originalPrincipal();
         doReturn("test").when(nonPersistentTopic).clientAppId();
@@ -304,6 +307,17 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         System.out.println("Message back log for " + SUB_NONE_MESSAGE_ID + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
 
+        // 5) Create replicated subscription
+        response = mock(AsyncResponse.class);
+        String replicateSubName = "sub-none-message-id-replicated-sub";
+        persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, replicateSubName, true,
+                null, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        TopicStats stats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        Assert.assertNotNull(stats.getSubscriptions().get(replicateSubName));
+        Assert.assertTrue(stats.getSubscriptions().get(replicateSubName).isReplicated());
         producer.close();
     }
 
@@ -444,6 +458,33 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(pMetadata2.properties.size(), 1);
             Assert.assertEquals(pMetadata2.properties, topicMetadata);
         });
+    }
+
+    @Test
+    public void testCreateTopicWithReplicationCluster() {
+        final String topicName = "test-topic-ownership";
+        NamespaceName namespaceName = NamespaceName.get(testTenant, testNamespace);
+        CompletableFuture<Optional<Policies>> policyFuture = new CompletableFuture<>();
+        Policies policies = new Policies();
+        policyFuture.complete(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()).thenReturn(namespaceResources);
+        doReturn(policyFuture).when(namespaceResources).getPoliciesAsync(namespaceName);
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        Assert.assertTrue(errCaptor.getValue().getMessage().contains("Namespace does not have any clusters configured"));
+        // Test policy not exist and return 'Namespace not found'
+        CompletableFuture<Optional<Policies>> policyFuture2 = new CompletableFuture<>();
+        policyFuture2.complete(Optional.empty());
+        doReturn(policyFuture2).when(namespaceResources).getPoliciesAsync(namespaceName);
+        response = mock(AsyncResponse.class);
+        errCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
+        Assert.assertTrue(errCaptor.getValue().getMessage().contains("Namespace not found"));
     }
 
     @Test(expectedExceptions = RestException.class)

@@ -25,16 +25,12 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Optional;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
-public class ElasticSearchClientSslTests {
-
-    public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
+public class ElasticSearchClientSslTests extends ElasticSearchTestBase {
 
     final static String INDEX = "myindex";
 
@@ -43,7 +39,7 @@ public class ElasticSearchClientSslTests {
 
     @Test
     public void testSslBasic() throws IOException {
-        try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+        try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
@@ -78,7 +74,7 @@ public class ElasticSearchClientSslTests {
 
     @Test
     public void testSslWithHostnameVerification() throws IOException {
-        try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+        try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
@@ -116,7 +112,7 @@ public class ElasticSearchClientSslTests {
 
     @Test
     public void testSslWithClientAuth() throws IOException {
-        try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+        try(ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")

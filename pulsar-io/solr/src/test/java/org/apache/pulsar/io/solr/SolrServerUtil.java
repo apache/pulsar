@@ -52,19 +52,17 @@ public class SolrServerUtil {
         System.setProperty("solr.log.dir", solrLogDir.getAbsolutePath());
 
         standaloneSolr = new JettySolrRunner(solrHomeDir.getAbsolutePath(), "/solr", port);
-        Thread bg = new Thread() {
-            public void run() {
-                try {
-                    standaloneSolr.start();
-                } catch (Exception e) {
-                    if (e instanceof RuntimeException) {
-                        throw (RuntimeException)e;
-                    } else {
-                        throw new RuntimeException(e);
-                    }
+        Thread bg = new Thread(() -> {
+            try {
+                standaloneSolr.start();
+            } catch (Exception e) {
+                if (e instanceof RuntimeException) {
+                    throw (RuntimeException)e;
+                } else {
+                    throw new RuntimeException(e);
                 }
             }
-        };
+        });
         bg.start();
     }
 

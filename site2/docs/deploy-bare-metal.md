@@ -40,7 +40,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 > * Broker is only supported on 64-bit JVM.
 > * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.
 > * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
-Each machine in your cluster needs to have [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11) installed.
+Each machine in your cluster needs to have [Java 8](https://adoptium.net/?variant=openjdk8) or [Java 11](https://adoptium.net/?variant=openjdk11) installed.
 
 The following is a diagram showing the basic setup:
 
@@ -254,8 +254,8 @@ As you can see from the example above, you will need to specify the following:
 Flag | Description
 :----|:-----------
 `--cluster` | A name for the cluster
-`--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
-`--configuration-store` | The configuration store connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--metadata-store` | A "local" metadata store connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--configuration-metadata-store` | The configuration metadata store connection string for the entire instance. As with the `--metadata-store` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (you had better not use a different port).
 `--web-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (you had better not use a different port).

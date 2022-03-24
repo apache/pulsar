@@ -458,19 +458,9 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         final int iterationCount = 100;
         final CountDownLatch latch1 = new CountDownLatch(iterationCount);
         final CountDownLatch latch2 = new CountDownLatch(iterationCount);
-        Thread thread1 = new Thread() {
-            @Override
-            public void run() {
-                takeLedgerAndRelease(m1, latch1, iterationCount);
-            }
-        };
+        Thread thread1 = new Thread(() -> takeLedgerAndRelease(m1, latch1, iterationCount));
 
-        Thread thread2 = new Thread() {
-            @Override
-            public void run() {
-                takeLedgerAndRelease(m2, latch2, iterationCount);
-            }
-        };
+        Thread thread2 = new Thread(() -> takeLedgerAndRelease(m2, latch2, iterationCount));
         thread1.start();
         thread2.start();
 
@@ -598,19 +588,16 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         });
 
         // getLedgerToRereplicate is waiting until enable rereplication
-        Thread thread1 = new Thread() {
-            @Override
-            public void run() {
-                try {
-                    Long lA = lum.getLedgerToRereplicate();
-                    assertEquals("Should be the ledger I just marked", lA,
-                            ledgerA);
-                    znodeLatch.countDown();
-                } catch (UnavailableException e) {
-                    e.printStackTrace();
-                }
+        Thread thread1 = new Thread(() -> {
+            try {
+                Long lA = lum.getLedgerToRereplicate();
+                assertEquals("Should be the ledger I just marked", lA,
+                        ledgerA);
+                znodeLatch.countDown();
+            } catch (UnavailableException e) {
+                e.printStackTrace();
             }
-        };
+        });
         thread1.start();
 
         try {

@@ -141,17 +141,7 @@ public class NarClassLoader extends URLClassLoader {
 
     public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
-                                                String narExtractionDirectory) throws IOException {
-        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
-                                                narExtractionDirectory);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+    static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
@@ -190,8 +180,10 @@ public class NarClassLoader extends URLClassLoader {
         // process the classpath
         updateClasspath(narWorkingDirectory);
 
-        for (String jar : additionalJars) {
-            addURL(Paths.get(jar).toUri().toURL());
+        if (additionalJars != null) {
+            for (String jar : additionalJars) {
+                addURL(Paths.get(jar).toUri().toURL());
+            }
         }
 
         if (log.isDebugEnabled()) {

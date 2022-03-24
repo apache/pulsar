@@ -20,6 +20,7 @@ A few things to note about this command:
  * The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every 
 time the container is restarted. For details on the volumes you can use `docker volume inspect <sourcename>`
  * For Docker on Windows make sure to configure it to use Linux containers
+ * The docker container will run as UID 10000 and GID 0, by default. You'll need to ensure the mounted volumes give write permission to either UID 10000 or GID 0. Note that UID 10000 is arbitrary, so it is recommended to make these mounts writable for the root group (GID 0).
 
 If you start Pulsar successfully, you will see `INFO`-level log messages like this:
 

@@ -264,10 +264,10 @@ public interface Message<T> {
     Optional<Long> getBrokerPublishTime();
 
     /**
-     * Check whether the message has a index.
+     * Check whether the message has an index.
      *
      * @since 2.9.0
-     * @return true if the message has a index, otherwise false.
+     * @return true if the message has an index, otherwise false.
      */
     boolean hasIndex();
 

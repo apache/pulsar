@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.functions.windowing.evictors;
 
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionContext;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
-
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * An eviction policy that tracks event counts and can

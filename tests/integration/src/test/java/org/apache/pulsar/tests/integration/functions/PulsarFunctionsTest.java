@@ -70,6 +70,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
+import org.apache.pulsar.functions.api.examples.InitializableFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
@@ -1429,6 +1430,36 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         deleteFunction(functionName);
 
         getFunctionInfoNotFound(functionName);
+    }
+
+
+    protected void testInitFunction(Runtime runtime) throws Exception {
+        if (runtime != Runtime.JAVA) {
+            // only java support init function
+            return;
+        }
+
+        Schema<?> schema = Schema.STRING;
+
+        String inputTopicName = "persistent://public/default/test-init-" + runtime + "-input-" + randomName(8);
+        String outputTopicName = "test-init-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
+
+        String functionName = "test-init-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema,
+                Collections.singletonMap("publish-topic", outputTopicName), null, null, null);
+
+        // publish and consume result
+        publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
     }
 
     protected void testLoggingFunction(Runtime runtime) throws Exception {

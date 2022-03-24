@@ -113,11 +113,11 @@ public class SchemasResourceBase extends AdminResource {
         });
     }
 
-    public void deleteSchema(boolean authoritative, AsyncResponse response) {
+    public void deleteSchema(boolean authoritative, AsyncResponse response, boolean force) {
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
-        pulsar().getSchemaRegistryService().deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""))
+        pulsar().getSchemaRegistryService().deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force)
                 .handle((version, error) -> {
                     if (isNull(error)) {
                         response.resume(Response.ok()

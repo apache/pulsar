@@ -72,10 +72,10 @@ class CmdPackages extends CmdBase {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
 
-        @Parameter(names = "--description", description = "descriptions of a package", required = true)
+        @Parameter(names = {"-d", "--description"}, description = "descriptions of a package", required = true)
         private String description;
 
-        @Parameter(names = "--contact", description = "contact info of a package")
+        @Parameter(names = {"-c", "--contact"}, description = "contact info of a package")
         private String contact;
 
         @DynamicParameter(names = {"--properties", "-P"},  description = "external information of a package")
