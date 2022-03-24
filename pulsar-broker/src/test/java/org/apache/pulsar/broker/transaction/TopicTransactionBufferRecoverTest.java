@@ -59,6 +59,7 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -452,7 +453,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
 
     @Test(timeOut=30000)
-    public void testTransactionBufferRecoverThrowBrokerMetadataException() throws Exception {
+    public void testTransactionBufferRecoverThrowPulsarClientException() throws Exception {
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowBrokerMetadataException";
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -469,23 +470,55 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         txn.commit().get();
 
-        // take snapshot
         PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
         TransactionBufferSnapshotService transactionBufferSnapshotService =
                 mock(TransactionBufferSnapshotService.class);
         SystemTopicClient.Reader<TransactionBufferSnapshot> reader = mock(SystemTopicClient.Reader.class);
-        // mock reader can't read snapshot fail
-        doThrow(new PulsarClientException.BrokerMetadataException("")).when(reader).hasMoreEvents();
-        doReturn(CompletableFuture.completedFuture(reader)).when(transactionBufferSnapshotService).createReader(any());
+        SystemTopicClient.Writer<TransactionBufferSnapshot> writer = mock(SystemTopicClient.Writer.class);
 
+        doReturn(CompletableFuture.completedFuture(reader)).when(transactionBufferSnapshotService).createReader(any());
+        doReturn(CompletableFuture.completedFuture(writer)).when(transactionBufferSnapshotService).createWriter(any());
         Field field = PulsarService.class.getDeclaredField("transactionBufferSnapshotService");
         field.setAccessible(true);
         TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal =
                 (TransactionBufferSnapshotService) field.get(getPulsarServiceList().get(0));
+        // mock reader can't read snapshot fail
+        doThrow(new PulsarClientException("test")).when(reader).hasMoreEvents();
+        // check reader close topic
+        checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
+                transactionBufferSnapshotService, originalTopic, field, producer);
+        doReturn(true).when(reader).hasMoreEvents();
+
+        // mock create reader fail
+        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
+                .when(transactionBufferSnapshotService).createReader(any());
+        // check create reader fail close topic
+        originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
+                transactionBufferSnapshotService, originalTopic, field, producer);
+        doReturn(CompletableFuture.completedFuture(reader)).when(transactionBufferSnapshotService).createReader(any());
+
+        // check create writer fail close topic
+        originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        // mock create writer fail
+        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
+                .when(transactionBufferSnapshotService).createWriter(any());
+        checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
+                transactionBufferSnapshotService, originalTopic, field, producer);
+
+    }
+
+    private void checkCloseTopic(PulsarClient pulsarClient,
+                                 TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal,
+                                 TransactionBufferSnapshotService transactionBufferSnapshotService,
+                                 PersistentTopic originalTopic,
+                                 Field field, Producer<byte[]> producer) throws Exception {
         field.set(getPulsarServiceList().get(0), transactionBufferSnapshotService);
 
-        // recover again will throw BrokerMetadataException then close topic
+        // recover again will throw then close topic
         new TopicTransactionBuffer(originalTopic);
         Awaitility.await().untilAsserted(() -> {
             // isFenced means closed
@@ -493,10 +526,11 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             close.setAccessible(true);
             assertTrue((boolean) close.get(originalTopic));
         });
+
         field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceOriginal);
 
         // topic recover success
-        txn = pulsarClient.newTransaction()
+        Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
