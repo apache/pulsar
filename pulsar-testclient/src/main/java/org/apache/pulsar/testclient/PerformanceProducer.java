@@ -761,8 +761,10 @@ public class PerformanceProducer {
                         if (!arguments.isAbortTransaction) {
                             transaction.commit()
                                     .thenRun(() -> {
-                                        log.info("Committed transaction {}",
-                                                transaction.getTxnID().toString());
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("Committed transaction {}",
+                                                    transaction.getTxnID().toString());
+                                        }
                                         totalEndTxnOpSuccessNum.increment();
                                         numTxnOpSuccess.increment();
                                     })
@@ -774,11 +776,13 @@ public class PerformanceProducer {
                                     });
                         } else {
                             transaction.abort().thenRun(() -> {
-                                log.info("Abort transaction {}", transaction.getTxnID().toString());
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Abort transaction {}", transaction.getTxnID().toString());
+                                }
                                 totalEndTxnOpSuccessNum.increment();
                                 numTxnOpSuccess.increment();
                             }).exceptionally(exception -> {
-                                log.error("Commit transaction {} failed with exception",
+                                log.error("Abort transaction {} failed with exception",
                                         transaction.getTxnID().toString(),
                                         exception);
                                 totalEndTxnOpFailNum.increment();

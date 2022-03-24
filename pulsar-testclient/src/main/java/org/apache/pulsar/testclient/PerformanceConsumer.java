@@ -439,6 +439,9 @@ public class PerformanceConsumer {
                     if (!arguments.isAbortTransaction) {
                         transaction.commit()
                                 .thenRun(() -> {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Commit transaction {}", transaction.getTxnID());
+                                    }
                                     totalEndTxnOpSuccessNum.increment();
                                     numTxnOpSuccess.increment();
                                 })
@@ -449,11 +452,13 @@ public class PerformanceConsumer {
                                 });
                     } else {
                         transaction.abort().thenRun(() -> {
-                            log.info("Abort transaction {}", transaction.getTxnID().toString());
+                            if (log.isDebugEnabled()) {
+                                log.debug("Abort transaction {}", transaction.getTxnID());
+                            }
                             totalEndTxnOpSuccessNum.increment();
                             numTxnOpSuccess.increment();
                         }).exceptionally(exception -> {
-                            log.error("Commit transaction {} failed with exception",
+                            log.error("Abort transaction {} failed with exception",
                                     transaction.getTxnID().toString(),
                                     exception);
                             totalEndTxnOpFailNum.increment();
