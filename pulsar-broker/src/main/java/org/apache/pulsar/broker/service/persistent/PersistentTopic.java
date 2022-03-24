@@ -2433,6 +2433,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
                         preCreateSubscriptionForCompactionIfNeeded());
             });
+        }).exceptionally(ex -> {
+            log.error("update namespace polices : {} error", data, ex);
+            throw FutureUtil.wrapToCompletionException(ex);
         });
     }
 
