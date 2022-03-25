@@ -27,7 +27,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  * Data class containing three components comprising all the data available for the leader broker about other brokers: -
  * The local broker data which is written to ZooKeeper by each individual broker (LocalBrokerData). - The time average
  * bundle data which is written to ZooKeeper by the leader broker (TimeAverageBrokerData). - The preallocated bundles
- * which are not written to ZooKeeper but are maintained by the leader broker (Map<String, BundleData>).
+ * which are not written to ZooKeeper but are maintained by the leader broker (Map&lt;String, BundleData&gt;).
  */
 @Data
 public class BrokerData {
