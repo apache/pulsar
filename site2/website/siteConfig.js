@@ -102,9 +102,9 @@ const siteVariables = {
 };
 
 const siteConfig = {
-  title: 'Apache Pulsar' /* title for your website */,
+  title: "Apache Pulsar" /* title for your website */,
   disableTitleTagline: true,
-  tagline: '',
+  tagline: "",
   url: url /* your website url */,
   baseUrl: baseUrl /* base url for your project */,
   // For github.io type URLs, you would set the url and baseUrl like:
@@ -114,80 +114,79 @@ const siteConfig = {
   editUrl: `${githubUrl}/edit/master/site2/docs/`,
 
   // Used for publishing and more
-  projectName: 'pulsar',
-  organizationName: 'apache',
+  projectName: "pulsar",
+  organizationName: "apache",
   // For top-level user or org sites, the organization is still the same.
   // e.g., for the https://JoelMarcey.github.io site, it would be set like...
   //   organizationName: 'JoelMarcey'
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    {doc: 'standalone', label: 'Docs'},
-    {page: 'download', label: 'Download'},
-    {doc: 'client-libraries', label: 'Clients'},
-    {href: '#restapis', label: 'REST APIs'},
-    {href: '#cli', label: 'Cli'},
-    {blog: true, label: 'Blog'},
-    {href: '#community', label: 'Community'},
-    {href: '#apache', label: 'Apache'},
+    { doc: "standalone", label: "Docs" },
+    { page: "download", label: "Download" },
+    { doc: "client-libraries", label: "Clients" },
+    { href: "#restapis", label: "REST APIs" },
+    { href: "#cli", label: "Cli" },
+    { blog: true, label: "Blog" },
+    { href: "#community", label: "Community" },
+    { href: "#apache", label: "Apache" },
+    { href: "https://pulsar-next.staged.apache.org/", label: "New Website(Beta)" },
     // Determines search bar position among links
     //{ search: true },
     // Determines language drop down position among links
-    { languages: true }
+    { languages: true },
   ],
 
   // If you have users set above, you add it here:
   users: [],
 
   /* path to images for header/footer */
-  headerIcon: 'img/pulsar.svg',
-  footerIcon: 'img/pulsar.svg',
-  favicon: 'img/pulsar.ico',
+  headerIcon: "img/pulsar.svg",
+  footerIcon: "img/pulsar.svg",
+  favicon: "img/pulsar.ico",
   algolia: {
-    apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
-    indexName: 'apache_pulsar',
+    apiKey: "d226a455cecdd4bc18a554c1b47e5b52",
+    indexName: "apache_pulsar",
     algoliaOptions: {
-      facetFilters: ['language:LANGUAGE', 'version:VERSION'],
+      facetFilters: ["language:LANGUAGE", "version:VERSION"],
     },
   },
-  gaTrackingId: 'UA-102219959-1',
+  gaTrackingId: "UA-102219959-1",
 
   /* colors for website */
   colors: {
-    primaryColor: '#188fff',
-    secondaryColor: '#205C3B',
+    primaryColor: "#188fff",
+    secondaryColor: "#205C3B",
   },
-  translationRecruitingLink: 'https://crowdin.com/project/apache-pulsar',
+  translationRecruitingLink: "https://crowdin.com/project/apache-pulsar",
   // This copyright info is used in /core/Footer.js and blog rss/atom feeds.
   copyright:
-    'Copyright © ' +
+    "Copyright © " +
     new Date().getFullYear() +
-    ' The Apache Software Foundation. All Rights Reserved.' +
-    ' Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.',
+    " The Apache Software Foundation. All Rights Reserved." +
+    " Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.",
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks
-    theme: 'atom-one-dark',
+    theme: "atom-one-dark",
   },
 
   // Add custom scripts here that would be placed in <script> tags
   scripts: [
-    'https://buttons.github.io/buttons.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js',
-    `${baseUrl}js/custom.js`
+    "https://buttons.github.io/buttons.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js",
+    `${baseUrl}js/custom.js`,
   ],
-  stylesheets: [
-    `${baseUrl}css/code-blocks-buttons.css`
-  ],
+  stylesheets: [`${baseUrl}css/code-blocks-buttons.css`],
 
   /* On page navigation for the current documentation page */
-  onPageNav: 'separate',
+  onPageNav: "separate",
 
   /* Open Graph and Twitter card images */
   //ogImage: 'img/docusaurus.png',
   twitter: true,
-  twitterUsername: 'apache_pulsar',
-  twitterImage: 'img/pulsar.svg',
+  twitterUsername: "apache_pulsar",
+  twitterImage: "img/pulsar.svg",
 
   disableHeaderTitle: true,
 
@@ -204,9 +203,7 @@ const siteConfig = {
     created at Yahoo! and now a top-level Apache Software Foundation project
   `,
 
-  markdownPlugins: [
-    createVariableInjectionPlugin(siteVariables)
-  ],
+  markdownPlugins: [createVariableInjectionPlugin(siteVariables)],
 };
 
 module.exports = siteConfig;

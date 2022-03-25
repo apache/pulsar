@@ -36,7 +36,7 @@ public interface ByteBufferStateStore extends StateStore {
     void put(String key, ByteBuffer value);
 
     /**
-     * Update the state value for the key, but don't wait for the operation to be completed
+     * Update the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key   name of the key
      * @param value state value of the key
@@ -51,7 +51,7 @@ public interface ByteBufferStateStore extends StateStore {
     void delete(String key);
 
     /**
-     * Delete the state value for the key, but don't wait for the operation to be completed
+     * Delete the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key   name of the key
      */
@@ -66,7 +66,7 @@ public interface ByteBufferStateStore extends StateStore {
     ByteBuffer get(String key);
 
     /**
-     * Retrieve the state value for the key, but don't wait for the operation to be completed
+     * Retrieve the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key name of the key
      * @return the state value for the key.

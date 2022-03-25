@@ -37,9 +37,9 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 /**
  * This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between
  * broker with highest load and broker with lowest load. If the difference is higher than configured thresholds
- * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} and
- * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} then it finds out bundles which can
- * be unloaded to distribute traffic evenly across all brokers.
+ * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} or
+ * {@link ServiceConfiguration#loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold()} then it finds out
+ * bundles which can be unloaded to distribute traffic evenly across all brokers.
  *
  */
 @Slf4j
@@ -148,7 +148,6 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                                     : shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
                             return Triple.of(bundle, bundleData, throughput);
                         }).filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
-                        .filter(e -> overloadedBrokerData.getBundles().contains(e.getLeft()))
                         .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight())).forEach((e) -> {
                             String bundle = e.getLeft();
                             BundleData bundleData = e.getMiddle();

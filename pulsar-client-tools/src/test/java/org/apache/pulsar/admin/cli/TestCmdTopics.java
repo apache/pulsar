@@ -28,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import java.io.ByteArrayOutputStream;
@@ -45,23 +44,13 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
-import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-@PrepareForTest({CmdFunctions.class})
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*" })
 public class TestCmdTopics {
 
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
     private static final String PERSISTENT_TOPIC_URL = "persistent://";
     private static final String PARTITIONED_TOPIC_NAME = "my-topic";
     private static final String URL_SLASH = "/";
@@ -81,8 +70,6 @@ public class TestCmdTopics {
         when(pulsarAdmin.lookups()).thenReturn(mockLookup);
         cmdTopics = spy(new CmdTopics(() -> pulsarAdmin));
         partitionedLookup = spy(cmdTopics.getPartitionedLookup());
-
-        mockStatic(CmdFunctions.class);
     }
 
     @AfterMethod(alwaysRun = true)

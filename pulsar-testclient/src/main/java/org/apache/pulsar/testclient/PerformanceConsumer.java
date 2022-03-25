@@ -88,7 +88,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--conf-file" }, description = "Configuration file")
+        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
         public String confFile;
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
@@ -444,6 +444,9 @@ public class PerformanceConsumer {
                     if (!arguments.isAbortTransaction) {
                         transaction.commit()
                                 .thenRun(() -> {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Commit transaction {}", transaction.getTxnID());
+                                    }
                                     totalEndTxnOpSuccessNum.increment();
                                     numTxnOpSuccess.increment();
                                 })
@@ -454,11 +457,13 @@ public class PerformanceConsumer {
                                 });
                     } else {
                         transaction.abort().thenRun(() -> {
-                            log.info("Abort transaction {}", transaction.getTxnID().toString());
+                            if (log.isDebugEnabled()) {
+                                log.debug("Abort transaction {}", transaction.getTxnID());
+                            }
                             totalEndTxnOpSuccessNum.increment();
                             numTxnOpSuccess.increment();
                         }).exceptionally(exception -> {
-                            log.error("Commit transaction {} failed with exception",
+                            log.error("Abort transaction {} failed with exception",
                                     transaction.getTxnID().toString(),
                                     exception);
                             totalEndTxnOpFailNum.increment();

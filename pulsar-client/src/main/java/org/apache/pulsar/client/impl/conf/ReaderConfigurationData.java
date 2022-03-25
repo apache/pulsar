@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
 
 @Data
@@ -60,6 +61,11 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private transient List<Range> keyHashRanges;
 
     private boolean poolMessages = false;
+
+    private boolean autoUpdatePartitions = true;
+    private long autoUpdatePartitionsIntervalSeconds = 60;
+
+    private transient List<ReaderInterceptor<T>> readerInterceptorList;
 
     @JsonIgnore
     public String getTopicName() {

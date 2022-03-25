@@ -75,7 +75,11 @@ for conf_filename in conf_files:
             lines[idx] = '%s=%s\n' % (k, v)
 
 
-    # Add new keys from Env
+    # Ensure we have a new-line at the end of the file, to avoid issue
+    # when appending more lines to the config
+    lines.append('\n')
+    
+    # Add new keys from Env    
     for k in sorted(os.environ.keys()):
         v = os.environ[k]
         if not k.startswith(PF_ENV_PREFIX):

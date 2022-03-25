@@ -111,6 +111,12 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
        testLoggingFunction(Runtime.JAVA);
    }
 
+
+   @Test(groups = {"java_function", "function"})
+   public void testInitFunction() throws Exception {
+	   testInitFunction(Runtime.JAVA);
+   }
+
    @Test(groups = {"java_function", "function"})
    public void testTumblingCountWindowTest() throws Exception {
        String[] EXPECTED_RESULTS = {

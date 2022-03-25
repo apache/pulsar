@@ -23,14 +23,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.JavaInstance.AsyncFuncRequest;
@@ -56,7 +53,7 @@ public class JavaInstanceTest {
         assertEquals(testString + "-lambda", result.getResult());
         instance.close();
     }
-    
+
     @Test
     public void testNullReturningFunction() throws Exception  {
     	JavaInstance instance = new JavaInstance(
@@ -121,7 +118,7 @@ public class JavaInstanceTest {
         assertEquals(testString + "-lambda", resultHolder.get().getResult());
         instance.close();
     }
-    
+
     @Test
     public void testNullReturningAsyncFunction() throws Exception {
         InstanceConfig instanceConfig = new InstanceConfig();
@@ -235,7 +232,7 @@ public class JavaInstanceTest {
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
         instance.close();
     }
-    
+
 	private static class UserException extends Exception {
     	public UserException(String msg) {
     		super(msg);

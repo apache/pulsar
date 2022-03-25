@@ -49,6 +49,7 @@ jobs:
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
+          list-files: csv
 
       - name: Check changed files
         id: check_changes
@@ -99,7 +100,7 @@ jobs:
 
       - name: run integration tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: ./build/run_integration_group.sh BACKWARDS_COMPAT
+        run: CHANGED_TESTS="${{ steps.changes.outputs.tests_files }}" ./build/run_integration_group.sh BACKWARDS_COMPAT
 
       - name: Upload container logs
         uses: actions/upload-artifact@v2

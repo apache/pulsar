@@ -72,7 +72,6 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -245,10 +244,6 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
         jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
 
-        jcommander.addCommand("remove-schema-compatibility-strategy", new RemoveSchemaCompatibilityStrategy());
-        jcommander.addCommand("set-schema-compatibility-strategy", new SetSchemaCompatibilityStrategy());
-        jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
-
         initDeprecatedCommands();
     }
 
@@ -404,10 +399,10 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks,"
+        @Parameter(names = {"-a", "--actions"}, description = "Actions to be granted (produce,consume,sources,sinks,"
                 + "functions,packages)", required = true)
         private List<String> actions;
 
@@ -426,7 +421,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which revoke permissions", required = true)
         private String role;
 
         @Override
@@ -930,10 +925,12 @@ public class CmdTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to reset position on", required = true)
         private String subscriptionName;
 
-        @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId where to create the subscription. "
+        @Parameter(names = { "-m" , "--messageId" }, description = "messageId where to create the subscription. "
                 + "It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
         private String messageIdStr = "latest";
+
+        @Parameter(names = { "-r", "--replicated" }, description = "replicated subscriptions", required = false)
+        private boolean replicated = false;
 
         @Override
         void run() throws PulsarAdminException {
@@ -947,7 +944,7 @@ public class CmdTopics extends CmdBase {
                 messageId = validateMessageIdString(messageIdStr);
             }
 
-            getTopics().createSubscription(topic, subscriptionName, messageId);
+            getTopics().createSubscription(topic, subscriptionName, messageId, replicated);
         }
     }
 
@@ -2814,50 +2811,6 @@ public class CmdTopics extends CmdBase {
             }
             print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
 
-        }
-    }
-
-    @Parameters(commandDescription = "Remove schema compatibility strategy on a topic")
-    private class RemoveSchemaCompatibilityStrategy extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topicPolicies().removeSchemaCompatibilityStrategy(persistentTopic);
-        }
-    }
-
-    @Parameters(commandDescription = "Set schema compatibility strategy on a topic")
-    private class SetSchemaCompatibilityStrategy extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Parameter(names = {"--strategy", "-s"}, description = "Schema compatibility strategy: [UNDEFINED, "
-                + "ALWAYS_INCOMPATIBLE, ALWAYS_COMPATIBLE, BACKWARD, FORWARD, FULL, BACKWARD_TRANSITIVE, "
-                + "FORWARD_TRANSITIVE, FULL_TRANSITIVE]", required = true)
-        private SchemaCompatibilityStrategy strategy;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topicPolicies().setSchemaCompatibilityStrategy(persistentTopic, strategy);
-        }
-    }
-
-    @Parameters(commandDescription = "Get schema compatibility strategy on a topic")
-    private class GetSchemaCompatibilityStrategy extends CliCommand {
-        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
-
-        @Parameter(names = {"-ap", "--applied"}, description = "Get the applied policy of the topic")
-        private boolean applied = false;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topicPolicies().getSchemaCompatibilityStrategy(persistentTopic, applied));
         }
     }
 }

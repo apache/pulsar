@@ -352,26 +352,26 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.73.Final.jar
-    - io.netty-netty-codec-4.1.73.Final.jar
-    - io.netty-netty-codec-dns-4.1.73.Final.jar
-    - io.netty-netty-codec-http-4.1.73.Final.jar
-    - io.netty-netty-codec-http2-4.1.73.Final.jar
-    - io.netty-netty-codec-socks-4.1.73.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.73.Final.jar
-    - io.netty-netty-common-4.1.73.Final.jar
-    - io.netty-netty-handler-4.1.73.Final.jar
-    - io.netty-netty-handler-proxy-4.1.73.Final.jar
-    - io.netty-netty-resolver-4.1.73.Final.jar
-    - io.netty-netty-resolver-dns-4.1.73.Final.jar
-    - io.netty-netty-transport-4.1.73.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.73.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.73.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.73.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.73.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.73.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.46.Final.jar
-    - io.netty-netty-tcnative-classes-2.0.46.Final.jar
+    - io.netty-netty-buffer-4.1.74.Final.jar
+    - io.netty-netty-codec-4.1.74.Final.jar
+    - io.netty-netty-codec-dns-4.1.74.Final.jar
+    - io.netty-netty-codec-http-4.1.74.Final.jar
+    - io.netty-netty-codec-http2-4.1.74.Final.jar
+    - io.netty-netty-codec-socks-4.1.74.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.74.Final.jar
+    - io.netty-netty-common-4.1.74.Final.jar
+    - io.netty-netty-handler-4.1.74.Final.jar
+    - io.netty-netty-handler-proxy-4.1.74.Final.jar
+    - io.netty-netty-resolver-4.1.74.Final.jar
+    - io.netty-netty-resolver-dns-4.1.74.Final.jar
+    - io.netty-netty-transport-4.1.74.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.74.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.74.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.74.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.74.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.74.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.48.Final.jar
+    - io.netty-netty-tcnative-classes-2.0.48.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -494,7 +494,7 @@ The Apache Software License, Version 2.0
     - org.apache.curator-curator-framework-5.1.0.jar
     - org.apache.curator-curator-recipes-5.1.0.jar
   * Apache Yetus
-    - org.apache.yetus-audience-annotations-0.5.0.jar
+    - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
     - io.kubernetes-client-java-12.0.1.jar
     - io.kubernetes-client-java-api-12.0.1.jar
@@ -518,9 +518,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-3.9.8.jar
     - io.vertx-vertx-web-common-3.9.8.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.6.3.jar
-    - org.apache.zookeeper-zookeeper-jute-3.6.3.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.6.3.jar
+    - org.apache.zookeeper-zookeeper-3.8.0.jar
+    - org.apache.zookeeper-zookeeper-jute-3.8.0.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.8.0.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.7.jar
   * Google HTTP Client

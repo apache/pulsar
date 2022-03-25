@@ -763,8 +763,8 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
     std::shared_ptr<PendingCallbacks> pendingCallbacks;
     if (pendingMessagesQueue_.empty()) {
         // If there are no pending messages, reset the timeout to the configured value.
-        sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
         LOG_DEBUG(getName() << "Producer timeout triggered on empty pending message queue");
+        asyncWaitSendTimeout(milliseconds(conf_.getSendTimeout()));
     } else {
         // If there is at least one message, calculate the diff between the message timeout and
         // the current time.
@@ -774,17 +774,14 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
             LOG_DEBUG(getName() << "Timer expired. Calling timeout callbacks.");
             pendingCallbacks = getPendingCallbacksWhenFailed();
             // Since the pending queue is cleared now, set timer to expire after configured value.
-            sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
+            asyncWaitSendTimeout(milliseconds(conf_.getSendTimeout()));
         } else {
             // The diff is greater than zero, set the timeout to the diff value
             LOG_DEBUG(getName() << "Timer hasn't expired yet, setting new timeout " << diff);
-            sendTimer_->expires_from_now(diff);
+            asyncWaitSendTimeout(diff);
         }
     }
 
-    // Asynchronously wait for the timeout to trigger
-    sendTimer_->async_wait(
-        std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
     lock.unlock();
     if (pendingCallbacks) {
         pendingCallbacks->complete(ResultTimeout);
@@ -946,10 +943,20 @@ void ProducerImpl::startSendTimeoutTimer() {
     // timeout to happen.
     if (!sendTimer_ && conf_.getSendTimeout() > 0) {
         sendTimer_ = executor_->createDeadlineTimer();
-        sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
-        sendTimer_->async_wait(
-            std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
+        asyncWaitSendTimeout(milliseconds(conf_.getSendTimeout()));
     }
+}
+
+void ProducerImpl::asyncWaitSendTimeout(DurationType expiryTime) {
+    sendTimer_->expires_from_now(expiryTime);
+
+    ProducerImplBaseWeakPtr weakSelf = shared_from_this();
+    sendTimer_->async_wait([weakSelf](const boost::system::error_code& err) {
+        auto self = weakSelf.lock();
+        if (self) {
+            std::static_pointer_cast<ProducerImpl>(self)->handleSendTimeout(err);
+        }
+    });
 }
 
 }  // namespace pulsar
