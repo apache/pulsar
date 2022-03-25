@@ -519,57 +519,52 @@ public abstract class TransactionsBase extends AdminResource {
                     topicFuture.whenComplete((optionalTopic, e) -> {
 
                         if (e != null) {
-                            asyncResponse.resume(new RestException(e));
+                            resumeAsyncResponseExceptionally(asyncResponse, e);
                             return;
                         }
                         if (!optionalTopic.isPresent()) {
-                            asyncResponse.resume(new RestException(TEMPORARY_REDIRECT,
-                                    "Topic is not owned by this broker!"));
+                            asyncResponse.resume(new RestException(NOT_FOUND, "Topic not found!"));
                             return;
                         }
                         Topic topicObject = optionalTopic.get();
-                        if (topicObject instanceof PersistentTopic) {
-                            try {
-                                ManagedLedger managedLedger =
-                                        ((PersistentTopic) topicObject).getPendingAckManagedLedger(subName).get();
-                                TransactionPendingAckInternalStats stats =
-                                        new TransactionPendingAckInternalStats();
-                                TransactionLogStats pendingAckLogStats = new TransactionLogStats();
-                                pendingAckLogStats.managedLedgerName = managedLedger.getName();
-                                pendingAckLogStats.managedLedgerInternalStats =
-                                        managedLedger.getManagedLedgerInternalStats(metadata).get();
-                                stats.pendingAckLogStats = pendingAckLogStats;
-                                asyncResponse.resume(stats);
-                            } catch (Exception exception) {
-                                if (exception instanceof ExecutionException) {
-                                    if (exception.getCause() instanceof ServiceUnitNotReadyException) {
-                                        asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                                                exception.getCause()));
-                                        return;
-                                    } else if (exception.getCause() instanceof NotAllowedException) {
-                                        asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
-                                                exception.getCause()));
-                                        return;
-                                    } else if (exception.getCause() instanceof SubscriptionNotFoundException) {
-                                        asyncResponse.resume(new RestException(NOT_FOUND, exception.getCause()));
-                                        return;
-                                    }
+                        try {
+                            ManagedLedger managedLedger =
+                                    ((PersistentTopic) topicObject).getPendingAckManagedLedger(subName).get();
+                            TransactionPendingAckInternalStats stats =
+                                    new TransactionPendingAckInternalStats();
+                            TransactionLogStats pendingAckLogStats = new TransactionLogStats();
+                            pendingAckLogStats.managedLedgerName = managedLedger.getName();
+                            pendingAckLogStats.managedLedgerInternalStats =
+                                    managedLedger.getManagedLedgerInternalStats(metadata).get();
+                            stats.pendingAckLogStats = pendingAckLogStats;
+                            asyncResponse.resume(stats);
+                        } catch (Exception exception) {
+                            if (exception instanceof ExecutionException) {
+                                if (exception.getCause() instanceof ServiceUnitNotReadyException) {
+                                    asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                                            exception.getCause()));
+                                    return;
+                                } else if (exception.getCause() instanceof NotAllowedException) {
+                                    asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
+                                            exception.getCause()));
+                                    return;
+                                } else if (exception.getCause() instanceof SubscriptionNotFoundException) {
+                                    asyncResponse.resume(new RestException(NOT_FOUND, exception.getCause()));
+                                    return;
                                 }
-                                asyncResponse.resume(new RestException(exception));
                             }
-                        } else {
-                            asyncResponse.resume(new RestException(BAD_REQUEST, "Topic is not a persistent topic!"));
+                            asyncResponse.resume(new RestException(exception));
                         }
                     });
                 } else {
-                    asyncResponse.resume(new RestException(TEMPORARY_REDIRECT, "Topic is not owned by this broker!"));
+                    asyncResponse.resume(new RestException(NOT_FOUND, "Topic not found"));
                 }
             } else {
                 asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
                         "This Broker is not configured with transactionCoordinatorEnabled=true."));
             }
         } catch (Exception e) {
-            asyncResponse.resume(new RestException(e.getCause()));
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 
