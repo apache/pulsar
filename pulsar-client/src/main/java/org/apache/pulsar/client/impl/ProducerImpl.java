@@ -1802,7 +1802,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     cnx.channel().close();
                     return;
                 }
-                batchMessageAndSend(false);
+
+                if (isBatchMessagingEnabled()) {
+                    batchMessageAndSend(false);
+                }
                 int messagesToResend = pendingMessages.messagesCount();
                 if (messagesToResend == 0) {
                     if (log.isDebugEnabled()) {
