@@ -42,6 +42,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1963,6 +1964,23 @@ public class Namespaces extends NamespacesBase {
                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceResourceGroup(null);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/scanOffloadedLedgers")
+    @ApiOperation(value = "Trigger the scan of offloaded Ledgers on the LedgerOffloader for the given namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public Map<String, Object> scanOffloadedLedgers(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        try {
+            return internalScanOffloadedLedgers();
+        } catch (Throwable err) {
+            log.error("Error while scanning offloaded ledgers for namespace {}", namespaceName, err);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR,
+                    "Error while scanning ledgers for " + namespaceName);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
