@@ -66,6 +66,7 @@ public class TransactionMetaStoreHandler extends HandlerState
 
     protected final Timer timer;
     private final ExecutorService internalPinnedExecutor;
+    private final ExecutorService externalPinnedExecutor;
 
     private static class RequestTime {
         final long creationTimeMs;
@@ -105,6 +106,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         this.connectionHandler.grabCnx();
         this.timer = pulsarClient.timer();
         internalPinnedExecutor = pulsarClient.getInternalExecutorService();
+        externalPinnedExecutor = pulsarClient.getExternalExecutorService();
     }
 
     @Override
@@ -177,9 +179,11 @@ public class TransactionMetaStoreHandler extends HandlerState
         // this method is executed in internalPinnedExecutor.
         pendingRequests.forEach((k, op) -> {
             if (op != null && !op.callback.isDone()) {
-                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                CompletableFuture<?> callback = op.callback;
+                externalPinnedExecutor.execute(() ->
+                        callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
                         "Could not get response from transaction meta store when "
-                                + "the transaction meta store has already close."));
+                                + "the transaction meta store has already close.")));
                 onResponse(op);
             }
         });
@@ -234,7 +238,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Got new txn response {} for request {}", txnID, requestId);
                 }
-                op.callback.complete(txnID);
+                CompletableFuture<TxnID> callback = op.callback;
+                externalPinnedExecutor.execute(() -> callback.complete(txnID));
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
@@ -318,7 +323,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Add publish partition for request {} success.", requestId);
                 }
-                op.callback.complete(null);
+                CompletableFuture<Void> callback = op.callback;
+                externalPinnedExecutor.execute(() -> callback.complete(null));
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
@@ -400,7 +406,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Add subscription to txn success for request {}.", requestId);
                 }
-                op.callback.complete(null);
+                CompletableFuture<Void> callback = op.callback;
+                externalPinnedExecutor.execute(() -> callback.complete(null));
             } else {
                 LOG.error("Add subscription to txn failed for request {} error {}.",
                         requestId, error);
@@ -483,7 +490,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Got end txn response success for request {}", requestId);
                 }
-                op.callback.complete(null);
+                CompletableFuture<Void> callback = op.callback;
+                externalPinnedExecutor.execute(() -> callback.complete(null));
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
                     if (LOG.isDebugEnabled()) {
@@ -527,7 +535,9 @@ public class TransactionMetaStoreHandler extends HandlerState
         }
 
         if (op != null) {
-            op.callback.completeExceptionally(getExceptionByServerError(error, message));
+            CompletableFuture<?> callback = op.callback;
+            externalPinnedExecutor.execute(() ->
+                    callback.completeExceptionally(getExceptionByServerError(error, message)));
         }
         return false;
     }
@@ -665,26 +675,29 @@ public class TransactionMetaStoreHandler extends HandlerState
                 return true;
             case Closing:
             case Closed:
-                op.callback.completeExceptionally(
+                CompletableFuture<?> callback = op.callback;
+                externalPinnedExecutor.execute(() -> callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
-                                        + " is closing or closed."));
+                                        + " is closing or closed.")));
                 onResponse(op);
                 return false;
             case Failed:
             case Uninitialized:
-                op.callback.completeExceptionally(
+                callback = op.callback;
+                externalPinnedExecutor.execute(() -> callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
-                                        + " not connected."));
+                                        + " not connected.")));
                 onResponse(op);
                 return false;
             default:
-                op.callback.completeExceptionally(
+                callback = op.callback;
+                externalPinnedExecutor.execute(() -> callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                transactionCoordinatorId));
+                                transactionCoordinatorId)));
                 onResponse(op);
                 return false;
         }
@@ -707,8 +720,10 @@ public class TransactionMetaStoreHandler extends HandlerState
                 if (lastPolled != null) {
                     OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
                     if (op != null && !op.callback.isDone()) {
-                        op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
-                                "Could not get response from transaction meta store within given timeout."));
+                        CompletableFuture<?> callback = op.callback;
+                        externalPinnedExecutor.execute(() ->
+                                callback.completeExceptionally(new PulsarClientException.TimeoutException(
+                                "Could not get response from transaction meta store within given timeout.")));
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
                         }

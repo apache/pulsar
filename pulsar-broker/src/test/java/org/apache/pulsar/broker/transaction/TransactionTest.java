@@ -47,6 +47,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -794,5 +795,65 @@ public class TransactionTest extends TransactionTestBase {
         transaction.abort().get();
         timeout = (Timeout) field.get(transaction);
         Assert.assertTrue(timeout.isCancelled());
+    }
+
+    @Test
+    public void testExternalThreadToAcquireSemaphore() throws Exception {
+        long st = System.currentTimeMillis();
+        String topic = NAMESPACE1 + "/test";
+        int numOfTransaction = 1000;
+        int transactionTimeoutInSec = 30;
+        int numOfMessagesPerTransaction = 20;
+
+        Producer<Long> producer = pulsarClient.newProducer(Schema.INT64)
+                .producerName("transaction-send-test")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        CountDownLatch waitSendCompletely = new CountDownLatch(numOfTransaction);
+        AtomicBoolean exitByException = new AtomicBoolean(false);
+
+        for (int i = 0; i < numOfTransaction; i++) {
+            pulsarClient.newTransaction()
+                    .withTransactionTimeout(transactionTimeoutInSec, TimeUnit.SECONDS)
+                    .build().whenComplete((transaction, throwable) -> {
+                        if (throwable != null) {
+                            log.error("Failed to open transaction", throwable);
+                            exitByException.set(true);
+                        } else {
+                            for (long j = 0; j < numOfMessagesPerTransaction; j++) {
+                                producer.newMessage(transaction)
+                                        .value(j)
+                                        .sendAsync()
+                                        .whenComplete((messageId, exception) -> {
+                                            if (exception != null) {
+                                                log.error("Failed to send messages", exception);
+                                                exitByException.set(true);
+                                            }
+                                        });
+                            }
+                            transaction.commit().thenRun(waitSendCompletely::countDown).exceptionally(throwable1 -> {
+                                log.error("Failed to commit the transaction [{}]", transaction, throwable1);
+                                waitSendCompletely.countDown();
+                                exitByException.set(true);
+                                return null;
+                            });
+                        }
+                    });
+        }
+        new Thread(() -> {
+            try {
+                Thread.sleep(30000);
+                exitByException.set(true);
+                log.error("Failed to complete the test in 30 sec");
+                waitSendCompletely.countDown();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
+        waitSendCompletely.await();
+        assertFalse(exitByException.get());
+        log.info("test completely in [{}] secs", (System.currentTimeMillis() - st) / 1000);
     }
 }

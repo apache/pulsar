@@ -1101,6 +1101,11 @@ public class PulsarClientImpl implements PulsarClient {
     public ExecutorService getInternalExecutorService() {
         return internalExecutorProvider.getExecutor();
     }
+
+    public ExecutorService getExternalExecutorService() {
+        return externalExecutorProvider.getExecutor();
+    }
+
     //
     // Transaction related API
     //
