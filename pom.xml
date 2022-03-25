@@ -782,6 +782,11 @@ flexible messaging model and an intuitive client API.</description>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.databind.version}</version>
+      </dependency>
 
       <dependency>
         <artifactId>log4j</artifactId>
