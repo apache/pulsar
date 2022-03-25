@@ -274,6 +274,8 @@ public class MLTransactionLogImpl implements TransactionLog {
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
                     || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
+            } else {
+                outstandingReadsRequests.decrementAndGet();
             }
             log.error("Transaction log init fail error!", exception);
         }
