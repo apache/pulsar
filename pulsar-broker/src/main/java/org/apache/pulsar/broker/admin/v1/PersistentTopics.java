@@ -192,7 +192,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             int numPartitions,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
+            validateNamespaceName(property, cluster, namespace);
             validateTopicName(property, cluster, namespace, encodedTopic);
+            validateGlobalNamespaceOwnership();
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
