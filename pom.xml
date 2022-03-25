@@ -227,7 +227,7 @@ flexible messaging model and an intuitive client API.</description>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
-    <awaitility.version>4.0.3</awaitility.version>
+    <awaitility.version>4.2.0</awaitility.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
