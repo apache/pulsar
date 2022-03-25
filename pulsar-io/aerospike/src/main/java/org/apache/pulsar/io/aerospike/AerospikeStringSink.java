@@ -19,9 +19,9 @@
 
 package org.apache.pulsar.io.aerospike;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Aerospike sink that treats incoming messages on the input topic as Strings

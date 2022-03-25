@@ -49,7 +49,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
@@ -206,6 +206,13 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         waitCacheInit(topicName);
         Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
         assertEquals(max.intValue(), pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer());
+
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 15);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace).intValue(), 15));
+        admin.namespaces().removeMaxUnackedMessagesPerConsumer(myNamespace);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace), null));
 
         admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 10);
         Awaitility.await().untilAsserted(()

@@ -216,7 +216,7 @@ std::string TopicName::getLookupName() {
     return ss.str();
 }
 
-std::string TopicName::toString() {
+std::string TopicName::toString() const {
     std::stringstream ss;
     std::string seperator("/");
     if (isV2Topic_ && cluster_.empty()) {
@@ -230,7 +230,7 @@ std::string TopicName::toString() {
 
 bool TopicName::isPersistent() const { return this->domain_ == TopicDomain::Persistent; }
 
-const std::string TopicName::getTopicPartitionName(unsigned int partition) {
+std::string TopicName::getTopicPartitionName(unsigned int partition) const {
     std::stringstream topicPartitionName;
     // make this topic name as well
     topicPartitionName << toString() << PartitionedProducerImpl::PARTITION_NAME_SUFFIX << partition;

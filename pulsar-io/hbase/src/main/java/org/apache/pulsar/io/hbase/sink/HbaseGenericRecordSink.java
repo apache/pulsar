@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.hbase.client.Put;
@@ -32,8 +33,6 @@ import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-
-import java.util.List;
 
 /**
  * A Simple hbase sink, which interprets input Record in generic record.
@@ -75,7 +74,7 @@ public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
 
     private byte[] getBytes(Object value) throws Exception{
         if (value instanceof Integer) {
-            return IntSchema.of().encode((Integer)value);
+            return IntSchema.of().encode((Integer) value);
         } else if (value instanceof Long) {
             return LongSchema.of().encode((Long) value);
         } else if (value instanceof Double) {

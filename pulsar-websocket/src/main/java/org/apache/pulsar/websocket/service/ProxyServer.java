@@ -18,22 +18,18 @@
  */
 package org.apache.pulsar.websocket.service;
 
-import com.google.common.collect.Lists;
-
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-
 import java.util.stream.Collectors;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
-
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
+import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -54,7 +50,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProxyServer {
     private final Server server;
-    private final List<Handler> handlers = Lists.newArrayList();
+    private final List<Handler> handlers = new ArrayList<>();
     private final WebSocketProxyConfiguration conf;
     private final WebExecutorThreadPool executorService;
 
@@ -69,9 +65,9 @@ public class ProxyServer {
         List<ServerConnector> connectors = new ArrayList<>();
 
         if (config.getWebServicePort().isPresent()) {
-			connector = new ServerConnector(server);
-			connector.setPort(config.getWebServicePort().get());
-			connectors.add(connector);
+            connector = new ServerConnector(server);
+            connector.setPort(config.getWebServicePort().get());
+            connectors.add(connector);
         }
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {

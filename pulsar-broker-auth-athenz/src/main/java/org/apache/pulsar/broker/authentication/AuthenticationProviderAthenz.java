@@ -18,23 +18,20 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import java.io.IOException;
-import java.net.SocketAddress;
-import java.util.List;
-import java.security.PublicKey;
-
-import javax.naming.AuthenticationException;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.yahoo.athenz.auth.token.RoleToken;
 import com.yahoo.athenz.zpe.AuthZpeClient;
+import java.io.IOException;
+import java.net.SocketAddress;
+import java.security.PublicKey;
+import java.util.List;
+import javax.naming.AuthenticationException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
@@ -114,7 +111,8 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
             if (!domainNameList.contains(token.getDomain())) {
                 throw new AuthenticationException(
-                        String.format("Athenz RoleToken Domain mismatch, Expected: %s, Found: %s", domainNameList.toString(), token.getDomain()));
+                        String.format("Athenz RoleToken Domain mismatch, Expected: %s, Found: %s",
+                                domainNameList.toString(), token.getDomain()));
             }
 
             // Synchronize for non-thread safe static calls inside athenz library
@@ -135,7 +133,8 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 }
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
+                    exception.getMessage());
             throw exception;
         }
     }

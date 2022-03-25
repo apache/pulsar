@@ -32,13 +32,13 @@ public class PulsarKafkaWorkerConfig extends WorkerConfig {
     private static final ConfigDef CONFIG;
 
     /**
-     * <code>offset.storage.topic</code>
+     * <code>offset.storage.topic</code>.
      */
     public static final String OFFSET_STORAGE_TOPIC_CONFIG = "offset.storage.topic";
     private static final String OFFSET_STORAGE_TOPIC_CONFIG_DOC = "pulsar topic to store kafka connector offsets in";
 
     /**
-     * <code>topic.namespace</code>
+     * <code>topic.namespace</code>.
      */
     public static final String TOPIC_NAMESPACE_CONFIG = "topic.namespace";
     private static final String TOPIC_NAMESPACE_CONFIG_DOC = "namespace of topic name to store the output topics";

@@ -168,6 +168,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionName(String subscriptionName);
 
     /**
+     * Specify the subscription properties for this subscription.
+     * Properties are immutable, and consumers under the same subscription will fail to create a subscription
+     * if they use different properties.
+     * @param subscriptionProperties
+     * @return
+     */
+    ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties);
+
+
+    /**
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
      * 1 second.
      *
@@ -677,7 +687,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
      * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
      *
-     * @default 100
+     * The default value is 10.
      *
      * @param maxPendingChuckedMessage
      * @return
@@ -702,7 +712,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
      * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
      *
-     * @default 100
+     * The default value is 10.
      *
      * @param maxPendingChunkedMessage
      * @return
@@ -724,7 +734,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
-     * won't be able to receive all chunks in expire times (default 1 hour).
+     * won't be able to receive all chunks in expire times (default 1 minute).
      *
      * @param duration
      * @param unit
@@ -741,4 +751,51 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * corruption, deserialization error, etc.).
      */
     ConsumerBuilder<T> poolMessages(boolean poolMessages);
+
+    /**
+     * If it's configured with a non-null value, the consumer will use the processor to process the payload, including
+     * decoding it to messages and triggering the listener.
+     *
+     * Default: null
+     */
+    ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
+
+    /**
+     * Notice: the negativeAckRedeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+     * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff);
+
+    /**
+     * Notice: the redeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+     * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().ackTimeout(10, TimeUnit.SECOND)
+     *              .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> ackTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff);
+
+    /**
+     * Start the consumer in a paused state. When enabled, the consumer does not immediately fetch messages when
+     * {@link #subscribe()} is called. Instead, the consumer waits to fetch messages until {@link Consumer#resume()} is
+     * called.
+     * <p/>
+     * See also {@link Consumer#pause()}.
+     * @default false
+     */
+    ConsumerBuilder<T> startPaused(boolean paused);
 }

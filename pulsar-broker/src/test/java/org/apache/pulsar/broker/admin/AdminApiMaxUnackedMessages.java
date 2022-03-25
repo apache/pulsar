@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -45,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod

@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.collect.Lists;
 import io.netty.util.ReferenceCounted;
 import java.util.Collection;

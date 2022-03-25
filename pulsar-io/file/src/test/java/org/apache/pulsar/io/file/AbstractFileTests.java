@@ -122,6 +122,12 @@ public abstract class AbstractFileTests {
         f.get();
     }
 
+    protected final void generateFiles(int numFiles, int numLines, String directory, String suffix) throws IOException, InterruptedException, ExecutionException {
+        generatorThread = new TestFileGenerator(producedFiles, numFiles, 1, numLines, directory, "prefix", suffix, getPermissions());
+        Future<?> f = executor.submit(generatorThread);
+        f.get();
+    }
+
     protected static final FileAttribute<Set<PosixFilePermission>> getPermissions() {
         Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxrwxrwx");
         return PosixFilePermissions.asFileAttribute(perms);

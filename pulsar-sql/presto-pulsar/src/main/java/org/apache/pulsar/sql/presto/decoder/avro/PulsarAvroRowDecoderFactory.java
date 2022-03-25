@@ -25,7 +25,6 @@ import static io.prestosql.spi.type.TimeType.TIME;
 import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
-
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.prestosql.decoder.DecoderColumnHandle;
@@ -46,11 +45,9 @@ import io.prestosql.spi.type.TypeSignature;
 import io.prestosql.spi.type.TypeSignatureParameter;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
@@ -102,17 +99,18 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
         try {
             columnMetadata = schema.getFields().stream()
                     .map(field ->
-                            new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType, field.name()), parseAvroPrestoType(
-                                    field.name(), field.schema()), field.schema().toString(), null, false, false,
+                            new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType,
+                                    field.name()), parseAvroPrestoType(field.name(), field.schema()),
+                                    field.schema().toString(), null, false, false,
                                     handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(field.name(),
                                     null, null))
 
                     ).collect(toList());
-        }catch (StackOverflowError e){
+        } catch (StackOverflowError e){
             log.warn(e, "Topic "
                     + topicName.toString() + " extractColumnMetadata failed.");
             throw new PrestoException(NOT_SUPPORTED, "Topic "
-                    + topicName.toString() + " schema may contains cyclic definitions.",e);
+                    + topicName.toString() + " schema may contains cyclic definitions.", e);
         }
         return columnMetadata;
     }

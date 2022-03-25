@@ -25,13 +25,16 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.mockito.Mockito.mock;
+
 import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -43,24 +46,31 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class ManagedLedgerFactoryShutdownTest {
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerFactoryShutdownTest.class);
 
-    @Test(timeOut = 5000)
-    public void openEncounteredShutdown() throws Exception {
-        final String ledgerName = UUID.randomUUID().toString();
+    private final String ledgerName = UUID.randomUUID().toString();
+    private final CountDownLatch slowZk = new CountDownLatch(1);
+
+    private MetadataStoreExtended metadataStore;
+    private BookKeeper bookKeeper;
+
+    @BeforeMethod
+    private void setup() {
+
         final long version = 0;
         final long createTimeMillis = System.currentTimeMillis();
 
-        MetadataStore metadataStore = mock(MetadataStore.class);
-        CountDownLatch slowZk = new CountDownLatch(1);
+        metadataStore = mock(MetadataStoreExtended.class);
+        bookKeeper = mock(BookKeeper.class);
+
+
         given(metadataStore.get(any())).willAnswer(inv -> {
             String path = inv.getArgument(0, String.class);
             if (path == null) {
@@ -108,6 +118,7 @@ public class ManagedLedgerFactoryShutdownTest {
             }
         });
         given(metadataStore.put(anyString(), any(), any())).willAnswer(inv -> {
+            @SuppressWarnings("unchecked cast")
             Optional<Long> expectedVersion = inv.getArgument(2, Optional.class);
             return CompletableFuture.supplyAsync(() -> new Stat(inv.getArgument(0, String.class),
                     expectedVersion.orElse(0L) + 1, createTimeMillis,
@@ -116,7 +127,7 @@ public class ManagedLedgerFactoryShutdownTest {
         given(metadataStore.getChildren(anyString()))
                 .willAnswer(inv -> CompletableFuture.supplyAsync(() -> Collections.singletonList("cursor")));
 
-        BookKeeper bookKeeper = mock(BookKeeper.class);
+
         LedgerHandle ledgerHandle = mock(LedgerHandle.class);
         LedgerHandle newLedgerHandle = mock(LedgerHandle.class);
         OrderedExecutor executor = OrderedExecutor.newBuilder().name("Test").build();
@@ -133,6 +144,13 @@ public class ManagedLedgerFactoryShutdownTest {
         }).when(bookKeeper)
                 .asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any()/*callback*/, any(), any());
 
+
+
+    }
+
+    @Test(timeOut = 5000)
+    public void openEncounteredShutdown() throws Exception {
+
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bookKeeper);
         CountDownLatch callbackInvoked = new CountDownLatch(2);
         factory.asyncOpen(ledgerName, new AsyncCallbacks.OpenLedgerCallback() {
@@ -147,7 +165,7 @@ public class ManagedLedgerFactoryShutdownTest {
             }
         }, null);
 
-        factory.asyncOpenReadOnlyCursor(ledgerName, PositionImpl.earliest, new ManagedLedgerConfig(),
+        factory.asyncOpenReadOnlyCursor(ledgerName, PositionImpl.EARLIEST, new ManagedLedgerConfig(),
                 new AsyncCallbacks.OpenReadOnlyCursorCallback() {
                     @Override
                     public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
@@ -174,6 +192,6 @@ public class ManagedLedgerFactoryShutdownTest {
         Assert.assertThrows(ManagedLedgerException.ManagedLedgerFactoryClosedException.class,
                 () -> factory.open(ledgerName));
         Assert.assertThrows(ManagedLedgerException.ManagedLedgerFactoryClosedException.class,
-                () -> factory.openReadOnlyCursor(ledgerName, PositionImpl.earliest, new ManagedLedgerConfig()));
+                () -> factory.openReadOnlyCursor(ledgerName, PositionImpl.EARLIEST, new ManagedLedgerConfig()));
     }
 }

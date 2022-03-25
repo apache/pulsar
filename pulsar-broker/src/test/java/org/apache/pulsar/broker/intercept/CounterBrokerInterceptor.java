@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -31,17 +33,34 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.eclipse.jetty.server.Response;
+
 
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     int beforeSendCount = 0;
     int count = 0;
+    int connectionCreationCount = 0;
+    int producerCount = 0;
+    int consumerCount = 0;
+    int messageCount = 0;
+    int messageDispatchCount = 0;
+    int messageAckCount = 0;
+    int handleAckCount = 0;
+    int txnCount = 0;
+    int committedTxnCount = 0;
+    int abortedTxnCount = 0;
+
     private List<ResponseEvent> responseList = new ArrayList<>();
 
     @Data
@@ -52,18 +71,81 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
+    public void onConnectionCreated(ServerCnx cnx) {
+        if (log.isDebugEnabled()) {
+            log.debug("Connection created {}", cnx);
+        }
+        connectionCreationCount++;
+    }
+
+    @Override
+    public void producerCreated(ServerCnx cnx, Producer producer,
+                                Map<String, String> metadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Producer created with name={}, id={}",
+                    producer.getProducerName(), producer.getProducerId());
+        }
+        producerCount++;
+    }
+
+    @Override
+    public void consumerCreated(ServerCnx cnx,
+                                 Consumer consumer,
+                                 Map<String, String> metadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Consumer created with name={}, id={}",
+                    consumer.consumerName(), consumer.consumerId());
+        }
+        consumerCount++;
+    }
+
+    @Override
+    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
+                                 long entryId,
+                                 Topic.PublishContext publishContext) {
+        if (log.isDebugEnabled()) {
+            log.debug("Message published topic={}, producer={}",
+                    producer.getTopic().getName(), producer.getProducerName());
+        }
+        messageCount++;
+    }
+
+    @Override
+    public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
+                                   long entryId, ByteBuf headersAndPayload) {
+        if (log.isDebugEnabled()) {
+            log.debug("Message dispatched topic={}, consumer={}",
+                    consumer.getSubscription().getTopic().getName(), consumer.consumerName());
+        }
+        messageDispatchCount++;
+    }
+
+    @Override
+    public void messageAcked(ServerCnx cnx, Consumer consumer,
+                              CommandAck ack) {
+        messageAckCount++;
+    }
+
+    @Override
     public void beforeSendMessage(Subscription subscription,
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        log.info("Send message to topic {}, subscription {}",
-            subscription.getTopic(), subscription.getName());
+        if (log.isDebugEnabled()) {
+            log.debug("Send message to topic {}, subscription {}",
+                    subscription.getTopic(), subscription.getName());
+        }
         beforeSendCount++;
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
-        log.info("[{}] On [{}] Pulsar command", count, command.getType().name());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
+        }
+        if (command.getType().equals(BaseCommand.Type.ACK)) {
+            handleAckCount++;
+        }
         count ++;
     }
 
@@ -75,13 +157,17 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void onWebserviceRequest(ServletRequest request) {
         count ++;
-        log.info("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest) request).getRequestURL().toString());
+        }
     }
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count ++;
-        log.info("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest) request).getRequestURL().toString(), response);
+        }
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
@@ -96,6 +182,20 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
+    public void txnOpened(long tcId, String txnID) {
+        txnCount ++;
+    }
+
+    @Override
+    public void txnEnded(String txnID, long txnAction) {
+        if(txnAction == TxnAction.COMMIT_VALUE) {
+            committedTxnCount ++;
+        } else {
+            abortedTxnCount ++;
+        }
+    }
+
+    @Override
     public void initialize(PulsarService pulsarService) throws Exception {
 
     }
@@ -105,12 +205,40 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     }
 
+    public int getHandleAckCount() {
+        return handleAckCount;
+    }
+
     public int getCount() {
         return count;
     }
 
+    public int getProducerCount() {
+        return producerCount;
+    }
+
+    public int getConsumerCount() {
+        return consumerCount;
+    }
+
+    public int getMessagePublishCount() {
+        return messageCount;
+    }
+
+    public int getMessageDispatchCount() {
+        return messageDispatchCount;
+    }
+
+    public int getMessageAckCount() {
+        return messageAckCount;
+    }
+
     public int getBeforeSendCount() {
         return beforeSendCount;
+    }
+
+    public int getConnectionCreationCount() {
+        return connectionCreationCount;
     }
 
     public void clearResponseList() {
@@ -119,5 +247,17 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public List<ResponseEvent> getResponseList() {
         return responseList;
+    }
+
+    public int getTxnCount() {
+        return txnCount;
+    }
+
+    public int getCommittedTxnCount() {
+        return committedTxnCount;
+    }
+
+    public int getAbortedTxnCount() {
+        return abortedTxnCount;
     }
 }

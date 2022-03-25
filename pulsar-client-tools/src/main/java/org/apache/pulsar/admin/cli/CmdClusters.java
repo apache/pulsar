@@ -70,16 +70,12 @@ public class CmdClusters extends CmdBase {
     protected void validateClusterData(ClusterData clusterData) {
         if (clusterData.isBrokerClientTlsEnabled()) {
             if (clusterData.isBrokerClientTlsEnabledWithKeyStore()) {
-                if (StringUtils.isAnyBlank(clusterData.getBrokerClientTlsTrustStoreType(), clusterData.getBrokerClientTlsTrustStore(),
+                if (StringUtils.isAnyBlank(clusterData.getBrokerClientTlsTrustStoreType(),
+                        clusterData.getBrokerClientTlsTrustStore(),
                         clusterData.getBrokerClientTlsTrustStorePassword())) {
                     throw new RuntimeException(
                             "You must specify tls-trust-store-type, tls-trust-store and tls-trust-store-pwd"
                                     + " when enable tls-enable-keystore");
-                }
-            } else {
-                if (StringUtils.isBlank(clusterData.getBrokerClientTrustCertsFilePath())) {
-                    throw new RuntimeException("You must specify tls-trust-certs-filepath"
-                            + " when tls-enable-keystore is not enable");
                 }
             }
         }
@@ -101,7 +97,8 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-a", "--all" }, description = "Delete all data (tenants) of the cluster", required = false)
+        @Parameter(names = { "-a", "--all" },
+                description = "Delete all data (tenants) of the cluster", required = false)
         private boolean deleteAll = false;
 
         void run() throws PulsarAdminException {
@@ -110,7 +107,8 @@ public class CmdClusters extends CmdBase {
             if (deleteAll) {
                 for (String tenant : getAdmin().tenants().getTenants()) {
                     for (String namespace : getAdmin().namespaces().getNamespaces(tenant)) {
-                        // Partitioned topic's schema must be deleted by deletePartitionedTopic() but not delete() for each partition
+                        // Partitioned topic's schema must be deleted by deletePartitionedTopic()
+                        // but not delete() for each partition
                         for (String topic : getAdmin().topics().getPartitionedTopicList(namespace)) {
                             getAdmin().topics().deletePartitionedTopic(topic, true, true);
                         }
@@ -132,7 +130,8 @@ public class CmdClusters extends CmdBase {
         @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names [Pass empty string \"\" to delete list]", required = true)
+        @Parameter(names = "--peer-clusters", description = "Comma separated peer-cluster names "
+                + "[Pass empty string \"\" to delete list]", required = true)
         private String peerClusterNames;
 
         void run() throws PulsarAdminException {
@@ -237,7 +236,7 @@ public class CmdClusters extends CmdBase {
     }
 
     /**
-     * Base command
+     * Base command.
      */
     @Getter
     abstract class BaseCommand extends CliCommand {
@@ -274,10 +273,12 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--broker-url", description = "broker-service-url", required = false)
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
+        @Parameter(names = "--broker-url-secure",
+                description = "broker-service-url for secure connection", required = false)
         protected String brokerServiceUrlTls;
 
-        @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
+        @Parameter(names = "--proxy-url",
+                description = "Proxy-service url when client would like to connect to broker via proxy.")
         protected String proxyServiceUrl;
 
         @Parameter(names = "--auth-plugin", description = "authentication plugin", required = false)
@@ -286,7 +287,8 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--auth-parameters", description = "authentication parameters", required = false)
         protected String authenticationParameters;
 
-        @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
+        @Parameter(names = "--proxy-protocol",
+                description = "protocol to decide type of proxy routing eg: SNI", required = false)
         protected ProxyProtocol proxyProtocol;
 
         @Parameter(names = "--tls-enable", description = "Enable tls connection", required = false)
@@ -295,22 +297,28 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection", required = false)
         protected Boolean tlsAllowInsecureConnection;
 
-        @Parameter(names = "--tls-enable-keystore", description = "Whether use KeyStore type to authenticate", required = false)
+        @Parameter(names = "--tls-enable-keystore",
+                description = "Whether use KeyStore type to authenticate", required = false)
         protected Boolean brokerClientTlsEnabledWithKeyStore;
 
-        @Parameter(names = "--tls-trust-store-type", description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
+        @Parameter(names = "--tls-trust-store-type",
+                description = "TLS TrustStore type configuration for internal client eg: JKS", required = false)
         protected String brokerClientTlsTrustStoreType;
 
-        @Parameter(names = "--tls-trust-store", description = "TLS TrustStore path for internal client", required = false)
+        @Parameter(names = "--tls-trust-store",
+                description = "TLS TrustStore path for internal client", required = false)
         protected String brokerClientTlsTrustStore;
 
-        @Parameter(names = "--tls-trust-store-pwd", description = "TLS TrustStore password for internal client", required = false)
+        @Parameter(names = "--tls-trust-store-pwd",
+                description = "TLS TrustStore password for internal client", required = false)
         protected String brokerClientTlsTrustStorePassword;
 
-        @Parameter(names = "--tls-trust-certs-filepath", description = "path for the trusted TLS certificate file", required = false)
+        @Parameter(names = "--tls-trust-certs-filepath",
+                description = "path for the trusted TLS certificate file", required = false)
         protected String brokerClientTrustCertsFilePath;
 
-        @Parameter(names = "--listener-name", description = "listenerName when client would like to connect to cluster", required = false)
+        @Parameter(names = "--listener-name",
+                description = "listenerName when client would like to connect to cluster", required = false)
         protected String listenerName;
 
         @Parameter(names = "--cluster-config-file", description = "The path to a YAML config file specifying the "

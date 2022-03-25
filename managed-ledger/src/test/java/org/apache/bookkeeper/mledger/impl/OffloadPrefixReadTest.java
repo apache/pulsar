@@ -66,7 +66,7 @@ import org.testng.annotations.Test;
 public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffloadRead() throws Exception {
-        MockLedgerOffloader offloader = spy(new MockLedgerOffloader());
+        MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -93,7 +93,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         UUID secondLedgerUUID = new UUID(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getUidMsb(),
                 ledger.getLedgersInfoAsList().get(1).getOffloadContext().getUidLsb());
 
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         int i = 0;
         for (Entry e : cursor.readEntries(10)) {
             assertEquals(new String(e.getData()), "entry-" + i++);
@@ -122,7 +122,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBookkeeperFirstOffloadRead() throws Exception {
-        MockLedgerOffloader offloader = spy(new MockLedgerOffloader());
+        MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
         MockClock clock = new MockClock();
         offloader.getOffloadPolicies()
                 .setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.BOOKKEEPER_FIRST);
@@ -163,7 +163,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         UUID secondLedgerUUID = new UUID(secondLedger.getOffloadContext().getUidMsb(),
                 secondLedger.getOffloadContext().getUidLsb());
 
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         int i = 0;
         for (Entry e : cursor.readEntries(10)) {
             Assert.assertEquals(new String(e.getData()), "entry-" + i++);

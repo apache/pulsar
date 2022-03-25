@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -38,6 +39,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -77,6 +79,8 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,11 +104,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final ScheduledFuture<?> statsTask;
     private final ScheduledFuture<?> flushCursorsTask;
 
-    private final long cacheEvictionTimeThresholdNanos;
+    private volatile long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
 
     //indicate whether shutdown() is called.
     private volatile boolean closed;
+
+    /**
+     * Keep a flag to indicate whether we're currently connected to the metadata service.
+     */
+    @Getter
+    private boolean metadataServiceAvailable;
 
     private static class PendingInitializeManagedLedger {
 
@@ -118,31 +128,31 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, ClientConfiguration bkClientConfiguration)
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration)
             throws Exception {
         this(metadataStore, bkClientConfiguration, new ManagedLedgerFactoryConfig());
     }
 
     @SuppressWarnings("deprecation")
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, ClientConfiguration bkClientConfiguration,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
                 true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, BookKeeper bookKeeper)
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper)
             throws Exception {
         this(metadataStore, bookKeeper, new ManagedLedgerFactoryConfig());
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, BookKeeper bookKeeper,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, (policyConfig) -> bookKeeper, config);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
@@ -150,7 +160,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 config, NullStatsLogger.INSTANCE);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger)
             throws Exception {
@@ -158,7 +168,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 config, statsLogger);
     }
 
-    private ManagedLedgerFactoryImpl(MetadataStore metadataStore,
+    private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                      BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                      boolean isBookkeeperManaged,
                                      ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
@@ -170,7 +180,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .build();
         cacheEvictionExecutor = Executors
                 .newSingleThreadExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
-
+        this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
         this.metadataStore = metadataStore;
@@ -178,9 +188,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
-        this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats,
+        this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
-        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
+        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
                 config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
 
@@ -190,6 +200,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         cacheEvictionExecutor.execute(this::cacheEvictionTask);
         closed = false;
+
+        metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
     }
 
     static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
@@ -205,6 +217,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
+    }
+
+    private synchronized void handleMetadataStoreNotification(SessionEvent e) {
+        log.info("Received MetadataStore session event: {}", e);
+        metadataServiceAvailable = e.isConnected();
     }
 
     private synchronized void flushCursors() {
@@ -925,8 +942,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         return config;
     }
 
+    @Override
     public EntryCacheManager getEntryCacheManager() {
         return entryCacheManager;
+    }
+
+    @Override
+    public void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos){
+        this.cacheEvictionTimeThresholdNanos = cacheEvictionTimeThresholdNanos;
+    }
+
+    @Override
+    public long getCacheEvictionTimeThreshold(){
+        return cacheEvictionTimeThresholdNanos;
     }
 
     public ManagedLedgerFactoryMXBean getCacheStats() {

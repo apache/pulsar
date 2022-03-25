@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -52,7 +50,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         this.conf = conf;
         this.schema = schema;
         this.interceptors = interceptors;
-        this.schemaCache = new ConcurrentOpenHashMap<>();
+        this.schemaCache =
+                ConcurrentOpenHashMap.<SchemaHash, byte[]>newBuilder().build();
         if (!conf.isMultiSchema()) {
             multiSchemaMode = MultiSchemaMode.Disabled;
         }
@@ -109,7 +108,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
             CompletableFuture<MessageId> sendFuture = internalSendAsync(message);
 
             if (!sendFuture.isDone()) {
-                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush it out
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush
+                // it out
                 triggerFlush();
             }
 
@@ -140,7 +140,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     }
 
     @Override
-    abstract public CompletableFuture<Void> closeAsync();
+    public abstract CompletableFuture<Void> closeAsync();
 
     @Override
     public String getTopic() {
@@ -166,6 +166,12 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected void onSendAcknowledgement(Message<?> message, MessageId msgId, Throwable exception) {
         if (interceptors != null) {
             interceptors.onSendAcknowledgement(this, message, msgId, exception);
+        }
+    }
+
+    protected void onPartitionsChange(String topicName, int partitions) {
+        if (interceptors != null) {
+            interceptors.onPartitionsChange(topicName, partitions);
         }
     }
 

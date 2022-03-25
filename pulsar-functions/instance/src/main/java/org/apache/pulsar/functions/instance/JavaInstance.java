@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -76,11 +75,13 @@ public class JavaInstance implements AutoCloseable {
 
     @VisibleForTesting
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
-        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
+        return handleMessage(record, input, (rec, result) -> {
+        }, cause -> {
+        });
     }
 
     public JavaExecutionResult handleMessage(Record<?> record, Object input,
-                                             BiConsumer<Record, JavaExecutionResult> asyncResultConsumer,
+                                             JavaInstanceRunnable.AsyncResultConsumer asyncResultConsumer,
                                              Consumer<Throwable> asyncFailureHandler) {
         if (context != null) {
             context.setCurrentMessageContext(record);
@@ -131,8 +132,7 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    private void processAsyncResults(BiConsumer<Record, JavaExecutionResult> resultConsumer)
-        throws InterruptedException {
+    private void processAsyncResults(JavaInstanceRunnable.AsyncResultConsumer resultConsumer) throws Exception {
         AsyncFuncRequest asyncResult = pendingAsyncRequests.peek();
         while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
             pendingAsyncRequests.remove(asyncResult);
@@ -157,8 +157,22 @@ public class JavaInstance implements AutoCloseable {
 
     }
 
+    public void initialize() throws Exception {
+        if (function != null) {
+            function.initialize(context);
+        }
+    }
+
     @Override
     public void close() {
+        if (function != null) {
+            try {
+                function.close();
+            } catch (Exception e) {
+                log.error("function closeResource occurred exception", e);
+            }
+        }
+
         context.close();
         executor.shutdown();
     }

@@ -19,15 +19,13 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-
+import java.util.function.Supplier;
 import lombok.Cleanup;
-
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -42,9 +40,10 @@ import org.testng.annotations.Test;
 public class LeaderElectionTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
-    public void basicTest(String provider, String url) throws Exception {
+    public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -74,16 +73,18 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void multipleMembers(String provider, String url) throws Exception {
-        if (provider.equals("Memory")) {
+    public void multipleMembers(String provider, Supplier<String> urlSupplier) throws Exception {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // There are no multiple session in local mem provider
             return;
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
 
         @Cleanup
@@ -110,28 +111,29 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
         LeaderElectionState les1 = le1.elect("test-1").join();
         assertEquals(les1, LeaderElectionState.Leading);
-        assertEquals(le1.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le1.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
         assertEquals(le1.getLeaderValue().join(), Optional.of("test-1"));
         assertEquals(n1.poll(3, TimeUnit.SECONDS), LeaderElectionState.Leading);
 
         LeaderElectionState les2 = le2.elect("test-2").join();
         assertEquals(les2, LeaderElectionState.Following);
         assertEquals(le2.getLeaderValue().join(), Optional.of("test-1"));
-        assertEquals(le2.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le2.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
         assertEquals(n2.poll(3, TimeUnit.SECONDS), LeaderElectionState.Following);
 
         le1.close();
 
         assertEquals(n2.poll(3, TimeUnit.SECONDS), LeaderElectionState.Leading);
         assertEquals(le2.getState(), LeaderElectionState.Leading);
-        assertEquals(le2.getLeaderValueIfPresent(), Optional.of("test-2"));
+        assertEqualsAndRetry(() -> le2.getLeaderValueIfPresent(), Optional.of("test-2"), Optional.empty());
         assertEquals(le2.getLeaderValue().join(), Optional.of("test-2"));
     }
 
     @Test(dataProvider = "impl")
-    public void leaderNodeIsDeletedExternally(String provider, String url) throws Exception {
+    public void leaderNodeIsDeletedExternally(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -156,9 +158,10 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void closeAll(String provider, String url) throws Exception {
+    public void closeAll(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
         CoordinationService cs = new CoordinationServiceImpl(store);
@@ -185,9 +188,10 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
 
     @Test(dataProvider = "impl")
-    public void revalidateLeaderWithinSameSession(String provider, String url) throws Exception {
+    public void revalidateLeaderWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
@@ -205,16 +209,24 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = le.elect("test-2").join();
         assertEquals(les, LeaderElectionState.Leading);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-2"));
-        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-2"));
+        assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-2"), Optional.empty());
     }
 
     @Test(dataProvider = "impl")
-    public void revalidateLeaderWithDifferentSessionsSameValue(String provider, String url) throws Exception {
-        @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+    public void revalidateLeaderWithDifferentSessionsSameValue(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
+            // There are no multiple sessions for the local memory provider
+            return;
+        }
 
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
@@ -232,22 +244,25 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = le.elect("test-1").join();
         assertEquals(les, LeaderElectionState.Leading);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
-        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
     }
 
 
     @Test(dataProvider = "impl")
-    public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, String url) throws Exception {
-        if (provider.equals("Memory")) {
+    public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // There are no multiple sessions for the local memory provider
             return;
         }
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
@@ -265,6 +280,6 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = le.elect("test-2").join();
         assertEquals(les, LeaderElectionState.Following);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
-        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
     }
 }

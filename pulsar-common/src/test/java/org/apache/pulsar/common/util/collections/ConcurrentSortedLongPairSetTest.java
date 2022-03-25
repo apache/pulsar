@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -30,12 +30,9 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class ConcurrentSortedLongPairSetTest {
 
@@ -241,4 +238,11 @@ public class ConcurrentSortedLongPairSetTest {
         assertEquals(set.toString(), toString);
     }
 
+    @Test
+    public void testIsEmpty() {
+        LongPairSet set = new ConcurrentSortedLongPairSet();
+        assertTrue(set.isEmpty());
+        set.add(1, 1);
+        assertFalse(set.isEmpty());
+    }
 }

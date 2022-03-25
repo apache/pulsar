@@ -34,7 +34,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;

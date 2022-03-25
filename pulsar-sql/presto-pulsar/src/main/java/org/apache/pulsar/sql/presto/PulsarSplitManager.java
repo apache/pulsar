@@ -57,10 +57,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -270,7 +270,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         try {
             readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(
                     topicNamePersistenceEncoding,
-                    PositionImpl.earliest, managedLedgerConfig);
+                    PositionImpl.EARLIEST, managedLedgerConfig);
 
             long numEntries = readOnlyCursor.getNumberOfEntries();
             if (numEntries <= 0) {
@@ -362,7 +362,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             try {
                 readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(
                         topicNamePersistenceEncoding,
-                        PositionImpl.earliest, managedLedgerConfig);
+                        PositionImpl.EARLIEST, managedLedgerConfig);
 
                 if (tupleDomain.getDomains().isPresent()) {
                     Domain domain = tupleDomain.getDomains().get().get(PulsarInternalColumn.PUBLISH_TIME
@@ -443,7 +443,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             @Override
             public boolean apply(Entry entry) {
                 try {
-                    long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     return entryTimestamp <= timestamp;
                 } catch (Exception e) {
                     log.error(e, "Failed To deserialize message when finding position with error: %s", e);

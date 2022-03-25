@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +47,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -53,7 +55,6 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -63,19 +64,19 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -146,7 +147,7 @@ public class BrokerBookieIsolationTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
@@ -204,6 +205,7 @@ public class BrokerBookieIsolationTest {
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns1);
+            fail("ns1 should have no bookie affinity group set");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
         }
@@ -261,7 +263,289 @@ public class BrokerBookieIsolationTest {
         Method getConf = BookKeeper.class.getDeclaredMethod("getConf");
         getConf.setAccessible(true);
         ClientConfiguration clientConf = (ClientConfiguration) getConf.invoke(bk);
-        assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), ZkBookieRackAffinityMapping.class.getName());
+        assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
+    }
+
+    @Test
+    public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
+        final String tenant1 = "tenant1";
+        final String cluster = "use";
+        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
+        final int totalPublish = 100;
+
+        final String brokerBookkeeperClientIsolationGroups = "default-group";
+        final String tenantNamespaceIsolationGroups = "tenant1-isolation";
+
+        BookieServer[] bookies = bkEnsemble.getBookies();
+        ZooKeeper zkClient = bkEnsemble.getZkClient();
+
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
+                bookies[3].getBookieId());
+
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.setClusterName(cluster);
+        config.setWebServicePort(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setBrokerServicePort(Optional.of(0));
+        config.setAdvertisedAddress("localhost");
+        config.setStrictBookieAffinityEnabled(true);
+        config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
+
+        config.setManagedLedgerDefaultEnsembleSize(2);
+        config.setManagedLedgerDefaultWriteQuorum(2);
+        config.setManagedLedgerDefaultAckQuorum(2);
+
+        config.setAllowAutoTopicCreationType("non-partitioned");
+
+        int totalEntriesPerLedger = 20;
+        int totalLedgers = totalPublish / totalEntriesPerLedger;
+        config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
+        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        pulsarService = new PulsarService(config);
+        pulsarService.start();
+
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        admin.clusters().createCluster(cluster, clusterData);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
+        admin.tenants().createTenant(tenant1, tenantInfo);
+        admin.namespaces().createNamespace(ns2);
+
+        try {
+            admin.namespaces().getBookieAffinityGroup(ns2);
+            fail("ns2 should have no bookie affinity group set");
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok
+        }
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS).build();
+
+        final String topicName = String.format("persistent://%s/%s", ns2, "topic1");
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscribe();
+        consumer.close();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5, TimeUnit.SECONDS);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        for (int i = 0; i < 20; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
+        admin.namespaces().setBookieAffinityGroup(ns2,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+
+        PersistentTopic topic2 = (PersistentTopic) pulsarService.getBrokerService().getTopicReference(topicName).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic2.getManagedLedger();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertTrue(ml.getConfig().getBookKeeperEnsemblePlacementPolicyProperties().size() > 0));
+
+        for (int i=0; i<80; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        producer.close();
+
+        Bookie bookie1 = bookies[0].getBookie();
+        Field ledgerManagerField = Bookie.class.getDeclaredField("ledgerManager");
+        ledgerManagerField.setAccessible(true);
+        LedgerManager ledgerManager = (LedgerManager) ledgerManagerField.get(bookie1);
+
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
+        // namespace: ns2
+        assertEquals(ml2.getLedgersInfoAsList().size(), totalLedgers);
+
+        List<LedgerInfo> ledgers = ml2.getLedgersInfoAsList();
+        // validate ledgers' ensemble with affinity bookies
+        for (int i=1; i<ledgers.size();i++) {
+            LedgerInfo lInfo = ledgers.get(i);
+            long ledgerId = lInfo.getLedgerId();
+            CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
+            LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
+            Set<BookieId> ledgerBookies = Sets.newHashSet();
+            ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
+            assertEquals(ledgerBookies.size(), isolatedBookies.size());
+            ledgerBookies.removeAll(isolatedBookies);
+            assertEquals(ledgerBookies.size(), 0);
+        }
+    }
+
+    /**
+     * Validate that broker can support tenant based strict bookie isolation.
+     *
+     * <pre>
+     * 1. create one bookie-info group : isolated-group
+     * 2. namespace ns1 : has none group
+     *    validate: bookie-ensemble for ns1-topics's ledger will be from bookies don't belongs to any group
+     *    if bookies don't belongs to any group are not enough, then, throw #BKNotEnoughBookiesException
+     * 3. namespace ns2,ns3,ns4: uses isolated-group
+     *    validate: bookie-ensemble for above namespace-topics's ledger will try to select from isolated-group firstly
+     *    if bookies belongs to isolated-group are not enough
+     *    then, bookies from secondary isolation group will be selected (if secondary isolation group set)
+     *    if bookies still are not enough, then, bookies don't belongs to any group will be selected.
+     * </pre>
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testStrictBookieIsolation() throws Exception {
+        final String tenant1 = "tenant1";
+        final String cluster = "use";
+        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
+        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
+        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
+        final String ns4 = String.format("%s/%s/%s", tenant1, cluster, "ns4");
+        final int totalPublish = 100;
+
+        final String brokerBookkeeperClientIsolationGroups = "default-group";
+        final String tenantNamespaceIsolationGroups = "tenant1-isolation";
+
+        BookieServer[] bookies = bkEnsemble.getBookies();
+        ZooKeeper zkClient = bkEnsemble.getZkClient();
+
+        Set<BookieId> defaultBookies = Sets.newHashSet(bookies[0].getBookieId(),
+                bookies[1].getBookieId());
+        Set<BookieId> isolatedBookies = Sets.newHashSet(bookies[2].getBookieId(),
+                bookies[3].getBookieId());
+
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroups, zkClient, isolatedBookies);
+
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.setClusterName(cluster);
+        config.setWebServicePort(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setBrokerServicePort(Optional.of(0));
+        config.setAdvertisedAddress("localhost");
+        config.setStrictBookieAffinityEnabled(true);
+        config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
+
+        config.setManagedLedgerDefaultEnsembleSize(2);
+        config.setManagedLedgerDefaultWriteQuorum(2);
+        config.setManagedLedgerDefaultAckQuorum(2);
+
+        config.setAllowAutoTopicCreationType("non-partitioned");
+
+        int totalEntriesPerLedger = 20;
+        int totalLedgers = totalPublish / totalEntriesPerLedger;
+        config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
+        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        pulsarService = new PulsarService(config);
+        pulsarService.start();
+
+
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        admin.clusters().createCluster(cluster, clusterData);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
+        admin.tenants().createTenant(tenant1, tenantInfo);
+        admin.namespaces().createNamespace(ns1);
+        admin.namespaces().createNamespace(ns2);
+        admin.namespaces().createNamespace(ns3);
+        admin.namespaces().createNamespace(ns4);
+        admin.namespaces().setBookieAffinityGroup(ns2,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+        admin.namespaces().setBookieAffinityGroup(ns3,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+        admin.namespaces().setBookieAffinityGroup(ns4,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns2),
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+        assertEquals(admin.namespaces().getBookieAffinityGroup(ns4),
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
+                        .build());
+
+        try {
+            admin.namespaces().getBookieAffinityGroup(ns1);
+            fail("ns1 should have no bookie affinity group set");
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok
+        }
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS).build();
+
+        PersistentTopic topic1 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns1, "topic1", totalPublish);
+        PersistentTopic topic2 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", totalPublish);
+        PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
+        PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
+
+        Bookie bookie1 = bookies[0].getBookie();
+        Field ledgerManagerField = Bookie.class.getDeclaredField("ledgerManager");
+        ledgerManagerField.setAccessible(true);
+        LedgerManager ledgerManager = (LedgerManager) ledgerManagerField.get(bookie1);
+
+        // namespace: ns1
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
+        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        // validate ledgers' ensemble with affinity bookies
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), defaultBookies);
+
+        // namespace: ns2
+        ml = (ManagedLedgerImpl) topic2.getManagedLedger();
+        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        // validate ledgers' ensemble with affinity bookies
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+
+        // namespace: ns3
+        ml = (ManagedLedgerImpl) topic3.getManagedLedger();
+        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        // validate ledgers' ensemble with affinity bookies
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+
+        // namespace: ns4
+        ml = (ManagedLedgerImpl) topic4.getManagedLedger();
+        assertEquals(ml.getLedgersInfoAsList().size(), totalLedgers);
+        // validate ledgers' ensemble with affinity bookies
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+
+        ManagedLedgerClientFactory mlFactory =
+                (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
+        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
+                .getBkEnsemblePolicyToBookKeeperMap();
+
+        // broker should create only 1 bk-client and factory per isolation-group
+        assertEquals(bkPlacementPolicyToBkClientMap.size(), 2);
+
+        // make sure bk-isolation group also configure REPP_DNS_RESOLVER_CLASS as ZkBookieRackAffinityMapping to
+        // configure rack-aware policy with in isolated group
+        Map<EnsemblePlacementPolicyConfig, BookKeeper> bkMap = mlFactory.getBkEnsemblePolicyToBookKeeperMap();
+        BookKeeper bk = bkMap.values().iterator().next();
+        Method getConf = BookKeeper.class.getDeclaredMethod("getConf");
+        getConf.setAccessible(true);
+        ClientConfiguration clientConf = (ClientConfiguration) getConf.invoke(bk);
+        assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
     }
 
     /**
@@ -303,7 +587,7 @@ public class BrokerBookieIsolationTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
@@ -363,6 +647,7 @@ public class BrokerBookieIsolationTest {
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns1);
+            fail("ns1 should have no bookie affinity group set");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
         }
@@ -444,7 +729,7 @@ public class BrokerBookieIsolationTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
@@ -495,12 +780,7 @@ public class BrokerBookieIsolationTest {
         // (3) delete affinity-group
         admin.namespaces().deleteBookieAffinityGroup(ns2);
 
-        try {
-            admin.namespaces().getBookieAffinityGroup(ns2);
-            fail("should have fail due to affinity-group not present");
-        } catch (NotFoundException e) {
-            // Ok
-        }
+        assertNull(admin.namespaces().getBookieAffinityGroup(ns2));
 
         assertEquals(admin.namespaces().getBookieAffinityGroup(ns3),
                 BookieAffinityGroupData.builder()
@@ -547,12 +827,12 @@ public class BrokerBookieIsolationTest {
             Set<BookieId> bookieAddresses) throws Exception {
         BookiesRackConfiguration bookies = null;
         try {
-            byte[] data = zkClient.getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            byte[] data = zkClient.getData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
             System.out.println(new String(data));
             bookies = jsonMapper.readValue(data, BookiesRackConfiguration.class);
         } catch (KeeperException.NoNodeException e) {
             // Ok.. create new bookie znode
-            zkClient.create(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "".getBytes(), Acl,
+            zkClient.create(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "".getBytes(), Acl,
                     CreateMode.PERSISTENT);
         }
         if (bookies == null) {
@@ -566,7 +846,7 @@ public class BrokerBookieIsolationTest {
         }
         bookies.put(brokerBookkeeperClientIsolationGroups, bookieInfoMap);
 
-        zkClient.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
+        zkClient.setData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
     }
     private static final Logger log = LoggerFactory.getLogger(BrokerBookieIsolationTest.class);
 

@@ -24,15 +24,14 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.Parameters;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 
 @Getter
 @Parameters(commandDescription = "Generate documents automatically.")
@@ -75,9 +74,9 @@ public class CmdGenerateDocument extends CmdBase {
     @Parameters(commandDescription = "Generate document for modules")
     private class GenerateDocument extends CliCommand {
 
-        @Parameter(description = "Please specify the module name, if not, documents will be generated for all modules." +
-                "Optional modules(clusters, tenants, brokers, broker-stats, namespaces, topics, schemas, bookies," +
-                "functions, ns-isolation-policy, resource-quotas, functions, sources, sinks)")
+        @Parameter(description = "Please specify the module name, if not, documents will be generated for all modules."
+                + "Optional modules(clusters, tenants, brokers, broker-stats, namespaces, topics, schemas, bookies,"
+                + "functions, ns-isolation-policy, resource-quotas, functions, sources, sinks)")
         private java.util.List<String> modules;
 
         @Override

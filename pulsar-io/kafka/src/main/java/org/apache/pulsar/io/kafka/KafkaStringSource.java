@@ -19,13 +19,12 @@
 
 package org.apache.pulsar.io.kafka;
 
-import org.apache.pulsar.client.api.Schema;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import java.nio.charset.StandardCharsets;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.pulsar.client.api.Schema;
 
 /**
- * Simple Kafka Source that just transfers the value part of the kafka records
- * as Strings
+ * Simple Kafka Source that just transfers the value part of the kafka records as Strings.
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
 

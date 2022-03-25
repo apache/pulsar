@@ -4,7 +4,7 @@ title: Set up a standalone Pulsar locally
 sidebar_label: Run Pulsar locally
 ---
 
-For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
+For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary [RocksDB](http://rocksdb.org/) and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
 
 > **Pulsar in production?**  
 > If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal.md) guide.
@@ -53,8 +53,9 @@ The Pulsar binary package initially contains the following directories:
 Directory | Contains
 :---------|:--------
 `bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
-`conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more.
+`conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker) and more.<br />**Note:** Pulsar standalone uses RocksDB as the local metadata store and its configuration file path [`metadataStoreConfigPath`](reference-configuration.md) is configurable in the `standalone.conf` file. For more information about the configurations of RocksDB, see [here](https://github.com/facebook/rocksdb/blob/main/examples/rocksdb_option_file_example.ini) and related [documentation](https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide).
 `examples` | A Java JAR file containing [Pulsar Functions](functions-overview.md) example.
+`instances` | Artifacts created for [Pulsar Functions](functions-overview.md).
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
 `licenses` | License files, in the`.txt` form, for various components of the Pulsar [codebase](https://github.com/apache/pulsar).
 
@@ -62,8 +63,7 @@ These directories are created once you begin running Pulsar.
 
 Directory | Contains
 :---------|:--------
-`data` | The data storage directory used by ZooKeeper and BookKeeper.
-`instances` | Artifacts created for [Pulsar Functions](functions-overview.md).
+`data` | The data storage directory used by RocksDB and BookKeeper.
 `logs` | Logs created by the installation.
 
 > **Tip**  
@@ -106,7 +106,7 @@ pulsar-io-aerospike-{{pulsar:version}}.nar
 > **Note**  
 > * If you are running Pulsar in a bare metal cluster, make sure `connectors` tarball is unzipped in every pulsar directory of the broker (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).
 > 
-> * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
+> * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DC/OS](https://dcos.io/), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 ### Install tiered storage offloaders (optional)
 
@@ -148,7 +148,7 @@ For more information on how to configure tiered storage, see [Tiered storage coo
 > **Note**  
 > * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's pulsar directory.
 > 
-> * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos.md)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+> * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or DC/OS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
 ## Start Pulsar standalone
 
@@ -168,7 +168,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 > **Tip**  
 > * The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
-You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
+You can also run the service as a background process using the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 > 
 > * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview.md) document to secure your deployment.
 >
@@ -214,6 +214,6 @@ If the message has been successfully published to the topic, you will see a conf
 Press `Ctrl+C` to stop a local standalone Pulsar.
 
 > **Tip**  
-> If the service runs as a background process using the `pulsar-daemon start standalone` command, then use the `pulsar-daemon stop standalone`  command to stop the service.
+> If the service runs as a background process using the `bin/pulsar-daemon start standalone` command, then use the `bin/pulsar-daemon stop standalone`  command to stop the service.
 > 
 > For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).

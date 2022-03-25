@@ -19,12 +19,10 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.base.Predicate;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -100,7 +98,8 @@ class OpFindNewest implements ReadEntryCallback {
                 searchPosition = ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
                 if (lastPosition.compareTo(searchPosition) < 0) {
                     if (log.isDebugEnabled()) {
-                        log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position, searchPosition, lastPosition);
+                        log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position,
+                                searchPosition, lastPosition);
                     }
                     searchPosition = lastPosition;
                 }

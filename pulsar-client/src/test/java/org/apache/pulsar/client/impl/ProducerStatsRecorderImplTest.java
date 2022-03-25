@@ -54,4 +54,24 @@ public class ProducerStatsRecorderImplTest {
         Thread.sleep(1200);
         assertEquals(1000.0, recorder.getSendLatencyMillisMax(), 0.5);
     }
+
+    @Test
+    public void testGetStatsAndCancelStatsTimeoutWithoutArriveUpdateInterval() {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setStatsIntervalSeconds(60);
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.getConfiguration()).thenReturn(conf);
+        Timer timer = new HashedWheelTimer();
+        when(client.timer()).thenReturn(timer);
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        when(producer.getTopic()).thenReturn("topic-test");
+        when(producer.getProducerName()).thenReturn("producer-test");
+        when(producer.getPendingQueueSize()).thenReturn(1);
+        ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
+        ProducerStatsRecorderImpl recorder = new ProducerStatsRecorderImpl(client, producerConfigurationData, producer);
+        long latencyNs = TimeUnit.SECONDS.toNanos(1);
+        recorder.incrementNumAcksReceived(latencyNs);
+        recorder.cancelStatsTimeout();
+        assertEquals(1000.0, recorder.getSendLatencyMillisMax(), 0.5);
+    }
 }

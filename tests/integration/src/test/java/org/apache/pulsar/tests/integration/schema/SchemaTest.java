@@ -36,7 +36,6 @@ import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
 import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;

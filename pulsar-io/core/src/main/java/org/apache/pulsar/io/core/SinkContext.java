@@ -34,7 +34,7 @@ import org.apache.pulsar.functions.api.BaseContext;
 @InterfaceStability.Stable
 public interface SinkContext extends BaseContext {
     /**
-     * The name of the sink that we are executing
+     * The name of the sink that we are executing.
      * @return The Sink name
      */
     String getSinkName();
@@ -47,7 +47,7 @@ public interface SinkContext extends BaseContext {
     Collection<String> getInputTopics();
 
     /**
-     * Get subscription type used by the source providing data for the sink
+     * Get subscription type used by the source providing data for the sink.
      *
      * @return subscription type
      */

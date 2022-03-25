@@ -20,7 +20,6 @@ package org.apache.pulsar.io.hdfs3.sink.seq;
 
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.io.SequenceFile.Writer.Option;
 import org.apache.hadoop.io.Text;

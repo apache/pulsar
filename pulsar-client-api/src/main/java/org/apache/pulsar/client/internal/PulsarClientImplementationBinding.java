@@ -17,22 +17,6 @@
  * under the License.
  */
 package org.apache.pulsar.client.internal;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.BatcherBuilder;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
-import org.apache.pulsar.common.schema.SchemaType;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -46,6 +30,23 @@ import java.time.LocalTime;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayloadFactory;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Helper class for class instantiations and it also contains methods to work with schemas.
@@ -53,7 +54,6 @@ import java.util.function.Supplier;
  * The actual implementation of this class is loaded from {@link DefaultImplementation}.
  */
 public interface PulsarClientImplementationBinding {
-    
     <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder();
 
     ClientBuilder newClientBuilder();
@@ -116,7 +116,8 @@ public interface PulsarClientImplementationBinding {
 
     <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition);
 
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(SchemaDefinition schemaDefinition);
+    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+            SchemaDefinition schemaDefinition);
 
     <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition);
 
@@ -229,6 +230,8 @@ public interface PulsarClientImplementationBinding {
 
     BatcherBuilder newKeyBasedBatcherBuilder();
 
+    MessagePayloadFactory newDefaultMessagePayloadFactory();
+
     /**
      * Retrieves ByteBuffer data into byte[].
      *
@@ -248,4 +251,6 @@ public interface PulsarClientImplementationBinding {
         byteBuffer.get(array);
         return array;
     }
+
+    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue);
 }

@@ -54,7 +54,7 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
@@ -140,7 +140,7 @@ public abstract class BookKeeperClusterTestCase {
     protected void startZKCluster(String path) throws Exception {
         zkUtil.startServer(path);
         metadataStore = new FaultInjectionMetadataStore(
-                MetadataStoreFactory.create(zkUtil.getZooKeeperConnectString(),
+                MetadataStoreExtended.create(zkUtil.getZooKeeperConnectString(),
                 MetadataStoreConfig.builder().build()));
     }
 
@@ -169,7 +169,7 @@ public abstract class BookKeeperClusterTestCase {
 
         // Create Bookie Servers (B1, B2, B3)
         for (int i = 0; i < numBookies; i++) {
-            if (ledgerPath != "") {
+            if (!"".equals(ledgerPath)) {
                 ServerConfiguration configuration = newServerConfiguration(ledgerPath + "/ledgers");
                 startBookie(configuration, ledgerPath + "/ledgers");
             }else {
@@ -225,9 +225,9 @@ public abstract class BookKeeperClusterTestCase {
             File[] ledgerDirs, String ledgerRootPath) {
         ServerConfiguration conf = new ServerConfiguration(baseConf);
         conf.setBookiePort(port);
-        if (ledgerRootPath != "") {
+        if (!"".equals(ledgerRootPath)) {
             conf.setMetadataServiceUri("zk://" + zkUtil.getZooKeeperConnectString() + ledgerRootPath);
-        }else {
+        } else {
             conf.setZkServers(zkServers);
         }
         conf.setJournalDirName(journalDir.getPath());
@@ -321,19 +321,16 @@ public abstract class BookKeeperClusterTestCase {
         for (final BookieServer bookie : bs) {
             if (bookie.getLocalAddress().equals(addr)) {
                 final CountDownLatch l = new CountDownLatch(1);
-                Thread sleeper = new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            bookie.suspendProcessing();
-                            l.countDown();
-                            Thread.sleep(seconds * 1000);
-                            bookie.resumeProcessing();
-                        } catch (Exception e) {
-                            LOG.error("Error suspending bookie", e);
-                        }
+                Thread sleeper = new Thread(() -> {
+                    try {
+                        bookie.suspendProcessing();
+                        l.countDown();
+                        Thread.sleep(seconds * 1000);
+                        bookie.resumeProcessing();
+                    } catch (Exception e) {
+                        LOG.error("Error suspending bookie", e);
                     }
-                };
+                });
                 sleeper.start();
                 return l;
             }
@@ -354,18 +351,15 @@ public abstract class BookKeeperClusterTestCase {
     public void sleepBookie(InetSocketAddress addr, final CountDownLatch l) throws Exception {
         for (final BookieServer bookie : bs) {
             if (bookie.getLocalAddress().equals(addr)) {
-                Thread sleeper = new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            bookie.suspendProcessing();
-                            l.await();
-                            bookie.resumeProcessing();
-                        } catch (Exception e) {
-                            LOG.error("Error suspending bookie", e);
-                        }
+                Thread sleeper = new Thread(() -> {
+                    try {
+                        bookie.suspendProcessing();
+                        l.await();
+                        bookie.resumeProcessing();
+                    } catch (Exception e) {
+                        LOG.error("Error suspending bookie", e);
                     }
-                };
+                });
                 sleeper.start();
                 return;
             }

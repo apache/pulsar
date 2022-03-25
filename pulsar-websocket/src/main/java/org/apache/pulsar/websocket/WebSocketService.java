@@ -19,24 +19,20 @@
 package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
-
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -52,8 +48,6 @@ import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.stats.ProxyStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Socket proxy server which initializes other dependent services and starts server by opening web-socket end-point url.
@@ -73,7 +67,6 @@ public class WebSocketService implements Closeable {
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
-    private ConfigurationMetadataCacheService configurationCacheService;
 
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
@@ -88,33 +81,40 @@ public class WebSocketService implements Closeable {
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
         this.config = config;
         this.localCluster = localCluster;
-        this.topicProducerMap = new ConcurrentOpenHashMap<>();
-        this.topicConsumerMap = new ConcurrentOpenHashMap<>();
-        this.topicReaderMap = new ConcurrentOpenHashMap<>();
+        this.topicProducerMap =
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashSet<ProducerHandler>>newBuilder()
+                        .build();
+        this.topicConsumerMap =
+                ConcurrentOpenHashMap.<String,
+                        ConcurrentOpenHashSet<ConsumerHandler>>newBuilder()
+                        .build();
+        this.topicReaderMap =
+                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<ReaderHandler>>newBuilder()
+                        .build();
         this.proxyStats = new ProxyStats(this);
     }
 
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
 
-        if (isNotBlank(config.getConfigurationStoreServers())) {
+        if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
-                configMetadataStore = createMetadataStore(config.getConfigurationStoreServers(),
-                        (int) config.getZooKeeperSessionTimeoutMillis());
+                configMetadataStore = createMetadataStore(config.getConfigurationMetadataStoreUrl(),
+                        (int) config.getMetadataStoreSessionTimeoutMillis());
             } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
             }
             pulsarResources = new PulsarResources(null, configMetadataStore);
-            this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
         }
 
         // start authorizationService
         if (config.isAuthorizationEnabled()) {
-            if (configurationCacheService == null) {
+            if (pulsarResources == null) {
                 throw new PulsarServerException(
                         "Failed to initialize authorization manager due to empty ConfigurationStoreServers");
             }
-            authorizationService = new AuthorizationService(this.config, configurationCacheService);
+            authorizationService = new AuthorizationService(this.config, pulsarResources);
         }
         // start authentication service
         authenticationService = new AuthenticationService(this.config);
@@ -188,11 +188,11 @@ public class WebSocketService implements Closeable {
         }
 
         if (config.isBrokerClientTlsEnabled()) {
-			if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
-			} else if (isNotBlank(clusterData.getServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
-			}
+            if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
+            } else if (isNotBlank(clusterData.getServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
+            }
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
         } else {
@@ -221,14 +221,13 @@ public class WebSocketService implements Closeable {
     }
 
     private ClusterData retrieveClusterData() throws PulsarServerException {
-        if (configurationCacheService == null) {
+        if (pulsarResources == null) {
             throw new PulsarServerException(
                 "Failed to retrieve Cluster data due to empty ConfigurationStoreServers");
         }
         try {
-            String path = "/admin/clusters/" + config.getClusterName();
-            return localCluster = pulsarResources.getClusterResources().get(path)
-                    .orElseThrow(() -> new NotFoundException(path));
+            return localCluster = pulsarResources.getClusterResources().getCluster(config.getClusterName())
+                    .orElseThrow(() -> new NotFoundException("Cluster " + config.getClusterName()));
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }
@@ -238,29 +237,28 @@ public class WebSocketService implements Closeable {
         return proxyStats;
     }
 
-    public ConfigurationCacheService getConfigurationCache() {
-        return configurationCacheService;
-    }
-
     public ScheduledExecutorService getExecutor() {
         return executor;
     }
 
     public boolean isAuthenticationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthenticationEnabled();
     }
 
     public boolean isAuthorizationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthorizationEnabled();
     }
 
     public boolean addProducer(ProducerHandler producer) {
         return topicProducerMap
-                .computeIfAbsent(producer.getProducer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(producer.getProducer().getTopic(),
+                        topic -> ConcurrentOpenHashSet.<ProducerHandler>newBuilder().build())
                 .add(producer);
     }
 
@@ -278,7 +276,8 @@ public class WebSocketService implements Closeable {
 
     public boolean addConsumer(ConsumerHandler consumer) {
         return topicConsumerMap
-                .computeIfAbsent(consumer.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(consumer.getConsumer().getTopic(), topic ->
+                        ConcurrentOpenHashSet.<ConsumerHandler>newBuilder().build())
                 .add(consumer);
     }
 
@@ -295,7 +294,8 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addReader(ReaderHandler reader) {
-        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic ->
+                ConcurrentOpenHashSet.<ReaderHandler>newBuilder().build())
                 .add(reader);
     }
 

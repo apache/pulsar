@@ -57,6 +57,11 @@ Fix the broken links manually and then send a pull request.
 Besides, you can use an automatic checker tool to crawl through the Pulsar website and identify dead links, for example, [Dr. Link Checker](https://www.drlinkcheck.com/).
 
 ## Documentation
+
+This is the **Pulsar Document Development Life Cycle** (DDLC). It is essential for developing a document to enhance the precision and understandability for users. In general, documentation contributors involve themselves in the following phases.
+
+![Pulsar Document Development Life Cycle](docs/assets/DDLC.png)
+
 Pulsar documents are written in English. Documentation related pages are placed in the `/site2/docs` directory. All documentation pages are versioned. For more details, refer to [versioning](#versioning).
 
 ### Contribute to documentation
@@ -328,5 +333,5 @@ The translated docs are downloaded to the `site2/website/translated_docs` direct
 
 ### Check issues, fix and verify
 
-After download the translated documents, you can open the target markdown file, check issues and fix them.
+After downloading the translated documents, you can open the target markdown file, check issues and fix them.
 To verify if you have fixed the issues correctly, [run the site locally](#run-the-site-locally).

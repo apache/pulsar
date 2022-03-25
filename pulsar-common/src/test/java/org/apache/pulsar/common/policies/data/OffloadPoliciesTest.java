@@ -76,7 +76,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
                 offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                new Long(offloadDeletionLagInMillis));
+                Long.valueOf(offloadDeletionLagInMillis));
     }
 
     @Test
@@ -260,14 +260,14 @@ public class OffloadPoliciesTest {
         policies.offload_threshold = 0;
         offloadPolicies = OffloadPoliciesImpl.oldPoliciesCompatible(offloadPolicies, policies);
         Assert.assertNotNull(offloadPolicies);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), new Long(1000));
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), new Long(0));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), Long.valueOf(1000));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), Long.valueOf(0));
 
         policies.offload_deletion_lag_ms = 2000L;
         policies.offload_threshold = 100;
         offloadPolicies = OffloadPoliciesImpl.oldPoliciesCompatible(offloadPolicies, policies);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), new Long(1000));
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), new Long(0));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), Long.valueOf(1000));
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), Long.valueOf(0));
     }
 
     @Test
@@ -301,7 +301,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), brokerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
-                new Integer(OffloadPoliciesImpl.DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS));
+                Integer.valueOf(OffloadPoliciesImpl.DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS));
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 

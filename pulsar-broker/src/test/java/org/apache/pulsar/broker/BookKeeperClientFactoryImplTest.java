@@ -23,22 +23,20 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_ENABLE_VALIDATION;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_MINIMUM_REGIONS_FOR_DURABILITY;
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
-import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM;
+import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
 /**
@@ -49,11 +47,8 @@ public class BookKeeperClientFactoryImplTest {
 
     @Test
     public void testSetDefaultEnsemblePlacementPolicyRackAwareDisabled() {
-        AtomicReference<ZooKeeperCache> rackawarePolicyZkCache = new AtomicReference<>();
-        AtomicReference<ZooKeeperCache> clientIsolationZkCache = new AtomicReference<>();
         ClientConfiguration bkConf = new ClientConfiguration();
         ServiceConfiguration conf = new ServiceConfiguration();
-        ZooKeeper zkClient = mock(ZooKeeper.class);
 
         assertNull(bkConf.getProperty(REPP_ENABLE_VALIDATION));
         assertNull(bkConf.getProperty(REPP_REGIONS_TO_WRITE));
@@ -64,11 +59,9 @@ public class BookKeeperClientFactoryImplTest {
         assertNull(bkConf.getProperty(ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM));
 
         BookKeeperClientFactoryImpl.setDefaultEnsemblePlacementPolicy(
-            rackawarePolicyZkCache,
-            clientIsolationZkCache,
             bkConf,
             conf,
-            zkClient
+            null
         );
 
         assertNull(bkConf.getProperty(REPP_ENABLE_VALIDATION));
@@ -77,20 +70,16 @@ public class BookKeeperClientFactoryImplTest {
         assertNull(bkConf.getProperty(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE));
         assertEquals(
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
-            ZkBookieRackAffinityMapping.class.getName());
+            BookieRackAffinityMapping.class.getName());
         assertFalse(bkConf.getEnforceMinNumRacksPerWriteQuorum());
         assertEquals(2, bkConf.getMinNumRacksPerWriteQuorum());
-
-        ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }
 
     @Test
     public void testSetDefaultEnsemblePlacementPolicyRackAwareEnabled() {
-        AtomicReference<ZooKeeperCache> rackawarePolicyZkCache = new AtomicReference<>();
-        AtomicReference<ZooKeeperCache> clientIsolationZkCache = new AtomicReference<>();
         ClientConfiguration bkConf = new ClientConfiguration();
         ServiceConfiguration conf = new ServiceConfiguration();
-        ZooKeeper zkClient = mock(ZooKeeper.class);
+        MetadataStore store = mock(MetadataStore.class);
 
         assertNull(bkConf.getProperty(REPP_ENABLE_VALIDATION));
         assertNull(bkConf.getProperty(REPP_REGIONS_TO_WRITE));
@@ -103,11 +92,9 @@ public class BookKeeperClientFactoryImplTest {
         conf.setBookkeeperClientRegionawarePolicyEnabled(true);
 
         BookKeeperClientFactoryImpl.setDefaultEnsemblePlacementPolicy(
-            rackawarePolicyZkCache,
-            clientIsolationZkCache,
             bkConf,
             conf,
-            zkClient
+            store
         );
 
         assertTrue(bkConf.getBoolean(REPP_ENABLE_VALIDATION));
@@ -116,20 +103,16 @@ public class BookKeeperClientFactoryImplTest {
         assertTrue(bkConf.getBoolean(REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE));
         assertEquals(
             bkConf.getProperty(REPP_DNS_RESOLVER_CLASS),
-            ZkBookieRackAffinityMapping.class.getName());
+            BookieRackAffinityMapping.class.getName());
         assertFalse(bkConf.getEnforceMinNumRacksPerWriteQuorum());
         assertEquals(2, bkConf.getMinNumRacksPerWriteQuorum());
-
-        ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }
 
     @Test
     public void testSetDefaultEnsemblePlacementPolicyRackAwareEnabledChangedValues() {
-        AtomicReference<ZooKeeperCache> rackawarePolicyZkCache = new AtomicReference<>();
-        AtomicReference<ZooKeeperCache> clientIsolationZkCache = new AtomicReference<>();
         ClientConfiguration bkConf = new ClientConfiguration();
         ServiceConfiguration conf = new ServiceConfiguration();
-        ZooKeeper zkClient = mock(ZooKeeper.class);
+        MetadataStore store = mock(MetadataStore.class);
 
         assertNull(bkConf.getProperty(REPP_ENABLE_VALIDATION));
         assertNull(bkConf.getProperty(REPP_REGIONS_TO_WRITE));
@@ -149,11 +132,9 @@ public class BookKeeperClientFactoryImplTest {
         conf.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
 
         BookKeeperClientFactoryImpl.setDefaultEnsemblePlacementPolicy(
-            rackawarePolicyZkCache,
-            clientIsolationZkCache,
             bkConf,
             conf,
-            zkClient
+            store
         );
 
         assertFalse(bkConf.getBoolean(REPP_ENABLE_VALIDATION));
@@ -165,41 +146,114 @@ public class BookKeeperClientFactoryImplTest {
             CachedDNSToSwitchMapping.class.getName());
         assertTrue(bkConf.getEnforceMinNumRacksPerWriteQuorum());
         assertEquals(20, bkConf.getMinNumRacksPerWriteQuorum());
-
-        ((ZooKeeperCache) bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE)).stop();
     }
 
     @Test
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
-        assertFalse(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+        conf.setMetadataStoreUrl("zk:localhost:2181");
+        assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getDiskWeightBasedPlacementEnabled());
         conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
-        assertTrue(factory.createBkClientConfiguration(conf).getDiskWeightBasedPlacementEnabled());
+        assertTrue(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getDiskWeightBasedPlacementEnabled());
     }
 
     @Test
     public void testSetExplicitLacInterval() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
-        assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 0);
+        conf.setMetadataStoreUrl("zk:localhost:2181");
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
+                0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
-        assertEquals(factory.createBkClientConfiguration(conf).getExplictLacInterval(), 5);
+        assertEquals(
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
+                5);
     }
 
     @Test
-    public void testSetMetadataServiceUri() {
+    public void testSetMetadataServiceUriZookkeeperServers() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
         try {
-            String defaultUri = "zk+null://localhost:2181/ledgers";
-            assertEquals(factory.createBkClientConfiguration(conf).getMetadataServiceUri(), defaultUri);
-            String expectedUri = "zk+hierarchical://localhost:2181/chroot/ledgers";
-            conf.setBookkeeperMetadataServiceUri(expectedUri);
-            assertEquals(factory.createBkClientConfiguration(conf).getMetadataServiceUri(), expectedUri);
+            {
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
+        } catch (ConfigurationException e) {
+            e.printStackTrace();
+            fail("Get metadata service uri should be successful", e);
+        }
+    }
+
+
+    @Test
+    public void testSetMetadataServiceUriMetadataStoreUrl() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+
+        try {
+            {
+                conf.setMetadataStoreUrl("zk:localhost:2181/chroot");
+                final String expectedUri = "metadata-store:zk:localhost:2181/chroot/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+            {
+                conf.setMetadataStoreUrl("zk:localhost:2181/chroot");
+                final String expectedUri = "metadata-store:zk:localhost:2181/chroot/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+
+            {
+                conf.setMetadataStoreUrl("zk:localhost:2181");
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+
+            {
+                conf.setMetadataStoreUrl("zk:localhost:2181");
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+            }
+        } catch (ConfigurationException e) {
+            e.printStackTrace();
+            fail("Get metadata service uri should be successful", e);
+        }
+    }
+
+
+
+    @Test
+    public void testSetMetadataServiceUriBookkeeperMetadataServiceUri() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        try {
+
+            {
+                String uri = "metadata-store:localhost:2181";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                final String expectedUri = "metadata-store:localhost:2181";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
+            {
+                String uri = "metadata-store:localhost:2181/chroot/ledger";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                final String expectedUri = "metadata-store:localhost:2181/chroot/ledger";
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), expectedUri);
+
+            }
         } catch (ConfigurationException e) {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);
@@ -211,11 +265,14 @@ public class BookKeeperClientFactoryImplTest {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         // default value
-        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getOpportunisticStriping());
         conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
-        assertTrue(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        assertTrue(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getOpportunisticStriping());
         conf.getProperties().setProperty("bookkeeper_opportunisticStriping", "false");
-        assertFalse(factory.createBkClientConfiguration(conf).getOpportunisticStriping());
+        assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getOpportunisticStriping());
 
     }
 

@@ -66,7 +66,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
         .build())
     .subscribe();
 
-consumer.reconsumeLater(message, 10 , TimeUnit.SECONDS);
+consumer.reconsumeLater(message, 10, TimeUnit.SECONDS);
 ```
 
 For more information about PIP-58, see [here](https://github.com/apache/pulsar/wiki/PIP-58-%3A-Support-Consumers--Set-Custom-Retry-Delay). <br> For more information about implementation details, see [PR-6449](https://github.com/apache/pulsar/pull/6449).

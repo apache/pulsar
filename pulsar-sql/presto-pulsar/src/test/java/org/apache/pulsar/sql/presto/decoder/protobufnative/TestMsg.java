@@ -67,6 +67,8 @@ public final class TestMsg {
     }
 
     /**
+     * @param value The numeric wire value of the corresponding enum entry.
+     * @return The enum associated with the given numeric wire value.
      * @deprecated Use {@link #forNumber(int)} instead.
      */
     @java.lang.Deprecated
@@ -74,6 +76,10 @@ public final class TestMsg {
       return forNumber(value);
     }
 
+    /**
+     * @param value The numeric wire value of the corresponding enum entry.
+     * @return The enum associated with the given numeric wire value.
+     */
     public static TestEnum forNumber(int value) {
       switch (value) {
         case 0: return SHARED;
@@ -96,6 +102,10 @@ public final class TestMsg {
 
     public final com.google.protobuf.Descriptors.EnumValueDescriptor
         getValueDescriptor() {
+      if (this == UNRECOGNIZED) {
+        throw new java.lang.IllegalStateException(
+            "Can't get the descriptor of an unrecognized enum value.");
+      }
       return getDescriptor().getValues().get(ordinal());
     }
     public final com.google.protobuf.Descriptors.EnumDescriptor
@@ -136,25 +146,30 @@ public final class TestMsg {
 
     /**
      * <code>string foo = 1;</code>
+     * @return The foo.
      */
     java.lang.String getFoo();
     /**
      * <code>string foo = 1;</code>
+     * @return The bytes for foo.
      */
     com.google.protobuf.ByteString
         getFooBytes();
 
     /**
      * <code>double bar = 2;</code>
+     * @return The bar.
      */
     double getBar();
 
     /**
      * <code>.proto.SubMessage.NestedMessage nestedMessage = 3;</code>
+     * @return Whether the nestedMessage field is set.
      */
     boolean hasNestedMessage();
     /**
      * <code>.proto.SubMessage.NestedMessage nestedMessage = 3;</code>
+     * @return The nestedMessage.
      */
     org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage getNestedMessage();
     /**
@@ -165,7 +180,7 @@ public final class TestMsg {
   /**
    * Protobuf type {@code proto.SubMessage}
    */
-  public  static final class SubMessage extends
+  public static final class SubMessage extends
       com.google.protobuf.GeneratedMessageV3 implements
       // @@protoc_insertion_point(message_implements:proto.SubMessage)
       SubMessageOrBuilder {
@@ -176,7 +191,13 @@ public final class TestMsg {
     }
     private SubMessage() {
       foo_ = "";
-      bar_ = 0D;
+    }
+
+    @java.lang.Override
+    @SuppressWarnings({"unused"})
+    protected java.lang.Object newInstance(
+        UnusedPrivateParameter unused) {
+      return new SubMessage();
     }
 
     @java.lang.Override
@@ -192,7 +213,6 @@ public final class TestMsg {
       if (extensionRegistry == null) {
         throw new java.lang.NullPointerException();
       }
-      int mutable_bitField0_ = 0;
       com.google.protobuf.UnknownFieldSet.Builder unknownFields =
           com.google.protobuf.UnknownFieldSet.newBuilder();
       try {
@@ -203,13 +223,6 @@ public final class TestMsg {
             case 0:
               done = true;
               break;
-            default: {
-              if (!parseUnknownFieldProto3(
-                  input, unknownFields, extensionRegistry, tag)) {
-                done = true;
-              }
-              break;
-            }
             case 10: {
               java.lang.String s = input.readStringRequireUtf8();
 
@@ -234,6 +247,13 @@ public final class TestMsg {
 
               break;
             }
+            default: {
+              if (!parseUnknownField(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
           }
         }
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
@@ -251,6 +271,7 @@ public final class TestMsg {
       return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_descriptor;
     }
 
+    @java.lang.Override
     protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
       return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_fieldAccessorTable
@@ -264,29 +285,37 @@ public final class TestMsg {
 
       /**
        * <code>string title = 1;</code>
+       * @return The title.
        */
       java.lang.String getTitle();
       /**
        * <code>string title = 1;</code>
+       * @return The bytes for title.
        */
       com.google.protobuf.ByteString
           getTitleBytes();
 
       /**
        * <code>repeated string urls = 2;</code>
+       * @return A list containing the urls.
        */
       java.util.List<java.lang.String>
           getUrlsList();
       /**
        * <code>repeated string urls = 2;</code>
+       * @return The count of urls.
        */
       int getUrlsCount();
       /**
        * <code>repeated string urls = 2;</code>
+       * @param index The index of the element to return.
+       * @return The urls at the given index.
        */
       java.lang.String getUrls(int index);
       /**
        * <code>repeated string urls = 2;</code>
+       * @param index The index of the value to return.
+       * @return The bytes of the urls at the given index.
        */
       com.google.protobuf.ByteString
           getUrlsBytes(int index);
@@ -294,7 +323,7 @@ public final class TestMsg {
     /**
      * Protobuf type {@code proto.SubMessage.NestedMessage}
      */
-    public  static final class NestedMessage extends
+    public static final class NestedMessage extends
         com.google.protobuf.GeneratedMessageV3 implements
         // @@protoc_insertion_point(message_implements:proto.SubMessage.NestedMessage)
         NestedMessageOrBuilder {
@@ -306,6 +335,13 @@ public final class TestMsg {
       private NestedMessage() {
         title_ = "";
         urls_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+      }
+
+      @java.lang.Override
+      @SuppressWarnings({"unused"})
+      protected java.lang.Object newInstance(
+          UnusedPrivateParameter unused) {
+        return new NestedMessage();
       }
 
       @java.lang.Override
@@ -332,13 +368,6 @@ public final class TestMsg {
               case 0:
                 done = true;
                 break;
-              default: {
-                if (!parseUnknownFieldProto3(
-                    input, unknownFields, extensionRegistry, tag)) {
-                  done = true;
-                }
-                break;
-              }
               case 10: {
                 java.lang.String s = input.readStringRequireUtf8();
 
@@ -347,11 +376,18 @@ public final class TestMsg {
               }
               case 18: {
                 java.lang.String s = input.readStringRequireUtf8();
-                if (!((mutable_bitField0_ & 0x00000002) == 0x00000002)) {
+                if (!((mutable_bitField0_ & 0x00000001) != 0)) {
                   urls_ = new com.google.protobuf.LazyStringArrayList();
-                  mutable_bitField0_ |= 0x00000002;
+                  mutable_bitField0_ |= 0x00000001;
                 }
                 urls_.add(s);
+                break;
+              }
+              default: {
+                if (!parseUnknownField(
+                    input, unknownFields, extensionRegistry, tag)) {
+                  done = true;
+                }
                 break;
               }
             }
@@ -362,7 +398,7 @@ public final class TestMsg {
           throw new com.google.protobuf.InvalidProtocolBufferException(
               e).setUnfinishedMessage(this);
         } finally {
-          if (((mutable_bitField0_ & 0x00000002) == 0x00000002)) {
+          if (((mutable_bitField0_ & 0x00000001) != 0)) {
             urls_ = urls_.getUnmodifiableView();
           }
           this.unknownFields = unknownFields.build();
@@ -374,6 +410,7 @@ public final class TestMsg {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_NestedMessage_descriptor;
       }
 
+      @java.lang.Override
       protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
           internalGetFieldAccessorTable() {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_NestedMessage_fieldAccessorTable
@@ -381,12 +418,13 @@ public final class TestMsg {
                 org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage.class, org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage.Builder.class);
       }
 
-      private int bitField0_;
       public static final int TITLE_FIELD_NUMBER = 1;
       private volatile java.lang.Object title_;
       /**
        * <code>string title = 1;</code>
+       * @return The title.
        */
+      @java.lang.Override
       public java.lang.String getTitle() {
         java.lang.Object ref = title_;
         if (ref instanceof java.lang.String) {
@@ -401,7 +439,9 @@ public final class TestMsg {
       }
       /**
        * <code>string title = 1;</code>
+       * @return The bytes for title.
        */
+      @java.lang.Override
       public com.google.protobuf.ByteString
           getTitleBytes() {
         java.lang.Object ref = title_;
@@ -420,6 +460,7 @@ public final class TestMsg {
       private com.google.protobuf.LazyStringList urls_;
       /**
        * <code>repeated string urls = 2;</code>
+       * @return A list containing the urls.
        */
       public com.google.protobuf.ProtocolStringList
           getUrlsList() {
@@ -427,18 +468,23 @@ public final class TestMsg {
       }
       /**
        * <code>repeated string urls = 2;</code>
+       * @return The count of urls.
        */
       public int getUrlsCount() {
         return urls_.size();
       }
       /**
        * <code>repeated string urls = 2;</code>
+       * @param index The index of the element to return.
+       * @return The urls at the given index.
        */
       public java.lang.String getUrls(int index) {
         return urls_.get(index);
       }
       /**
        * <code>repeated string urls = 2;</code>
+       * @param index The index of the value to return.
+       * @return The bytes of the urls at the given index.
        */
       public com.google.protobuf.ByteString
           getUrlsBytes(int index) {
@@ -446,6 +492,7 @@ public final class TestMsg {
       }
 
       private byte memoizedIsInitialized = -1;
+      @java.lang.Override
       public final boolean isInitialized() {
         byte isInitialized = memoizedIsInitialized;
         if (isInitialized == 1) return true;
@@ -455,6 +502,7 @@ public final class TestMsg {
         return true;
       }
 
+      @java.lang.Override
       public void writeTo(com.google.protobuf.CodedOutputStream output)
                           throws java.io.IOException {
         if (!getTitleBytes().isEmpty()) {
@@ -466,6 +514,7 @@ public final class TestMsg {
         unknownFields.writeTo(output);
       }
 
+      @java.lang.Override
       public int getSerializedSize() {
         int size = memoizedSize;
         if (size != -1) return size;
@@ -497,13 +546,12 @@ public final class TestMsg {
         }
         org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage other = (org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage) obj;
 
-        boolean result = true;
-        result = result && getTitle()
-            .equals(other.getTitle());
-        result = result && getUrlsList()
-            .equals(other.getUrlsList());
-        result = result && unknownFields.equals(other.unknownFields);
-        return result;
+        if (!getTitle()
+            .equals(other.getTitle())) return false;
+        if (!getUrlsList()
+            .equals(other.getUrlsList())) return false;
+        if (!unknownFields.equals(other.unknownFields)) return false;
+        return true;
       }
 
       @java.lang.Override
@@ -594,6 +642,7 @@ public final class TestMsg {
             .parseWithIOException(PARSER, input, extensionRegistry);
       }
 
+      @java.lang.Override
       public Builder newBuilderForType() { return newBuilder(); }
       public static Builder newBuilder() {
         return DEFAULT_INSTANCE.toBuilder();
@@ -601,6 +650,7 @@ public final class TestMsg {
       public static Builder newBuilder(org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage prototype) {
         return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
       }
+      @java.lang.Override
       public Builder toBuilder() {
         return this == DEFAULT_INSTANCE
             ? new Builder() : new Builder().mergeFrom(this);
@@ -624,6 +674,7 @@ public final class TestMsg {
           return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_NestedMessage_descriptor;
         }
 
+        @java.lang.Override
         protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
             internalGetFieldAccessorTable() {
           return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_NestedMessage_fieldAccessorTable
@@ -646,24 +697,28 @@ public final class TestMsg {
                   .alwaysUseFieldBuilders) {
           }
         }
+        @java.lang.Override
         public Builder clear() {
           super.clear();
           title_ = "";
 
           urls_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-          bitField0_ = (bitField0_ & ~0x00000002);
+          bitField0_ = (bitField0_ & ~0x00000001);
           return this;
         }
 
+        @java.lang.Override
         public com.google.protobuf.Descriptors.Descriptor
             getDescriptorForType() {
           return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_NestedMessage_descriptor;
         }
 
+        @java.lang.Override
         public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage getDefaultInstanceForType() {
           return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage.getDefaultInstance();
         }
 
+        @java.lang.Override
         public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage build() {
           org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage result = buildPartial();
           if (!result.isInitialized()) {
@@ -672,47 +727,53 @@ public final class TestMsg {
           return result;
         }
 
+        @java.lang.Override
         public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage buildPartial() {
           org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage result = new org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage(this);
           int from_bitField0_ = bitField0_;
-          int to_bitField0_ = 0;
           result.title_ = title_;
-          if (((bitField0_ & 0x00000002) == 0x00000002)) {
+          if (((bitField0_ & 0x00000001) != 0)) {
             urls_ = urls_.getUnmodifiableView();
-            bitField0_ = (bitField0_ & ~0x00000002);
+            bitField0_ = (bitField0_ & ~0x00000001);
           }
           result.urls_ = urls_;
-          result.bitField0_ = to_bitField0_;
           onBuilt();
           return result;
         }
 
+        @java.lang.Override
         public Builder clone() {
-          return (Builder) super.clone();
+          return super.clone();
         }
+        @java.lang.Override
         public Builder setField(
             com.google.protobuf.Descriptors.FieldDescriptor field,
             java.lang.Object value) {
-          return (Builder) super.setField(field, value);
+          return super.setField(field, value);
         }
+        @java.lang.Override
         public Builder clearField(
             com.google.protobuf.Descriptors.FieldDescriptor field) {
-          return (Builder) super.clearField(field);
+          return super.clearField(field);
         }
+        @java.lang.Override
         public Builder clearOneof(
             com.google.protobuf.Descriptors.OneofDescriptor oneof) {
-          return (Builder) super.clearOneof(oneof);
+          return super.clearOneof(oneof);
         }
+        @java.lang.Override
         public Builder setRepeatedField(
             com.google.protobuf.Descriptors.FieldDescriptor field,
             int index, java.lang.Object value) {
-          return (Builder) super.setRepeatedField(field, index, value);
+          return super.setRepeatedField(field, index, value);
         }
+        @java.lang.Override
         public Builder addRepeatedField(
             com.google.protobuf.Descriptors.FieldDescriptor field,
             java.lang.Object value) {
-          return (Builder) super.addRepeatedField(field, value);
+          return super.addRepeatedField(field, value);
         }
+        @java.lang.Override
         public Builder mergeFrom(com.google.protobuf.Message other) {
           if (other instanceof org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage) {
             return mergeFrom((org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage)other);
@@ -731,7 +792,7 @@ public final class TestMsg {
           if (!other.urls_.isEmpty()) {
             if (urls_.isEmpty()) {
               urls_ = other.urls_;
-              bitField0_ = (bitField0_ & ~0x00000002);
+              bitField0_ = (bitField0_ & ~0x00000001);
             } else {
               ensureUrlsIsMutable();
               urls_.addAll(other.urls_);
@@ -743,10 +804,12 @@ public final class TestMsg {
           return this;
         }
 
+        @java.lang.Override
         public final boolean isInitialized() {
           return true;
         }
 
+        @java.lang.Override
         public Builder mergeFrom(
             com.google.protobuf.CodedInputStream input,
             com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -769,6 +832,7 @@ public final class TestMsg {
         private java.lang.Object title_ = "";
         /**
          * <code>string title = 1;</code>
+         * @return The title.
          */
         public java.lang.String getTitle() {
           java.lang.Object ref = title_;
@@ -784,6 +848,7 @@ public final class TestMsg {
         }
         /**
          * <code>string title = 1;</code>
+         * @return The bytes for title.
          */
         public com.google.protobuf.ByteString
             getTitleBytes() {
@@ -800,6 +865,8 @@ public final class TestMsg {
         }
         /**
          * <code>string title = 1;</code>
+         * @param value The title to set.
+         * @return This builder for chaining.
          */
         public Builder setTitle(
             java.lang.String value) {
@@ -813,6 +880,7 @@ public final class TestMsg {
         }
         /**
          * <code>string title = 1;</code>
+         * @return This builder for chaining.
          */
         public Builder clearTitle() {
           
@@ -822,6 +890,8 @@ public final class TestMsg {
         }
         /**
          * <code>string title = 1;</code>
+         * @param value The bytes for title to set.
+         * @return This builder for chaining.
          */
         public Builder setTitleBytes(
             com.google.protobuf.ByteString value) {
@@ -837,13 +907,14 @@ public final class TestMsg {
 
         private com.google.protobuf.LazyStringList urls_ = com.google.protobuf.LazyStringArrayList.EMPTY;
         private void ensureUrlsIsMutable() {
-          if (!((bitField0_ & 0x00000002) == 0x00000002)) {
+          if (!((bitField0_ & 0x00000001) != 0)) {
             urls_ = new com.google.protobuf.LazyStringArrayList(urls_);
-            bitField0_ |= 0x00000002;
+            bitField0_ |= 0x00000001;
            }
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @return A list containing the urls.
          */
         public com.google.protobuf.ProtocolStringList
             getUrlsList() {
@@ -851,18 +922,23 @@ public final class TestMsg {
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @return The count of urls.
          */
         public int getUrlsCount() {
           return urls_.size();
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @param index The index of the element to return.
+         * @return The urls at the given index.
          */
         public java.lang.String getUrls(int index) {
           return urls_.get(index);
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @param index The index of the value to return.
+         * @return The bytes of the urls at the given index.
          */
         public com.google.protobuf.ByteString
             getUrlsBytes(int index) {
@@ -870,6 +946,9 @@ public final class TestMsg {
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @param index The index to set the value at.
+         * @param value The urls to set.
+         * @return This builder for chaining.
          */
         public Builder setUrls(
             int index, java.lang.String value) {
@@ -883,6 +962,8 @@ public final class TestMsg {
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @param value The urls to add.
+         * @return This builder for chaining.
          */
         public Builder addUrls(
             java.lang.String value) {
@@ -896,6 +977,8 @@ public final class TestMsg {
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @param values The urls to add.
+         * @return This builder for chaining.
          */
         public Builder addAllUrls(
             java.lang.Iterable<java.lang.String> values) {
@@ -907,15 +990,18 @@ public final class TestMsg {
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @return This builder for chaining.
          */
         public Builder clearUrls() {
           urls_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-          bitField0_ = (bitField0_ & ~0x00000002);
+          bitField0_ = (bitField0_ & ~0x00000001);
           onChanged();
           return this;
         }
         /**
          * <code>repeated string urls = 2;</code>
+         * @param value The bytes of the urls to add.
+         * @return This builder for chaining.
          */
         public Builder addUrlsBytes(
             com.google.protobuf.ByteString value) {
@@ -928,11 +1014,13 @@ public final class TestMsg {
           onChanged();
           return this;
         }
+        @java.lang.Override
         public final Builder setUnknownFields(
             final com.google.protobuf.UnknownFieldSet unknownFields) {
-          return super.setUnknownFieldsProto3(unknownFields);
+          return super.setUnknownFields(unknownFields);
         }
 
+        @java.lang.Override
         public final Builder mergeUnknownFields(
             final com.google.protobuf.UnknownFieldSet unknownFields) {
           return super.mergeUnknownFields(unknownFields);
@@ -954,6 +1042,7 @@ public final class TestMsg {
 
       private static final com.google.protobuf.Parser<NestedMessage>
           PARSER = new com.google.protobuf.AbstractParser<NestedMessage>() {
+        @java.lang.Override
         public NestedMessage parsePartialFrom(
             com.google.protobuf.CodedInputStream input,
             com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -971,6 +1060,7 @@ public final class TestMsg {
         return PARSER;
       }
 
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage getDefaultInstanceForType() {
         return DEFAULT_INSTANCE;
       }
@@ -981,7 +1071,9 @@ public final class TestMsg {
     private volatile java.lang.Object foo_;
     /**
      * <code>string foo = 1;</code>
+     * @return The foo.
      */
+    @java.lang.Override
     public java.lang.String getFoo() {
       java.lang.Object ref = foo_;
       if (ref instanceof java.lang.String) {
@@ -996,7 +1088,9 @@ public final class TestMsg {
     }
     /**
      * <code>string foo = 1;</code>
+     * @return The bytes for foo.
      */
+    @java.lang.Override
     public com.google.protobuf.ByteString
         getFooBytes() {
       java.lang.Object ref = foo_;
@@ -1015,7 +1109,9 @@ public final class TestMsg {
     private double bar_;
     /**
      * <code>double bar = 2;</code>
+     * @return The bar.
      */
+    @java.lang.Override
     public double getBar() {
       return bar_;
     }
@@ -1024,24 +1120,30 @@ public final class TestMsg {
     private org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage nestedMessage_;
     /**
      * <code>.proto.SubMessage.NestedMessage nestedMessage = 3;</code>
+     * @return Whether the nestedMessage field is set.
      */
+    @java.lang.Override
     public boolean hasNestedMessage() {
       return nestedMessage_ != null;
     }
     /**
      * <code>.proto.SubMessage.NestedMessage nestedMessage = 3;</code>
+     * @return The nestedMessage.
      */
+    @java.lang.Override
     public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage getNestedMessage() {
       return nestedMessage_ == null ? org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage.getDefaultInstance() : nestedMessage_;
     }
     /**
      * <code>.proto.SubMessage.NestedMessage nestedMessage = 3;</code>
      */
+    @java.lang.Override
     public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessageOrBuilder getNestedMessageOrBuilder() {
       return getNestedMessage();
     }
 
     private byte memoizedIsInitialized = -1;
+    @java.lang.Override
     public final boolean isInitialized() {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized == 1) return true;
@@ -1051,6 +1153,7 @@ public final class TestMsg {
       return true;
     }
 
+    @java.lang.Override
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
       if (!getFooBytes().isEmpty()) {
@@ -1065,6 +1168,7 @@ public final class TestMsg {
       unknownFields.writeTo(output);
     }
 
+    @java.lang.Override
     public int getSerializedSize() {
       int size = memoizedSize;
       if (size != -1) return size;
@@ -1096,20 +1200,18 @@ public final class TestMsg {
       }
       org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage other = (org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage) obj;
 
-      boolean result = true;
-      result = result && getFoo()
-          .equals(other.getFoo());
-      result = result && (
-          java.lang.Double.doubleToLongBits(getBar())
-          == java.lang.Double.doubleToLongBits(
-              other.getBar()));
-      result = result && (hasNestedMessage() == other.hasNestedMessage());
+      if (!getFoo()
+          .equals(other.getFoo())) return false;
+      if (java.lang.Double.doubleToLongBits(getBar())
+          != java.lang.Double.doubleToLongBits(
+              other.getBar())) return false;
+      if (hasNestedMessage() != other.hasNestedMessage()) return false;
       if (hasNestedMessage()) {
-        result = result && getNestedMessage()
-            .equals(other.getNestedMessage());
+        if (!getNestedMessage()
+            .equals(other.getNestedMessage())) return false;
       }
-      result = result && unknownFields.equals(other.unknownFields);
-      return result;
+      if (!unknownFields.equals(other.unknownFields)) return false;
+      return true;
     }
 
     @java.lang.Override
@@ -1203,6 +1305,7 @@ public final class TestMsg {
           .parseWithIOException(PARSER, input, extensionRegistry);
     }
 
+    @java.lang.Override
     public Builder newBuilderForType() { return newBuilder(); }
     public static Builder newBuilder() {
       return DEFAULT_INSTANCE.toBuilder();
@@ -1210,6 +1313,7 @@ public final class TestMsg {
     public static Builder newBuilder(org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage prototype) {
       return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
     }
+    @java.lang.Override
     public Builder toBuilder() {
       return this == DEFAULT_INSTANCE
           ? new Builder() : new Builder().mergeFrom(this);
@@ -1233,6 +1337,7 @@ public final class TestMsg {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_descriptor;
       }
 
+      @java.lang.Override
       protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
           internalGetFieldAccessorTable() {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_fieldAccessorTable
@@ -1255,6 +1360,7 @@ public final class TestMsg {
                 .alwaysUseFieldBuilders) {
         }
       }
+      @java.lang.Override
       public Builder clear() {
         super.clear();
         foo_ = "";
@@ -1270,15 +1376,18 @@ public final class TestMsg {
         return this;
       }
 
+      @java.lang.Override
       public com.google.protobuf.Descriptors.Descriptor
           getDescriptorForType() {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_SubMessage_descriptor;
       }
 
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage getDefaultInstanceForType() {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.getDefaultInstance();
       }
 
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage build() {
         org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage result = buildPartial();
         if (!result.isInitialized()) {
@@ -1287,6 +1396,7 @@ public final class TestMsg {
         return result;
       }
 
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage buildPartial() {
         org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage result = new org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage(this);
         result.foo_ = foo_;
@@ -1300,32 +1410,39 @@ public final class TestMsg {
         return result;
       }
 
+      @java.lang.Override
       public Builder clone() {
-        return (Builder) super.clone();
+        return super.clone();
       }
+      @java.lang.Override
       public Builder setField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
-        return (Builder) super.setField(field, value);
+        return super.setField(field, value);
       }
+      @java.lang.Override
       public Builder clearField(
           com.google.protobuf.Descriptors.FieldDescriptor field) {
-        return (Builder) super.clearField(field);
+        return super.clearField(field);
       }
+      @java.lang.Override
       public Builder clearOneof(
           com.google.protobuf.Descriptors.OneofDescriptor oneof) {
-        return (Builder) super.clearOneof(oneof);
+        return super.clearOneof(oneof);
       }
+      @java.lang.Override
       public Builder setRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           int index, java.lang.Object value) {
-        return (Builder) super.setRepeatedField(field, index, value);
+        return super.setRepeatedField(field, index, value);
       }
+      @java.lang.Override
       public Builder addRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
-        return (Builder) super.addRepeatedField(field, value);
+        return super.addRepeatedField(field, value);
       }
+      @java.lang.Override
       public Builder mergeFrom(com.google.protobuf.Message other) {
         if (other instanceof org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage) {
           return mergeFrom((org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage)other);
@@ -1352,10 +1469,12 @@ public final class TestMsg {
         return this;
       }
 
+      @java.lang.Override
       public final boolean isInitialized() {
         return true;
       }
 
+      @java.lang.Override
       public Builder mergeFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -1377,6 +1496,7 @@ public final class TestMsg {
       private java.lang.Object foo_ = "";
       /**
        * <code>string foo = 1;</code>
+       * @return The foo.
        */
       public java.lang.String getFoo() {
         java.lang.Object ref = foo_;
@@ -1392,6 +1512,7 @@ public final class TestMsg {
       }
       /**
        * <code>string foo = 1;</code>
+       * @return The bytes for foo.
        */
       public com.google.protobuf.ByteString
           getFooBytes() {
@@ -1408,6 +1529,8 @@ public final class TestMsg {
       }
       /**
        * <code>string foo = 1;</code>
+       * @param value The foo to set.
+       * @return This builder for chaining.
        */
       public Builder setFoo(
           java.lang.String value) {
@@ -1421,6 +1544,7 @@ public final class TestMsg {
       }
       /**
        * <code>string foo = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearFoo() {
         
@@ -1430,6 +1554,8 @@ public final class TestMsg {
       }
       /**
        * <code>string foo = 1;</code>
+       * @param value The bytes for foo to set.
+       * @return This builder for chaining.
        */
       public Builder setFooBytes(
           com.google.protobuf.ByteString value) {
@@ -1446,12 +1572,16 @@ public final class TestMsg {
       private double bar_ ;
       /**
        * <code>double bar = 2;</code>
+       * @return The bar.
        */
+      @java.lang.Override
       public double getBar() {
         return bar_;
       }
       /**
        * <code>double bar = 2;</code>
+       * @param value The bar to set.
+       * @return This builder for chaining.
        */
       public Builder setBar(double value) {
         
@@ -1461,6 +1591,7 @@ public final class TestMsg {
       }
       /**
        * <code>double bar = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearBar() {
         
@@ -1469,17 +1600,19 @@ public final class TestMsg {
         return this;
       }
 
-      private org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage nestedMessage_ = null;
+      private org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage nestedMessage_;
       private com.google.protobuf.SingleFieldBuilderV3<
           org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage, org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage.Builder, org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessageOrBuilder> nestedMessageBuilder_;
       /**
        * <code>.proto.SubMessage.NestedMessage nestedMessage = 3;</code>
+       * @return Whether the nestedMessage field is set.
        */
       public boolean hasNestedMessage() {
         return nestedMessageBuilder_ != null || nestedMessage_ != null;
       }
       /**
        * <code>.proto.SubMessage.NestedMessage nestedMessage = 3;</code>
+       * @return The nestedMessage.
        */
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage getNestedMessage() {
         if (nestedMessageBuilder_ == null) {
@@ -1585,11 +1718,13 @@ public final class TestMsg {
         }
         return nestedMessageBuilder_;
       }
+      @java.lang.Override
       public final Builder setUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
-        return super.setUnknownFieldsProto3(unknownFields);
+        return super.setUnknownFields(unknownFields);
       }
 
+      @java.lang.Override
       public final Builder mergeUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
         return super.mergeUnknownFields(unknownFields);
@@ -1611,6 +1746,7 @@ public final class TestMsg {
 
     private static final com.google.protobuf.Parser<SubMessage>
         PARSER = new com.google.protobuf.AbstractParser<SubMessage>() {
+      @java.lang.Override
       public SubMessage parsePartialFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -1628,6 +1764,7 @@ public final class TestMsg {
       return PARSER;
     }
 
+    @java.lang.Override
     public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage getDefaultInstanceForType() {
       return DEFAULT_INSTANCE;
     }
@@ -1640,99 +1777,119 @@ public final class TestMsg {
 
     /**
      * <code>string stringField = 1;</code>
+     * @return The stringField.
      */
     java.lang.String getStringField();
     /**
      * <code>string stringField = 1;</code>
+     * @return The bytes for stringField.
      */
     com.google.protobuf.ByteString
         getStringFieldBytes();
 
     /**
      * <code>double doubleField = 2;</code>
+     * @return The doubleField.
      */
     double getDoubleField();
 
     /**
      * <code>float floatField = 3;</code>
+     * @return The floatField.
      */
     float getFloatField();
 
     /**
      * <code>int32 int32Field = 4;</code>
+     * @return The int32Field.
      */
     int getInt32Field();
 
     /**
      * <code>int64 int64Field = 5;</code>
+     * @return The int64Field.
      */
     long getInt64Field();
 
     /**
      * <code>uint32 uint32Field = 6;</code>
+     * @return The uint32Field.
      */
     int getUint32Field();
 
     /**
      * <code>uint64 uint64Field = 7;</code>
+     * @return The uint64Field.
      */
     long getUint64Field();
 
     /**
      * <code>sint32 sint32Field = 8;</code>
+     * @return The sint32Field.
      */
     int getSint32Field();
 
     /**
      * <code>sint64 sint64Field = 9;</code>
+     * @return The sint64Field.
      */
     long getSint64Field();
 
     /**
      * <code>fixed32 fixed32Field = 10;</code>
+     * @return The fixed32Field.
      */
     int getFixed32Field();
 
     /**
      * <code>fixed64 fixed64Field = 11;</code>
+     * @return The fixed64Field.
      */
     long getFixed64Field();
 
     /**
      * <code>sfixed32 sfixed32Field = 12;</code>
+     * @return The sfixed32Field.
      */
     int getSfixed32Field();
 
     /**
      * <code>sfixed64 sfixed64Field = 13;</code>
+     * @return The sfixed64Field.
      */
     long getSfixed64Field();
 
     /**
      * <code>bool boolField = 14;</code>
+     * @return The boolField.
      */
     boolean getBoolField();
 
     /**
      * <code>bytes bytesField = 15;</code>
+     * @return The bytesField.
      */
     com.google.protobuf.ByteString getBytesField();
 
     /**
      * <code>.proto.TestEnum testEnum = 16;</code>
+     * @return The enum numeric value on the wire for testEnum.
      */
     int getTestEnumValue();
     /**
      * <code>.proto.TestEnum testEnum = 16;</code>
+     * @return The testEnum.
      */
     org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum getTestEnum();
 
     /**
      * <code>.proto.SubMessage subMessage = 17;</code>
+     * @return Whether the subMessage field is set.
      */
     boolean hasSubMessage();
     /**
      * <code>.proto.SubMessage subMessage = 17;</code>
+     * @return The subMessage.
      */
     org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage getSubMessage();
     /**
@@ -1742,19 +1899,25 @@ public final class TestMsg {
 
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @return A list containing the repeatedField.
      */
     java.util.List<java.lang.String>
         getRepeatedFieldList();
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @return The count of repeatedField.
      */
     int getRepeatedFieldCount();
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @param index The index of the element to return.
+     * @return The repeatedField at the given index.
      */
     java.lang.String getRepeatedField(int index);
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @param index The index of the value to return.
+     * @return The bytes of the repeatedField at the given index.
      */
     com.google.protobuf.ByteString
         getRepeatedFieldBytes(int index);
@@ -1792,11 +1955,26 @@ public final class TestMsg {
 
     double getMapFieldOrThrow(
         java.lang.String key);
+
+    /**
+     * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+     * @return Whether the timestampField field is set.
+     */
+    boolean hasTimestampField();
+    /**
+     * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+     * @return The timestampField.
+     */
+    com.google.protobuf.Timestamp getTimestampField();
+    /**
+     * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+     */
+    com.google.protobuf.TimestampOrBuilder getTimestampFieldOrBuilder();
   }
   /**
    * Protobuf type {@code proto.TestMessage}
    */
-  public  static final class TestMessage extends
+  public static final class TestMessage extends
       com.google.protobuf.GeneratedMessageV3 implements
       // @@protoc_insertion_point(message_implements:proto.TestMessage)
       TestMessageOrBuilder {
@@ -1807,22 +1985,16 @@ public final class TestMsg {
     }
     private TestMessage() {
       stringField_ = "";
-      doubleField_ = 0D;
-      floatField_ = 0F;
-      int32Field_ = 0;
-      int64Field_ = 0L;
-      uint32Field_ = 0;
-      uint64Field_ = 0L;
-      sint32Field_ = 0;
-      sint64Field_ = 0L;
-      fixed32Field_ = 0;
-      fixed64Field_ = 0L;
-      sfixed32Field_ = 0;
-      sfixed64Field_ = 0L;
-      boolField_ = false;
       bytesField_ = com.google.protobuf.ByteString.EMPTY;
       testEnum_ = 0;
       repeatedField_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+    }
+
+    @java.lang.Override
+    @SuppressWarnings({"unused"})
+    protected java.lang.Object newInstance(
+        UnusedPrivateParameter unused) {
+      return new TestMessage();
     }
 
     @java.lang.Override
@@ -1849,13 +2021,6 @@ public final class TestMsg {
             case 0:
               done = true;
               break;
-            default: {
-              if (!parseUnknownFieldProto3(
-                  input, unknownFields, extensionRegistry, tag)) {
-                done = true;
-              }
-              break;
-            }
             case 10: {
               java.lang.String s = input.readStringRequireUtf8();
 
@@ -1953,24 +2118,44 @@ public final class TestMsg {
             }
             case 146: {
               java.lang.String s = input.readStringRequireUtf8();
-              if (!((mutable_bitField0_ & 0x00020000) == 0x00020000)) {
+              if (!((mutable_bitField0_ & 0x00000001) != 0)) {
                 repeatedField_ = new com.google.protobuf.LazyStringArrayList();
-                mutable_bitField0_ |= 0x00020000;
+                mutable_bitField0_ |= 0x00000001;
               }
               repeatedField_.add(s);
               break;
             }
             case 154: {
-              if (!((mutable_bitField0_ & 0x00040000) == 0x00040000)) {
+              if (!((mutable_bitField0_ & 0x00000002) != 0)) {
                 mapField_ = com.google.protobuf.MapField.newMapField(
                     MapFieldDefaultEntryHolder.defaultEntry);
-                mutable_bitField0_ |= 0x00040000;
+                mutable_bitField0_ |= 0x00000002;
               }
               com.google.protobuf.MapEntry<java.lang.String, java.lang.Double>
               mapField__ = input.readMessage(
                   MapFieldDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
               mapField_.getMutableMap().put(
                   mapField__.getKey(), mapField__.getValue());
+              break;
+            }
+            case 162: {
+              com.google.protobuf.Timestamp.Builder subBuilder = null;
+              if (timestampField_ != null) {
+                subBuilder = timestampField_.toBuilder();
+              }
+              timestampField_ = input.readMessage(com.google.protobuf.Timestamp.parser(), extensionRegistry);
+              if (subBuilder != null) {
+                subBuilder.mergeFrom(timestampField_);
+                timestampField_ = subBuilder.buildPartial();
+              }
+
+              break;
+            }
+            default: {
+              if (!parseUnknownField(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
               break;
             }
           }
@@ -1981,7 +2166,7 @@ public final class TestMsg {
         throw new com.google.protobuf.InvalidProtocolBufferException(
             e).setUnfinishedMessage(this);
       } finally {
-        if (((mutable_bitField0_ & 0x00020000) == 0x00020000)) {
+        if (((mutable_bitField0_ & 0x00000001) != 0)) {
           repeatedField_ = repeatedField_.getUnmodifiableView();
         }
         this.unknownFields = unknownFields.build();
@@ -1994,6 +2179,7 @@ public final class TestMsg {
     }
 
     @SuppressWarnings({"rawtypes"})
+    @java.lang.Override
     protected com.google.protobuf.MapField internalGetMapField(
         int number) {
       switch (number) {
@@ -2004,6 +2190,7 @@ public final class TestMsg {
               "Invalid map field number: " + number);
       }
     }
+    @java.lang.Override
     protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
       return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_TestMessage_fieldAccessorTable
@@ -2011,12 +2198,13 @@ public final class TestMsg {
               org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage.class, org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage.Builder.class);
     }
 
-    private int bitField0_;
     public static final int STRINGFIELD_FIELD_NUMBER = 1;
     private volatile java.lang.Object stringField_;
     /**
      * <code>string stringField = 1;</code>
+     * @return The stringField.
      */
+    @java.lang.Override
     public java.lang.String getStringField() {
       java.lang.Object ref = stringField_;
       if (ref instanceof java.lang.String) {
@@ -2031,7 +2219,9 @@ public final class TestMsg {
     }
     /**
      * <code>string stringField = 1;</code>
+     * @return The bytes for stringField.
      */
+    @java.lang.Override
     public com.google.protobuf.ByteString
         getStringFieldBytes() {
       java.lang.Object ref = stringField_;
@@ -2050,7 +2240,9 @@ public final class TestMsg {
     private double doubleField_;
     /**
      * <code>double doubleField = 2;</code>
+     * @return The doubleField.
      */
+    @java.lang.Override
     public double getDoubleField() {
       return doubleField_;
     }
@@ -2059,7 +2251,9 @@ public final class TestMsg {
     private float floatField_;
     /**
      * <code>float floatField = 3;</code>
+     * @return The floatField.
      */
+    @java.lang.Override
     public float getFloatField() {
       return floatField_;
     }
@@ -2068,7 +2262,9 @@ public final class TestMsg {
     private int int32Field_;
     /**
      * <code>int32 int32Field = 4;</code>
+     * @return The int32Field.
      */
+    @java.lang.Override
     public int getInt32Field() {
       return int32Field_;
     }
@@ -2077,7 +2273,9 @@ public final class TestMsg {
     private long int64Field_;
     /**
      * <code>int64 int64Field = 5;</code>
+     * @return The int64Field.
      */
+    @java.lang.Override
     public long getInt64Field() {
       return int64Field_;
     }
@@ -2086,7 +2284,9 @@ public final class TestMsg {
     private int uint32Field_;
     /**
      * <code>uint32 uint32Field = 6;</code>
+     * @return The uint32Field.
      */
+    @java.lang.Override
     public int getUint32Field() {
       return uint32Field_;
     }
@@ -2095,7 +2295,9 @@ public final class TestMsg {
     private long uint64Field_;
     /**
      * <code>uint64 uint64Field = 7;</code>
+     * @return The uint64Field.
      */
+    @java.lang.Override
     public long getUint64Field() {
       return uint64Field_;
     }
@@ -2104,7 +2306,9 @@ public final class TestMsg {
     private int sint32Field_;
     /**
      * <code>sint32 sint32Field = 8;</code>
+     * @return The sint32Field.
      */
+    @java.lang.Override
     public int getSint32Field() {
       return sint32Field_;
     }
@@ -2113,7 +2317,9 @@ public final class TestMsg {
     private long sint64Field_;
     /**
      * <code>sint64 sint64Field = 9;</code>
+     * @return The sint64Field.
      */
+    @java.lang.Override
     public long getSint64Field() {
       return sint64Field_;
     }
@@ -2122,7 +2328,9 @@ public final class TestMsg {
     private int fixed32Field_;
     /**
      * <code>fixed32 fixed32Field = 10;</code>
+     * @return The fixed32Field.
      */
+    @java.lang.Override
     public int getFixed32Field() {
       return fixed32Field_;
     }
@@ -2131,7 +2339,9 @@ public final class TestMsg {
     private long fixed64Field_;
     /**
      * <code>fixed64 fixed64Field = 11;</code>
+     * @return The fixed64Field.
      */
+    @java.lang.Override
     public long getFixed64Field() {
       return fixed64Field_;
     }
@@ -2140,7 +2350,9 @@ public final class TestMsg {
     private int sfixed32Field_;
     /**
      * <code>sfixed32 sfixed32Field = 12;</code>
+     * @return The sfixed32Field.
      */
+    @java.lang.Override
     public int getSfixed32Field() {
       return sfixed32Field_;
     }
@@ -2149,7 +2361,9 @@ public final class TestMsg {
     private long sfixed64Field_;
     /**
      * <code>sfixed64 sfixed64Field = 13;</code>
+     * @return The sfixed64Field.
      */
+    @java.lang.Override
     public long getSfixed64Field() {
       return sfixed64Field_;
     }
@@ -2158,7 +2372,9 @@ public final class TestMsg {
     private boolean boolField_;
     /**
      * <code>bool boolField = 14;</code>
+     * @return The boolField.
      */
+    @java.lang.Override
     public boolean getBoolField() {
       return boolField_;
     }
@@ -2167,7 +2383,9 @@ public final class TestMsg {
     private com.google.protobuf.ByteString bytesField_;
     /**
      * <code>bytes bytesField = 15;</code>
+     * @return The bytesField.
      */
+    @java.lang.Override
     public com.google.protobuf.ByteString getBytesField() {
       return bytesField_;
     }
@@ -2176,14 +2394,17 @@ public final class TestMsg {
     private int testEnum_;
     /**
      * <code>.proto.TestEnum testEnum = 16;</code>
+     * @return The enum numeric value on the wire for testEnum.
      */
-    public int getTestEnumValue() {
+    @java.lang.Override public int getTestEnumValue() {
       return testEnum_;
     }
     /**
      * <code>.proto.TestEnum testEnum = 16;</code>
+     * @return The testEnum.
      */
-    public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum getTestEnum() {
+    @java.lang.Override public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum getTestEnum() {
+      @SuppressWarnings("deprecation")
       org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum result = org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum.valueOf(testEnum_);
       return result == null ? org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum.UNRECOGNIZED : result;
     }
@@ -2192,19 +2413,24 @@ public final class TestMsg {
     private org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage subMessage_;
     /**
      * <code>.proto.SubMessage subMessage = 17;</code>
+     * @return Whether the subMessage field is set.
      */
+    @java.lang.Override
     public boolean hasSubMessage() {
       return subMessage_ != null;
     }
     /**
      * <code>.proto.SubMessage subMessage = 17;</code>
+     * @return The subMessage.
      */
+    @java.lang.Override
     public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage getSubMessage() {
       return subMessage_ == null ? org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.getDefaultInstance() : subMessage_;
     }
     /**
      * <code>.proto.SubMessage subMessage = 17;</code>
      */
+    @java.lang.Override
     public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessageOrBuilder getSubMessageOrBuilder() {
       return getSubMessage();
     }
@@ -2213,6 +2439,7 @@ public final class TestMsg {
     private com.google.protobuf.LazyStringList repeatedField_;
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @return A list containing the repeatedField.
      */
     public com.google.protobuf.ProtocolStringList
         getRepeatedFieldList() {
@@ -2220,18 +2447,23 @@ public final class TestMsg {
     }
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @return The count of repeatedField.
      */
     public int getRepeatedFieldCount() {
       return repeatedField_.size();
     }
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @param index The index of the element to return.
+     * @return The repeatedField at the given index.
      */
     public java.lang.String getRepeatedField(int index) {
       return repeatedField_.get(index);
     }
     /**
      * <code>repeated string repeatedField = 18;</code>
+     * @param index The index of the value to return.
+     * @return The bytes of the repeatedField at the given index.
      */
     public com.google.protobuf.ByteString
         getRepeatedFieldBytes(int index) {
@@ -2268,6 +2500,7 @@ public final class TestMsg {
      * <code>map&lt;string, double&gt; mapField = 19;</code>
      */
 
+    @java.lang.Override
     public boolean containsMapField(
         java.lang.String key) {
       if (key == null) { throw new java.lang.NullPointerException(); }
@@ -2276,6 +2509,7 @@ public final class TestMsg {
     /**
      * Use {@link #getMapFieldMap()} instead.
      */
+    @java.lang.Override
     @java.lang.Deprecated
     public java.util.Map<java.lang.String, java.lang.Double> getMapField() {
       return getMapFieldMap();
@@ -2283,6 +2517,7 @@ public final class TestMsg {
     /**
      * <code>map&lt;string, double&gt; mapField = 19;</code>
      */
+    @java.lang.Override
 
     public java.util.Map<java.lang.String, java.lang.Double> getMapFieldMap() {
       return internalGetMapField().getMap();
@@ -2290,6 +2525,7 @@ public final class TestMsg {
     /**
      * <code>map&lt;string, double&gt; mapField = 19;</code>
      */
+    @java.lang.Override
 
     public double getMapFieldOrDefault(
         java.lang.String key,
@@ -2302,6 +2538,7 @@ public final class TestMsg {
     /**
      * <code>map&lt;string, double&gt; mapField = 19;</code>
      */
+    @java.lang.Override
 
     public double getMapFieldOrThrow(
         java.lang.String key) {
@@ -2314,7 +2551,34 @@ public final class TestMsg {
       return map.get(key);
     }
 
+    public static final int TIMESTAMPFIELD_FIELD_NUMBER = 20;
+    private com.google.protobuf.Timestamp timestampField_;
+    /**
+     * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+     * @return Whether the timestampField field is set.
+     */
+    @java.lang.Override
+    public boolean hasTimestampField() {
+      return timestampField_ != null;
+    }
+    /**
+     * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+     * @return The timestampField.
+     */
+    @java.lang.Override
+    public com.google.protobuf.Timestamp getTimestampField() {
+      return timestampField_ == null ? com.google.protobuf.Timestamp.getDefaultInstance() : timestampField_;
+    }
+    /**
+     * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+     */
+    @java.lang.Override
+    public com.google.protobuf.TimestampOrBuilder getTimestampFieldOrBuilder() {
+      return getTimestampField();
+    }
+
     private byte memoizedIsInitialized = -1;
+    @java.lang.Override
     public final boolean isInitialized() {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized == 1) return true;
@@ -2324,6 +2588,7 @@ public final class TestMsg {
       return true;
     }
 
+    @java.lang.Override
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
       if (!getStringFieldBytes().isEmpty()) {
@@ -2386,9 +2651,13 @@ public final class TestMsg {
           internalGetMapField(),
           MapFieldDefaultEntryHolder.defaultEntry,
           19);
+      if (timestampField_ != null) {
+        output.writeMessage(20, getTimestampField());
+      }
       unknownFields.writeTo(output);
     }
 
+    @java.lang.Override
     public int getSerializedSize() {
       int size = memoizedSize;
       if (size != -1) return size;
@@ -2479,6 +2748,10 @@ public final class TestMsg {
         size += com.google.protobuf.CodedOutputStream
             .computeMessageSize(19, mapField__);
       }
+      if (timestampField_ != null) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(20, getTimestampField());
+      }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
       return size;
@@ -2494,53 +2767,55 @@ public final class TestMsg {
       }
       org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage other = (org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage) obj;
 
-      boolean result = true;
-      result = result && getStringField()
-          .equals(other.getStringField());
-      result = result && (
-          java.lang.Double.doubleToLongBits(getDoubleField())
-          == java.lang.Double.doubleToLongBits(
-              other.getDoubleField()));
-      result = result && (
-          java.lang.Float.floatToIntBits(getFloatField())
-          == java.lang.Float.floatToIntBits(
-              other.getFloatField()));
-      result = result && (getInt32Field()
-          == other.getInt32Field());
-      result = result && (getInt64Field()
-          == other.getInt64Field());
-      result = result && (getUint32Field()
-          == other.getUint32Field());
-      result = result && (getUint64Field()
-          == other.getUint64Field());
-      result = result && (getSint32Field()
-          == other.getSint32Field());
-      result = result && (getSint64Field()
-          == other.getSint64Field());
-      result = result && (getFixed32Field()
-          == other.getFixed32Field());
-      result = result && (getFixed64Field()
-          == other.getFixed64Field());
-      result = result && (getSfixed32Field()
-          == other.getSfixed32Field());
-      result = result && (getSfixed64Field()
-          == other.getSfixed64Field());
-      result = result && (getBoolField()
-          == other.getBoolField());
-      result = result && getBytesField()
-          .equals(other.getBytesField());
-      result = result && testEnum_ == other.testEnum_;
-      result = result && (hasSubMessage() == other.hasSubMessage());
+      if (!getStringField()
+          .equals(other.getStringField())) return false;
+      if (java.lang.Double.doubleToLongBits(getDoubleField())
+          != java.lang.Double.doubleToLongBits(
+              other.getDoubleField())) return false;
+      if (java.lang.Float.floatToIntBits(getFloatField())
+          != java.lang.Float.floatToIntBits(
+              other.getFloatField())) return false;
+      if (getInt32Field()
+          != other.getInt32Field()) return false;
+      if (getInt64Field()
+          != other.getInt64Field()) return false;
+      if (getUint32Field()
+          != other.getUint32Field()) return false;
+      if (getUint64Field()
+          != other.getUint64Field()) return false;
+      if (getSint32Field()
+          != other.getSint32Field()) return false;
+      if (getSint64Field()
+          != other.getSint64Field()) return false;
+      if (getFixed32Field()
+          != other.getFixed32Field()) return false;
+      if (getFixed64Field()
+          != other.getFixed64Field()) return false;
+      if (getSfixed32Field()
+          != other.getSfixed32Field()) return false;
+      if (getSfixed64Field()
+          != other.getSfixed64Field()) return false;
+      if (getBoolField()
+          != other.getBoolField()) return false;
+      if (!getBytesField()
+          .equals(other.getBytesField())) return false;
+      if (testEnum_ != other.testEnum_) return false;
+      if (hasSubMessage() != other.hasSubMessage()) return false;
       if (hasSubMessage()) {
-        result = result && getSubMessage()
-            .equals(other.getSubMessage());
+        if (!getSubMessage()
+            .equals(other.getSubMessage())) return false;
       }
-      result = result && getRepeatedFieldList()
-          .equals(other.getRepeatedFieldList());
-      result = result && internalGetMapField().equals(
-          other.internalGetMapField());
-      result = result && unknownFields.equals(other.unknownFields);
-      return result;
+      if (!getRepeatedFieldList()
+          .equals(other.getRepeatedFieldList())) return false;
+      if (!internalGetMapField().equals(
+          other.internalGetMapField())) return false;
+      if (hasTimestampField() != other.hasTimestampField()) return false;
+      if (hasTimestampField()) {
+        if (!getTimestampField()
+            .equals(other.getTimestampField())) return false;
+      }
+      if (!unknownFields.equals(other.unknownFields)) return false;
+      return true;
     }
 
     @java.lang.Override
@@ -2601,6 +2876,10 @@ public final class TestMsg {
       if (!internalGetMapField().getMap().isEmpty()) {
         hash = (37 * hash) + MAPFIELD_FIELD_NUMBER;
         hash = (53 * hash) + internalGetMapField().hashCode();
+      }
+      if (hasTimestampField()) {
+        hash = (37 * hash) + TIMESTAMPFIELD_FIELD_NUMBER;
+        hash = (53 * hash) + getTimestampField().hashCode();
       }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
@@ -2677,6 +2956,7 @@ public final class TestMsg {
           .parseWithIOException(PARSER, input, extensionRegistry);
     }
 
+    @java.lang.Override
     public Builder newBuilderForType() { return newBuilder(); }
     public static Builder newBuilder() {
       return DEFAULT_INSTANCE.toBuilder();
@@ -2684,6 +2964,7 @@ public final class TestMsg {
     public static Builder newBuilder(org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage prototype) {
       return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
     }
+    @java.lang.Override
     public Builder toBuilder() {
       return this == DEFAULT_INSTANCE
           ? new Builder() : new Builder().mergeFrom(this);
@@ -2729,6 +3010,7 @@ public final class TestMsg {
                 "Invalid map field number: " + number);
         }
       }
+      @java.lang.Override
       protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
           internalGetFieldAccessorTable() {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_TestMessage_fieldAccessorTable
@@ -2751,6 +3033,7 @@ public final class TestMsg {
                 .alwaysUseFieldBuilders) {
         }
       }
+      @java.lang.Override
       public Builder clear() {
         super.clear();
         stringField_ = "";
@@ -2792,20 +3075,29 @@ public final class TestMsg {
           subMessageBuilder_ = null;
         }
         repeatedField_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-        bitField0_ = (bitField0_ & ~0x00020000);
+        bitField0_ = (bitField0_ & ~0x00000001);
         internalGetMutableMapField().clear();
+        if (timestampFieldBuilder_ == null) {
+          timestampField_ = null;
+        } else {
+          timestampField_ = null;
+          timestampFieldBuilder_ = null;
+        }
         return this;
       }
 
+      @java.lang.Override
       public com.google.protobuf.Descriptors.Descriptor
           getDescriptorForType() {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.internal_static_proto_TestMessage_descriptor;
       }
 
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage getDefaultInstanceForType() {
         return org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage.getDefaultInstance();
       }
 
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage build() {
         org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage result = buildPartial();
         if (!result.isInitialized()) {
@@ -2814,10 +3106,10 @@ public final class TestMsg {
         return result;
       }
 
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage buildPartial() {
         org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage result = new org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage(this);
         int from_bitField0_ = bitField0_;
-        int to_bitField0_ = 0;
         result.stringField_ = stringField_;
         result.doubleField_ = doubleField_;
         result.floatField_ = floatField_;
@@ -2839,44 +3131,55 @@ public final class TestMsg {
         } else {
           result.subMessage_ = subMessageBuilder_.build();
         }
-        if (((bitField0_ & 0x00020000) == 0x00020000)) {
+        if (((bitField0_ & 0x00000001) != 0)) {
           repeatedField_ = repeatedField_.getUnmodifiableView();
-          bitField0_ = (bitField0_ & ~0x00020000);
+          bitField0_ = (bitField0_ & ~0x00000001);
         }
         result.repeatedField_ = repeatedField_;
         result.mapField_ = internalGetMapField();
         result.mapField_.makeImmutable();
-        result.bitField0_ = to_bitField0_;
+        if (timestampFieldBuilder_ == null) {
+          result.timestampField_ = timestampField_;
+        } else {
+          result.timestampField_ = timestampFieldBuilder_.build();
+        }
         onBuilt();
         return result;
       }
 
+      @java.lang.Override
       public Builder clone() {
-        return (Builder) super.clone();
+        return super.clone();
       }
+      @java.lang.Override
       public Builder setField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
-        return (Builder) super.setField(field, value);
+        return super.setField(field, value);
       }
+      @java.lang.Override
       public Builder clearField(
           com.google.protobuf.Descriptors.FieldDescriptor field) {
-        return (Builder) super.clearField(field);
+        return super.clearField(field);
       }
+      @java.lang.Override
       public Builder clearOneof(
           com.google.protobuf.Descriptors.OneofDescriptor oneof) {
-        return (Builder) super.clearOneof(oneof);
+        return super.clearOneof(oneof);
       }
+      @java.lang.Override
       public Builder setRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           int index, java.lang.Object value) {
-        return (Builder) super.setRepeatedField(field, index, value);
+        return super.setRepeatedField(field, index, value);
       }
+      @java.lang.Override
       public Builder addRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
-        return (Builder) super.addRepeatedField(field, value);
+        return super.addRepeatedField(field, value);
       }
+      @java.lang.Override
       public Builder mergeFrom(com.google.protobuf.Message other) {
         if (other instanceof org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage) {
           return mergeFrom((org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage)other);
@@ -2943,7 +3246,7 @@ public final class TestMsg {
         if (!other.repeatedField_.isEmpty()) {
           if (repeatedField_.isEmpty()) {
             repeatedField_ = other.repeatedField_;
-            bitField0_ = (bitField0_ & ~0x00020000);
+            bitField0_ = (bitField0_ & ~0x00000001);
           } else {
             ensureRepeatedFieldIsMutable();
             repeatedField_.addAll(other.repeatedField_);
@@ -2952,15 +3255,20 @@ public final class TestMsg {
         }
         internalGetMutableMapField().mergeFrom(
             other.internalGetMapField());
+        if (other.hasTimestampField()) {
+          mergeTimestampField(other.getTimestampField());
+        }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
         return this;
       }
 
+      @java.lang.Override
       public final boolean isInitialized() {
         return true;
       }
 
+      @java.lang.Override
       public Builder mergeFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -2983,6 +3291,7 @@ public final class TestMsg {
       private java.lang.Object stringField_ = "";
       /**
        * <code>string stringField = 1;</code>
+       * @return The stringField.
        */
       public java.lang.String getStringField() {
         java.lang.Object ref = stringField_;
@@ -2998,6 +3307,7 @@ public final class TestMsg {
       }
       /**
        * <code>string stringField = 1;</code>
+       * @return The bytes for stringField.
        */
       public com.google.protobuf.ByteString
           getStringFieldBytes() {
@@ -3014,6 +3324,8 @@ public final class TestMsg {
       }
       /**
        * <code>string stringField = 1;</code>
+       * @param value The stringField to set.
+       * @return This builder for chaining.
        */
       public Builder setStringField(
           java.lang.String value) {
@@ -3027,6 +3339,7 @@ public final class TestMsg {
       }
       /**
        * <code>string stringField = 1;</code>
+       * @return This builder for chaining.
        */
       public Builder clearStringField() {
         
@@ -3036,6 +3349,8 @@ public final class TestMsg {
       }
       /**
        * <code>string stringField = 1;</code>
+       * @param value The bytes for stringField to set.
+       * @return This builder for chaining.
        */
       public Builder setStringFieldBytes(
           com.google.protobuf.ByteString value) {
@@ -3052,12 +3367,16 @@ public final class TestMsg {
       private double doubleField_ ;
       /**
        * <code>double doubleField = 2;</code>
+       * @return The doubleField.
        */
+      @java.lang.Override
       public double getDoubleField() {
         return doubleField_;
       }
       /**
        * <code>double doubleField = 2;</code>
+       * @param value The doubleField to set.
+       * @return This builder for chaining.
        */
       public Builder setDoubleField(double value) {
         
@@ -3067,6 +3386,7 @@ public final class TestMsg {
       }
       /**
        * <code>double doubleField = 2;</code>
+       * @return This builder for chaining.
        */
       public Builder clearDoubleField() {
         
@@ -3078,12 +3398,16 @@ public final class TestMsg {
       private float floatField_ ;
       /**
        * <code>float floatField = 3;</code>
+       * @return The floatField.
        */
+      @java.lang.Override
       public float getFloatField() {
         return floatField_;
       }
       /**
        * <code>float floatField = 3;</code>
+       * @param value The floatField to set.
+       * @return This builder for chaining.
        */
       public Builder setFloatField(float value) {
         
@@ -3093,6 +3417,7 @@ public final class TestMsg {
       }
       /**
        * <code>float floatField = 3;</code>
+       * @return This builder for chaining.
        */
       public Builder clearFloatField() {
         
@@ -3104,12 +3429,16 @@ public final class TestMsg {
       private int int32Field_ ;
       /**
        * <code>int32 int32Field = 4;</code>
+       * @return The int32Field.
        */
+      @java.lang.Override
       public int getInt32Field() {
         return int32Field_;
       }
       /**
        * <code>int32 int32Field = 4;</code>
+       * @param value The int32Field to set.
+       * @return This builder for chaining.
        */
       public Builder setInt32Field(int value) {
         
@@ -3119,6 +3448,7 @@ public final class TestMsg {
       }
       /**
        * <code>int32 int32Field = 4;</code>
+       * @return This builder for chaining.
        */
       public Builder clearInt32Field() {
         
@@ -3130,12 +3460,16 @@ public final class TestMsg {
       private long int64Field_ ;
       /**
        * <code>int64 int64Field = 5;</code>
+       * @return The int64Field.
        */
+      @java.lang.Override
       public long getInt64Field() {
         return int64Field_;
       }
       /**
        * <code>int64 int64Field = 5;</code>
+       * @param value The int64Field to set.
+       * @return This builder for chaining.
        */
       public Builder setInt64Field(long value) {
         
@@ -3145,6 +3479,7 @@ public final class TestMsg {
       }
       /**
        * <code>int64 int64Field = 5;</code>
+       * @return This builder for chaining.
        */
       public Builder clearInt64Field() {
         
@@ -3156,12 +3491,16 @@ public final class TestMsg {
       private int uint32Field_ ;
       /**
        * <code>uint32 uint32Field = 6;</code>
+       * @return The uint32Field.
        */
+      @java.lang.Override
       public int getUint32Field() {
         return uint32Field_;
       }
       /**
        * <code>uint32 uint32Field = 6;</code>
+       * @param value The uint32Field to set.
+       * @return This builder for chaining.
        */
       public Builder setUint32Field(int value) {
         
@@ -3171,6 +3510,7 @@ public final class TestMsg {
       }
       /**
        * <code>uint32 uint32Field = 6;</code>
+       * @return This builder for chaining.
        */
       public Builder clearUint32Field() {
         
@@ -3182,12 +3522,16 @@ public final class TestMsg {
       private long uint64Field_ ;
       /**
        * <code>uint64 uint64Field = 7;</code>
+       * @return The uint64Field.
        */
+      @java.lang.Override
       public long getUint64Field() {
         return uint64Field_;
       }
       /**
        * <code>uint64 uint64Field = 7;</code>
+       * @param value The uint64Field to set.
+       * @return This builder for chaining.
        */
       public Builder setUint64Field(long value) {
         
@@ -3197,6 +3541,7 @@ public final class TestMsg {
       }
       /**
        * <code>uint64 uint64Field = 7;</code>
+       * @return This builder for chaining.
        */
       public Builder clearUint64Field() {
         
@@ -3208,12 +3553,16 @@ public final class TestMsg {
       private int sint32Field_ ;
       /**
        * <code>sint32 sint32Field = 8;</code>
+       * @return The sint32Field.
        */
+      @java.lang.Override
       public int getSint32Field() {
         return sint32Field_;
       }
       /**
        * <code>sint32 sint32Field = 8;</code>
+       * @param value The sint32Field to set.
+       * @return This builder for chaining.
        */
       public Builder setSint32Field(int value) {
         
@@ -3223,6 +3572,7 @@ public final class TestMsg {
       }
       /**
        * <code>sint32 sint32Field = 8;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSint32Field() {
         
@@ -3234,12 +3584,16 @@ public final class TestMsg {
       private long sint64Field_ ;
       /**
        * <code>sint64 sint64Field = 9;</code>
+       * @return The sint64Field.
        */
+      @java.lang.Override
       public long getSint64Field() {
         return sint64Field_;
       }
       /**
        * <code>sint64 sint64Field = 9;</code>
+       * @param value The sint64Field to set.
+       * @return This builder for chaining.
        */
       public Builder setSint64Field(long value) {
         
@@ -3249,6 +3603,7 @@ public final class TestMsg {
       }
       /**
        * <code>sint64 sint64Field = 9;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSint64Field() {
         
@@ -3260,12 +3615,16 @@ public final class TestMsg {
       private int fixed32Field_ ;
       /**
        * <code>fixed32 fixed32Field = 10;</code>
+       * @return The fixed32Field.
        */
+      @java.lang.Override
       public int getFixed32Field() {
         return fixed32Field_;
       }
       /**
        * <code>fixed32 fixed32Field = 10;</code>
+       * @param value The fixed32Field to set.
+       * @return This builder for chaining.
        */
       public Builder setFixed32Field(int value) {
         
@@ -3275,6 +3634,7 @@ public final class TestMsg {
       }
       /**
        * <code>fixed32 fixed32Field = 10;</code>
+       * @return This builder for chaining.
        */
       public Builder clearFixed32Field() {
         
@@ -3286,12 +3646,16 @@ public final class TestMsg {
       private long fixed64Field_ ;
       /**
        * <code>fixed64 fixed64Field = 11;</code>
+       * @return The fixed64Field.
        */
+      @java.lang.Override
       public long getFixed64Field() {
         return fixed64Field_;
       }
       /**
        * <code>fixed64 fixed64Field = 11;</code>
+       * @param value The fixed64Field to set.
+       * @return This builder for chaining.
        */
       public Builder setFixed64Field(long value) {
         
@@ -3301,6 +3665,7 @@ public final class TestMsg {
       }
       /**
        * <code>fixed64 fixed64Field = 11;</code>
+       * @return This builder for chaining.
        */
       public Builder clearFixed64Field() {
         
@@ -3312,12 +3677,16 @@ public final class TestMsg {
       private int sfixed32Field_ ;
       /**
        * <code>sfixed32 sfixed32Field = 12;</code>
+       * @return The sfixed32Field.
        */
+      @java.lang.Override
       public int getSfixed32Field() {
         return sfixed32Field_;
       }
       /**
        * <code>sfixed32 sfixed32Field = 12;</code>
+       * @param value The sfixed32Field to set.
+       * @return This builder for chaining.
        */
       public Builder setSfixed32Field(int value) {
         
@@ -3327,6 +3696,7 @@ public final class TestMsg {
       }
       /**
        * <code>sfixed32 sfixed32Field = 12;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSfixed32Field() {
         
@@ -3338,12 +3708,16 @@ public final class TestMsg {
       private long sfixed64Field_ ;
       /**
        * <code>sfixed64 sfixed64Field = 13;</code>
+       * @return The sfixed64Field.
        */
+      @java.lang.Override
       public long getSfixed64Field() {
         return sfixed64Field_;
       }
       /**
        * <code>sfixed64 sfixed64Field = 13;</code>
+       * @param value The sfixed64Field to set.
+       * @return This builder for chaining.
        */
       public Builder setSfixed64Field(long value) {
         
@@ -3353,6 +3727,7 @@ public final class TestMsg {
       }
       /**
        * <code>sfixed64 sfixed64Field = 13;</code>
+       * @return This builder for chaining.
        */
       public Builder clearSfixed64Field() {
         
@@ -3364,12 +3739,16 @@ public final class TestMsg {
       private boolean boolField_ ;
       /**
        * <code>bool boolField = 14;</code>
+       * @return The boolField.
        */
+      @java.lang.Override
       public boolean getBoolField() {
         return boolField_;
       }
       /**
        * <code>bool boolField = 14;</code>
+       * @param value The boolField to set.
+       * @return This builder for chaining.
        */
       public Builder setBoolField(boolean value) {
         
@@ -3379,6 +3758,7 @@ public final class TestMsg {
       }
       /**
        * <code>bool boolField = 14;</code>
+       * @return This builder for chaining.
        */
       public Builder clearBoolField() {
         
@@ -3390,12 +3770,16 @@ public final class TestMsg {
       private com.google.protobuf.ByteString bytesField_ = com.google.protobuf.ByteString.EMPTY;
       /**
        * <code>bytes bytesField = 15;</code>
+       * @return The bytesField.
        */
+      @java.lang.Override
       public com.google.protobuf.ByteString getBytesField() {
         return bytesField_;
       }
       /**
        * <code>bytes bytesField = 15;</code>
+       * @param value The bytesField to set.
+       * @return This builder for chaining.
        */
       public Builder setBytesField(com.google.protobuf.ByteString value) {
         if (value == null) {
@@ -3408,6 +3792,7 @@ public final class TestMsg {
       }
       /**
        * <code>bytes bytesField = 15;</code>
+       * @return This builder for chaining.
        */
       public Builder clearBytesField() {
         
@@ -3419,27 +3804,36 @@ public final class TestMsg {
       private int testEnum_ = 0;
       /**
        * <code>.proto.TestEnum testEnum = 16;</code>
+       * @return The enum numeric value on the wire for testEnum.
        */
-      public int getTestEnumValue() {
+      @java.lang.Override public int getTestEnumValue() {
         return testEnum_;
       }
       /**
        * <code>.proto.TestEnum testEnum = 16;</code>
+       * @param value The enum numeric value on the wire for testEnum to set.
+       * @return This builder for chaining.
        */
       public Builder setTestEnumValue(int value) {
+        
         testEnum_ = value;
         onChanged();
         return this;
       }
       /**
        * <code>.proto.TestEnum testEnum = 16;</code>
+       * @return The testEnum.
        */
+      @java.lang.Override
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum getTestEnum() {
+        @SuppressWarnings("deprecation")
         org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum result = org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum.valueOf(testEnum_);
         return result == null ? org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum.UNRECOGNIZED : result;
       }
       /**
        * <code>.proto.TestEnum testEnum = 16;</code>
+       * @param value The testEnum to set.
+       * @return This builder for chaining.
        */
       public Builder setTestEnum(org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum value) {
         if (value == null) {
@@ -3452,6 +3846,7 @@ public final class TestMsg {
       }
       /**
        * <code>.proto.TestEnum testEnum = 16;</code>
+       * @return This builder for chaining.
        */
       public Builder clearTestEnum() {
         
@@ -3460,17 +3855,19 @@ public final class TestMsg {
         return this;
       }
 
-      private org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage subMessage_ = null;
+      private org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage subMessage_;
       private com.google.protobuf.SingleFieldBuilderV3<
           org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage, org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.Builder, org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessageOrBuilder> subMessageBuilder_;
       /**
        * <code>.proto.SubMessage subMessage = 17;</code>
+       * @return Whether the subMessage field is set.
        */
       public boolean hasSubMessage() {
         return subMessageBuilder_ != null || subMessage_ != null;
       }
       /**
        * <code>.proto.SubMessage subMessage = 17;</code>
+       * @return The subMessage.
        */
       public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage getSubMessage() {
         if (subMessageBuilder_ == null) {
@@ -3579,13 +3976,14 @@ public final class TestMsg {
 
       private com.google.protobuf.LazyStringList repeatedField_ = com.google.protobuf.LazyStringArrayList.EMPTY;
       private void ensureRepeatedFieldIsMutable() {
-        if (!((bitField0_ & 0x00020000) == 0x00020000)) {
+        if (!((bitField0_ & 0x00000001) != 0)) {
           repeatedField_ = new com.google.protobuf.LazyStringArrayList(repeatedField_);
-          bitField0_ |= 0x00020000;
+          bitField0_ |= 0x00000001;
          }
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @return A list containing the repeatedField.
        */
       public com.google.protobuf.ProtocolStringList
           getRepeatedFieldList() {
@@ -3593,18 +3991,23 @@ public final class TestMsg {
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @return The count of repeatedField.
        */
       public int getRepeatedFieldCount() {
         return repeatedField_.size();
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @param index The index of the element to return.
+       * @return The repeatedField at the given index.
        */
       public java.lang.String getRepeatedField(int index) {
         return repeatedField_.get(index);
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @param index The index of the value to return.
+       * @return The bytes of the repeatedField at the given index.
        */
       public com.google.protobuf.ByteString
           getRepeatedFieldBytes(int index) {
@@ -3612,6 +4015,9 @@ public final class TestMsg {
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @param index The index to set the value at.
+       * @param value The repeatedField to set.
+       * @return This builder for chaining.
        */
       public Builder setRepeatedField(
           int index, java.lang.String value) {
@@ -3625,6 +4031,8 @@ public final class TestMsg {
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @param value The repeatedField to add.
+       * @return This builder for chaining.
        */
       public Builder addRepeatedField(
           java.lang.String value) {
@@ -3638,6 +4046,8 @@ public final class TestMsg {
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @param values The repeatedField to add.
+       * @return This builder for chaining.
        */
       public Builder addAllRepeatedField(
           java.lang.Iterable<java.lang.String> values) {
@@ -3649,15 +4059,18 @@ public final class TestMsg {
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @return This builder for chaining.
        */
       public Builder clearRepeatedField() {
         repeatedField_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-        bitField0_ = (bitField0_ & ~0x00020000);
+        bitField0_ = (bitField0_ & ~0x00000001);
         onChanged();
         return this;
       }
       /**
        * <code>repeated string repeatedField = 18;</code>
+       * @param value The bytes of the repeatedField to add.
+       * @return This builder for chaining.
        */
       public Builder addRepeatedFieldBytes(
           com.google.protobuf.ByteString value) {
@@ -3701,6 +4114,7 @@ public final class TestMsg {
        * <code>map&lt;string, double&gt; mapField = 19;</code>
        */
 
+      @java.lang.Override
       public boolean containsMapField(
           java.lang.String key) {
         if (key == null) { throw new java.lang.NullPointerException(); }
@@ -3709,6 +4123,7 @@ public final class TestMsg {
       /**
        * Use {@link #getMapFieldMap()} instead.
        */
+      @java.lang.Override
       @java.lang.Deprecated
       public java.util.Map<java.lang.String, java.lang.Double> getMapField() {
         return getMapFieldMap();
@@ -3716,6 +4131,7 @@ public final class TestMsg {
       /**
        * <code>map&lt;string, double&gt; mapField = 19;</code>
        */
+      @java.lang.Override
 
       public java.util.Map<java.lang.String, java.lang.Double> getMapFieldMap() {
         return internalGetMapField().getMap();
@@ -3723,6 +4139,7 @@ public final class TestMsg {
       /**
        * <code>map&lt;string, double&gt; mapField = 19;</code>
        */
+      @java.lang.Override
 
       public double getMapFieldOrDefault(
           java.lang.String key,
@@ -3735,6 +4152,7 @@ public final class TestMsg {
       /**
        * <code>map&lt;string, double&gt; mapField = 19;</code>
        */
+      @java.lang.Override
 
       public double getMapFieldOrThrow(
           java.lang.String key) {
@@ -3793,11 +4211,132 @@ public final class TestMsg {
             .putAll(values);
         return this;
       }
+
+      private com.google.protobuf.Timestamp timestampField_;
+      private com.google.protobuf.SingleFieldBuilderV3<
+          com.google.protobuf.Timestamp, com.google.protobuf.Timestamp.Builder, com.google.protobuf.TimestampOrBuilder> timestampFieldBuilder_;
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       * @return Whether the timestampField field is set.
+       */
+      public boolean hasTimestampField() {
+        return timestampFieldBuilder_ != null || timestampField_ != null;
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       * @return The timestampField.
+       */
+      public com.google.protobuf.Timestamp getTimestampField() {
+        if (timestampFieldBuilder_ == null) {
+          return timestampField_ == null ? com.google.protobuf.Timestamp.getDefaultInstance() : timestampField_;
+        } else {
+          return timestampFieldBuilder_.getMessage();
+        }
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       */
+      public Builder setTimestampField(com.google.protobuf.Timestamp value) {
+        if (timestampFieldBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          timestampField_ = value;
+          onChanged();
+        } else {
+          timestampFieldBuilder_.setMessage(value);
+        }
+
+        return this;
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       */
+      public Builder setTimestampField(
+          com.google.protobuf.Timestamp.Builder builderForValue) {
+        if (timestampFieldBuilder_ == null) {
+          timestampField_ = builderForValue.build();
+          onChanged();
+        } else {
+          timestampFieldBuilder_.setMessage(builderForValue.build());
+        }
+
+        return this;
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       */
+      public Builder mergeTimestampField(com.google.protobuf.Timestamp value) {
+        if (timestampFieldBuilder_ == null) {
+          if (timestampField_ != null) {
+            timestampField_ =
+              com.google.protobuf.Timestamp.newBuilder(timestampField_).mergeFrom(value).buildPartial();
+          } else {
+            timestampField_ = value;
+          }
+          onChanged();
+        } else {
+          timestampFieldBuilder_.mergeFrom(value);
+        }
+
+        return this;
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       */
+      public Builder clearTimestampField() {
+        if (timestampFieldBuilder_ == null) {
+          timestampField_ = null;
+          onChanged();
+        } else {
+          timestampField_ = null;
+          timestampFieldBuilder_ = null;
+        }
+
+        return this;
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       */
+      public com.google.protobuf.Timestamp.Builder getTimestampFieldBuilder() {
+        
+        onChanged();
+        return getTimestampFieldFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       */
+      public com.google.protobuf.TimestampOrBuilder getTimestampFieldOrBuilder() {
+        if (timestampFieldBuilder_ != null) {
+          return timestampFieldBuilder_.getMessageOrBuilder();
+        } else {
+          return timestampField_ == null ?
+              com.google.protobuf.Timestamp.getDefaultInstance() : timestampField_;
+        }
+      }
+      /**
+       * <code>.google.protobuf.Timestamp timestampField = 20;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilderV3<
+          com.google.protobuf.Timestamp, com.google.protobuf.Timestamp.Builder, com.google.protobuf.TimestampOrBuilder> 
+          getTimestampFieldFieldBuilder() {
+        if (timestampFieldBuilder_ == null) {
+          timestampFieldBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
+              com.google.protobuf.Timestamp, com.google.protobuf.Timestamp.Builder, com.google.protobuf.TimestampOrBuilder>(
+                  getTimestampField(),
+                  getParentForChildren(),
+                  isClean());
+          timestampField_ = null;
+        }
+        return timestampFieldBuilder_;
+      }
+      @java.lang.Override
       public final Builder setUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
-        return super.setUnknownFieldsProto3(unknownFields);
+        return super.setUnknownFields(unknownFields);
       }
 
+      @java.lang.Override
       public final Builder mergeUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
         return super.mergeUnknownFields(unknownFields);
@@ -3819,6 +4358,7 @@ public final class TestMsg {
 
     private static final com.google.protobuf.Parser<TestMessage>
         PARSER = new com.google.protobuf.AbstractParser<TestMessage>() {
+      @java.lang.Override
       public TestMessage parsePartialFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -3836,6 +4376,7 @@ public final class TestMsg {
       return PARSER;
     }
 
+    @java.lang.Override
     public org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestMessage getDefaultInstanceForType() {
       return DEFAULT_INSTANCE;
     }
@@ -3871,40 +4412,35 @@ public final class TestMsg {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\rTestMsg.proto\022\005proto\"\214\001\n\nSubMessage\022\013\n" +
-      "\003foo\030\001 \001(\t\022\013\n\003bar\030\002 \001(\001\0226\n\rnestedMessage" +
-      "\030\003 \001(\0132\037.proto.SubMessage.NestedMessage\032" +
-      ",\n\rNestedMessage\022\r\n\005title\030\001 \001(\t\022\014\n\004urls\030" +
-      "\002 \003(\t\"\216\004\n\013TestMessage\022\023\n\013stringField\030\001 \001" +
-      "(\t\022\023\n\013doubleField\030\002 \001(\001\022\022\n\nfloatField\030\003 " +
-      "\001(\002\022\022\n\nint32Field\030\004 \001(\005\022\022\n\nint64Field\030\005 " +
-      "\001(\003\022\023\n\013uint32Field\030\006 \001(\r\022\023\n\013uint64Field\030" +
-      "\007 \001(\004\022\023\n\013sint32Field\030\010 \001(\021\022\023\n\013sint64Fiel" +
-      "d\030\t \001(\022\022\024\n\014fixed32Field\030\n \001(\007\022\024\n\014fixed64" +
-      "Field\030\013 \001(\006\022\025\n\rsfixed32Field\030\014 \001(\017\022\025\n\rsf" +
-      "ixed64Field\030\r \001(\020\022\021\n\tboolField\030\016 \001(\010\022\022\n\n" +
-      "bytesField\030\017 \001(\014\022!\n\010testEnum\030\020 \001(\0162\017.pro" +
-      "to.TestEnum\022%\n\nsubMessage\030\021 \001(\0132\021.proto." +
-      "SubMessage\022\025\n\rrepeatedField\030\022 \003(\t\0222\n\010map" +
-      "Field\030\023 \003(\0132 .proto.TestMessage.MapField" +
-      "Entry\032/\n\rMapFieldEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005v" +
-      "alue\030\002 \001(\001:\0028\001*$\n\010TestEnum\022\n\n\006SHARED\020\000\022\014" +
-      "\n\010FAILOVER\020\001B>\n3org.apache.pulsar.sql.pr" +
-      "esto.decoder.protobufnativeB\007TestMsgb\006pr" +
-      "oto3"
+      "\n\rTestMsg.proto\022\005proto\032\037google/protobuf/" +
+      "timestamp.proto\"\214\001\n\nSubMessage\022\013\n\003foo\030\001 " +
+      "\001(\t\022\013\n\003bar\030\002 \001(\001\0226\n\rnestedMessage\030\003 \001(\0132" +
+      "\037.proto.SubMessage.NestedMessage\032,\n\rNest" +
+      "edMessage\022\r\n\005title\030\001 \001(\t\022\014\n\004urls\030\002 \003(\t\"\302" +
+      "\004\n\013TestMessage\022\023\n\013stringField\030\001 \001(\t\022\023\n\013d" +
+      "oubleField\030\002 \001(\001\022\022\n\nfloatField\030\003 \001(\002\022\022\n\n" +
+      "int32Field\030\004 \001(\005\022\022\n\nint64Field\030\005 \001(\003\022\023\n\013" +
+      "uint32Field\030\006 \001(\r\022\023\n\013uint64Field\030\007 \001(\004\022\023" +
+      "\n\013sint32Field\030\010 \001(\021\022\023\n\013sint64Field\030\t \001(\022" +
+      "\022\024\n\014fixed32Field\030\n \001(\007\022\024\n\014fixed64Field\030\013" +
+      " \001(\006\022\025\n\rsfixed32Field\030\014 \001(\017\022\025\n\rsfixed64F" +
+      "ield\030\r \001(\020\022\021\n\tboolField\030\016 \001(\010\022\022\n\nbytesFi" +
+      "eld\030\017 \001(\014\022!\n\010testEnum\030\020 \001(\0162\017.proto.Test" +
+      "Enum\022%\n\nsubMessage\030\021 \001(\0132\021.proto.SubMess" +
+      "age\022\025\n\rrepeatedField\030\022 \003(\t\0222\n\010mapField\030\023" +
+      " \003(\0132 .proto.TestMessage.MapFieldEntry\0222" +
+      "\n\016timestampField\030\024 \001(\0132\032.google.protobuf" +
+      ".Timestamp\032/\n\rMapFieldEntry\022\013\n\003key\030\001 \001(\t" +
+      "\022\r\n\005value\030\002 \001(\001:\0028\001*$\n\010TestEnum\022\n\n\006SHARE" +
+      "D\020\000\022\014\n\010FAILOVER\020\001B>\n3org.apache.pulsar.s" +
+      "ql.presto.decoder.protobufnativeB\007TestMs" +
+      "gP\000b\006proto3"
     };
-    com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
-        new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
-          public com.google.protobuf.ExtensionRegistry assignDescriptors(
-              com.google.protobuf.Descriptors.FileDescriptor root) {
-            descriptor = root;
-            return null;
-          }
-        };
-    com.google.protobuf.Descriptors.FileDescriptor
+    descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
-        }, assigner);
+          com.google.protobuf.TimestampProto.getDescriptor(),
+        });
     internal_static_proto_SubMessage_descriptor =
       getDescriptor().getMessageTypes().get(0);
     internal_static_proto_SubMessage_fieldAccessorTable = new
@@ -3922,13 +4458,14 @@ public final class TestMsg {
     internal_static_proto_TestMessage_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_proto_TestMessage_descriptor,
-        new java.lang.String[] { "StringField", "DoubleField", "FloatField", "Int32Field", "Int64Field", "Uint32Field", "Uint64Field", "Sint32Field", "Sint64Field", "Fixed32Field", "Fixed64Field", "Sfixed32Field", "Sfixed64Field", "BoolField", "BytesField", "TestEnum", "SubMessage", "RepeatedField", "MapField", });
+        new java.lang.String[] { "StringField", "DoubleField", "FloatField", "Int32Field", "Int64Field", "Uint32Field", "Uint64Field", "Sint32Field", "Sint64Field", "Fixed32Field", "Fixed64Field", "Sfixed32Field", "Sfixed64Field", "BoolField", "BytesField", "TestEnum", "SubMessage", "RepeatedField", "MapField", "TimestampField", });
     internal_static_proto_TestMessage_MapFieldEntry_descriptor =
       internal_static_proto_TestMessage_descriptor.getNestedTypes().get(0);
     internal_static_proto_TestMessage_MapFieldEntry_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_proto_TestMessage_MapFieldEntry_descriptor,
         new java.lang.String[] { "Key", "Value", });
+    com.google.protobuf.TimestampProto.getDescriptor();
   }
 
   // @@protoc_insertion_point(outer_class_scope)

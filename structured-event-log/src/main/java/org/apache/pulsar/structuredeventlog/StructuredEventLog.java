@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.structuredeventlog;
 
+import org.apache.pulsar.structuredeventlog.slf4j.Slf4jStructuredEventLog;
+
 /**
  * Structured event logging interface
  *
@@ -83,7 +85,7 @@ public interface StructuredEventLog {
     /**
      * Create a new logger object, from which root events can be created.
      */
-    public static StructuredEventLog newLogger() {
-        return null;
+    static StructuredEventLog newLogger() {
+        return Slf4jStructuredEventLog.INSTANCE;
     }
 }

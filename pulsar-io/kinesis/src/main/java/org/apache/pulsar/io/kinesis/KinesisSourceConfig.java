@@ -18,33 +18,29 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Date;
-import java.util.Map;
-
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClientBuilder;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClientBuilder;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
+import software.amazon.kinesis.common.InitialPositionInStream;
 import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import software.amazon.kinesis.common.KinesisClientUtil;
-import software.amazon.kinesis.common.InitialPositionInStream;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 @Data
-@EqualsAndHashCode(callSuper=true)
+@EqualsAndHashCode(callSuper = true)
 public class KinesisSourceConfig extends BaseKinesisConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -188,8 +184,7 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
     public InitialPositionInStreamExtended getStreamStartPosition() {
         if (initialPositionInStream == InitialPositionInStream.AT_TIMESTAMP) {
             return InitialPositionInStreamExtended.newInitialPositionAtTimestamp(getStartAtTime());
-        }
-        else {
+        } else {
             return InitialPositionInStreamExtended.newInitialPosition(this.getInitialPositionInStream());
         }
     }

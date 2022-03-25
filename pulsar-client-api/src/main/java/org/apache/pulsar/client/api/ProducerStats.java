@@ -111,4 +111,9 @@ public interface ProducerStats extends Serializable {
      */
     long getTotalAcksReceived();
 
+    /**
+     * @return current pending send-message queue size of the producer
+     */
+    int getPendingQueueSize();
+
 }

@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema.util;
 
-import org.apache.avro.Conversions;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import java.lang.reflect.Field;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
@@ -28,10 +29,6 @@ import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.lang.reflect.Field;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class SchemaUtil {
 
@@ -94,7 +91,7 @@ public class SchemaUtil {
             ReflectData reflectData = schemaDefinition.getAlwaysAllowNull()
                      ? new ReflectData.AllowNull()
                      : new ReflectData();
-            AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled());
+            AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled(), false);
             return reflectData.getSchema(pojo);
         }
     }

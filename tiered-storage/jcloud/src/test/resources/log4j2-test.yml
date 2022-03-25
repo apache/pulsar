@@ -33,7 +33,7 @@ Configuration:
       name: STDOUT
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t:%C@%L] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t:%C@%L] %-5level %logger{36} - %msg%n"
     File:
       name: File
       fileName: ${filename}

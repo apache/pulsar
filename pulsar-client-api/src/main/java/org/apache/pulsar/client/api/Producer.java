@@ -194,4 +194,9 @@ public interface Producer<T> extends Closeable {
      * @return The last disconnected timestamp of the producer
      */
     long getLastDisconnectedTimestamp();
+
+    /**
+     * @return the number of partitions per topic.
+     */
+    int getNumOfPartitions();
 }

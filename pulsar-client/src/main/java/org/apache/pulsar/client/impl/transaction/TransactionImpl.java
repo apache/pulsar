@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import com.google.common.collect.Lists;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import com.google.common.collect.Lists;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -48,7 +52,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  */
 @Slf4j
 @Getter
-public class TransactionImpl implements Transaction {
+public class TransactionImpl implements Transaction , TimerTask {
 
     private final PulsarClientImpl client;
     private final long transactionTimeoutMs;
@@ -63,6 +67,14 @@ public class TransactionImpl implements Transaction {
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
     private volatile State state;
+    private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
+        AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
+    private final Timeout timeout;
+
+    @Override
+    public void run(Timeout timeout) throws Exception {
+        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT);
+    }
 
     public enum State {
         OPEN,
@@ -70,7 +82,8 @@ public class TransactionImpl implements Transaction {
         ABORTING,
         COMMITTED,
         ABORTED,
-        ERROR
+        ERROR,
+        TIMEOUT
     }
 
     TransactionImpl(PulsarClientImpl client,
@@ -89,11 +102,14 @@ public class TransactionImpl implements Transaction {
 
         this.sendFutureList = new ArrayList<>();
         this.ackFutureList = new ArrayList<>();
+        this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
+
     }
 
     // register the topics that will be modified by this transaction
     public CompletableFuture<Void> registerProducedTopic(String topic) {
-        return checkIfOpen().thenCompose(value -> {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (checkIfOpen(completableFuture)) {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the produced topic
                 return registerPartitionMap.compute(topic, (key, future) -> {
@@ -106,7 +122,9 @@ public class TransactionImpl implements Transaction {
                     }
                 });
             }
-        });
+        } else {
+            return completableFuture;
+        }
     }
 
     public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
@@ -115,7 +133,8 @@ public class TransactionImpl implements Transaction {
 
     // register the topics that will be modified by this transaction
     public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
-        return checkIfOpen().thenCompose(value -> {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (checkIfOpen(completableFuture)) {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the acked topic
                 return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
@@ -128,7 +147,9 @@ public class TransactionImpl implements Transaction {
                     }
                 });
             }
-        });
+        } else {
+            return completableFuture;
+        }
     }
 
     public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
@@ -144,7 +165,8 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return checkIfOpen().thenCompose((value) -> {
+        timeout.cancel();
+        return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
             allOpComplete().whenComplete((v, e) -> {
@@ -172,7 +194,8 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        return checkIfOpen().thenCompose(value -> {
+        timeout.cancel();
+        return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
             allOpComplete().whenComplete((v, e) -> {
@@ -213,15 +236,39 @@ public class TransactionImpl implements Transaction {
         return new TxnID(txnIdMostBits, txnIdLeastBits);
     }
 
-    private CompletableFuture<Void> checkIfOpen() {
+    public <T> boolean checkIfOpen(CompletableFuture<T> completableFuture) {
         if (state == State.OPEN) {
-            return CompletableFuture.completedFuture(null);
+            return true;
         } else {
-            return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                    + txnIdLeastBits + "] with unexpected state : "
-                    + state.name() + ", expect " + State.OPEN + " state!"));
+            completableFuture
+                    .completeExceptionally(new InvalidTxnStatusException(
+                            new TxnID(txnIdMostBits, txnIdLeastBits).toString(), state.name(), State.OPEN.name()));
+            return false;
         }
     }
+
+    private CompletableFuture<Void> checkIfOpenOrCommitting() {
+        if (state == State.OPEN || state == State.COMMITTING) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return invalidTxnStatusFuture();
+        }
+    }
+
+    private CompletableFuture<Void> checkIfOpenOrAborting() {
+        if (state == State.OPEN || state == State.ABORTING) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return invalidTxnStatusFuture();
+        }
+    }
+
+    private CompletableFuture<Void> invalidTxnStatusFuture() {
+        return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
+                + txnIdLeastBits + "] with unexpected state : "
+                + state.name() + ", expect " + State.OPEN + " state!"));
+    }
+
 
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();

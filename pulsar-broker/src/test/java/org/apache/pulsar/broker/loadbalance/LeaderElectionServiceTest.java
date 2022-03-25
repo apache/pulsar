@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +35,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -73,9 +73,9 @@ public class LeaderElectionServiceTest {
         config.setWebServicePort(Optional.of(0));
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         @Cleanup
-        PulsarService pulsar = Mockito.spy(new MockPulsarService(config));
+        PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
         pulsar.start();
 
         // mock pulsar.getLeaderElectionService() in a thread safe way
@@ -135,7 +135,7 @@ public class LeaderElectionServiceTest {
         }
     }
 
-    private static class MockPulsarService extends PulsarService {
+    public static class MockPulsarService extends PulsarService {
 
         public MockPulsarService(ServiceConfiguration config) {
             super(config);

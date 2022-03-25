@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -26,6 +27,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
@@ -44,6 +47,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
     protected  CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
         return client.newProducer(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
+                .enableBatching(false)
                 .createAsync().thenCompose(producer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
@@ -80,12 +84,32 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public MessageId write(PulsarEvent event) throws PulsarClientException {
-            return producer.newMessage().key(getEventKey(event)).value(event).send();
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(event);
+            setReplicateCluster(event, builder);
+            return builder.send();
         }
 
         @Override
         public CompletableFuture<MessageId> writeAsync(PulsarEvent event) {
-            return producer.newMessage().key(getEventKey(event)).value(event).sendAsync();
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(event);
+            setReplicateCluster(event, builder);
+            return builder.sendAsync();
+        }
+
+        @Override
+        public MessageId delete(PulsarEvent event) throws PulsarClientException {
+            validateActionType(event);
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(null);
+            setReplicateCluster(event, builder);
+            return builder.send();
+        }
+
+        @Override
+        public CompletableFuture<MessageId> deleteAsync(PulsarEvent event) {
+            validateActionType(event);
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(null);
+            setReplicateCluster(event, builder);
+            return builder.sendAsync();
         }
 
         private String getEventKey(PulsarEvent event) {
@@ -112,6 +136,18 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public SystemTopicClient<PulsarEvent> getSystemTopicClient() {
             return systemTopicClient;
+        }
+    }
+
+    private static void setReplicateCluster(PulsarEvent event, TypedMessageBuilder<PulsarEvent> builder) {
+        if (event.getReplicateTo() != null) {
+            builder.replicationClusters(new ArrayList<>(event.getReplicateTo()));
+        }
+    }
+
+    private static void validateActionType(PulsarEvent event) {
+        if (event == null || !ActionType.DELETE.equals(event.getActionType())) {
+            throw new UnsupportedOperationException("The only supported ActionType is DELETE");
         }
     }
 

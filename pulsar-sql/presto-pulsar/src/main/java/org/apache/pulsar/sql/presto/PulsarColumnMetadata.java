@@ -20,7 +20,6 @@ package org.apache.pulsar.sql.presto;
 
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.Type;
-
 import java.util.Objects;
 
 /**

@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Charsets;
 import com.sun.management.OperatingSystemMXBean;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -86,7 +88,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
-        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, hostUsageCheckIntervalMin,
+        executorService.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::calculateBrokerHostUsage),
+                hostUsageCheckIntervalMin,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
@@ -103,9 +106,14 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         double totalNicUsageRx = getTotalNicUsageRxKb(nics);
         double totalCpuLimit = getTotalCpuLimit();
 
-        SystemResourceUsage usage = new SystemResourceUsage();
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
+        if (elapsedSeconds <= 0) {
+            log.warn("elapsedSeconds {} is not expected, skip this round of calculateBrokerHostUsage", elapsedSeconds);
+            return;
+        }
+
+        SystemResourceUsage usage = new SystemResourceUsage();
         double cpuUsage = getTotalCpuUsage(elapsedSeconds);
 
         if (lastCollection == 0L) {
@@ -219,16 +227,18 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private boolean isPhysicalNic(Path path) {
-        if (!path.toString().contains("/virtual/")) {
-            try {
-                Files.readAllBytes(path.resolve("speed"));
-                return true;
-            } catch (Exception e) {
-                // wireless nics don't report speed, ignore them.
+        try {
+            if (path.toRealPath().toString().contains("/virtual/")) {
                 return false;
             }
+            // Check the type to make sure it's ethernet (type "1")
+            String type = new String(Files.readAllBytes(path.resolve("type")), StandardCharsets.UTF_8).trim();
+            // wireless NICs don't report speed, ignore them.
+            return Integer.parseInt(type) == 1;
+        } catch (Exception e) {
+            // Read type got error.
+            return false;
         }
-        return false;
     }
 
     private Path getNicSpeedPath(String nic) {
@@ -239,12 +249,13 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
         return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1024 * 1024)
-                .orElseGet(() -> nics.stream().mapToDouble(s -> {
+                .orElseGet(() -> nics.stream().mapToDouble(nicPath -> {
                     // Nic speed is in Mbits/s, return kbits/s
                     try {
-                        return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(s))));
+                        return Double.parseDouble(new String(Files.readAllBytes(getNicSpeedPath(nicPath))));
                     } catch (IOException e) {
-                        log.error("Failed to read speed for nic " + s, e);
+                        log.error(String.format("Failed to read speed for nic %s, maybe you can set broker"
+                                + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
                         return 0d;
                     }
                 }).sum() * 1024);

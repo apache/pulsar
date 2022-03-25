@@ -21,13 +21,12 @@ package org.apache.pulsar.admin.cli;
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import org.apache.pulsar.client.admin.Packages;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.packages.management.core.common.PackageMetadata;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.apache.pulsar.client.admin.Packages;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 
 /**
  * Commands for administering packages.
@@ -73,13 +72,13 @@ class CmdPackages extends CmdBase {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
 
-        @Parameter(names = "--description", description=  "descriptions of a package", required = true)
+        @Parameter(names = {"-d", "--description"}, description = "descriptions of a package", required = true)
         private String description;
 
-        @Parameter(names = "--contact", description = "contact info of a package")
+        @Parameter(names = {"-c", "--contact"}, description = "contact info of a package")
         private String contact;
 
-        @DynamicParameter(names = {"--properties", "-P"},  description ="external information of a package")
+        @DynamicParameter(names = {"--properties", "-P"},  description = "external information of a package")
         private Map<String, String> properties = new HashMap<>();
 
         @Override
@@ -95,16 +94,16 @@ class CmdPackages extends CmdBase {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
         private String packageName;
 
-        @Parameter(names = "--description", description=  "descriptions of a package", required = true)
+        @Parameter(names = "--description", description = "descriptions of a package", required = true)
         private String description;
 
         @Parameter(names = "--contact", description = "contact information of a package")
         private String contact;
 
-        @DynamicParameter(names = {"--properties", "-P"},  description ="external infromations of a package")
+        @DynamicParameter(names = {"--properties", "-P"}, description = "external infromations of a package")
         private Map<String, String> properties = new HashMap<>();
 
-        @Parameter(names = "--path", description = "descriptions of a package", required = true)
+        @Parameter(names = "--path", description = "file path of the package", required = true)
         private String path;
 
         @Override
@@ -135,8 +134,8 @@ class CmdPackages extends CmdBase {
 
     @Parameters(commandDescription = "List all versions of the given package")
     private class ListPackageVersionsCmd extends CliCommand {
-        @Parameter(description = "the package name you want to query, don't need to specify the package version. " +
-            "type://tenant/namespace/packageName", required = true)
+        @Parameter(description = "the package name you want to query, don't need to specify the package version. "
+                + "type://tenant/namespace/packageName", required = true)
         private String packageName;
 
         @Override

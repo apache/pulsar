@@ -19,8 +19,8 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import com.google.common.collect.Lists;
+import static java.util.Objects.requireNonNull;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,34 +43,121 @@ public class ConcurrentOpenHashSet<V> {
     private static final Object EmptyValue = null;
     private static final Object DeletedValue = new Object();
 
-    private static final float MapFillFactor = 0.66f;
-
     private static final int DefaultExpectedItems = 256;
     private static final int DefaultConcurrencyLevel = 16;
 
+    private static final float DefaultMapFillFactor = 0.66f;
+    private static final float DefaultMapIdleFactor = 0.15f;
+
+    private static final float DefaultExpandFactor = 2;
+    private static final float DefaultShrinkFactor = 2;
+
+    private static final boolean DefaultAutoShrink = false;
+
     private final Section<V>[] sections;
 
+    public static <V> Builder<V> newBuilder() {
+        return new Builder<>();
+    }
+
+    /**
+     * Builder of ConcurrentOpenHashSet.
+     */
+    public static class Builder<V> {
+        int expectedItems = DefaultExpectedItems;
+        int concurrencyLevel = DefaultConcurrencyLevel;
+        float mapFillFactor = DefaultMapFillFactor;
+        float mapIdleFactor = DefaultMapIdleFactor;
+        float expandFactor = DefaultExpandFactor;
+        float shrinkFactor = DefaultShrinkFactor;
+        boolean autoShrink = DefaultAutoShrink;
+
+        public Builder<V> expectedItems(int expectedItems) {
+            this.expectedItems = expectedItems;
+            return this;
+        }
+
+        public Builder<V> concurrencyLevel(int concurrencyLevel) {
+            this.concurrencyLevel = concurrencyLevel;
+            return this;
+        }
+
+        public Builder<V> mapFillFactor(float mapFillFactor) {
+            this.mapFillFactor = mapFillFactor;
+            return this;
+        }
+
+        public Builder<V> mapIdleFactor(float mapIdleFactor) {
+            this.mapIdleFactor = mapIdleFactor;
+            return this;
+        }
+
+        public Builder<V> expandFactor(float expandFactor) {
+            this.expandFactor = expandFactor;
+            return this;
+        }
+
+        public Builder<V> shrinkFactor(float shrinkFactor) {
+            this.shrinkFactor = shrinkFactor;
+            return this;
+        }
+
+        public Builder<V> autoShrink(boolean autoShrink) {
+            this.autoShrink = autoShrink;
+            return this;
+        }
+
+        public ConcurrentOpenHashSet<V> build() {
+            return new ConcurrentOpenHashSet<>(expectedItems, concurrencyLevel,
+                    mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
+        }
+    }
+
+    @Deprecated
     public ConcurrentOpenHashSet() {
         this(DefaultExpectedItems);
     }
 
+    @Deprecated
     public ConcurrentOpenHashSet(int expectedItems) {
         this(expectedItems, DefaultConcurrencyLevel);
     }
 
+    @Deprecated
     public ConcurrentOpenHashSet(int expectedItems, int concurrencyLevel) {
+        this(expectedItems, concurrencyLevel, DefaultMapFillFactor, DefaultMapIdleFactor,
+                DefaultAutoShrink, DefaultExpandFactor, DefaultShrinkFactor);
+    }
+
+    public ConcurrentOpenHashSet(int expectedItems, int concurrencyLevel,
+                                 float mapFillFactor, float mapIdleFactor,
+                                 boolean autoShrink, float expandFactor, float shrinkFactor) {
         checkArgument(expectedItems > 0);
         checkArgument(concurrencyLevel > 0);
         checkArgument(expectedItems >= concurrencyLevel);
+        checkArgument(mapFillFactor > 0 && mapFillFactor < 1);
+        checkArgument(mapIdleFactor > 0 && mapIdleFactor < 1);
+        checkArgument(mapFillFactor > mapIdleFactor);
+        checkArgument(expandFactor > 1);
+        checkArgument(shrinkFactor > 1);
 
         int numSections = concurrencyLevel;
         int perSectionExpectedItems = expectedItems / numSections;
-        int perSectionCapacity = (int) (perSectionExpectedItems / MapFillFactor);
+        int perSectionCapacity = (int) (perSectionExpectedItems / mapFillFactor);
         this.sections = (Section<V>[]) new Section[numSections];
 
         for (int i = 0; i < numSections; i++) {
-            sections[i] = new Section<>(perSectionCapacity);
+            sections[i] = new Section<>(perSectionCapacity, mapFillFactor, mapIdleFactor,
+                    autoShrink, expandFactor, shrinkFactor);
         }
+    }
+
+    long getUsedBucketCount() {
+        long usedBucketCount = 0;
+        for (Section<V> s : sections) {
+            usedBucketCount += s.usedBuckets;
+        }
+        return usedBucketCount;
     }
 
     public long size() {
@@ -100,19 +187,19 @@ public class ConcurrentOpenHashSet<V> {
     }
 
     public boolean contains(V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(value);
         return getSection(h).contains(value, (int) h);
     }
 
     public boolean add(V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(value);
         return getSection(h).add(value, (int) h);
     }
 
     public boolean remove(V value) {
-        checkNotNull(value);
+        requireNonNull(value);
         long h = hash(value);
         return getSection(h).remove(value, (int) h);
     }
@@ -136,7 +223,7 @@ public class ConcurrentOpenHashSet<V> {
     }
 
     public int removeIf(Predicate<V> filter) {
-        checkNotNull(filter);
+        requireNonNull(filter);
 
         int removedCount = 0;
         for (int i = 0; i < sections.length; i++) {
@@ -150,7 +237,7 @@ public class ConcurrentOpenHashSet<V> {
      * @return a new list of all values (makes a copy)
      */
     public List<V> values() {
-        List<V> values = Lists.newArrayList();
+        List<V> values = new ArrayList<>();
         forEach(value -> values.add(value));
         return values;
     }
@@ -177,18 +264,33 @@ public class ConcurrentOpenHashSet<V> {
         private volatile V[] values;
 
         private volatile int capacity;
+        private final int initCapacity;
         private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
                 AtomicIntegerFieldUpdater.newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;
-        private int resizeThreshold;
+        private int resizeThresholdUp;
+        private int resizeThresholdBelow;
+        private final float mapFillFactor;
+        private final float mapIdleFactor;
+        private final float expandFactor;
+        private final float shrinkFactor;
+        private final boolean autoShrink;
 
-        Section(int capacity) {
+        Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
+                float expandFactor, float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
+            this.initCapacity = this.capacity;
             this.values = (V[]) new Object[this.capacity];
             this.size = 0;
             this.usedBuckets = 0;
-            this.resizeThreshold = (int) (this.capacity * MapFillFactor);
+            this.autoShrink = autoShrink;
+            this.mapFillFactor = mapFillFactor;
+            this.mapIdleFactor = mapIdleFactor;
+            this.expandFactor = expandFactor;
+            this.shrinkFactor = shrinkFactor;
+            this.resizeThresholdUp = (int) (this.capacity * mapFillFactor);
+            this.resizeThresholdBelow = (int) (this.capacity * mapIdleFactor);
         }
 
         boolean contains(V value, int keyHash) {
@@ -284,9 +386,11 @@ public class ConcurrentOpenHashSet<V> {
                     ++bucket;
                 }
             } finally {
-                if (usedBuckets > resizeThreshold) {
+                if (usedBuckets > resizeThresholdUp) {
                     try {
-                        rehash();
+                        // Expand the hashmap
+                        int newCapacity = alignToPowerOfTwo((int) (capacity * expandFactor));
+                        rehash(newCapacity);
                     } finally {
                         unlockWrite(stamp);
                     }
@@ -319,7 +423,20 @@ public class ConcurrentOpenHashSet<V> {
                 }
 
             } finally {
-                unlockWrite(stamp);
+                if (autoShrink && size < resizeThresholdBelow) {
+                    try {
+                        int newCapacity = alignToPowerOfTwo((int) (capacity / shrinkFactor));
+                        int newResizeThresholdUp = (int) (newCapacity * mapFillFactor);
+                        if (newCapacity < capacity && newResizeThresholdUp > size) {
+                            // shrink the hashmap
+                            rehash(newCapacity);
+                        }
+                    } finally {
+                        unlockWrite(stamp);
+                    }
+                } else {
+                    unlockWrite(stamp);
+                }
             }
         }
 
@@ -330,6 +447,9 @@ public class ConcurrentOpenHashSet<V> {
                 Arrays.fill(values, EmptyValue);
                 this.size = 0;
                 this.usedBuckets = 0;
+                if (autoShrink) {
+                    rehash(initCapacity);
+                }
             } finally {
                 unlockWrite(stamp);
             }
@@ -365,6 +485,16 @@ public class ConcurrentOpenHashSet<V> {
             if (values[nextInArray] == EmptyValue) {
                 values[bucket] = (V) EmptyValue;
                 --usedBuckets;
+
+                // Cleanup all the buckets that were in `DeletedValue` state,
+                // so that we can reduce unnecessary expansions
+                int lastBucket = signSafeMod(bucket - 1, capacity);
+                while (values[lastBucket] == DeletedValue) {
+                    values[lastBucket] = (V) EmptyValue;
+                    --usedBuckets;
+
+                    lastBucket = signSafeMod(lastBucket - 1, capacity);
+                }
             } else {
                 values[bucket] = (V) DeletedValue;
             }
@@ -402,9 +532,8 @@ public class ConcurrentOpenHashSet<V> {
             }
         }
 
-        private void rehash() {
+        private void rehash(int newCapacity) {
             // Expand the hashmap
-            int newCapacity = capacity * 2;
             V[] newValues = (V[]) new Object[newCapacity];
 
             // Re-hash table
@@ -418,7 +547,8 @@ public class ConcurrentOpenHashSet<V> {
             values = newValues;
             capacity = newCapacity;
             usedBuckets = size;
-            resizeThreshold = (int) (capacity * MapFillFactor);
+            resizeThresholdUp = (int) (capacity * mapFillFactor);
+            resizeThresholdBelow = (int) (capacity * mapIdleFactor);
         }
 
         private static <V> void insertValueNoLock(V[] values, V value) {

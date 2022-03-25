@@ -27,18 +27,19 @@ package org.apache.pulsar.client.internal;
 public class DefaultImplementation {
     private static final PulsarClientImplementationBinding IMPLEMENTATION;
     static {
-        PulsarClientImplementationBinding impl = null;
+        PulsarClientImplementationBinding impl;
         try {
-            impl = (PulsarClientImplementationBinding) ReflectionUtils.newClassInstance("org.apache.pulsar.client.impl.PulsarClientImplementationBindingImpl")
+            impl = (PulsarClientImplementationBinding) ReflectionUtils
+                    .newClassInstance("org.apache.pulsar.client.impl.PulsarClientImplementationBindingImpl")
                     .getConstructor().newInstance();
         } catch (Throwable error) {
-            throw new RuntimeException("Cannot load Pulsar Client Implementation: "+error, error);
+            throw new RuntimeException("Cannot load Pulsar Client Implementation: " + error, error);
         }
         IMPLEMENTATION = impl;
     }
 
     /**
-     * Access the actual implementation of the Pulsar Client API
+     * Access the actual implementation of the Pulsar Client API.
      * @return the loaded implementation.
      */
     public static PulsarClientImplementationBinding getDefaultImplementation() {

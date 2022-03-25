@@ -98,6 +98,27 @@ void pulsar_client_subscribe_async(pulsar_client_t *client, const char *topic, c
         std::bind(&handle_subscribe_callback, std::placeholders::_1, std::placeholders::_2, callback, ctx));
 }
 
+pulsar_result pulsar_client_subscribe_multi_topics(pulsar_client_t *client, const char **topics,
+                                                   int topicsCount, const char *subscriptionName,
+                                                   const pulsar_consumer_configuration_t *conf,
+                                                   pulsar_consumer_t **c_consumer) {
+    pulsar::Consumer consumer;
+    std::vector<std::string> topicsList;
+    for (int i = 0; i < topicsCount; i++) {
+        topicsList.push_back(topics[i]);
+    }
+
+    pulsar::Result res =
+        client->client->subscribe(topicsList, subscriptionName, conf->consumerConfiguration, consumer);
+    if (res == pulsar::ResultOk) {
+        (*c_consumer) = new pulsar_consumer_t;
+        (*c_consumer)->consumer = consumer;
+        return pulsar_result_Ok;
+    } else {
+        return (pulsar_result)res;
+    }
+}
+
 void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const char **topics, int topicsCount,
                                                 const char *subscriptionName,
                                                 const pulsar_consumer_configuration_t *conf,
@@ -110,6 +131,22 @@ void pulsar_client_subscribe_multi_topics_async(pulsar_client_t *client, const c
     client->client->subscribeAsync(
         topicsList, subscriptionName, conf->consumerConfiguration,
         std::bind(&handle_subscribe_callback, std::placeholders::_1, std::placeholders::_2, callback, ctx));
+}
+
+pulsar_result pulsar_client_subscribe_pattern(pulsar_client_t *client, const char *topicPattern,
+                                              const char *subscriptionName,
+                                              const pulsar_consumer_configuration_t *conf,
+                                              pulsar_consumer_t **c_consumer) {
+    pulsar::Consumer consumer;
+    pulsar::Result res = client->client->subscribeWithRegex(topicPattern, subscriptionName,
+                                                            conf->consumerConfiguration, consumer);
+    if (res == pulsar::ResultOk) {
+        (*c_consumer) = new pulsar_consumer_t;
+        (*c_consumer)->consumer = consumer;
+        return pulsar_result_Ok;
+    } else {
+        return (pulsar_result)res;
+    }
 }
 
 void pulsar_client_subscribe_pattern_async(pulsar_client_t *client, const char *topicPattern,

@@ -88,7 +88,7 @@ bookkeeper_help() {
 Usage: bookkeeper <command>
 where command is one of:
     bookie              Run a bookie server
-    autorecovery        Run AutoRecovery service daemon
+    autorecovery        Run AutoRecovery service
     localbookie <n>     Run a test ensemble of <n> bookies locally
     upgrade             Upgrade bookie filesystem
     shell               Run shell for admin commands
@@ -168,7 +168,7 @@ OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
-OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
+OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
 # Disable ipv6 as it can cause issues
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
@@ -183,6 +183,9 @@ fi
 
 BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
 BOOKIE_LOG_FILE=${BOOKIE_LOG_FILE:-"bookkeeper-server.log"}
+if [ ! -d "$BOOKIE_LOG_DIR" ]; then
+  mkdir -p "$BOOKIE_LOG_DIR"
+fi
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$BOOKIE_LOG_APPENDER"
@@ -190,6 +193,10 @@ OPTS="$OPTS -Dbk.log.appender=$BOOKIE_LOG_APPENDER"
 OPTS="$OPTS -Dbk.log.level=error"
 OPTS="$OPTS -Dpulsar.log.dir=$BOOKIE_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.file=$BOOKIE_LOG_FILE"
+
+# Adding pulsar metadata as a recognized provider
+BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
+OPTS="$OPTS $BK_METADATA_OPTIONS"
 
 #Change to BK_HOME to support relative paths
 cd "$BK_HOME"

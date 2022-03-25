@@ -50,12 +50,14 @@ Before using the Kinesis sink connector, you need to create a configuration file
 
     ```json
     {
-        "awsEndpoint": "some.endpoint.aws",
-        "awsRegion": "us-east-1",
-        "awsKinesisStreamName": "my-stream",
-        "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
-        "messageFormat": "ONLY_RAW_PAYLOAD",
-        "retainOrdering": "true"
+       "configs": {
+          "awsEndpoint": "some.endpoint.aws",
+          "awsRegion": "us-east-1",
+          "awsKinesisStreamName": "my-stream",
+          "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+          "messageFormat": "ONLY_RAW_PAYLOAD",
+          "retainOrdering": "true"
+       }
     }
     ```
 

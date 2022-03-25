@@ -655,30 +655,6 @@ admin.topics().getSubscriptions(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Unsubscribe
-
-When a subscription does not process messages any more, you can unsubscribe it in the following ways. 
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics unsubscribe \
-  --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
-```
-
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
-
-<!--Java-->
-```java
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-String subscriptionName = "my-subscription";
-admin.topics().deleteSubscription(topic, subscriptionName);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
 ### Last Message Id
 
 You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
@@ -699,6 +675,240 @@ admin.topics().getLastMessage(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+
+### Configure deduplication snapshot interval
+
+#### Get deduplication snapshot interval
+
+To get the topic-level deduplication snapshot interval, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-deduplication-snapshot-interval options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getDeduplicationSnapshotInterval(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set deduplication snapshot interval
+
+To set the topic-level deduplication snapshot interval, use one of the following methods.
+
+> **Prerequisite** `brokerDeduplicationEnabled` must be set to `true`.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-deduplication-snapshot-interval options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+```json
+{
+  "interval": 1000
+}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setDeduplicationSnapshotInterval(topic, 1000)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove deduplication snapshot interval
+
+To remove the topic-level deduplication snapshot interval, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-deduplication-snapshot-interval options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeDeduplicationSnapshotInterval(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
+### Configure inactive topic policies
+
+#### Get inactive topic policies
+
+To get the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-inactive-topic-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getInactiveTopicPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set inactive topic policies
+
+To set the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-inactive-topic-policies options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove inactive topic policies
+
+To remove the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-inactive-topic-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeInactiveTopicPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
+### Configure offload policies
+
+#### Get offload policies
+
+To get the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-offload-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getOffloadPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set offload policies
+
+To set the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-offload-policies options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setOffloadPolicies(topic, offloadPolicies)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove offload policies
+
+To remove the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-offload-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeOffloadPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 
 ## Manage non-partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
@@ -967,11 +1177,11 @@ admin.topics().delete(topic);
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### List
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of partitioned topics under a given namespace in the following ways.  
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-$ pulsar-admin topics list tenant/namespace
+$ pulsar-admin topics list-partitioned-topics tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -981,7 +1191,7 @@ persistent://tenant/namespace/topic2
 
 <!--Java-->
 ```java
-admin.topics().getList(namespace);
+admin.topics().getPartitionedTopicList(namespace);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -1203,4 +1413,60 @@ If a message has a key, it supersedes the round robin routing policy. The follow
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
-```        
+``` 
+
+## Manage subscriptions
+You can use [Pulsar admin API](admin-api-overview.md) to create, check, and delete subscriptions.
+### Create subscription
+You can create a subscription for a topic using one of the following methods.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+pulsar-admin topics create-subscription \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1
+```
+<!--REST API-->
+{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subscription|operation/createSubscriptions?version=[[pulsar:version_number]]}
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+### Get subscription
+You can check all subscription names for a given topic using one of the following methods.
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+pulsar-admin topics subscriptions \
+persistent://test-tenant/ns1/tp1 \
+my-subscription
+```
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().getSubscriptions(topic);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+### Unsubscribe subscription 
+When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+pulsar-admin topics unsubscribe \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1 
+```
+<!--REST API-->
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().deleteSubscription(topic, subscriptionName);
+```
+<!--END_DOCUSAURUS_CODE_TABS-->

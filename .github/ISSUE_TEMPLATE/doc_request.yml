@@ -1,0 +1,40 @@
+name: Doc request
+description: Suggest doc changes for Pulsar
+title: "[Doc] "
+labels: ["doc-required"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please answer the following questions before submitting a doc issue. Thanks!
+  - type: textarea
+    attributes:
+      label: What issue do you find in Pulsar docs?
+      description: (For example, something missing, inaccurate, incomplete, hard to use/understand/find, etc)
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What is your suggestion?
+      description: (For example, add explanations about xx, correct descriptions of xx, delete information about xx, etc)
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Do you have any references?
+      description: (For example, website links, etc)?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Would you like to fix this issue?
+      description: (Welcome to contribute docs! Pulsar grows from a tiny seed to a big tree with every little effort by us! Your contribution is the sunlight, water, and air!)
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Note
+      description: Please research your question prior to submitting doc issues.
+      options:
+        - label: I have researched my question.
+          required: true

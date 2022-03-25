@@ -28,11 +28,19 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
+class DummyEventListener : public ConsumerEventListener {
+   public:
+    virtual void becameActive(Consumer consumer, int partitionId) override {}
+
+    virtual void becameInactive(Consumer consumer, int partitionId) override {}
+};
+
 TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ConsumerConfiguration conf;
     ASSERT_EQ(conf.getSchema().getSchemaType(), SchemaType::BYTES);
     ASSERT_EQ(conf.getConsumerType(), ConsumerExclusive);
     ASSERT_EQ(conf.hasMessageListener(), false);
+    ASSERT_EQ(conf.hasConsumerEventListener(), false);
     ASSERT_EQ(conf.getReceiverQueueSize(), 1000);
     ASSERT_EQ(conf.getMaxTotalReceiverQueueSizeAcrossPartitions(), 50000);
     ASSERT_EQ(conf.getConsumerName(), "");
@@ -50,6 +58,9 @@ TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.isEncryptionEnabled(), false);
     ASSERT_EQ(conf.isReplicateSubscriptionStateEnabled(), false);
     ASSERT_EQ(conf.getProperties().empty(), true);
+    ASSERT_EQ(conf.getPriorityLevel(), 0);
+    ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 10);
+    ASSERT_EQ(conf.isAutoAckOldestChunkedMessageOnQueueFull(), false);
 }
 
 TEST(ConsumerConfigurationTest, testCustomConfig) {
@@ -71,6 +82,9 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
 
     conf.setMessageListener([](Consumer consumer, const Message& msg) {});
     ASSERT_EQ(conf.hasMessageListener(), true);
+
+    conf.setConsumerEventListener(std::make_shared<DummyEventListener>());
+    ASSERT_EQ(conf.hasConsumerEventListener(), true);
 
     conf.setReceiverQueueSize(2000);
     ASSERT_EQ(conf.getReceiverQueueSize(), 2000);
@@ -124,6 +138,15 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
     conf.setProperty("k1", "v1");
     ASSERT_EQ(conf.getProperties()["k1"], "v1");
     ASSERT_EQ(conf.hasProperty("k1"), true);
+
+    conf.setPriorityLevel(1);
+    ASSERT_EQ(conf.getPriorityLevel(), 1);
+
+    conf.setMaxPendingChunkedMessage(500);
+    ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 500);
+
+    conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
+    ASSERT_TRUE(conf.isAutoAckOldestChunkedMessageOnQueueFull());
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {

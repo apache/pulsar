@@ -384,7 +384,7 @@ public interface Clusters {
      * Returns active broker with namespace-isolation policies attached to it.
      *
      * @param cluster
-     * @param broker
+     * @param broker the broker name in the form host:port.
      * @return
      * @throws PulsarAdminException
      */

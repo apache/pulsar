@@ -46,7 +46,7 @@ public interface OffloadIndexBlockV2 extends Closeable {
      */
     OffloadIndexEntry getIndexEntryForEntry(long ledgerId, long messageEntryId) throws IOException;
 
-    public long getStartEntryId(long ledgerId);
+    long getStartEntryId(long ledgerId);
 
     /**
      * Get the entry count that contained in this index Block.

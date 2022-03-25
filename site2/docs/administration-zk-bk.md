@@ -65,7 +65,7 @@ If you deploy a [single-cluster](#single-cluster-pulsar-instance) instance, you 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -133,27 +133,19 @@ $ bin/pulsar-daemon start configuration-store
 
 ### ZooKeeper configuration
 
-In Pulsar, ZooKeeper configuration is handled by two separate configuration files in the `conf` directory of your Pulsar installation: `conf/zookeeper.conf` for [local ZooKeeper](#local-zookeeper) and `conf/global-zookeeper.conf` for [configuration store](#configuration-store).
+In Pulsar, ZooKeeper configuration is handled by two separate configuration files in the `conf` directory of your Pulsar installation:
+* The `conf/zookeeper.conf` file handles the configuration for local ZooKeeper.
+* The `conf/global-zookeeper.conf` file handles the configuration for configuration store.
+See [parameters](reference-configuration.md#zookeeper) for more details.
 
-#### Local ZooKeeper
+#### Configure batching operations
+Using the batching operations reduces the remote procedure call (RPC) traffic between ZooKeeper client and servers. It also reduces the number of write transactions, because each batching operation corresponds to a single ZooKeeper transaction, containing multiple read and write operations.
 
-The [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file handles the configuration for local ZooKeeper. The table below shows the available parameters:
+The following figure demonstrates a basic benchmark of batching read/write operations that can be requested to ZooKeeper in one second:
 
-|Name|Description|Default|
-|---|---|---|
-|tickTime|  The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.  |2000|
-|initLimit| The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the tickTime parameter. |10|
-|syncLimit| The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.  |5|
-|dataDir| The location where ZooKeeper stores in-memory database snapshots as well as the transaction log of updates to the database. |data/zookeeper|
-|clientPort|  The port on which the ZooKeeper server listens for connections. |2181|
-|autopurge.snapRetainCount| In ZooKeeper, auto purge determines how many recent snapshots of the database stored in dataDir to retain within the time interval specified by autopurge.purgeInterval (while deleting the rest).  |3|
-|autopurge.purgeInterval| The time interval, in hours, which triggers the ZooKeeper database purge task. Setting to a non-zero number enables auto purge; setting to 0 disables. Read this guide before enabling auto purge. |1|
-|maxClientCnxns|  The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients. |60|
+![Zookeeper batching benchmark](assets/zookeeper-batching.png)
 
-
-#### Configuration Store
-
-The [`conf/global-zookeeper.conf`](reference-configuration.md#configuration-store) file handles the configuration for configuration store. The table below shows the available parameters:
+To enable batching operations, set the [`metadataStoreBatchingEnabled`](reference-configuration.md#broker) parameter to `true` on the broker side.
 
 
 ## BookKeeper
@@ -180,6 +172,9 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
 The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 
+> **Note**
+> Set `journalDirectory` and `ledgerDirectories` carefully. It is difficilt to change them later.
+
 ```properties
 # Change to point to journal disk mount point
 journalDirectory=data/bookkeeper/journal
@@ -189,6 +184,9 @@ ledgerDirectories=data/bookkeeper/ledgers
 
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
+
+#It is recommended to set this parameter. Otherwise, BookKeeper can't start normally in certain environments (for example, Huawei Cloud).
+advertisedAddress=
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.
@@ -276,7 +274,7 @@ Use the [`set-persistence`](reference-pulsar-admin.md#namespaces-set-persistence
 
 Flag | Description | Default
 :----|:------------|:-------
-`-a`, `--bookkeeper-ack-quorom` | The number of acks (guaranteed copies) to wait on for each entry | 0
+`-a`, `--bookkeeper-ack-quorum` | The number of acks (guaranteed copies) to wait on for each entry | 0
 `-e`, `--bookkeeper-ensemble` | The number of [bookies](reference-terminology.md#bookie) to use for topics in the namespace | 0
 `-w`, `--bookkeeper-write-quorum` | The number of writes to make for each entry | 0
 `-r`, `--ml-mark-delete-max-rate` | Throttling rate for mark-delete operations (0 means no throttle) | 0
@@ -285,8 +283,8 @@ The following is an example:
 
 ```shell
 $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
-  --bookkeeper-ack-quorom 3 \
-  --bookeeper-ensemble 2
+  --bookkeeper-ack-quorum 3 \
+  --bookkeeper-ensemble 2
 ```
 
 #### REST API

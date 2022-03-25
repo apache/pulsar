@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>2.9.0-SNAPSHOT</version>
+    <version>2.10.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>integration</artifactId>
@@ -146,14 +146,16 @@
     </dependency>
 
     <dependency>
-  	  <groupId>org.elasticsearch.client</groupId>
-  	  <artifactId>elasticsearch-rest-high-level-client</artifactId>
+      <groupId>org.opensearch.client</groupId>
+      <artifactId>opensearch-rest-high-level-client</artifactId>
+      <scope>test</scope>
   	</dependency>
 
     <dependency>
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
       <version>${rabbitmq-client.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -166,13 +168,6 @@
       <groupId>io.prestosql</groupId>
       <artifactId>presto-jdbc</artifactId>
       <version>${presto.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>net.jodah</groupId>
-      <artifactId>failsafe</artifactId>
-      <version>${failsafe.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -192,6 +187,19 @@
           <execution>
             <goals>
               <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>checkstyle</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
             </goals>
           </execution>
         </executions>
@@ -225,14 +233,36 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
-              <argLine>-Xmx1G -XX:MaxDirectMemorySize=1G
+              <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:MaxDirectMemorySize=1G
               -Dio.netty.leakDetectionLevel=advanced
+              ${test.additional.args}
               </argLine>
               <skipTests>false</skipTests>
               <suiteXmlFiles>
                 <file>src/test/resources/${integrationTestSuiteFile}</file>
               </suiteXmlFiles>
               <forkCount>1</forkCount>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>apache-release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <configuration>
+              <skip>${maven.deploy.skip}</skip>
             </configuration>
           </plugin>
         </plugins>

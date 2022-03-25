@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
@@ -32,38 +33,81 @@ public class TopicResources {
 
     private final MetadataStore store;
 
-    TopicResources(MetadataStore store) {
+    public TopicResources(MetadataStore store) {
         this.store = store;
     }
 
-    public CompletableFuture<List<String>> getExistingPartitions(TopicName topic) {
-        String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + topic.getNamespace() + "/"
-                + topic.getDomain();
-        return store.getChildren(topicPartitionPath).thenApply(topics ->
-                topics.stream()
-                        .map(s -> String.format("%s://%s/%s",
-                                topic.getDomain().value(), topic.getNamespace(), decode(s)))
+    public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
+        String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
+
+        return store.getChildren(path).thenApply(children ->
+                children.stream().map(c -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(c)).toString())
                         .collect(Collectors.toList())
         );
     }
 
+    public CompletableFuture<List<String>> getExistingPartitions(TopicName topic) {
+        return getExistingPartitions(topic.getNamespaceObject(), topic.getDomain());
+    }
+
+    public CompletableFuture<List<String>> getExistingPartitions(NamespaceName ns, TopicDomain domain) {
+        String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + ns + "/" + domain;
+        return store.getChildren(topicPartitionPath).thenApply(topics ->
+                topics.stream()
+                        .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
+                        .collect(Collectors.toList())
+        );
+    }
+
+    public CompletableFuture<Void> deletePersistentTopicAsync(TopicName topic) {
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
+        return store.delete(path, Optional.of(-1L));
+    }
+
+    public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
+        return store.put(path, new byte[0], Optional.of(-1L))
+                .thenApply(__ -> null);
+    }
+
     public CompletableFuture<Boolean> persistentTopicExists(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
         return store.exists(path);
     }
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        return store.delete(path, Optional.empty());
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return store.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        return store.delete(path, Optional.empty());
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return store.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
-    public CompletableFuture<Void> clearTennantPersistence(String tenant) {
+    public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        return store.delete(path, Optional.empty());
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return store.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 }

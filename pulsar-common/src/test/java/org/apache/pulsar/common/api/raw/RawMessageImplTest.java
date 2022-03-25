@@ -43,7 +43,7 @@ public class RawMessageImplTest {
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_FIRST);
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_SECOND);
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY_ID).setValue(HARD_CODE_KEY_ID_VALUE);
-        RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, singleMessageMetadata, null , 0, 0, 0);
+        RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, singleMessageMetadata, null, 0, 0, 0);
         Map<String, String> properties = msg.getProperties();
         assertEquals(properties.get(HARD_CODE_KEY), KEY_VALUE_SECOND);
         assertEquals(properties.get(HARD_CODE_KEY_ID), HARD_CODE_KEY_ID_VALUE);

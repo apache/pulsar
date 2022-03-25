@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.proxy.stats;
 
-import org.apache.pulsar.common.stats.Rate;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import lombok.Getter;
+import org.apache.pulsar.common.stats.Rate;
 
 @Getter
 @JsonIgnoreProperties(value = { "msgInRate", "msgOutRate" })

@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.broker.lookup.http;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.Optional;
@@ -32,35 +33,29 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.lookup.NamespaceData;
 import org.apache.pulsar.broker.lookup.RedirectData;
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 /**
  * HTTP lookup unit tests.
@@ -72,10 +67,6 @@ public class HttpTopicLookupv2Test {
     private NamespaceService ns;
     private AuthorizationService auth;
     private ServiceConfiguration config;
-    private ConfigurationCacheService mockConfigCache;
-    private ZooKeeperChildrenCache clustersListCache;
-    private ZooKeeperDataCache<ClusterDataImpl> clustersCache;
-    private ZooKeeperDataCache<Policies> policiesCache;
     private Set<String> clusters;
 
     @SuppressWarnings("unchecked")
@@ -84,11 +75,7 @@ public class HttpTopicLookupv2Test {
         pulsar = mock(PulsarService.class);
         ns = mock(NamespaceService.class);
         auth = mock(AuthorizationService.class);
-        mockConfigCache = mock(ConfigurationCacheService.class);
-        clustersListCache = mock(ZooKeeperChildrenCache.class);
-        clustersCache = mock(ZooKeeperDataCache.class);
-        policiesCache = mock(ZooKeeperDataCache.class);
-        config = spy(new ServiceConfiguration());
+        config = spy(ServiceConfiguration.class);
         config.setClusterName("use");
         clusters = new TreeSet<>();
         clusters.add("use");
@@ -98,17 +85,15 @@ public class HttpTopicLookupv2Test {
         ClusterData uscData = ClusterData.builder().serviceUrl("http://broker.messaging.usc.example.com:8080").build();
         ClusterData uswData = ClusterData.builder().serviceUrl("http://broker.messaging.usw.example.com:8080").build();
         doReturn(config).when(pulsar).getConfiguration();
-        doReturn(mockConfigCache).when(pulsar).getConfigurationCache();
-        doReturn(clustersListCache).when(mockConfigCache).clustersListCache();
-        doReturn(clustersCache).when(mockConfigCache).clustersCache();
-        doReturn(policiesCache).when(mockConfigCache).policiesCache();
-        doReturn(Optional.of(useData)).when(clustersCache).get(AdminResource.path("clusters", "use"));
-        doReturn(Optional.of(uscData)).when(clustersCache).get(AdminResource.path("clusters", "usc"));
-        doReturn(Optional.of(uswData)).when(clustersCache).get(AdminResource.path("clusters", "usw"));
-        doReturn(CompletableFuture.completedFuture(Optional.of(useData))).when(clustersCache).getAsync(AdminResource.path("clusters", "use"));
-        doReturn(CompletableFuture.completedFuture(Optional.of(uscData))).when(clustersCache).getAsync(AdminResource.path("clusters", "usc"));
-        doReturn(CompletableFuture.completedFuture(Optional.of(uswData))).when(clustersCache).getAsync(AdminResource.path("clusters", "usw"));
-        doReturn(clusters).when(clustersListCache).get();
+
+        ClusterResources clusters = mock(ClusterResources.class);
+        when(clusters.getClusterAsync("use")).thenReturn(CompletableFuture.completedFuture(Optional.of(useData)));
+        when(clusters.getClusterAsync("usc")).thenReturn(CompletableFuture.completedFuture(Optional.of(uscData)));
+        when(clusters.getClusterAsync("usw")).thenReturn(CompletableFuture.completedFuture(Optional.of(uswData)));
+        PulsarResources resources = mock(PulsarResources.class);
+        when(resources.getClusterResources()).thenReturn(clusters);
+        when(pulsar.getPulsarResources()).thenReturn(resources);
+
         doReturn(ns).when(pulsar).getNamespaceService();
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -119,7 +104,7 @@ public class HttpTopicLookupv2Test {
     @Test
     public void crossColoLookup() throws Exception {
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -133,7 +118,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,
-                asyncResponse, null);
+                asyncResponse, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
@@ -141,7 +126,44 @@ public class HttpTopicLookupv2Test {
         WebApplicationException wae = (WebApplicationException) arg.getValue();
         assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
     }
-    
+
+    @Test
+    public void testLookupTopicNotExist() throws Exception {
+
+        MockTopicLookup destLookup = spy(MockTopicLookup.class);
+        doReturn(false).when(destLookup).isRequestHttps();
+        destLookup.setPulsar(pulsar);
+        doReturn("null").when(destLookup).clientAppId();
+        Field uriField = PulsarWebResource.class.getDeclaredField("uri");
+        uriField.setAccessible(true);
+        UriInfo uriInfo = mock(UriInfo.class);
+        uriField.set(destLookup, uriInfo);
+        URI uri = URI.create("http://localhost:8080/lookup/v2/destination/topic/myprop/usc/ns2/topic1");
+        doReturn(uri).when(uriInfo).getRequestUri();
+        doReturn(true).when(config).isAuthorizationEnabled();
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        future.complete(false);
+        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+
+        AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
+        destLookup.lookupTopicAsync(TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic_not_exist", false,
+                asyncResponse1, null, null);
+
+        ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
+        verify(asyncResponse1).resume(arg.capture());
+        assertEquals(arg.getValue().getClass(), RestException.class);
+        RestException restException = (RestException) arg.getValue();
+        assertEquals(restException.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+    }
+
+    public static class MockTopicLookup extends TopicLookup {
+        @Override
+        protected void validateClusterOwnership(String s) {
+            // do nothing
+        }
+    }
     
     @Test
     public void testNotEnoughLookupPermits() throws Exception {
@@ -149,7 +171,7 @@ public class HttpTopicLookupv2Test {
         BrokerService brokerService = pulsar.getBrokerService();
         doReturn(new Semaphore(0)).when(brokerService).getLookupRequestSemaphore();
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -163,7 +185,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,
-                asyncResponse1, null);
+                asyncResponse1, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse1).resume(arg.capture());
@@ -180,14 +202,14 @@ public class HttpTopicLookupv2Test {
         final String ns1 = "ns1";
         final String ns2 = "ns2";
         Policies policies1 = new Policies();
-        doReturn(Optional.of(policies1)).when(policiesCache)
-                .get(AdminResource.path(POLICIES, property, cluster, ns1));
+//        doReturn(Optional.of(policies1)).when(policiesCache)
+//                .get(AdminResource.path(POLICIES, property, cluster, ns1));
         Policies policies2 = new Policies();
         policies2.replication_clusters = Sets.newHashSet("invalid-localCluster");
-        doReturn(Optional.of(policies2)).when(policiesCache)
-                .get(AdminResource.path(POLICIES, property, cluster, ns2));
+//        doReturn(Optional.of(policies2)).when(policiesCache)
+//                .get(AdminResource.path(POLICIES, property, cluster, ns2));
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -199,7 +221,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), property, cluster, ns1, "empty-cluster",
-                false, asyncResponse, null);
+                false, asyncResponse, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
@@ -207,7 +229,7 @@ public class HttpTopicLookupv2Test {
 
         AsyncResponse asyncResponse2 = mock(AsyncResponse.class);
         destLookup.lookupTopicAsync(TopicDomain.persistent.value(), property, cluster, ns2,
-                "invalid-localCluster", false, asyncResponse2, null);
+                "invalid-localCluster", false, asyncResponse2, null, null);
         ArgumentCaptor<Throwable> arg2 = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse2).resume(arg2.capture());
 

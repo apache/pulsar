@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.reverseOrder;
-
 import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;

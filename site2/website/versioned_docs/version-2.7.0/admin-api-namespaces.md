@@ -540,7 +540,7 @@ N/A
 <!--REST API-->
 
 ```
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/{bundle}/clearBacklog|operation/clearNamespaceBundleBacklogForSubscriptio?version=[[pulsar:version_number]]n}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/{bundle}/clearBacklog|operation/clearNamespaceBundleBacklogForSubscription?version=[[pulsar:version_number]]n}
 ```
 
 <!--Java-->

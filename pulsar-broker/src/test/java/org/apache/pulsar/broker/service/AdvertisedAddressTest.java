@@ -48,7 +48,7 @@ public class AdvertisedAddressTest {
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setBrokerShutdownTimeoutMs(0L);
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setWebServicePort(Optional.ofNullable(0));
         config.setClusterName("usc");
         config.setAdvertisedAddress("localhost");
@@ -72,12 +72,12 @@ public class AdvertisedAddressTest {
     @Test
     public void testAdvertisedAddress() throws Exception {
         Assert.assertEquals( pulsar.getAdvertisedAddress(), advertisedAddress );
-        Assert.assertEquals( pulsar.getSafeBrokerServiceUrl(), String.format("pulsar://%s:%d", advertisedAddress, pulsar.getBrokerListenPort().get()) );
+        Assert.assertEquals( pulsar.getBrokerServiceUrl(), String.format("pulsar://%s:%d", advertisedAddress, pulsar.getBrokerListenPort().get()) );
         Assert.assertEquals( pulsar.getSafeWebServiceAddress(), String.format("http://%s:%d", advertisedAddress, pulsar.getListenPortHTTP().get()) );
         String brokerZkPath = String.format("/loadbalance/brokers/%s:%d", pulsar.getAdvertisedAddress(), pulsar.getListenPortHTTP().get());
         String bkBrokerData = new String(bkEnsemble.getZkClient().getData(brokerZkPath, false, new Stat()), StandardCharsets.UTF_8);
         JsonObject jsonBkBrokerData = new Gson().fromJson(bkBrokerData, JsonObject.class);
-        Assert.assertEquals( jsonBkBrokerData.get("pulsarServiceUrl").getAsString(), pulsar.getSafeBrokerServiceUrl() );
+        Assert.assertEquals( jsonBkBrokerData.get("pulsarServiceUrl").getAsString(), pulsar.getBrokerServiceUrl() );
         Assert.assertEquals( jsonBkBrokerData.get("webServiceUrl").getAsString(), pulsar.getSafeWebServiceAddress() );
     }
 

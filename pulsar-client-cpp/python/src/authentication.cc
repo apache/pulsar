@@ -26,8 +26,8 @@ AuthenticationWrapper::AuthenticationWrapper(const std::string& dynamicLibPath,
 }
 
 struct AuthenticationTlsWrapper : public AuthenticationWrapper {
-    AuthenticationTlsWrapper(const std::string& certificatePath, const std::string& privateKeyPath) :
-            AuthenticationWrapper() {
+    AuthenticationTlsWrapper(const std::string& certificatePath, const std::string& privateKeyPath)
+        : AuthenticationWrapper() {
         this->auth = AuthTls::create(certificatePath, privateKeyPath);
     }
 };
@@ -35,13 +35,10 @@ struct AuthenticationTlsWrapper : public AuthenticationWrapper {
 struct TokenSupplierWrapper {
     PyObject* _pySupplier;
 
-    TokenSupplierWrapper(py::object pySupplier) :
-        _pySupplier(pySupplier.ptr()) {
-        Py_XINCREF(_pySupplier);
-    }
+    TokenSupplierWrapper(py::object pySupplier) : _pySupplier(pySupplier.ptr()) { Py_XINCREF(_pySupplier); }
 
     TokenSupplierWrapper(const TokenSupplierWrapper& other) {
-        _pySupplier= other._pySupplier;
+        _pySupplier = other._pySupplier;
         Py_XINCREF(_pySupplier);
     }
 
@@ -51,9 +48,7 @@ struct TokenSupplierWrapper {
         return *this;
     }
 
-    virtual ~TokenSupplierWrapper() {
-        Py_XDECREF(_pySupplier);
-    }
+    virtual ~TokenSupplierWrapper() { Py_XDECREF(_pySupplier); }
 
     std::string operator()() {
         PyGILState_STATE state = PyGILState_Ensure();
@@ -61,7 +56,7 @@ struct TokenSupplierWrapper {
         std::string token;
         try {
             token = py::call<std::string>(_pySupplier);
-        } catch(const py::error_already_set& e) {
+        } catch (const py::error_already_set& e) {
             PyErr_Print();
         }
 
@@ -70,10 +65,8 @@ struct TokenSupplierWrapper {
     }
 };
 
-
 struct AuthenticationTokenWrapper : public AuthenticationWrapper {
-    AuthenticationTokenWrapper(py::object token) :
-            AuthenticationWrapper() {
+    AuthenticationTokenWrapper(py::object token) : AuthenticationWrapper() {
         if (py::extract<std::string>(token).check()) {
             // It's a string
             std::string tokenStr = py::extract<std::string>(token);
@@ -86,15 +79,13 @@ struct AuthenticationTokenWrapper : public AuthenticationWrapper {
 };
 
 struct AuthenticationAthenzWrapper : public AuthenticationWrapper {
-    AuthenticationAthenzWrapper(const std::string& authParamsString) :
-            AuthenticationWrapper() {
+    AuthenticationAthenzWrapper(const std::string& authParamsString) : AuthenticationWrapper() {
         this->auth = AuthAthenz::create(authParamsString);
     }
 };
 
 struct AuthenticationOauth2Wrapper : public AuthenticationWrapper {
-    AuthenticationOauth2Wrapper(const std::string& authParamsString) :
-            AuthenticationWrapper() {
+    AuthenticationOauth2Wrapper(const std::string& authParamsString) : AuthenticationWrapper() {
         this->auth = AuthOauth2::create(authParamsString);
     }
 };
@@ -102,22 +93,17 @@ struct AuthenticationOauth2Wrapper : public AuthenticationWrapper {
 void export_authentication() {
     using namespace boost::python;
 
-    class_<AuthenticationWrapper>("Authentication", init<const std::string&, const std::string&>())
-            ;
+    class_<AuthenticationWrapper>("Authentication", init<const std::string&, const std::string&>());
 
-    class_<AuthenticationTlsWrapper, bases<AuthenticationWrapper> >("AuthenticationTLS",
-                                                                    init<const std::string&, const std::string&>())
-            ;
+    class_<AuthenticationTlsWrapper, bases<AuthenticationWrapper> >(
+        "AuthenticationTLS", init<const std::string&, const std::string&>());
 
     class_<AuthenticationTokenWrapper, bases<AuthenticationWrapper> >("AuthenticationToken",
-                                                                    init<py::object>())
-            ;
+                                                                      init<py::object>());
 
     class_<AuthenticationAthenzWrapper, bases<AuthenticationWrapper> >("AuthenticationAthenz",
-                                                                       init<const std::string&>())
-            ;
+                                                                       init<const std::string&>());
 
     class_<AuthenticationOauth2Wrapper, bases<AuthenticationWrapper> >("AuthenticationOauth2",
-                                                                       init<const std::string&>())
-            ;
+                                                                       init<const std::string&>());
 }

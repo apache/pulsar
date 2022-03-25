@@ -84,6 +84,10 @@ func (m *MockMessage) GetSchemaValue(v interface{}) error {
 	return nil
 }
 
+func (m *MockMessage) GetEncryptionContext() *pulsar.EncryptionContext {
+	return nil
+}
+
 type MockMessageID struct{}
 
 func (m *MockMessageID) Serialize() []byte {

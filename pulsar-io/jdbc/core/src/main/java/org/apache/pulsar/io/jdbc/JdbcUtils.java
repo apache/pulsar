@@ -20,7 +20,6 @@
 package org.apache.pulsar.io.jdbc;
 
 import static com.google.common.base.Preconditions.checkState;
-
 import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -37,9 +36,6 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Jdbc Utils
- */
 @Slf4j
 public class JdbcUtils {
 

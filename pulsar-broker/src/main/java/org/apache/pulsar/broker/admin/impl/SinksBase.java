@@ -75,7 +75,10 @@ public class SinksBase extends AdminResource {
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
                              final @FormDataParam("url") String sinkPkgUrl,
                              @ApiParam(value =
-                                     "A JSON value presenting config payload of a Pulsar Sink."
+                                     "You can submit a sink (in any languages that you are familiar with) "
+                                             + "to a Pulsar cluster. Follow the steps below.\n"
+                                             + "1. Create a JSON object using some of the following parameters.\n"
+                                             + "A JSON value presenting config payload of a Pulsar Sink."
                                              + " All available configuration options are:\n"
                                              + "- **classname**\n"
                                              + "   The class name of a Pulsar Sink if"
@@ -136,19 +139,36 @@ public class SinksBase extends AdminResource {
                                              + "   Boolean denotes whether the subscriptions the functions"
                                              + " created/used should be deleted when the functions is deleted\n"
                                              + "- **runtimeFlags**\n"
-                                             + "   Any flags that you want to pass to the runtime as a single string\n",
+                                             + "   Any flags that you want to pass to the runtime as a single string\n"
+                                             + "2. Encapsulate the JSON object to a multipart object.",
                                      examples = @Example(
-                                             value = @ExampleProperty(
-                                                     mediaType = MediaType.APPLICATION_JSON,
-                                                     value = "{\n"
+                                             value = {
+                                                 @ExampleProperty(
+                                                     mediaType = MediaType.TEXT_PLAIN,
+                                                     value = "Example \n"
+                                                             + "\n"
+                                                             + " 1. Create a JSON object. \n"
+                                                             + "\n"
+                                                             + "{\n"
                                                              + "\t\"classname\": \"org.example.MySinkTest\",\n"
                                                              + "\t\"inputs\": ["
                                                              + "\"persistent://public/default/sink-input\"],\n"
                                                              + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
-                                                             + "\t\"parallelism\": 10\n"
-                                                             + "}"
-                                             )
-                                 )
+                                                             + "\t\"parallelism\": \"10\"\n"
+                                                             + "}\n"
+                                                             + "\n"
+                                                             + "\n"
+                                                             + "2. Encapsulate the JSON object to a multipart object "
+                                                             + "(in Python).\n"
+                                                             + "\n"
+                                                             + "from requests_toolbelt.multipart.encoder import "
+                                                             + "MultipartEncoder \n"
+                                                             + "mp_encoder = MultipartEncoder( \n"
+                                                             + "\t[('sinkConfig', "
+                                                             + "(None, json.dumps(config), 'application/json'))])\n"
+                                                  )
+                                            }
+                                    )
                              )
                              final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
         sinks().registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,

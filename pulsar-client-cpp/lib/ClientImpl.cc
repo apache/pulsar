@@ -29,6 +29,7 @@
 #include <pulsar/ConsoleLoggerFactory.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
+#include <stdexcept>
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
@@ -147,6 +148,9 @@ LookupServicePtr ClientImpl::getLookup() { return lookupServicePtr_; }
 
 void ClientImpl::createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                                      CreateProducerCallback callback) {
+    if (conf.isChunkingEnabled() && conf.getBatchingEnabled()) {
+        throw std::invalid_argument("Batching and chunking of messages can't be enabled together");
+    }
     TopicNamePtr topicName;
     {
         Lock lock(mutex_);
@@ -174,7 +178,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
             producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                  partitionMetadata->getPartitions(), conf);
         } else {
-            producer = std::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
+            producer = std::make_shared<ProducerImpl>(shared_from_this(), *topicName, conf);
         }
         producer->getProducerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleProducerCreated, shared_from_this(), std::placeholders::_1,

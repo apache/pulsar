@@ -7,7 +7,7 @@ original_id: reference-connector-admin
 
 > **Important**
 >
-> For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
 > 
 
 The `pulsar-admin` tool helps you manage Pulsar connectors.

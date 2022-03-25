@@ -22,8 +22,7 @@ import static org.testng.Assert.assertEquals;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -135,28 +134,30 @@ public class PulsarTestClient extends PulsarClientImpl {
     @Override
     protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex, ProducerConfigurationData conf,
                                                   Schema<T> schema, ProducerInterceptors interceptors,
-                                                  CompletableFuture<Producer<T>> producerCreatedFuture) {
+                                                  CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                  Optional<String> overrideProducerName) {
         return new ProducerImpl<T>(this, topic, conf, producerCreatedFuture, partitionIndex, schema,
-                interceptors) {
+                interceptors, overrideProducerName) {
             @Override
-            protected BlockingQueue<OpSendMsg> createPendingMessagesQueue() {
-                return new ArrayBlockingQueue<OpSendMsg>(conf.getMaxPendingMessages()) {
+            protected OpSendMsgQueue createPendingMessagesQueue() {
+                return new OpSendMsgQueue() {
                     @Override
-                    public void put(OpSendMsg opSendMsg) throws InterruptedException {
-                        super.put(opSendMsg);
+                    public boolean add(OpSendMsg opSendMsg) {
+                        boolean added = super.add(opSendMsg);
                         if (pendingMessageCallback != null) {
                             pendingMessageCallback.accept(opSendMsg);
                         }
+                        return added;
                     }
                 };
             }
 
             @Override
-            protected boolean shouldWriteOpSendMsg() {
+            protected ClientCnx getCnxIfReady() {
                 if (dropOpSendMessages) {
-                    return false;
+                    return null;
                 } else {
-                    return super.shouldWriteOpSendMsg();
+                    return super.getCnxIfReady();
                 }
             }
         };

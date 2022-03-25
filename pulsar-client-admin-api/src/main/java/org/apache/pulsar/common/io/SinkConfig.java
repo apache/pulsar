@@ -43,7 +43,8 @@ public class SinkConfig {
     private String name;
     private String className;
     private String sourceSubscriptionName;
-    private SubscriptionInitialPosition sourceSubscriptionPosition;
+    @Builder.Default
+    private SubscriptionInitialPosition sourceSubscriptionPosition = SubscriptionInitialPosition.Latest;
 
     private Collection<String> inputs;
 
@@ -71,6 +72,7 @@ public class SinkConfig {
     private Integer parallelism;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Boolean retainOrdering;
+    private Boolean retainKeyOrdering;
     private Resources resources;
     private Boolean autoAck;
     private Long timeoutMs;

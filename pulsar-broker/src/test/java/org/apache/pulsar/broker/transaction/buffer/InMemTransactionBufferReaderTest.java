@@ -33,7 +33,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferReader;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.testng.annotations.Test;
@@ -116,7 +116,7 @@ public class InMemTransactionBufferReaderTest {
                 reader.readNext(1).get();
                 fail("should fail to read entries if there is no more in the transaction buffer");
             } catch (ExecutionException ee) {
-                assertTrue(ee.getCause() instanceof EndOfTransactionException);
+                assertTrue(ee.getCause() instanceof TransactionBufferException.EndOfTransactionException);
             }
         }
     }

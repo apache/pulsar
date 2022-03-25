@@ -147,13 +147,13 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().size(), 3);
 
         try {
-            ledger.offloadPrefix(PositionImpl.earliest);
+            ledger.offloadPrefix(PositionImpl.EARLIEST);
             fail("Should have thrown an exception");
         } catch (ManagedLedgerException.InvalidCursorPositionException e) {
             // expected
         }
         try {
-            ledger.offloadPrefix(PositionImpl.latest);
+            ledger.offloadPrefix(PositionImpl.LATEST);
             fail("Should have thrown an exception");
         } catch (ManagedLedgerException.InvalidCursorPositionException e) {
             // expected

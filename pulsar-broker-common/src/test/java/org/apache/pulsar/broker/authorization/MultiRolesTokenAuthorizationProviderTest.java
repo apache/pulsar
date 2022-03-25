@@ -56,7 +56,9 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
 
         Assert.assertTrue(provider.authorize(ads, role -> {
-            if (role.equals(userB)) return CompletableFuture.completedFuture(true); // only userB has permission
+            if (role.equals(userB)) {
+                return CompletableFuture.completedFuture(true); // only userB has permission
+            }
             return CompletableFuture.completedFuture(false);
         }).get());
 
@@ -65,7 +67,33 @@ public class MultiRolesTokenAuthorizationProviderTest {
         }).get());
 
         Assert.assertFalse(provider.authorize(ads, role -> {
-            return CompletableFuture.completedFuture(false); // only users has no permission
+            return CompletableFuture.completedFuture(false); // all users has no permission
         }).get());
+    }
+
+    @Test
+    public void testMultiRolesAuthzWithEmptyRoles() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        String token = Jwts.builder().claim("sub", new String[]{}).signWith(secretKey).compact();
+
+        MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+
+        AuthenticationDataSource ads = new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
+                } else {
+                    throw new IllegalArgumentException("Wrong HTTP header");
+                }
+            }
+        };
+
+        Assert.assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
     }
 }

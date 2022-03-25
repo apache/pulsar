@@ -18,7 +18,7 @@
 #
 
 from .definition import Record, Field, Null, Boolean, Integer, Long, \
-            Float, Double, Bytes, String, Array, Map
+            Float, Double, Bytes, String, Array, Map, CustomEnum
 
 from .schema import Schema, BytesSchema, StringSchema, JsonSchema
 from .schema_avro import AvroSchema

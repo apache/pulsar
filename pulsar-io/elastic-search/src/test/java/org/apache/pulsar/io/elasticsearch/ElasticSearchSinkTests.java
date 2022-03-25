@@ -40,11 +40,11 @@ import java.util.Optional;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.data.UserProfile;
-import org.elasticsearch.client.Node;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.opensearch.client.Node;
+import org.opensearch.client.RestHighLevelClient;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -54,10 +54,7 @@ import org.testng.annotations.Test;
 import java.util.Locale;
 import static org.testng.Assert.assertNull;
 
-public class ElasticSearchSinkTests {
-
-    public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
+public class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     private static ElasticsearchContainer container;
 
@@ -76,7 +73,7 @@ public class ElasticSearchSinkTests {
 
     @BeforeClass
     public static final void initBeforeClass() {
-        container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
+        container = createElasticsearchContainer();
 
         valueSchema = Schema.JSON(UserProfile.class);
         genericSchema = Schema.generic(valueSchema.getSchemaInfo());
@@ -89,7 +86,7 @@ public class ElasticSearchSinkTests {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
     }
@@ -292,7 +289,7 @@ public class ElasticSearchSinkTests {
         testNullValue(ElasticSearchConfig.NullValueAction.DELETE);
     }
 
-    public void testNullValue(ElasticSearchConfig.NullValueAction action) throws Exception {
+    private void testNullValue(ElasticSearchConfig.NullValueAction action) throws Exception {
         String index = "testnullvalue" + action.toString().toLowerCase(Locale.ROOT);
         map.put("indexName", index);
         map.put("keyIgnore", "false");

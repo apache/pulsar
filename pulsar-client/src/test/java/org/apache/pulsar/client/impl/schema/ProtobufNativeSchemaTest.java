@@ -32,7 +32,6 @@ import java.util.HashMap;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.AssertJUnit.assertSame;
 
 @Slf4j
 public class ProtobufNativeSchemaTest {

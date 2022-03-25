@@ -69,6 +69,7 @@ $ pulsar-admin broker-stats topics options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-i`, `--indent`|Indent JSON output|false|
@@ -83,6 +84,7 @@ $ pulsar-admin broker-stats mbeans options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-i`, `--indent`|Indent JSON output|false|
@@ -98,6 +100,7 @@ $ pulsar-admin broker-stats monitoring-metrics options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-i`, `--indent`|Indent JSON output|false|
@@ -156,6 +159,7 @@ $ pulsar-admin brokers namespaces cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--url`|The URL for the broker||
@@ -170,6 +174,7 @@ $ pulsar-admin brokers update-dynamic-config options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--config`|Service configuration parameter name||
@@ -272,6 +277,7 @@ $ pulsar-admin clusters create cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--broker-url`|The URL for the broker service.||
@@ -289,6 +295,7 @@ $ pulsar-admin clusters update cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--broker-url`|The URL for the broker service.||
@@ -322,6 +329,7 @@ $ pulsar-admin clusters update-peer-clusters cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--peer-clusters`|Comma separated peer cluster names (Pass empty string "" to delete list)||
@@ -343,6 +351,7 @@ $ pulsar-admin clusters get-failure-domain cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
@@ -356,6 +365,7 @@ $ pulsar-admin clusters create-failure-domain cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--broker-list`|Comma separated broker list||
@@ -370,6 +380,7 @@ $ pulsar-admin clusters update-failure-domain cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--broker-list`|Comma separated broker list||
@@ -384,6 +395,7 @@ $ pulsar-admin clusters delete-failure-domain cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
@@ -433,6 +445,7 @@ $ pulsar-admin functions localrun options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
@@ -490,6 +503,7 @@ $ pulsar-admin functions create options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
@@ -538,6 +552,7 @@ $ pulsar-admin functions delete options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -556,6 +571,7 @@ $ pulsar-admin functions update options
 
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--cpu`|The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)||
@@ -604,6 +620,7 @@ $ pulsar-admin functions get options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -621,6 +638,7 @@ $ pulsar-admin functions restart options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -639,6 +657,7 @@ $ pulsar-admin functions stop options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -657,6 +676,7 @@ $ pulsar-admin functions start options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -675,6 +695,7 @@ $ pulsar-admin functions status options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -693,6 +714,7 @@ $ pulsar-admin functions stats options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -710,6 +732,7 @@ $ pulsar-admin functions list options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--namespace`|The function's namespace||
@@ -725,6 +748,7 @@ $ pulsar-admin functions querystate options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -761,6 +785,7 @@ $ pulsar-admin functions trigger options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
@@ -948,6 +973,7 @@ $ pulsar-admin namespaces create tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-b`, `--bundles`|The number of bundles to activate|0|
@@ -971,6 +997,7 @@ $ pulsar-admin namespaces set-deduplication tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified namespace|false|
@@ -985,6 +1012,7 @@ $ pulsar-admin namespaces set-auto-topic-creation tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable allowAutoTopicCreation on namespace|false|
@@ -1009,6 +1037,7 @@ $ pulsar-admin namespaces set-auto-subscription-creation tenant/namespace option
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable allowAutoSubscriptionCreation on namespace|false|
@@ -1038,6 +1067,7 @@ $ pulsar-admin namespaces grant-permission tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--actions`|Actions to be granted (`produce` or `consume`)||
@@ -1053,6 +1083,7 @@ $ pulsar-admin namespaces revoke-permission tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--role`|The client role to which to revoke the permissions||
@@ -1066,6 +1097,7 @@ $ pulsar-admin namespaces grant-subscription-permission tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--roles`|The client roles to which to grant the permissions (comma separated roles)||
@@ -1080,6 +1112,7 @@ $ pulsar-admin namespaces revoke-subscription-permission tenant/namespace option
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--role`|The client role to which to revoke the permissions||
@@ -1094,6 +1127,7 @@ $ pulsar-admin namespaces set-clusters tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-c`, `--clusters`|Replication clusters ID list (comma-separated values)||
@@ -1124,6 +1158,7 @@ $ pulsar-admin namespaces set-backlog-quota tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-l`, `--limit`|The backlog size limit (for example `10M` or `16G`)||
@@ -1174,6 +1209,7 @@ $ pulsar-admin namespaces set-persistence tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-a`, `--bookkeeper-ack-quorum`|The number of acks (guaranteed copies) to wait for each entry|0|
@@ -1199,6 +1235,7 @@ $ pulsar-admin namespaces set-message-ttl tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-ttl`, `--messageTTL`|Message TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
@@ -1229,6 +1266,7 @@ $ pulsar-admin namespaces set-anti-affinity-group tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-g`, `--group`|Anti-affinity group name||
@@ -1242,6 +1280,7 @@ $ pulsar-admin namespaces get-anti-affinity-namespaces options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-c`, `--cluster`|Cluster name||
@@ -1273,6 +1312,7 @@ $ pulsar-admin namespaces set-retention tenant/namespace
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T) for each topic in the namespace. 0 means no retention and -1 means infinite size retention||
@@ -1288,6 +1328,7 @@ $ pulsar-admin namespaces unload tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
@@ -1301,6 +1342,7 @@ $ pulsar-admin namespaces split-bundle tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
@@ -1315,6 +1357,7 @@ $ pulsar-admin namespaces set-dispatch-rate tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
@@ -1338,6 +1381,7 @@ $ pulsar-admin namespaces set-replicator-dispatch-rate tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
@@ -1361,6 +1405,7 @@ $ pulsar-admin namespaces set-subscribe-rate tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-sr`, `--subscribe-rate`|The subscribe rate (default -1 will be overwrite if not passed)|-1|
@@ -1383,6 +1428,7 @@ $ pulsar-admin namespaces set-subscription-dispatch-rate tenant/namespace option
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
@@ -1406,6 +1452,7 @@ $ pulsar-admin namespaces clear-backlog tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
@@ -1422,6 +1469,7 @@ $ pulsar-admin namespaces unsubscribe tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
@@ -1436,6 +1484,7 @@ $ pulsar-admin namespaces set-encryption-required tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-d`, `--disable`|Disable message encryption required|false|
@@ -1482,6 +1531,7 @@ $ pulsar-admin namespaces set-subscription-auth-mode tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-m`, `--subscription-auth-mode`|Subscription authorization mode for Pulsar policies. Valid options are: [None, Prefix]||
@@ -1503,6 +1553,7 @@ $ pulsar-admin namespaces set-max-producers-per-topic tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-p`, `--max-producers-per-topic`|maxProducersPerTopic for a namespace|0|
@@ -1524,6 +1575,7 @@ $ pulsar-admin namespaces set-max-consumers-per-topic tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-c`, `--max-consumers-per-topic`|maxConsumersPerTopic for a namespace|0|
@@ -1545,6 +1597,7 @@ $ pulsar-admin namespaces set-max-consumers-per-subscription tenant/namespace op
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-c`, `--max-consumers-per-subscription`|maxConsumersPerSubscription for a namespace|0|
@@ -1611,6 +1664,7 @@ $ pulsar-admin namespaces set-compaction-threshold tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-t`, `--threshold`|Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction|0|
@@ -1633,6 +1687,7 @@ $ pulsar-admin namespaces set-offload-threshold tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-s`, `--size`|Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.|-1|
@@ -1654,6 +1709,7 @@ $ pulsar-admin namespaces set-offload-deletion-lag tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-l`, `--lag`|Duration to wait after offloading a ledger segment, before deleting the copy of that segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).|-1|
@@ -1683,6 +1739,7 @@ $ pulsar-admin namespaces set-schema-autoupdate-strategy tenant/namespace option
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).|Full|
@@ -1705,6 +1762,7 @@ $ pulsar-admin namespaces set-publish-rate tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-m`, `--msg-publish-rate`|Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
@@ -1719,6 +1777,7 @@ $ pulsar-admin namespaces set-offload-policies tenant/namespace options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
@@ -1790,6 +1849,7 @@ $ pulsar-admin ns-isolation-policy set cluster-name policy-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`--auto-failover-policy-params`|Comma-separated name=value auto failover policy parameters|[]|
@@ -1840,6 +1900,7 @@ $ pulsar-admin ns-isolation-policy broker cluster-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`--broker`|Broker name to get namespace-isolation policies attached to it||
@@ -1959,6 +2020,7 @@ $ pulsar-admin topics compaction-status persistent://tenant/namespace/topic
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-w`, `--wait-complete`|Wait for compaction to complete|false|
@@ -1973,6 +2035,7 @@ $ pulsar-admin topics offload persistent://tenant/namespace/topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-s`, `--size-threshold`|The maximum amount of data to keep in BookKeeper for the specific topic||
@@ -1987,6 +2050,7 @@ $ pulsar-admin topics offload-status persistent://tenant/namespace/topic op
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-w`, `--wait-complete`|Wait for compaction to complete|false|
@@ -2011,6 +2075,7 @@ $ pulsar-admin topics create-partitioned-topic {persistent|non-persistent}://ten
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-p`, `--partitions`|The number of partitions for the topic|0|
@@ -2067,6 +2132,7 @@ $ pulsar-admin topics update-partitioned-topic {persistent|non-persistent}://ten
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-p`, `--partitions`|The number of partitions for the topic|0|
@@ -2088,11 +2154,19 @@ $ pulsar-admin topics list tenant/cluster/namespace
 ```
 
 ### `terminate`
-Terminate a topic (disallow further messages from being published on the topic)
+Terminate a persistent topic (disallow further messages from being published on the topic)
 
 Usage
 ```bash
-$ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/topic
+$ pulsar-admin topics terminate persistent://tenant/namespace/topic
+```
+
+### `partitioned-terminate`
+Terminate a persistent topic (disallow further messages from being published on the topic)
+
+Usage
+```bash
+$ pulsar-admin topics partitioned-terminate persistent://tenant/namespace/topic
 ```
 
 ### `permissions`
@@ -2112,6 +2186,7 @@ $ pulsar-admin topics grant-permission {persistent|non-persistent}://tenant/name
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--actions`|Actions to be granted (`produce` or `consume`)||
@@ -2167,6 +2242,7 @@ $ pulsar-admin topics create-subscription [options] persistent://tenant/namespac
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-m`, `--messageId`|messageId where to create the subscription. It can be either 'latest', 'earliest' or (ledgerId:entryId)|latest|
@@ -2189,6 +2265,7 @@ $ pulsar-admin topics unsubscribe topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-s`, `--subscription`|The subscription to delete||
@@ -2231,6 +2308,7 @@ $ pulsar-admin topics partitioned-stats topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`--per-partition`|Get per-partition stats|false|
@@ -2253,6 +2331,7 @@ $ pulsar-admin topics skip topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-n`, `--count`|The number of messages to skip|0|
@@ -2268,6 +2347,7 @@ $ pulsar-admin topics clear-backlog topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-s`, `--subscription`|The subscription to clear||
@@ -2282,6 +2362,7 @@ $ pulsar-admin topics expire-messages topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-t`, `--expireTime`|Expire messages older than the time (in seconds)|0|
@@ -2297,6 +2378,7 @@ $ pulsar-admin topics expire-messages-all-subscriptions topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-t`, `--expireTime`|Expire messages older than the time (in seconds)|0|
@@ -2311,6 +2393,7 @@ $ pulsar-admin topics peek-messages topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |---|---|---|
 |`-n`, `--count`|The number of messages|0|
@@ -2331,7 +2414,7 @@ Options
 |---|---|---|
 |`-s`, `--subscription`|Subscription to reset position on||
 |`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
-|`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
+|`-m`, `--messageId`| The message ID to reset back to (`ledgerId:entryId` or earliest or latest). ||
 
 ### `get-message-by-id`
 Get message by ledger id and entry id
@@ -2422,6 +2505,7 @@ $ pulsar-admin topics set-persistence tenant/namespace/topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|0|
@@ -2453,6 +2537,7 @@ $ pulsar-admin topics set-message-ttl tenant/namespace/topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-ttl`, `--messageTTL`|Message TTL for a topic in second, allowed range from 1 to `Integer.MAX_VALUE` |0|
@@ -2535,6 +2620,7 @@ $ pulsar-admin tenants create tenant-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-r`, `--admin-roles`|Comma-separated admin roles||
@@ -2549,6 +2635,7 @@ $ pulsar-admin tenants update tenant-name options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-r`, `--admin-roles`|Comma-separated admin roles||
@@ -2564,6 +2651,7 @@ $ pulsar-admin tenants delete tenant-name
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-f`, `--force`|Delete a tenant forcefully by deleting all namespaces under it.|false|
@@ -2592,6 +2680,7 @@ $ pulsar-admin resource-quotas get options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-b`, `--bundle`|A bundle of the form {start-boundary}_{end_boundary}. This must be specified together with -n/--namespace.||
@@ -2607,6 +2696,7 @@ $ pulsar-admin resource-quotas set options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-bi`, `--bandwidthIn`|The expected inbound bandwidth (in bytes/second)|0|
@@ -2628,6 +2718,7 @@ $ pulsar-admin resource-quotas reset-namespace-bundle-quota options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-b`, `--bundle`|A bundle of the form {start-boundary}_{end_boundary}. This must be specified together with -n/--namespace.||
@@ -2659,6 +2750,7 @@ $ pulsar-admin schemas upload persistent://tenant/namespace/topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`--filename`|The path to the schema definition file. An example schema file is available under conf directory.||
@@ -2682,6 +2774,7 @@ $ pulsar-admin schemas get persistent://tenant/namespace/topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`--version`|The version of the schema definition to retrieve for a topic.||
@@ -2695,6 +2788,7 @@ $ pulsar-admin schemas extract persistent://tenant/namespace/topic options
 ```
 
 Options
+
 |Flag|Description|Default|
 |----|---|---|
 |`-c`, `--classname`|The Java class name||

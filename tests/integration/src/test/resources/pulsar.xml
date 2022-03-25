@@ -35,5 +35,9 @@
         <suite-file path="./pulsar-backwards-compatibility.xml" />
         <suite-file path="./pulsar-io-sinks.xml" />
         <suite-file path="./pulsar-io-sources.xml" />
+        <suite-file path="./pulsar-io-ora-source.xml" />
+        <suite-file path="./pulsar-python.xml" />
+        <suite-file path="./pulsar-semantics.xml" />
+        <suite-file path="./pulsar-upgrade.xml" />
     </suite-files>
 </suite>

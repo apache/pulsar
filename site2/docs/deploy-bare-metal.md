@@ -40,7 +40,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 > * Broker is only supported on 64-bit JVM.
 > * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.
 > * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
-Each machine in your cluster needs to have [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11) installed.
+Each machine in your cluster needs to have [Java 8](https://adoptium.net/?variant=openjdk8) or [Java 11](https://adoptium.net/?variant=openjdk11) installed.
 
 The following is a diagram showing the basic setup:
 
@@ -63,30 +63,27 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 * Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) (for Pulsar brokers)
 * Small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache (for BookKeeper bookies)
 
+#### Hardware recommendations
+
 To start a Pulsar instance, below are the minimum and the recommended hardware settings.
 
-1. The minimum hardware settings (250 Pulsar topics)
-  - Broker
-    - CPU: 0.2
-    - Memory: 256MB
-  - Bookie
-    - CPU: 0.2
-    - Memory: 256MB
-    - Storage: 
-      - Journal: 8GB, PD-SSD
-      - Ledger: 16GB, PD-STANDARD
+A cluster consists of 3 broker nodes, 3 bookie nodes, and 3 ZooKeeper nodes. The following recommendation is suitable for one node.
 
-2. The recommended hardware settings (1000 Pulsar topics)
+- The minimum hardware settings (**250 Pulsar topics**)
+   
+   Component | CPU|Memory|Storage|Throughput |Rate
+   |---|---|---|---|---|---
+   Broker|0.2|256 MB|/|Write throughput: 3 MB/s<br><br />Read throughput: 6 MB/s<br><br />|Write rate: 350 entries/s<br><br />Read rate: 650 entries/s
+   Bookie|0.2|256 MB|Journal: 8 GB<br><br />PD-SSDLedger: 16 GB, PD-STANDARD|Write throughput: 2 MB/s<br><br />Read throughput: 2 MB/s<br><br />|Write rate: 200 entries/s<br><br />Read rate: 200 entries/s
+   ZooKeeper|0.05|256 MB|Log: 8 GB, PD-SSD<br><br />Data: 2 GB, PD-STANDARD|/|/
 
-  - Broker
-    - CPU: 8
-    - Memory: 8GB
-  - Bookie
-    - CPU: 4
-    - Memory: 8GB
-    - Storage: 
-      - Journal: 256GB, PD-SSD
-      - Ledger: 2TB, PD-STANDARD
+- The recommended hardware settings (**1000 Pulsar topics**)
+
+   Component | CPU|Memory|Storage|Throughput |Rate
+   |---|---|---|---|---|---
+   Broker|8|8 GB|/|Write throughput: 100 MB/s<br><br />Read throughput: 200 MB/s<br><br />|Write rate: 10,000 entries/s<br><br />Read rate: 20,000 entries/s
+   Bookie|4|8GB|Journal: 256 GB<br><br />PD-SSDLedger: 2 TB, PD-STANDARD|Write throughput: 75 MB/s<br><br />Read throughput: 75 MB/s<br><br />|Write rate: 7,500 entries/s<br><br />Read rate: 7,500 entries/s
+   ZooKeeper|1|2 GB|Log: 64 GB, PD-SSD<br><br />Data: 256 GB, PD-STANDARD|/|/
 
 ## Install the Pulsar binary package
 
@@ -202,8 +199,16 @@ server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
 ```
-
 > If you only have one machine on which to deploy Pulsar, you only need to add one server entry in the configuration file.
+
+> If your machines are behind NAT use 0.0.0.0 as server entry for the local address. If the node use external IP in configuration for itself, behind NAT, zookeper service won't start because it tries to put a listener on an external ip that the linux box doesn't own. Using 0.0.0.0 start a listener on ALL ip, so that NAT network traffic can reach it.
+
+Example of configuration on _server.3_
+```properties
+server.1=zk1.us-west.example.com:2888:3888
+server.2=zk2.us-west.example.com:2888:3888
+server.3=0.0.0.0:2888:3888
+```
 
 On each host, you need to specify the ID of the node in the `myid` file, which is in the `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 
@@ -236,8 +241,8 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](refer
 ```shell
 $ bin/pulsar initialize-cluster-metadata \
   --cluster pulsar-cluster-1 \
-  --zookeeper zk1.us-west.example.com:2181 \
-  --configuration-store zk1.us-west.example.com:2181 \
+  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
   --web-service-url http://pulsar.us-west.example.com:8080 \
   --web-service-url-tls https://pulsar.us-west.example.com:8443 \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
@@ -249,8 +254,8 @@ As you can see from the example above, you will need to specify the following:
 Flag | Description
 :----|:-----------
 `--cluster` | A name for the cluster
-`--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
-`--configuration-store` | The configuration store connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--metadata-store` | A "local" metadata store connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--configuration-metadata-store` | The configuration metadata store connection string for the entire instance. As with the `--metadata-store` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (you had better not use a different port).
 `--web-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (you had better not use a different port).
@@ -326,11 +331,11 @@ Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Bro
 
 ### Configure Brokers
 
-The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) and [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationStoreServers` point to the same `zookeeperServers`.
+The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](reference-configuration.md#broker) and [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
 
 ```properties
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-configurationStoreServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+configurationMetadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
 You also need to specify the cluster name (matching the name that you provided when you [initialize the metadata of the cluster](#initialize-cluster-metadata)):

@@ -21,15 +21,16 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -117,6 +118,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
         List<int[]> range = Arrays.asList(new int[] {0, 2}, new int[] {3, 7}, new int[] {9, 12}, new int[] {15, 20});
+        List<Consumer> consumers = new ArrayList<>();
         for (int index = 0; index < consumerName.size(); index++) {
             Consumer consumer = mock(Consumer.class);
             KeySharedMeta keySharedMeta = new KeySharedMeta()
@@ -128,18 +130,50 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
             when(consumer.consumerName()).thenReturn(consumerName.get(index));
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
             selector.addConsumer(consumer);
+            consumers.add(consumer);
         }
 
-        Map<String, List<String>> expectedResult = new HashMap<>();
-        expectedResult.put("consumer1", ImmutableList.of("[0, 2]"));
-        expectedResult.put("consumer2", ImmutableList.of("[3, 7]"));
-        expectedResult.put("consumer3", ImmutableList.of("[9, 12]"));
-        expectedResult.put("consumer4", ImmutableList.of("[15, 20]"));
-        for (Map.Entry<String, List<String>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+        Map<Consumer, List<Range>> expectedResult = new HashMap<>();
+        expectedResult.put(consumers.get(0), Collections.singletonList(Range.of(0, 2)));
+        expectedResult.put(consumers.get(1), Collections.singletonList(Range.of(3, 7)));
+        expectedResult.put(consumers.get(2), Collections.singletonList(Range.of(9, 12)));
+        expectedResult.put(consumers.get(3), Collections.singletonList(Range.of(15, 20)));
+        for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
             Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
             expectedResult.remove(entry.getKey());
         }
         Assert.assertEquals(expectedResult.size(), 0);
+    }
+
+    @Test
+    public void testGetConsumerKeyHashRangesWithSameConsumerName() throws Exception {
+        HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
+        final String consumerName = "My-consumer";
+        List<int[]> range = Arrays.asList(new int[] {0, 2}, new int[] {3, 7}, new int[] {9, 12});
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Consumer consumer = mock(Consumer.class);
+            KeySharedMeta keySharedMeta = new KeySharedMeta()
+                    .setKeySharedMode(KeySharedMode.STICKY);
+            keySharedMeta.addHashRange()
+                    .setStart(range.get(i)[0])
+                    .setEnd(range.get(i)[1]);
+            when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
+            when(consumer.consumerName()).thenReturn(consumerName);
+            Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
+            selector.addConsumer(consumer);
+            consumers.add(consumer);
+        }
+
+        List<Range> prev = null;
+        for (Consumer consumer : consumers) {
+            List<Range> ranges = selector.getConsumerKeyHashRanges().get(consumer);
+            Assert.assertEquals(ranges.size(), 1);
+            if (prev != null) {
+                Assert.assertNotEquals(prev, ranges);
+            }
+            prev = ranges;
+        }
     }
 
     @Test

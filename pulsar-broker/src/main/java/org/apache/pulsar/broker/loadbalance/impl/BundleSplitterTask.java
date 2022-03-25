@@ -42,10 +42,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
     /**
      * Construct a BundleSplitterTask.
      *
-     * @param pulsar
-     *            Service to construct from.
      */
-    public BundleSplitterTask(final PulsarService pulsar) {
+    public BundleSplitterTask() {
         bundleCache = new HashSet<>();
     }
 
@@ -74,6 +72,10 @@ public class BundleSplitterTask implements BundleSplitStrategy {
             for (final Map.Entry<String, NamespaceBundleStats> entry : localData.getLastStats().entrySet()) {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
+                if (stats.topics < 2) {
+                    log.info("The count of topics on the bundle {} is less than 2，skip split!", bundle);
+                    continue;
+                }
                 double totalMessageRate = 0;
                 double totalMessageThroughput = 0;
                 // Attempt to consider long-term message data, otherwise effectively ignore.
@@ -82,7 +84,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                     totalMessageRate = longTermData.totalMsgRate();
                     totalMessageThroughput = longTermData.totalMsgThroughput();
                 }
-                if (stats.topics > maxBundleTopics || stats.consumerCount + stats.producerCount > maxBundleSessions
+                if (stats.topics > maxBundleTopics || (maxBundleSessions > 0 && (stats.consumerCount
+                        + stats.producerCount > maxBundleSessions))
                         || totalMessageRate > maxBundleMsgRate || totalMessageThroughput > maxBundleBandwidth) {
                     final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     try {
@@ -91,9 +94,11 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                         if (bundleCount < maxBundleCount) {
                             bundleCache.add(bundle);
                         } else {
-                            log.warn(
-                                    "Could not split namespace bundle {} because namespace {} has too many bundles: {}",
-                                    bundle, namespace, bundleCount);
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "Could not split namespace bundle {} because namespace {} has too many bundles:"
+                                                + "{}", bundle, namespace, bundleCount);
+                            }
                         }
                     } catch (Exception e) {
                         log.warn("Error while getting bundle count for namespace {}", namespace, e);

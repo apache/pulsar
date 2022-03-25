@@ -73,7 +73,7 @@ public class WebSocketWebResourceTest {
 
     @BeforeMethod
     public void setup(Method method) throws Exception {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setSuperUserRoles(Sets.newHashSet(SUPER_USER));
@@ -120,6 +120,10 @@ public class WebSocketWebResourceTest {
 
         // Mock ServletContext
         when(servletContext.getAttribute(anyString())).thenReturn(socketService);
+
+        // Mock HttpServletRequest
+        when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(httpRequest.getRemotePort()).thenReturn(8080);
 
         // Mock UriInfo
         when(uri.getRequestUri()).thenReturn(null);

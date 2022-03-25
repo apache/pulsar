@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -38,7 +37,6 @@ import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.apache.pulsar.functions.worker.service.api.Workers;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
 
 /**
  * A worker service with its classloader.
@@ -65,9 +63,8 @@ public class WorkerServiceWithClassLoader implements WorkerService {
     public void initInBroker(ServiceConfiguration brokerConfig,
                              WorkerConfig workerConfig,
                              PulsarResources pulsarResources,
-                             ConfigurationCacheService configurationCacheService,
                              InternalConfigurationData internalConf) throws Exception {
-        service.initInBroker(brokerConfig, workerConfig, pulsarResources, configurationCacheService, internalConf);
+        service.initInBroker(brokerConfig, workerConfig, pulsarResources, internalConf);
     }
 
     @Override

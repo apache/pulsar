@@ -21,18 +21,25 @@ package org.apache.pulsar.client.api;
 import java.lang.reflect.Field;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.PulsarChannelInitializer;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSubscription;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.api.proto.CommandFlow;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNull;
@@ -41,6 +48,8 @@ import static org.testng.AssertJUnit.assertTrue;
 @Test(groups = "broker-api")
 @Slf4j
 public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
+
+    private final AtomicInteger numFlow = new AtomicInteger(0);
 
     @BeforeMethod
     @Override
@@ -54,6 +63,34 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override
+    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
+        return new PulsarService(conf) {
+
+            @Override
+            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
+                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
+                broker.setPulsarChannelInitializerFactory(
+                        (_pulsar, opts) -> {
+                            return new PulsarChannelInitializer(_pulsar, opts) {
+                                @Override
+                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+                                    return new ServerCnx(pulsar) {
+
+                                        @Override
+                                        protected void handleFlow(CommandFlow flow) {
+                                            super.handleFlow(flow);
+                                            numFlow.incrementAndGet();
+                                        }
+                                    };
+                                }
+                            };
+                        });
+                return broker;
+            }
+        };
     }
 
     @Test
@@ -249,5 +286,23 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
             Assert.assertEquals(message.getValue(), "message" + i);
         }
 
+    }
+
+    @Test
+    public void testFlowCountForMultiTopics() throws Exception {
+        String topicName = "persistent://my-property/my-ns/test-flow-count";
+        int numPartitions = 5;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+        numFlow.set(0);
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-nonDurable-subscriber")
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscribe();
+        consumer.receive(1, TimeUnit.SECONDS);
+        consumer.close();
+
+        assertEquals(numFlow.get(), numPartitions);
     }
 }

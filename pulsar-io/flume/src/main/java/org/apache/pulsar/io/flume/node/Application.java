@@ -20,6 +20,13 @@ package org.apache.pulsar.io.flume.node;
 
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.Subscribe;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.flume.Channel;
 import org.apache.flume.Context;
 import org.apache.flume.SinkRunner;
@@ -32,14 +39,6 @@ import org.apache.flume.lifecycle.LifecycleSupervisor;
 import org.apache.flume.lifecycle.LifecycleSupervisor.SupervisorPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class Application {
 
@@ -167,8 +166,8 @@ public class Application {
             while (ch.getLifecycleState() != LifecycleState.START
                     && !supervisor.isComponentInErrorState(ch)) {
                 try {
-                    logger.info("Waiting for channel: " + ch.getName() +
-                            " to start. Sleeping for 500 ms");
+                    logger.info("Waiting for channel: " + ch.getName()
+                            + " to start. Sleeping for 500 ms");
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     logger.error("Interrupted while waiting for channel to start.", e);
@@ -217,7 +216,7 @@ public class Application {
                     //Not a known type, use FQCN
                     klass = (Class<? extends MonitorService>) Class.forName(monitorType);
                 }
-                this.monitorServer = klass.newInstance();
+                this.monitorServer = klass.getDeclaredConstructor().newInstance();
                 Context context = new Context();
                 for (String key : keys) {
                     if (key.startsWith(CONF_MONITOR_PREFIX)) {

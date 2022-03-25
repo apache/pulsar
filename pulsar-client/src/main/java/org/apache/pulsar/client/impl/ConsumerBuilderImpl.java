@@ -21,12 +21,11 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -44,8 +43,10 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
+import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Getter(AccessLevel.PUBLIC)
@@ -65,9 +67,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private final Schema<T> schema;
     private List<ConsumerInterceptor<T>> interceptorList;
 
-    private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
-    private static long MIN_TICK_TIME_MILLIS = 100;
-    private static long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
+    private static final long MIN_ACK_TIMEOUT_MILLIS = 1000;
+    private static final long MIN_TICK_TIME_MILLIS = 100;
+    private static final long DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER = 30000L;
 
 
     public ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
@@ -116,48 +118,63 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
-        if(conf.isRetryEnable() && conf.getTopicNames().size() > 0 ) {
+        CompletableFuture<Void> applyDLQConfig;
+        if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
-            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
-            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-            try {
-                if (client.getPartitionedTopicMetadata(oldRetryLetterTopic)
-                        .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
-                    retryLetterTopic = oldRetryLetterTopic;
-                }
-                if (client.getPartitionedTopicMetadata(oldDeadLetterTopic)
-                        .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
-                    deadLetterTopic = oldDeadLetterTopic;
-                }
-            } catch (InterruptedException | TimeoutException e) {
-                return FutureUtil.failedFuture(e);
-            } catch (ExecutionException e) {
-                return FutureUtil.failedFuture(e.getCause());
-            }
-
-            if(conf.getDeadLetterPolicy() == null) {
-                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
+            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
+                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
+                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
+            if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
+                    || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
+                        client.getPartitionedTopicMetadata(oldRetryLetterTopic);
+                CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
+                        client.getPartitionedTopicMetadata(oldDeadLetterTopic);
+                applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
+                        .thenAccept(__ -> {
+                            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
+                                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+                            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
+                                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+                            if (retryLetterTopicMetadata.join().partitions > 0) {
+                                retryLetterTopic = oldRetryLetterTopic;
+                            }
+                            if (deadLetterTopicMetadata.join().partitions > 0) {
+                                deadLetterTopic = oldDeadLetterTopic;
+                            }
+                            if (deadLetterPolicy == null) {
+                                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
                                         .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
                                         .retryLetterTopic(retryLetterTopic)
                                         .deadLetterTopic(deadLetterTopic)
                                         .build());
+                            } else {
+                                if (StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())) {
+                                    conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
+                                }
+                                if (StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                                    conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
+                                }
+                            }
+                            conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+                        });
             } else {
-                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
-                    conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
-                }
-                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
-                    conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
-                }
+                conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+                applyDLQConfig = CompletableFuture.completedFuture(null);
             }
-            conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+        } else {
+            applyDLQConfig = CompletableFuture.completedFuture(null);
         }
-        return interceptorList == null || interceptorList.size() == 0 ?
-                client.subscribeAsync(conf, schema, null) :
-                client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
+        return applyDLQConfig.thenCompose(__ -> {
+            if (interceptorList == null || interceptorList.size() == 0) {
+                return client.subscribeAsync(conf, schema, null);
+            } else {
+                return client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
+            }
+        });
     }
 
     @Override
@@ -199,6 +216,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> subscriptionName(String subscriptionName) {
         checkArgument(StringUtils.isNotBlank(subscriptionName), "subscriptionName cannot be blank");
         conf.setSubscriptionName(subscriptionName);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> subscriptionProperties(Map<String, String> subscriptionProperties) {
+        checkArgument(subscriptionProperties != null, "subscriptionProperties cannot be null");
+        conf.setSubscriptionProperties(Collections.unmodifiableMap(subscriptionProperties));
         return this;
     }
 
@@ -331,7 +355,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setAutoAckOldestChunkedMessageOnQueueFull(autoAckOldestChunkedMessageOnQueueFull);
         return this;
     }
-    
+
     @Override
     public ConsumerBuilder<T> property(String key, String value) {
         checkArgument(StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
@@ -342,7 +366,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> properties(@NonNull Map<String, String> properties) {
-        checkArgument(!properties.isEmpty(), "properties cannot be empty");
         properties.entrySet().forEach(entry ->
                 checkArgument(
                         StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
@@ -353,7 +376,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
-        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= 0, "maxTotalReceiverQueueSizeAcrossPartitions needs to be >= 0");
+        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= 0,
+                "maxTotalReceiverQueueSizeAcrossPartitions needs to be >= 0");
         conf.setMaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions);
         return this;
     }
@@ -379,12 +403,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
-	@Override
-	public ConsumerBuilder<T> subscriptionInitialPosition(@NonNull SubscriptionInitialPosition
+    @Override
+    public ConsumerBuilder<T> subscriptionInitialPosition(@NonNull SubscriptionInitialPosition
                                                                       subscriptionInitialPosition) {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
-		return this;
-	}
+        return this;
+    }
 
     @Override
     public ConsumerBuilder<T> subscriptionTopicsMode(@NonNull RegexSubscriptionMode mode) {
@@ -413,6 +437,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             if (conf.getAckTimeoutMillis() == 0) {
                 conf.setAckTimeoutMillis(DEFAULT_ACK_TIMEOUT_MILLIS_FOR_DEAD_LETTER);
             }
+
+            checkArgument(deadLetterPolicy.getMaxRedeliverCount() > 0, "MaxRedeliverCount must be > 0.");
             conf.setDeadLetterPolicy(deadLetterPolicy);
         }
         return this;
@@ -477,6 +503,32 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> poolMessages(boolean poolMessages) {
         conf.setPoolMessages(poolMessages);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor) {
+        conf.setPayloadProcessor(payloadProcessor);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> negativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff) {
+        checkArgument(negativeAckRedeliveryBackoff != null, "negativeAckRedeliveryBackoff must not be null.");
+        conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> ackTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff) {
+        checkArgument(ackTimeoutRedeliveryBackoff != null, "ackTimeoutRedeliveryBackoff must not be null.");
+        conf.setAckTimeoutRedeliveryBackoff(ackTimeoutRedeliveryBackoff);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> startPaused(boolean paused) {
+        conf.setStartPaused(paused);
         return this;
     }
 }

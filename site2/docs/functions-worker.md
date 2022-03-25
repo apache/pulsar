@@ -119,13 +119,30 @@ To run function-worker separately, you have to configure the following parameter
 #### Function metadata parameter
 
 - `pulsarServiceUrl`: The Pulsar service URL for your broker cluster.
-- `pulsarWebServiceUrl`: The Pulser web service URL for your broker cluster.
+- `pulsarWebServiceUrl`: The Pulsar web service URL for your broker cluster.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
 
 If authentication is enabled for your broker cluster, you *should* configure the authentication plugin and parameters for the functions worker to communicate with the brokers.
 
 - `clientAuthenticationPlugin`
 - `clientAuthenticationParameters`
+
+#### Customize Java runtime options
+
+If you want to pass additional arguments to the JVM command line to every process started by a function worker,
+you can configure the `additionalJavaRuntimeArguments` parameter.
+
+```
+additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError','-Dfoo=bar']
+```
+
+This is very useful in case you want to:
+- add JMV flags, like `-XX:+ExitOnOutOfMemoryError`
+- pass custom system properties, like `-Dlog4j2.formatMsgNoLookups`
+
+> **Note**
+> 
+> This feature applies only to Process and Kubernetes runtimes.
 
 #### Security settings
 
@@ -199,12 +216,12 @@ properties:
 
 ##### Enable Authorization Provider
 
-To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
+To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationMetadataStoreUrl`. The authentication provider connects to `configurationMetadataStoreUrl` to receive namespace policies.
 
 ```yaml
 authorizationEnabled: true
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
-configurationStoreServers: <configuration-store-servers>
+configurationMetadataStoreUrl: <meta-type>:<configuration-metadata-store-url>
 ```
 
 You should also configure a list of superuser roles. The superuser roles are able to access any admin API. The following is a configuration example.

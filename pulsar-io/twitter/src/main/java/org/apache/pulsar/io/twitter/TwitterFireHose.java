@@ -30,14 +30,11 @@ import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
 import com.twitter.hbc.httpclient.BasicClient;
 import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.PushSource;
@@ -72,7 +69,8 @@ public class TwitterFireHose extends PushSource<TweetData> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
-        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config, TwitterFireHoseConfig.class, sourceContext);
+        TwitterFireHoseConfig hoseConfig = IOConfigUtils.loadWithSecrets(config,
+                TwitterFireHoseConfig.class, sourceContext);
         hoseConfig.validate();
         waitObject = new Object();
         startThread(hoseConfig);

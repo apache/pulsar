@@ -18,20 +18,18 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
-
-import com.google.common.base.Charsets;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flume.conf.FlumeConfiguration;
-
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 
 /**
  * ZooKeeper based configuration implementation provider.

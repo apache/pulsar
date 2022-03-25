@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
-
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
@@ -75,6 +74,8 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
@@ -141,6 +142,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
             case ACK:
                 checkArgument(cmd.hasAck());
+                safeInterceptCommand(cmd);
                 handleAck(cmd.getAck());
                 break;
 
@@ -359,6 +361,16 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             case AUTH_RESPONSE:
                 checkArgument(cmd.hasAuthResponse());
                 handleAuthResponse(cmd.getAuthResponse());
+                break;
+
+            case TC_CLIENT_CONNECT_REQUEST:
+                checkArgument(cmd.hasTcClientConnectRequest());
+                handleTcClientConnectRequest(cmd.getTcClientConnectRequest());
+                break;
+
+            case TC_CLIENT_CONNECT_RESPONSE:
+                checkArgument(cmd.hasTcClientConnectResponse());
+                handleTcClientConnectResponse(cmd.getTcClientConnectResponse());
                 break;
 
             case NEW_TXN:
@@ -599,6 +611,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleAuthChallenge(CommandAuthChallenge commandAuthChallenge) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleTcClientConnectRequest(CommandTcClientConnectRequest tcClientConnectRequest) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleTcClientConnectResponse(CommandTcClientConnectResponse tcClientConnectResponse) {
         throw new UnsupportedOperationException();
     }
 

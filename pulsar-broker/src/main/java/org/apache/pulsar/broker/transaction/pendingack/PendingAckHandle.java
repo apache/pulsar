@@ -48,7 +48,7 @@ public interface PendingAckHandle {
      * Client will not send batch size to server, we get the batch size from consumer pending ack. When we get the Batch
      * size, we can accurate batch ack of this position.
      *
-     * @param txnID                  {@link TxnID}TransactionID of an ongoing transaction trying to sck message.
+     * @param txnID                  {@link TxnID} TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link MutablePair} the pair of positions and these batch size.
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
@@ -57,7 +57,6 @@ public interface PendingAckHandle {
      */
     CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl,
             Integer>> positions);
-
     /**
      * Acknowledge message(s) for an ongoing transaction.
      * <p>
@@ -73,7 +72,7 @@ public interface PendingAckHandle {
      * If an ongoing transaction cumulative acked a message and then try to ack single message which is
      * greater than that one it cumulative acked, it'll succeed.
      *
-     * @param txnID                  {@link TxnID}TransactionID of an ongoing transaction trying to sck message.
+     * @param txnID                  {@link TxnID} TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link MutablePair} the pair of positions and these batch size.
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
@@ -153,4 +152,9 @@ public interface PendingAckHandle {
      */
     CompletableFuture<Void> close();
 
+    /**
+     * Check if the PendingAckStore is init.
+     * @return if the PendingAckStore is init.
+     */
+    boolean checkIfPendingAckStoreInit();
 }

@@ -39,7 +39,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -84,7 +83,8 @@ public class LoadSimulationController {
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     // JCommander arguments for starting a controller via main.
-    @Parameters(commandDescription = "Provides a shell for the user to dictate how simulation clients should incur load.")
+    @Parameters(commandDescription = "Provides a shell for the user to dictate how simulation clients should "
+            + "incur load.")
     private static class MainArguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
@@ -496,7 +496,8 @@ public class LoadSimulationController {
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException e) {
                         try {
-                            zkClient.setData(newAPIPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData), -1);
+                            zkClient.setData(newAPIPath,
+                                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bundleData), -1);
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }
@@ -545,8 +546,7 @@ public class LoadSimulationController {
             // This controller will now stream rate changes from the given ZK.
             // Users wishing to stop this should Ctrl + C and use another
             // Controller to send new commands.
-            while (true)
-                ;
+            while (true) {}
         }
     }
 

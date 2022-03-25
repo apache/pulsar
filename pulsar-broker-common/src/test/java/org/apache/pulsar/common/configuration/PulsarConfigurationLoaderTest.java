@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -42,8 +43,8 @@ public class PulsarConfigurationLoaderTest {
     public class MockConfiguration implements PulsarConfiguration {
         private Properties properties = new Properties();
 
-        private String zookeeperServers = "localhost:2181";
-        private String configurationStoreServers = "localhost:2184";
+        private String metadataStoreUrl = "zk:localhost:2181";
+        private String configurationMetadataStoreUrl = "zk:localhost:2184";
         private Optional<Integer> brokerServicePort = Optional.of(7650);
         private Optional<Integer> brokerServicePortTls = Optional.of(7651);
         private Optional<Integer> webServicePort = Optional.of(9080);
@@ -67,12 +68,12 @@ public class PulsarConfigurationLoaderTest {
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration);
 
         // check whether converting correctly
-        assertEquals(serviceConfiguration.getZookeeperServers(), "localhost:2181");
-        assertEquals(serviceConfiguration.getConfigurationStoreServers(), "localhost:2184");
-        assertEquals(serviceConfiguration.getBrokerServicePort().get(), new Integer(7650));
-        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), new Integer(7651));
-        assertEquals(serviceConfiguration.getWebServicePort().get(), new Integer(9080));
-        assertEquals(serviceConfiguration.getWebServicePortTls().get(), new Integer(9443));
+        assertEquals(serviceConfiguration.getMetadataStoreUrl(), "zk:localhost:2181");
+        assertEquals(serviceConfiguration.getConfigurationMetadataStoreUrl(), "zk:localhost:2184");
+        assertEquals(serviceConfiguration.getBrokerServicePort().get(), Integer.valueOf(7650));
+        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), Integer.valueOf((7651)));
+        assertEquals(serviceConfiguration.getWebServicePort().get(), Integer.valueOf((9080)));
+        assertEquals(serviceConfiguration.getWebServicePortTls().get(), Integer.valueOf((9443)));
 
         // check whether exception causes
         try {
@@ -89,10 +90,10 @@ public class PulsarConfigurationLoaderTest {
         if (testConfigFile.exists()) {
             testConfigFile.delete();
         }
-        final String zkServer = "z1.example.com,z2.example.com,z3.example.com";
+        final String metadataStoreUrl = "zk:z1.example.com,z2.example.com,z3.example.com";
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
-        printWriter.println("zookeeperServers=" + zkServer);
-        printWriter.println("configurationStoreServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        printWriter.println("metadataStoreUrl=" + metadataStoreUrl);
+        printWriter.println("configurationMetadataStoreUrl=gz1.example.com,gz2.example.com,gz3.example.com/foo");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=true");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -109,40 +110,46 @@ public class PulsarConfigurationLoaderTest {
         printWriter.println("managedLedgerDigestType=CRC32C");
         printWriter.println("managedLedgerCacheSizeMB=");
         printWriter.println("bookkeeperDiskWeightBasedPlacementEnabled=true");
+        printWriter.println("metadataStoreSessionTimeoutMillis=60");
+        printWriter.println("metadataStoreOperationTimeoutSeconds=600");
+        printWriter.println("metadataStoreCacheExpirySeconds=500");
         printWriter.close();
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
-        assertEquals(serviceConfig.getZookeeperServers(), zkServer);
-        assertEquals(serviceConfig.isBrokerDeleteInactiveTopicsEnabled(), true);
+        assertEquals(serviceConfig.getMetadataStoreUrl(), metadataStoreUrl);
+        assertTrue(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
-        assertEquals(serviceConfig.getBrokerServicePort().get(), new Integer(7777));
-        assertEquals(serviceConfig.getBrokerServicePortTls().get(), new Integer(8777));
+        assertEquals(serviceConfig.getBrokerServicePort().get(), Integer.valueOf((7777)));
+        assertEquals(serviceConfig.getBrokerServicePortTls().get(), Integer.valueOf((8777)));
         assertFalse(serviceConfig.getWebServicePort().isPresent());
         assertFalse(serviceConfig.getWebServicePortTls().isPresent());
         assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
         assertTrue(serviceConfig.getManagedLedgerCacheSizeMB() > 0);
         assertTrue(serviceConfig.isBookkeeperDiskWeightBasedPlacementEnabled());
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
     }
 
     @Test
     public void testPulsarConfiguraitonLoadingProp() throws Exception {
-        final String zk = "localhost:2184";
+        final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
-        prop.setProperty("zookeeperServers", zk);
+        prop.setProperty("metadataStoreUrl", zk);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
-        assertEquals(serviceConfig.getZookeeperServers(), zk);
+        assertEquals(serviceConfig.getMetadataStoreUrl(), zk);
     }
 
     @Test
     public void testPulsarConfiguraitonComplete() throws Exception {
-        final String zk = "localhost:2184";
+        final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
-        prop.setProperty("zookeeperServers", zk);
+        prop.setProperty("metadataStoreUrl", zk);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
         try {
             isComplete(serviceConfig);
@@ -150,6 +157,66 @@ public class PulsarConfigurationLoaderTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+    }
+
+    @Test
+    public void testBackwardCompatibility() throws IOException {
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("zooKeeperSessionTimeoutMillis=60");
+            printWriter.println("zooKeeperOperationTimeoutSeconds=600");
+            printWriter.println("zooKeeperCacheExpirySeconds=500");
+        }
+        testConfigFile.deleteOnExit();
+        InputStream stream = new FileInputStream(testConfigFile);
+        ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+
+        testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("metadataStoreSessionTimeoutMillis=60");
+            printWriter.println("metadataStoreOperationTimeoutSeconds=600");
+            printWriter.println("metadataStoreCacheExpirySeconds=500");
+            printWriter.println("zooKeeperSessionTimeoutMillis=-1");
+            printWriter.println("zooKeeperOperationTimeoutSeconds=-1");
+            printWriter.println("zooKeeperCacheExpirySeconds=-1");
+        }
+        testConfigFile.deleteOnExit();
+        stream = new FileInputStream(testConfigFile);
+        serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 600);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+
+        testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("metadataStoreSessionTimeoutMillis=10");
+            printWriter.println("metadataStoreOperationTimeoutSeconds=20");
+            printWriter.println("metadataStoreCacheExpirySeconds=30");
+            printWriter.println("zooKeeperSessionTimeoutMillis=100");
+            printWriter.println("zooKeeperOperationTimeoutSeconds=200");
+            printWriter.println("zooKeeperCacheExpirySeconds=300");
+        }
+        testConfigFile.deleteOnExit();
+        stream = new FileInputStream(testConfigFile);
+        serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        stream.close();
+        assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
+        assertEquals(serviceConfig.getMetadataStoreOperationTimeoutSeconds(), 200);
+        assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
     }
 
     @Test

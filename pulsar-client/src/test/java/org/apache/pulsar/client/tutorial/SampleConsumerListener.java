@@ -21,7 +21,6 @@ package org.apache.pulsar.client.tutorial;
 import java.io.IOException;
 
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 
 import lombok.extern.slf4j.Slf4j;
 

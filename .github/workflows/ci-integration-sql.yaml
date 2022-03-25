@@ -28,6 +28,7 @@ on:
 
 env:
   MAVEN_OPTS: -Xmx768m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+  UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
   MALLOC_ARENA_MAX: "1"
 
 jobs:
@@ -48,6 +49,7 @@ jobs:
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
+          list-files: csv
 
       - name: Check changed files
         id: check_changes
@@ -69,7 +71,7 @@ jobs:
         uses: actions/setup-java@v2
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: 11
 
       - name: clean disk
@@ -98,7 +100,7 @@ jobs:
 
       - name: run integration tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: ./build/run_integration_group.sh SQL
+        run: CHANGED_TESTS="${{ steps.changes.outputs.tests_files }}" ./build/run_integration_group.sh SQL
 
       - name: Log dmesg when failed
         if: ${{ failure() }}

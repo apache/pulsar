@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.influxdb;
 
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -29,10 +30,8 @@ import org.apache.pulsar.io.core.annotations.IOType;
 import org.apache.pulsar.io.influxdb.v2.InfluxDBSink;
 import org.apache.pulsar.io.influxdb.v2.InfluxDBSinkConfig;
 
-import java.util.Map;
-
 /**
- * Delegate for InfluxDB sinks, one for InfluxDB v1, the other for InfluxDB v2
+ * Delegate for InfluxDB sinks, one for InfluxDB v1, the other for InfluxDB v2.
  */
 @Connector(
         name = "influxdb",

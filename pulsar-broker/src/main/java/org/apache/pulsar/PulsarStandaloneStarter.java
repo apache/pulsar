@@ -23,10 +23,12 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,40 +86,49 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
 
         // Set ZK server's host to localhost
         // Priority: args > conf > default
-        if (argsContains(args, "--zookeeper-port")) {
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-        } else {
-            if (config.getZookeeperServers() != null) {
-                this.setZkPort(Integer.parseInt(config.getZookeeperServers().split(":")[1]));
-            }
-            config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-        }
-
-        config.setRunningStandalone(true);
-
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                try {
-                    if (fnWorkerService != null) {
-                        fnWorkerService.stop();
+        if (!argsContains(args, "--zookeeper-port")) {
+            if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
+                String[] metadataStoreUrl = config.getMetadataStoreUrl().split(",")[0].split(":");
+                if (metadataStoreUrl.length == 2) {
+                    this.setZkPort(Integer.parseInt(metadataStoreUrl[1]));
+                } else if ((metadataStoreUrl.length == 3)){
+                    String zkPort = metadataStoreUrl[2];
+                    if (zkPort.contains("/")) {
+                        this.setZkPort(Integer.parseInt(zkPort.substring(0, zkPort.lastIndexOf("/"))));
+                    } else {
+                        this.setZkPort(Integer.parseInt(zkPort));
                     }
-
-                    if (broker != null) {
-                        broker.close();
-                    }
-
-                    if (bkEnsemble != null) {
-                        bkEnsemble.stop();
-                    }
-
-                    LogManager.shutdown();
-                } catch (Exception e) {
-                    log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
             }
-        });
+        }
+        final String metadataStoreUrl =
+                ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zkServers + ":" + this.getZkPort();
+        config.setMetadataStoreUrl(metadataStoreUrl);
+        config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
+
+        config.setRunningStandalone(true);
+        config.getProperties().setProperty("metadataStoreUrl", metadataStoreUrl);
+        config.getProperties().setProperty("configurationMetadataStoreUrl", metadataStoreUrl);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                if (fnWorkerService != null) {
+                    fnWorkerService.stop();
+                }
+
+                if (broker != null) {
+                    broker.close();
+                }
+
+                if (bkEnsemble != null) {
+                    bkEnsemble.stop();
+                }
+
+                LogManager.shutdown();
+            } catch (Exception e) {
+                log.error("Shutdown failed: {}", e.getMessage(), e);
+            }
+        }));
     }
 
     private static boolean argsContains(String[] args, String arg) {

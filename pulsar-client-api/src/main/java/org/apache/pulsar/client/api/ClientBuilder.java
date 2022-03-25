@@ -263,7 +263,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * Increasing this parameter may improve throughput when using many producers over a high latency connection.
      *
      * @param connectionsPerBroker
-     *            max number of connections per broker (needs to be greater than 0)
+     *            max number of connections per broker (needs to be greater than or equal to 0)
      * @return the client builder instance
      */
     ClientBuilder connectionsPerBroker(int connectionsPerBroker);
@@ -537,6 +537,14 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder enableTransaction(boolean enableTransaction);
+
+    /**
+     * Set dns lookup bind address and port.
+     * @param address dnsBindAddress
+     * @param port dnsBindPort
+     * @return
+     */
+    ClientBuilder dnsLookupBind(String address, int port);
 
     /**
      *  Set socks5 proxy address.

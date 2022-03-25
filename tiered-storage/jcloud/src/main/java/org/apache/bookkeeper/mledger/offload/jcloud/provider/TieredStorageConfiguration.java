@@ -244,7 +244,7 @@ public class TieredStorageConfiguration {
                 return Integer.valueOf(configProperties.get(key));
             }
         }
-        return new Integer(64 * MB);
+        return 64 * MB;
     }
 
     public Integer getMinBlockSizeInBytes() {
@@ -262,7 +262,7 @@ public class TieredStorageConfiguration {
                 return Integer.valueOf(configProperties.get(key));
             }
         }
-        return new Integer(MB);
+        return MB;
     }
 
     public Integer getWriteBufferSizeInBytes() {

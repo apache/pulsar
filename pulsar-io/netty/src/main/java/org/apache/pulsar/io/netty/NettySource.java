@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.netty;
 
 import java.util.Map;
-
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;

@@ -35,15 +35,23 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Load shedding strategy that unloads any broker that exceeds the average resource utilization of all brokers by a
+ * configured threshold. As a consequence, this strategy tends to distribute load among all brokers. It does this by
+ * first computing the average resource usage per broker for the whole cluster. The resource usage for each broker is
+ * calculated using the following method: {@link LocalBrokerData#getMaxResourceUsageWithWeight)}. The weights for each
+ * resource are configurable. Historical observations are included in the running average based on the broker's
+ * setting for loadBalancerHistoryResourcePercentage. Once the average resource usage is calculated, a broker's
+ * current/historical usage is compared to the average broker usage. If a broker's usage is greater than the average
+ * usage per broker plus the loadBalancerBrokerThresholdShedderPercentage, this load shedder proposes removing
+ * enough bundles to bring the unloaded broker 5% below the current average broker usage. Note that recently
+ * unloaded bundles are not unloaded again.
+ */
 public class ThresholdShedder implements LoadSheddingStrategy {
     private static final Logger log = LoggerFactory.getLogger(ThresholdShedder.class);
-
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
-
     private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
-
     private static final double MB = 1024 * 1024;
-
     private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
 
     @Override
@@ -78,7 +86,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
             if (minimumThroughputToOffload < minThroughputThreshold) {
                 if (log.isDebugEnabled()) {
-                    log.info("[{}] broker is planning to shed throughput {} MByte/s less than "
+                    log.debug("[{}] broker is planning to shed throughput {} MByte/s less than "
                                     + "minimumThroughputThreshold {} MByte/s, skipping bundle unload.",
                             broker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
                 }
@@ -88,19 +96,20 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             log.info(
                     "Attempting to shed load on {}, which has max resource usage above avgUsage  and threshold {}%"
                             + " > {}% + {}% -- Offloading at least {} MByte/s of traffic, left throughput {} MByte/s",
-                    broker, currentUsage, avgUsage, threshold, minimumThroughputToOffload / MB,
+                    broker, 100 * currentUsage, 100 * avgUsage, 100 * threshold, minimumThroughputToOffload / MB,
                     (brokerCurrentThroughput - minimumThroughputToOffload) / MB);
 
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
 
             if (localData.getBundles().size() > 1) {
-                loadData.getBundleData().entrySet().stream().map((e) -> {
-                    String bundle = e.getKey();
-                    BundleData bundleData = e.getValue();
-                    TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                    double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
-                    return Pair.of(bundle, throughput);
+                loadData.getBundleDataForLoadShedding().entrySet().stream()
+                    .map((e) -> {
+                        String bundle = e.getKey();
+                        BundleData bundleData = e.getValue();
+                        TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                        double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+                        return Pair.of(bundle, throughput);
                 }).filter(e ->
                         !recentlyUnloadedBundles.containsKey(e.getLeft())
                 ).filter(e ->
@@ -118,10 +127,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             } else if (localData.getBundles().size() == 1) {
                 log.warn(
                         "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                                + "No Load Shadding will be done on this broker",
+                                + "No Load Shedding will be done on this broker",
                         localData.getBundles().iterator().next(), broker);
             } else {
-                log.warn("Broker {} is overloaded despit having no bundles", broker);
+                log.warn("Broker {} is overloaded despite having no bundles", broker);
             }
         });
 
@@ -136,25 +145,27 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             LocalBrokerData localBrokerData = entry.getValue().getLocalData();
             String broker = entry.getKey();
-            updateAvgResourceUsage(broker, localBrokerData, historyPercentage, conf);
-            totalUsage += brokerAvgResourceUsage.getOrDefault(broker, 0.0);
+            totalUsage += updateAvgResourceUsage(broker, localBrokerData, historyPercentage, conf);
             totalBrokers++;
         }
 
         return totalBrokers > 0 ? totalUsage / totalBrokers : 0;
     }
 
-    private void updateAvgResourceUsage(String broker, LocalBrokerData localBrokerData, final double historyPercentage,
-                                        final ServiceConfiguration conf) {
-        double historyUsage =
-                brokerAvgResourceUsage.getOrDefault(broker, 0.0);
-        historyUsage = historyUsage * historyPercentage
-                + (1 - historyPercentage) * localBrokerData.getMaxResourceUsageWithWeight(
+    private double updateAvgResourceUsage(String broker, LocalBrokerData localBrokerData,
+                                          final double historyPercentage, final ServiceConfiguration conf) {
+        Double historyUsage =
+                brokerAvgResourceUsage.get(broker);
+        double resourceUsage = localBrokerData.getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight());
+        historyUsage = historyUsage == null
+                ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
+
         brokerAvgResourceUsage.put(broker, historyUsage);
+        return historyUsage;
     }
 
 }

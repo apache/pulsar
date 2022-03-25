@@ -21,14 +21,11 @@ package org.apache.pulsar.common.protocol;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
-
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;

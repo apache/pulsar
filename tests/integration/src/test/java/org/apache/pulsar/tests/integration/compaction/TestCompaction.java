@@ -288,7 +288,7 @@ public class TestCompaction extends PulsarTestSuite {
                  .readCompacted(true).subscriptionName(sub).subscribe()) {
                 Message<String> m = consumer.receive();
                 assertEquals(m.getKey(), expectedKey);
-                if (m.getValue() == expectedValue) {
+                if (m.getValue().equals(expectedValue)) {
                     break;
                 }
             }

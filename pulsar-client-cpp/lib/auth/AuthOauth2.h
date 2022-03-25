@@ -20,6 +20,8 @@
 #pragma once
 
 #include <pulsar/Authentication.h>
+#include <chrono>
+#include <mutex>
 #include <string>
 
 namespace pulsar {
@@ -28,33 +30,55 @@ const std::string OAUTH2_TOKEN_PLUGIN_NAME = "oauth2token";
 const std::string OAUTH2_TOKEN_JAVA_PLUGIN_NAME =
     "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
 
+class KeyFile {
+   public:
+    static KeyFile fromParamMap(ParamMap& params);
+
+    const std::string& getClientId() const noexcept { return clientId_; }
+    const std::string& getClientSecret() const noexcept { return clientSecret_; }
+    bool isValid() const noexcept { return valid_; }
+
+   private:
+    const std::string clientId_;
+    const std::string clientSecret_;
+    const bool valid_;
+
+    KeyFile(const std::string& clientId, const std::string& clientSecret)
+        : clientId_(clientId), clientSecret_(clientSecret), valid_(true) {}
+    KeyFile() : valid_(false) {}
+
+    static KeyFile fromFile(const std::string& filename);
+};
+
 class ClientCredentialFlow : public Oauth2Flow {
    public:
-    ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
-                         const std::string& clientSecret, const std::string& audience);
-    ClientCredentialFlow(const std::string& issuerUrl, const std::string& credentialsFilePath,
-                         const std::string& audience);
+    ClientCredentialFlow(ParamMap& params);
     void initialize();
     Oauth2TokenResultPtr authenticate();
     void close();
 
+    ParamMap generateParamMap() const;
+
    private:
     std::string tokenEndPoint_;
-    std::string issuerUrl_;
-    std::string clientId_;
-    std::string clientSecret_;
-    std::string audience_;
+    const std::string issuerUrl_;
+    const KeyFile keyFile_;
+    const std::string audience_;
+    const std::string scope_;
+    std::once_flag initializeOnce_;
 };
 
 class Oauth2CachedToken : public CachedToken {
    public:
+    using Clock = std::chrono::high_resolution_clock;
+
     Oauth2CachedToken(Oauth2TokenResultPtr token);
     ~Oauth2CachedToken();
     bool isExpired();
     AuthenticationDataPtr getAuthData();
 
    private:
-    int64_t expiresAt_;
+    std::chrono::time_point<Clock> expiresAt_;
     Oauth2TokenResultPtr latest_;
     AuthenticationDataPtr authData_;
 };

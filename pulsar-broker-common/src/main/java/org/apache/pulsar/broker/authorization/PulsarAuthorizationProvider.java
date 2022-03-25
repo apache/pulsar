@@ -18,25 +18,25 @@
  */
 package org.apache.pulsar.broker.authorization;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
-import com.google.common.base.Joiner;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -44,7 +44,6 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,25 +57,25 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     public ServiceConfiguration conf;
     private PulsarResources pulsarResources;
-    private static final String POLICY_ROOT = "/admin/policies/";
-    public static final String POLICIES = "policies";
-    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+
 
     public PulsarAuthorizationProvider() {
     }
 
-    public PulsarAuthorizationProvider(ServiceConfiguration conf, ConfigurationCacheService configCache)
+    public PulsarAuthorizationProvider(ServiceConfiguration conf, PulsarResources resources)
             throws IOException {
-        initialize(conf, configCache);
+        initialize(conf, resources);
     }
 
     @Override
-    public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
-        checkNotNull(conf, "ServiceConfiguration can't be null");
-        checkNotNull(configCache, "ConfigurationCacheService can't be null");
+    public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
+        requireNonNull(conf, "ServiceConfiguration can't be null");
+        requireNonNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
-        this.pulsarResources = configCache.getPulsarResources();
+        this.pulsarResources = pulsarResources;
 
+        // For compatibility, call the old deprecated initialize
+        initialize(conf, (ConfigurationCacheService) null);
     }
 
     /**
@@ -109,7 +108,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             AuthenticationDataSource authenticationData, String subscription) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                    .thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
@@ -131,8 +131,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         case Prefix:
                             if (!subscription.startsWith(role)) {
                                 PulsarServerException ex = new PulsarServerException(String.format(
-                                        "Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for topic: %s",
-                                        role, topicName));
+                                        "Failed to create consumer - The subscription name needs to be prefixed by the "
+                                                + "authentication role, like %s-xxxx for topic: %s", role, topicName));
                                 permissionFuture.completeExceptionally(ex);
                                 return;
                             }
@@ -192,12 +192,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             topicName.toString(), role, ex.getMessage());
                 }
             }
-            canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
+            canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e)
+                    -> {
                 if (e == null) {
-                    if (consumeAuthorized) {
-                        finalResult.complete(consumeAuthorized);
-                        return;
-                    }
+                    finalResult.complete(consumeAuthorized);
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug(
@@ -206,27 +204,62 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
                     }
                     finalResult.completeExceptionally(e);
-                    return;
                 }
-                finalResult.complete(false);
             });
         });
         return finalResult;
     }
 
     @Override
-    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                            AuthenticationDataSource authenticationData) {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.functions);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
+                                                          AuthenticationDataSource authenticationData) {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sources);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                        AuthenticationDataSource authenticationData) {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
+    }
+
+    private CompletableFuture<Boolean> allowConsumeOrProduceOpsAsync(NamespaceName namespaceName,
+                                                                     String role,
+                                                                     AuthenticationDataSource authenticationData) {
+        CompletableFuture<Boolean> finalResult = new CompletableFuture<>();
+        allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.consume)
+                .whenComplete((consumeAuthorized, e) -> {
+                    if (e == null) {
+                        if (consumeAuthorized) {
+                            finalResult.complete(consumeAuthorized);
+                            return;
+                        }
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Namespace [{}] Role [{}] exception occurred while trying to check Consume "
+                                    + "permission. {}", namespaceName, role, e.getCause());
+                        }
+                    }
+                    allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.produce)
+                            .whenComplete((produceAuthorized, ex) -> {
+                                if (ex == null) {
+                                    finalResult.complete(produceAuthorized);
+                                } else {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Namespace [{}] Role [{}] exception occurred while trying to check "
+                                                + "Produce permission. {}", namespaceName, role, ex.getCause());
+                                    }
+                                    finalResult.completeExceptionally(ex.getCause());
+                                }
+                            });
+                });
+
+        return finalResult;
     }
 
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
@@ -234,7 +267,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                        AuthAction authAction) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + namespaceName.toString()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for namespace : {}", namespaceName);
@@ -276,43 +309,52 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        return grantPermissionAsync(topicName.getNamespaceObject(), actions, role, authDataJson);
+        try {
+            validatePoliciesReadOnlyAccess();
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+
+        String topicUri = topicName.toString();
+        return pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
+                    policies.auth_policies.getTopicAuthentication()
+                            .computeIfAbsent(topicUri, __ -> new HashMap<>())
+                            .put(role, actions);
+                    return policies;
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to set permissions for role {} on topic {}", role, role, topicName,
+                                throwable);
+                    } else {
+                        log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions,
+                                topicUri);
+                    }
+                });
     }
 
     @Override
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespaceName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            result.completeExceptionally(e);
+            return FutureUtil.failedFuture(e);
         }
 
-        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
-        try {
-            pulsarResources.getNamespaceResources().set(policiesPath, (policies)->{
-                policies.auth_policies.getNamespaceAuthentication().put(role, actions);
-                return policies;
-            });
-            log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
-                    namespaceName);
-            result.complete(null);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", role, namespaceName);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespaceName));
-        } catch (BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", role, namespaceName);
-            result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for namespace {}", role, namespaceName, e);
-            result.completeExceptionally(
-                    new IllegalStateException("Failed to get permissions for namespace " + namespaceName));
-        }
-
-        return result;
+        return pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(namespaceName, policies -> {
+                    policies.auth_policies.getNamespaceAuthentication().put(role, actions);
+                    return policies;
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to set permissions for role {} namespace {}", role, role, namespaceName,
+                                throwable);
+                    } else {
+                        log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
+                                namespaceName);
+                    }
+                });
     }
 
     @Override
@@ -327,73 +369,67 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return updateSubscriptionPermissionAsync(namespace, subscriptionName, Collections.singleton(role), true);
     }
 
-    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
-            boolean remove) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-
+    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+                                                                      Set<String> roles,
+                                                                      boolean remove) {
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            result.completeExceptionally(e);
+            return FutureUtil.failedFuture(e);
         }
 
-        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespace.toString());
-
-        try {
-            Policies policies = pulsarResources.getNamespaceResources().get(policiesPath)
-                    .orElseThrow(() -> new NotFoundException(policiesPath + " not found"));
-            if (remove) {
-                if (policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName) != null) {
-                    policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName).removeAll(roles);
-                }else {
-                    log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace, subscriptionName, roles);
-                    result.completeExceptionally(new IllegalArgumentException("couldn't find subscription"));
-                    return result;
-                }
-            } else {
-                policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
-            }
-            pulsarResources.getNamespaceResources().set(policiesPath, (data)->policies);
-
-            log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName, roles);
-            result.complete(null);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", subscriptionName, namespace);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespace));
-        } catch (BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for {} on namespace {}: concurrent modification", subscriptionName, roles, namespace);
-            result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace, e);
-            result.completeExceptionally(
-                    new IllegalStateException("Failed to get permissions for namespace " + namespace));
-        }
-
-        return result;
+        return pulsarResources.getNamespaceResources()
+                .setPoliciesAsync(namespace, policies -> {
+                    if (remove) {
+                        Set<String> subscriptionAuth =
+                                policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName);
+                        if (subscriptionAuth != null) {
+                            subscriptionAuth.removeAll(roles);
+                        } else {
+                            log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace,
+                                    roles, subscriptionName);
+                            throw new IllegalArgumentException("couldn't find subscription");
+                        }
+                    } else {
+                        policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
+                    }
+                    return policies;
+                }).whenComplete((__, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] Failed to set permissions for role {} on namespace {}", subscriptionName, roles,
+                                namespace, throwable);
+                    } else {
+                        log.info("[{}] Successfully granted access for role {} for sub = {}", namespace,
+                                roles, subscriptionName);
+                    }
+                });
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
-        return checkPermission(topicName, role, action)
-                .thenApply(isPermission -> isPermission && checkCluster(topicName));
+        return checkPermission(topicName, role, action).
+                thenApply(isPermission -> isPermission).
+                thenCompose(permission -> permission ? checkCluster(topicName) :
+                    CompletableFuture.completedFuture(false));
     }
 
-    private boolean checkCluster(TopicName topicName) {
+    private CompletableFuture<Boolean> checkCluster(TopicName topicName) {
         if (topicName.isGlobal() || conf.getClusterName().equals(topicName.getCluster())) {
-            return true;
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Topic [{}] does not belong to local cluster [{}]", topicName.toString(),
-                        conf.getClusterName());
-            }
-            return false;
+            return CompletableFuture.completedFuture(true);
         }
+        if (log.isDebugEnabled()) {
+            log.debug("Topic [{}] does not belong to local cluster [{}]", topicName.toString(), conf.getClusterName());
+        }
+        return pulsarResources.getClusterResources().listAsync()
+                .thenApply(clusters -> {
+                    return clusters.contains(topicName.getCluster());
+                });
     }
 
     public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                    .thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
@@ -502,10 +538,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         boolean arePoliciesReadOnly = true;
 
         try {
-            arePoliciesReadOnly = pulsarResources.getNamespaceResources().exists(POLICIES_READONLY_FLAG_PATH);
+            arePoliciesReadOnly = pulsarResources.getNamespaceResources().getPoliciesReadOnly();
         } catch (Exception e) {
-            log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
-            throw new IllegalStateException("Unable to fetch content from global zk");
+            log.warn("Unable to check if policies are read-only", e);
+            throw new IllegalStateException("Unable to fetch content from configuration metadata store");
         }
 
         if (arePoliciesReadOnly) {
@@ -529,22 +565,45 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                    String role,
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
-        CompletableFuture<Boolean> isAuthorizedFuture;
-        switch (operation) {
-            case PACKAGES:
-                isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
-                break;
-            default:
-                isAuthorizedFuture = CompletableFuture.completedFuture(false);
+        if (log.isDebugEnabled()) {
+            log.debug("Check allowNamespaceOperationAsync [{}] on [{}].", operation.name(), namespaceName);
         }
-        CompletableFuture<Boolean> isTenantAdminFuture = validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
-        return isTenantAdminFuture.thenCombine(isAuthorizedFuture, (isTenantAdmin, isAuthorized) -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Verify if role {} is allowed to {} to topic {}: isTenantAdmin={}, isAuthorized={}",
-                        role, operation, namespaceName, isTenantAdmin, isAuthorized);
-            }
-            return isTenantAdmin || isAuthorized;
-        });
+
+        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Verify if role {} is allowed to {} to namespace {}: isSuperUserOrAdmin={}",
+                                role, operation, namespaceName, isSuperUserOrAdmin);
+                    }
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        switch (operation) {
+                            case PACKAGES:
+                                return allowTheSpecifiedActionOpsAsync(
+                                        namespaceName, role, authData, AuthAction.packages);
+                            case GET_TOPIC:
+                            case GET_TOPICS:
+                                return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
+                            case UNSUBSCRIBE:
+                            case CLEAR_BACKLOG:
+                                return allowTheSpecifiedActionOpsAsync(
+                                        namespaceName, role, authData, AuthAction.consume);
+                            case CREATE_TOPIC:
+                            case DELETE_TOPIC:
+                            case ADD_BUNDLE:
+                            case GET_BUNDLE:
+                            case DELETE_BUNDLE:
+                            case GRANT_PERMISSION:
+                            case GET_PERMISSION:
+                            case REVOKE_PERMISSION:
+                                return CompletableFuture.completedFuture(false);
+                            default:
+                                return FutureUtil.failedFuture(new IllegalStateException(
+                                        "NamespaceOperation [" + operation.name() + "] is not supported."));
+                        }
+                    }
+                });
     }
 
     @Override
@@ -561,40 +620,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                String role,
                                                                TopicOperation operation,
                                                                AuthenticationDataSource authData) {
-        log.debug("Check allowTopicOperationAsync [" + operation.name() + "] on [" + topicName.toString() + "].");
-
-        CompletableFuture<Boolean> isAuthorizedFuture;
-
-        switch (operation) {
-            case LOOKUP:
-            case GET_STATS:
-                isAuthorizedFuture = canLookupAsync(topicName, role, authData);
-                break;
-            case PRODUCE:
-                isAuthorizedFuture = canProduceAsync(topicName, role, authData);
-                break;
-            case GET_SUBSCRIPTIONS:
-            case CONSUME:
-            case SUBSCRIBE:
-            case UNSUBSCRIBE:
-            case SKIP:
-            case EXPIRE_MESSAGES:
-            case PEEK_MESSAGES:
-            case RESET_CURSOR:
-            case SET_REPLICATED_SUBSCRIPTION_STATUS:
-                isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
-                break;
-            case TERMINATE:
-            case COMPACT:
-            case OFFLOAD:
-            case UNLOAD:
-            case ADD_BUNDLE_RANGE:
-            case GET_BUNDLE_RANGE:
-            case DELETE_BUNDLE_RANGE:
-                return validateTenantAdminAccess(topicName.getTenant(), role, authData);
-            default:
-                return FutureUtil.failedFuture(
-                        new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported."));
+        if (log.isDebugEnabled()) {
+            log.debug("Check allowTopicOperationAsync [{}] on [{}].", operation.name(), topicName);
         }
 
         return validateTenantAdminAccess(topicName.getTenant(), role, authData)
@@ -606,7 +633,37 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     if (isSuperUserOrAdmin) {
                         return CompletableFuture.completedFuture(true);
                     } else {
-                        return isAuthorizedFuture;
+                        switch (operation) {
+                            case LOOKUP:
+                            case GET_STATS:
+                            case GET_METADATA:
+                                return canLookupAsync(topicName, role, authData);
+                            case PRODUCE:
+                                return canProduceAsync(topicName, role, authData);
+                            case GET_SUBSCRIPTIONS:
+                            case CONSUME:
+                            case SUBSCRIBE:
+                            case UNSUBSCRIBE:
+                            case SKIP:
+                            case EXPIRE_MESSAGES:
+                            case PEEK_MESSAGES:
+                            case RESET_CURSOR:
+                            case GET_BACKLOG_SIZE:
+                            case SET_REPLICATED_SUBSCRIPTION_STATUS:
+                            case GET_REPLICATED_SUBSCRIPTION_STATUS:
+                                return canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                            case TERMINATE:
+                            case COMPACT:
+                            case OFFLOAD:
+                            case UNLOAD:
+                            case ADD_BUNDLE_RANGE:
+                            case GET_BUNDLE_RANGE:
+                            case DELETE_BUNDLE_RANGE:
+                                return CompletableFuture.completedFuture(false);
+                            default:
+                                return FutureUtil.failedFuture(new IllegalStateException(
+                                        "TopicOperation [" + operation.name() + "] is not supported."));
+                        }
                     }
                 });
     }
@@ -637,8 +694,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     } else {
                         try {
                             TenantInfo tenantInfo = pulsarResources.getTenantResources()
-                                    .get(path(POLICIES, tenantName))
-                                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
+                                    .getTenant(tenantName)
+                                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND,
+                                            "Tenant does not exist"));
                             return isTenantAdmin(tenantName, role, tenantInfo, authData);
                         } catch (NotFoundException e) {
                             log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);

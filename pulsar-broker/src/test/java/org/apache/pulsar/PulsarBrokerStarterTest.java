@@ -50,8 +50,8 @@ public class PulsarBrokerStarterTest {
             testConfigFile.delete();
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
-        printWriter.println("zookeeperServers=z1.example.com,z2.example.com,z3.example.com");
-        printWriter.println("configurationStoreServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        printWriter.println("metadataStoreUrl=zk:z1.example.com,z2.example.com,z3.example.com");
+        printWriter.println("configurationMetadataStoreUrl=zk:gz1.example.com,gz2.example.com,gz3.example.com/foo");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=false");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -106,8 +106,9 @@ public class PulsarBrokerStarterTest {
 
         assertTrue(returnValue instanceof ServiceConfiguration);
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
-        assertEquals(serviceConfig.getZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
-        assertEquals(serviceConfig.getConfigurationStoreServers(), "gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        assertEquals(serviceConfig.getMetadataStoreUrl(), "zk:z1.example.com,z2.example.com,z3.example.com");
+        assertEquals(serviceConfig.getConfigurationMetadataStoreUrl(), "zk:gz1.example.com,gz2.example.com,gz3.example"
+                + ".com/foo");
         assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
@@ -123,7 +124,7 @@ public class PulsarBrokerStarterTest {
         assertTrue(serviceConfig.isBacklogQuotaCheckEnabled());
         assertEquals(serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit(), 5.0);
         assertEquals(serviceConfig.getReplicationProducerQueueSize(), 50);
-        assertFalse(serviceConfig.isReplicationMetricsEnabled());
+        assertTrue(serviceConfig.isReplicationMetricsEnabled());
         assertTrue(serviceConfig.isBookkeeperClientHealthCheckEnabled());
         assertEquals(serviceConfig.getBookkeeperClientHealthCheckErrorThresholdPerInterval(), 5);
         assertTrue(serviceConfig.isBookkeeperClientRackawarePolicyEnabled());
@@ -180,7 +181,7 @@ public class PulsarBrokerStarterTest {
         }
 
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
-        printWriter.println("zookeeperServers=z1.example.com,z2.example.com,z3.example.com");
+        printWriter.println("metadataStoreUrl=zk:z1.example.com,z2.example.com,z3.example.com");
         printWriter.println("statusFilePath=/usr/share/pulsar_broker/status.html");
         printWriter.println("clusterName=test");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -228,8 +229,8 @@ public class PulsarBrokerStarterTest {
             testConfigFile.delete();
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
-        printWriter.println("zookeeperServers=z1.example.com,z2.example.com,z3.example.com");
-        printWriter.println("configurationStoreServers=");
+        printWriter.println("metadataStoreUrl=zk:z1.example.com,z2.example.com,z3.example.com");
+        printWriter.println("configurationMetadataStoreUrl=");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=false");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -259,8 +260,9 @@ public class PulsarBrokerStarterTest {
 
         assertTrue(returnValue instanceof ServiceConfiguration);
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
-        assertEquals(serviceConfig.getZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
-        assertEquals(serviceConfig.getConfigurationStoreServers(), "z1.example.com,z2.example.com,z3.example.com");
+        assertEquals(serviceConfig.getMetadataStoreUrl(), "zk:z1.example.com,z2.example.com,z3.example.com");
+        assertEquals(serviceConfig.getConfigurationMetadataStoreUrl(), "zk:z1.example.com,z2.example.com,z3.example"
+                + ".com");
         assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);

@@ -19,20 +19,17 @@
 
 package org.apache.pulsar.client.impl.auth;
 
-import com.google.common.base.Charsets;
-
-import java.io.ByteArrayInputStream;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.function.Supplier;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -42,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
  * Token based authentication provider.
  */
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
+    static final String AUTH_METHOD_NAME = "token";
 
     private static final long serialVersionUID = 1L;
     private Supplier<String> tokenSupplier = null;
@@ -53,7 +51,9 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         this(new SerializableTokenSupplier(token));
     }
 
-    public AuthenticationToken(Supplier<String> tokenSupplier) { this.tokenSupplier = tokenSupplier; }
+    public AuthenticationToken(Supplier<String> tokenSupplier) {
+        this.tokenSupplier = tokenSupplier;
+    }
 
     @Override
     public void close() throws IOException {
@@ -62,7 +62,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
 
     @Override
     public String getAuthMethodName() {
-        return "token";
+        return AUTH_METHOD_NAME;
     }
 
     @Override
@@ -114,7 +114,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         @Override
         public String get() {
             try {
-                return new String(Files.readAllBytes(Paths.get(uri)), Charsets.UTF_8).trim();
+                return new String(Files.readAllBytes(Paths.get(uri)), StandardCharsets.UTF_8).trim();
             } catch (IOException e) {
                 throw new RuntimeException("Failed to read token from file", e);
             }
@@ -132,7 +132,9 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
         }
 
         @Override
-        public String get() { return token; }
+        public String get() {
+            return token;
+        }
 
     }
 }

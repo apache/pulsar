@@ -25,9 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
-
 import javax.naming.AuthenticationException;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -113,7 +111,7 @@ public class SaslRoleToken implements Principal {
      * Generates the token.
      */
     private void generateToken() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append(USER_ROLE).append("=").append(getUserRole()).append(ATTR_SEPARATOR);
         sb.append(SESSION).append("=").append(getSession()).append(ATTR_SEPARATOR);
         sb.append(EXPIRES).append("=").append(getExpires());

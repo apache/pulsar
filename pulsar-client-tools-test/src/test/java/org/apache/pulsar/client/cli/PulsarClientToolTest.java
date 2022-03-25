@@ -21,7 +21,6 @@ package org.apache.pulsar.client.cli;
 import static org.testng.Assert.assertEquals;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +32,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -106,7 +108,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = getTopicWithRandomSuffix("non-durable");
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -155,7 +157,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = getTopicWithRandomSuffix("durable");
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -197,7 +199,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String topicName = getTopicWithRandomSuffix("encryption");
         final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
 
@@ -232,6 +234,43 @@ public class PulsarClientToolTest extends BrokerTestBase {
         } catch (Exception e) {
             Assert.fail("consumer was unable to decrypt messages", e);
         }
+    }
+
+    @Test(timeOut = 20000)
+    public void testDisableBatching() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("disable-batching");
+        final int numberOfMessages = 5;
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+
+        PulsarClientTool pulsarClientTool1 = new PulsarClientTool(properties);
+        String[] args1 = {"produce", "-m", "batched", "-n", Integer.toString(numberOfMessages), topicName};
+        Assert.assertEquals(pulsarClientTool1.run(args1), 0);
+
+        PulsarClientTool pulsarClientTool2 = new PulsarClientTool(properties);
+        String[] args2 = {"produce", "-m", "non-batched", "-n", Integer.toString(numberOfMessages), "-db", topicName};
+        Assert.assertEquals(pulsarClientTool2.run(args2), 0);
+
+        for (int i = 0; i < numberOfMessages * 2; i++) {
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg);
+            if (i < numberOfMessages) {
+                Assert.assertEquals(new String(msg.getData()), "batched");
+                Assert.assertTrue(msg.getMessageId() instanceof BatchMessageIdImpl);
+            } else {
+                Assert.assertEquals(new String(msg.getData()), "non-batched");
+                Assert.assertFalse(msg.getMessageId() instanceof BatchMessageIdImpl);
+            }
+        }
+    }
+
+    private static String getTopicWithRandomSuffix(String localNameBase) {
+        return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
     }
 
 }

@@ -36,16 +36,16 @@ import org.apache.pulsar.common.api.AuthData;
 @Slf4j
 public class AuthenticationProviderList implements AuthenticationProvider {
 
-    private interface AuthProcessor<T, P> {
+    private interface AuthProcessor<T, W> {
 
-        T apply(P process) throws AuthenticationException;
+        T apply(W process) throws AuthenticationException;
 
     }
 
-    static <T, P> T applyAuthProcessor(List<P> processors, AuthProcessor<T, P> authFunc)
+    static <T, W> T applyAuthProcessor(List<W> processors, AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
         AuthenticationException authenticationException = null;
-        for (P ap : processors) {
+        for (W ap : processors) {
             try {
                 return authFunc.apply(ap);
             } catch (AuthenticationException ae) {
@@ -191,6 +191,37 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     }
 
     @Override
+    public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
+        final List<AuthenticationState> states = new ArrayList<>(providers.size());
+
+        AuthenticationException authenticationException = null;
+        try {
+            applyAuthProcessor(
+                    providers,
+                    provider -> {
+                        AuthenticationState state = provider.newHttpAuthState(request);
+                        states.add(state);
+                        return state;
+                    }
+            );
+        } catch (AuthenticationException ae) {
+            authenticationException = ae;
+        }
+        if (states.isEmpty()) {
+            log.debug("Failed to initialize a new http auth state from {}",
+                    request.getRemoteHost(), authenticationException);
+            if (authenticationException != null) {
+                throw authenticationException;
+            } else {
+                throw new AuthenticationException(
+                        "Failed to initialize a new http auth state from " + request.getRemoteHost());
+            }
+        } else {
+            return new AuthenticationListState(states);
+        }
+    }
+
+    @Override
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         Boolean authenticated = applyAuthProcessor(
             providers,
@@ -206,7 +237,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 }
             }
         );
-        return authenticated.booleanValue();
+        return authenticated;
     }
 
     @Override

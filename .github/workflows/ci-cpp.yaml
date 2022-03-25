@@ -48,6 +48,7 @@ jobs:
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
+          list-files: csv
 
       - name: Check changed files
         id: check_changes
@@ -68,7 +69,7 @@ jobs:
         uses: actions/setup-java@v2
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: 11
 
       - name: clean disk

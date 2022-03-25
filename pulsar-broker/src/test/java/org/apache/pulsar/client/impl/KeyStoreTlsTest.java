@@ -43,6 +43,12 @@ public class KeyStoreTlsTest {
     protected final String CLIENT_TRUSTSTORE_PW = "111111";
     protected final String KEYSTORE_TYPE = "JKS";
 
+    protected final String BROKER_TRUSTSTORE_FILE_NPD_PATH =
+            "./src/test/resources/authentication/keystoretls/pulsar_server_trust_npd.jks";
+
+    protected final String CLIENT_TRUSTSTORE_FILE_NPD_PATH =
+            "./src/test/resources/authentication/keystoretls/pulsar_client_trust_npd.jks";
+
     public static final Provider BC_PROVIDER = getProvider();
 
     @Test(timeOut = 300000)
@@ -70,6 +76,40 @@ public class KeyStoreTlsTest {
                 KEYSTORE_TYPE,
                 CLIENT_TRUSTSTORE_FILE_PATH,
                 CLIENT_TRUSTSTORE_PW,
+                false,
+                null,
+                // set client's protocol to TLSv1.2 since SSLContextValidatorEngine.validate doesn't handle TLSv1.3
+                Collections.singleton("TLSv1.2"));
+        clientSSLContext.createSSLContext();
+
+        SSLContextValidatorEngine.validate(clientSSLContext::createSSLEngine, serverSSLContext::createSSLEngine);
+    }
+
+    @Test(timeOut = 300000)
+    public void testValidateKeyStoreNoPwd() throws Exception {
+        KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.SERVER,
+                null,
+                KEYSTORE_TYPE,
+                BROKER_KEYSTORE_FILE_PATH,
+                BROKER_KEYSTORE_PW,
+                false,
+                KEYSTORE_TYPE,
+                BROKER_TRUSTSTORE_FILE_NPD_PATH,
+                null,
+                true,
+                null,
+                null);
+        serverSSLContext.createSSLContext();
+
+        KeyStoreSSLContext clientSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.CLIENT,
+                null,
+                KEYSTORE_TYPE,
+                CLIENT_KEYSTORE_FILE_PATH,
+                CLIENT_KEYSTORE_PW,
+                false,
+                KEYSTORE_TYPE,
+                CLIENT_TRUSTSTORE_FILE_NPD_PATH,
+                null,
                 false,
                 null,
                 // set client's protocol to TLSv1.2 since SSLContextValidatorEngine.validate doesn't handle TLSv1.3

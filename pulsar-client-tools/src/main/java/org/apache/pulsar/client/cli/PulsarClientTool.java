@@ -20,12 +20,15 @@ package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import com.beust.jcommander.DefaultUsageFormatter;
+import com.beust.jcommander.IUsageFormatter;
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
-
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -33,13 +36,6 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
-
-import com.beust.jcommander.DefaultUsageFormatter;
-import com.beust.jcommander.IUsageFormatter;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 
 @Parameters(commandDescription = "Produce or consume messages on a specified topic")
 public class PulsarClientTool {
@@ -61,9 +57,9 @@ public class PulsarClientTool {
 
     @Parameter(
         names = { "--auth-params" },
-        description = "Authentication parameters, whose format is determined by the implementation " +
-            "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-            "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+        description = "Authentication parameters, whose format is determined by the implementation "
+                + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
 
     @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")
@@ -72,15 +68,15 @@ public class PulsarClientTool {
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
 
-    boolean tlsAllowInsecureConnection = false;
-    boolean tlsEnableHostnameVerification = false;
-    String tlsTrustCertsFilePath = null;
+    boolean tlsAllowInsecureConnection;
+    boolean tlsEnableHostnameVerification;
+    String tlsTrustCertsFilePath;
 
     // for tls with keystore type config
-    boolean useKeyStoreTls = false;
-    String tlsTrustStoreType = "JKS";
-    String tlsTrustStorePath = null;
-    String tlsTrustStorePassword = null;
+    boolean useKeyStoreTls;
+    String tlsTrustStoreType;
+    String tlsTrustStorePath;
+    String tlsTrustStorePassword;
 
     JCommander commandParser;
     IUsageFormatter usageFormatter;
@@ -89,10 +85,10 @@ public class PulsarClientTool {
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
-        this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
+        this.serviceURL = isNotBlank(properties.getProperty("brokerServiceUrl"))
                 ? properties.getProperty("brokerServiceUrl") : properties.getProperty("webServiceUrl");
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
-        if (StringUtils.isBlank(this.serviceURL)) {
+        if (isBlank(this.serviceURL)) {
             this.serviceURL = properties.getProperty("serviceUrl");
         }
         this.authPluginClassName = properties.getProperty("authPlugin");
@@ -142,7 +138,7 @@ public class PulsarClientTool {
                 .tlsTrustStorePath(tlsTrustStorePath)
                 .tlsTrustStorePassword(tlsTrustStorePassword);
 
-        if (StringUtils.isNotBlank(proxyServiceURL)) {
+        if (isNotBlank(proxyServiceURL)) {
             if (proxyProtocol == null) {
                 System.out.println("proxy-protocol must be provided with proxy-url");
                 System.exit(-1);
@@ -219,9 +215,9 @@ public class PulsarClientTool {
         }
 
         PulsarClientTool clientTool = new PulsarClientTool(properties);
-        int exit_code = clientTool.run(Arrays.copyOfRange(args, 1, args.length));
+        int exitCode = clientTool.run(Arrays.copyOfRange(args, 1, args.length));
 
-        System.exit(exit_code);
+        System.exit(exitCode);
 
     }
 }

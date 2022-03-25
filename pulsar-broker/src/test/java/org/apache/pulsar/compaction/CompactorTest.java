@@ -43,13 +43,11 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -113,10 +111,11 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             m.close();
         }
         if (checkMetrics) {
-            long compactedTopicRemovedEventCount = compactor.getStats().getLastCompactionRemovedEventCount(topic);
-            long lastCompactSucceedTimestamp = compactor.getStats().getLastCompactionSucceedTimestamp(topic);
-            long lastCompactFailedTimestamp = compactor.getStats().getLastCompactionFailedTimestamp(topic);
-            long lastCompactDurationTimeInMills = compactor.getStats().getLastCompactionDurationTimeInMills(topic);
+            CompactionRecord compactionRecord = compactor.getStats().getCompactionRecordForTopic(topic).get();
+            long compactedTopicRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
+            long lastCompactSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
+            long lastCompactFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
+            long lastCompactDurationTimeInMills = compactionRecord.getLastCompactionDurationTimeInMills();
             Assert.assertTrue(compactedTopicRemovedEventCount >= 1);
             Assert.assertTrue(lastCompactSucceedTimestamp >= 1L);
             Assert.assertTrue(lastCompactDurationTimeInMills >= 0L);

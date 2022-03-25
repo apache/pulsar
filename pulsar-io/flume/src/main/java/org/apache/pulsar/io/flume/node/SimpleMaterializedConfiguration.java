@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.flume.Channel;
 import org.apache.flume.SinkRunner;
 import org.apache.flume.SourceRunner;
-
-import com.google.common.collect.ImmutableMap;
 
 public class SimpleMaterializedConfiguration implements MaterializedConfiguration {
 

@@ -25,5 +25,6 @@
     <suite-files>
         <suite-file path="./pulsar-io-sinks.xml" />
         <suite-file path="./pulsar-io-sources.xml" />
+        <cuite-file path="./pulsar-io-ora-source.xml" />
     </suite-files>
 </suite>

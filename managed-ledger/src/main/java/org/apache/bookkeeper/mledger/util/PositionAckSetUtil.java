@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.util;
 
-import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
@@ -57,14 +56,12 @@ public class PositionAckSetUtil {
     //This method is compare two position which position is bigger than another one.
     //When the ledgerId and entryId in this position is same to another one and two position all have ack set, it will
     //compare the ack set next bit index is bigger than another one.
-    public static int compareToWithAckSet(PositionImpl currentPosition,PositionImpl otherPosition) {
-        if (currentPosition == null || otherPosition ==null) {
-            throw new NullPointerException("Two positions can't be null! " +
-                    "current position : [" + currentPosition + "] other position : [" + otherPosition + "]");
+    public static int compareToWithAckSet(PositionImpl currentPosition, PositionImpl otherPosition) {
+        if (currentPosition == null || otherPosition == null) {
+            throw new IllegalArgumentException("Two positions can't be null! "
+                    + "current position : [" + currentPosition + "] other position : [" + otherPosition + "]");
         }
-        int result = ComparisonChain.start().compare(currentPosition.getLedgerId(),
-                otherPosition.getLedgerId()).compare(currentPosition.getEntryId(), otherPosition.getEntryId())
-                .result();
+        int result = currentPosition.compareTo(otherPosition);
         if (result == 0) {
             BitSetRecyclable otherAckSet;
             BitSetRecyclable currentAckSet;

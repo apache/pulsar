@@ -23,7 +23,6 @@ import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorag
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_SECRET_FIELD;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
@@ -33,20 +32,16 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Properties;
 import java.util.UUID;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.BlobStoreBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.ConfigValidation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.CredentialBuilder;
-
 import org.apache.commons.lang3.StringUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
@@ -119,8 +114,9 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         public void buildCredentials(TieredStorageConfiguration config) {
             if (config.getCredentials() == null) {
                 try {
-                    String gcsKeyContent = Files.toString(
-                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)), Charset.defaultCharset());
+                    String gcsKeyContent = Files.asCharSource(
+                            new File(config.getConfigProperty(GCS_ACCOUNT_KEY_FILE_FIELD)),
+                            Charset.defaultCharset()).read();
                     config.setProviderCredentials(() -> new GoogleCredentialsFromJson(gcsKeyContent).get());
                 } catch (IOException ioe) {
                     log.error("Cannot read GCS service account credentials file: {}",
@@ -172,7 +168,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
 
     /**
-     * Aliyun OSS is compatible with the S3 API
+     * Aliyun OSS is compatible with the S3 API.
      * https://www.alibabacloud.com/help/doc-detail/64919.htm
      */
     ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
@@ -241,7 +237,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         return null;
     }
 
-    public static final boolean driverSupported(String driverName) {
+    public static boolean driverSupported(String driverName) {
         for (JCloudBlobStoreProvider provider: JCloudBlobStoreProvider.values()) {
             if (provider.getDriver().equalsIgnoreCase(driverName)) {
                 return true;

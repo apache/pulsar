@@ -29,4 +29,9 @@ public class InMemoryPendingAckStoreProvider implements TransactionPendingAckSto
     public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
         return CompletableFuture.completedFuture(new InMemoryPendingAckStore());
     }
+
+    @Override
+    public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+        return CompletableFuture.completedFuture(true);
+    }
 }

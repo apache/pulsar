@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.TxnAction;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface of transaction buffer handler.
@@ -39,7 +38,8 @@ public interface TransactionBufferHandler {
      * @param lowWaterMark low water mark of this transaction
      * @return TxnId
      */
-    CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, TxnAction action, long lowWaterMark);
+    CompletableFuture<TxnID> endTxnOnTopic(
+            String topic, long txnIdMostBits, long txnIdLeastBits, TxnAction action, long lowWaterMark);
 
     /**
      * End transaction on subscription.
@@ -62,7 +62,7 @@ public interface TransactionBufferHandler {
     void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response);
 
     /**
-     * Handle response of tend transaction on subscription
+     * Handle response of tend transaction on subscription.
      * @param requestId request ID
      * @param response response
      */

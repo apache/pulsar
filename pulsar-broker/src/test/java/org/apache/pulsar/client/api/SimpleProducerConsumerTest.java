@@ -39,10 +39,9 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -77,6 +76,7 @@ import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -87,6 +87,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -102,6 +103,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -606,6 +608,83 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test(dataProvider = "batch")
+    public void testSendTimeoutAndRecover(int batchMessageDelayMs) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 6;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/sendTimeoutAndRecover-1");
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName.toString())
+                .subscriptionName("my-subscriber-name").subscribe();
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
+
+        if (batchMessageDelayMs != 0) {
+            producerBuilder.enableBatching(true);
+            producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
+            producerBuilder.batchingMaxMessages(5);
+        }
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> partitionedProducer =
+                (PartitionedProducerImpl<byte[]>) producerBuilder.create();
+        final String message = "my-message";
+        // 1. Trigger the send timeout
+        stopBroker();
+
+        partitionedProducer.sendAsync(message.getBytes());
+
+        String exceptionMessage = "";
+        try {
+            // 2. execute flush to get results,
+            // it should be failed because step 1
+            partitionedProducer.flush();
+            Assert.fail("Send operation should have failed");
+        } catch (PulsarClientException e) {
+            exceptionMessage = e.getMessage();
+        }
+
+        // 3. execute flush to get results,
+        // it shouldn't fail because we already handled the exception in the step 2, unless we keep sending data.
+        partitionedProducer.flush();
+        // 4. execute flushAsync, we only catch the exception once,
+        // but by getting the original lastSendFuture twice below,
+        // the same exception information must be caught twice to verify that our handleOnce works as expected.
+        try {
+            partitionedProducer.getOriginalLastSendFuture().get();
+            Assert.fail("Send operation should have failed");
+        } catch (Exception e) {
+            Assert.assertEquals(PulsarClientException.unwrap(e).getMessage(), exceptionMessage);
+        }
+        try {
+            partitionedProducer.getOriginalLastSendFuture().get();
+            Assert.fail("Send operation should have failed");
+        } catch (Exception e) {
+            Assert.assertEquals(PulsarClientException.unwrap(e).getMessage(), exceptionMessage);
+        }
+
+        startBroker();
+
+        // 5. We should not have received any message
+        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        Assert.assertNull(msg);
+
+        // 6. We keep sending data after connection reconnected.
+        partitionedProducer.sendAsync(message.getBytes());
+        // 7. This flush operation must succeed.
+        partitionedProducer.flush();
+
+        // 8. We should have received message
+        msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        Assert.assertNotNull(msg);
+        Assert.assertEquals(new String(msg.getData()), message);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
     @Test
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -977,13 +1056,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(cacheField, cacheField.getModifiers() & ~Modifier.FINAL);
-        EntryCacheImpl entryCache = spy((EntryCacheImpl) cacheField.get(ledger));
-        cacheField.set(ledger, entryCache);
+        EntryCacheImpl entryCache = spy((EntryCacheImpl) Whitebox.getInternalState(ledger, "entryCache"));
+        Whitebox.setInternalState(ledger, "entryCache", entryCache);
 
         Message<byte[]> msg;
         // 2. Produce messages
@@ -2621,6 +2695,38 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testCryptoWithChunking() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testCryptoWithChunking" + System.currentTimeMillis();
+        final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
+
+        this.conf.setMaxMessageSize(1000);
+
+        @Cleanup
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .defaultCryptoKeyReader(ecdsaPrivateKeyFile).subscribe();
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topic)
+                .enableChunking(true)
+                .enableBatching(false)
+                .addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader(ecdsaPublicKeyFile)
+                .create();
+
+        byte[] data = RandomUtils.nextBytes(5100);
+        MessageId id = producer1.send(data);
+        log.info("Message Id={}", id);
+
+        MessageImpl<byte[]> message;
+        message = (MessageImpl<byte[]>) consumer1.receive();
+        Assert.assertEquals(message.getData(), data);
+        Assert.assertEquals(message.getEncryptionCtx().get().getKeys().size(), 1);
+    }
+
+    @Test
     public void testDefaultCryptoKeyReader() throws Exception {
         final String topic = "persistent://my-property/my-ns/default-crypto-key-reader" + System.currentTimeMillis();
         final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
@@ -3168,7 +3274,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .create();
 
         // 1. produce 5 messages
@@ -3181,7 +3287,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .receiverQueueSize(receiverQueueSize)
-                .autoUpdatePartitionsInterval(2 ,TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval(2, TimeUnit.SECONDS)
                 .subscriptionName("test-multi-topic-consumer").subscribe();
 
         int counter = 0;
@@ -3196,7 +3302,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName, 3);
 
         // 4. wait for client to update partitions
-        Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() <= 1);
+        Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() == 3);
 
         // 5. produce 5 more messages
         for (int i = 5; i < 10; i++) {
@@ -4112,8 +4218,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .topic(topic).subscriptionName("sub").subscribe();
             fail("should fail");
         } catch (Exception e) {
-            String retryTopic = topic + "-sub-RETRY";
-            assertTrue(e.getMessage().contains("Topic " + retryTopic + " does not exist"));
+            assertTrue(e instanceof PulsarClientException.NotFoundException);
         } finally {
             conf.setAllowAutoTopicCreation(true);
         }
@@ -4246,5 +4351,53 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(r2.get() >= 1);
             assertEquals(resultSet.size(), total);
         });
+    }
+
+    @Test
+    public void testPartitionsAutoUpdate() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 3;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/partitionsAutoUpdate-1");
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+        int operationTimeout = 2000; // MILLISECONDS
+        @Cleanup final PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .operationTimeout(operationTimeout, TimeUnit.MILLISECONDS)
+                .build();
+
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer()
+                .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> partitionedProducer =
+                (PartitionedProducerImpl<byte[]>) producerBuilder.autoUpdatePartitions(true).create();
+
+        // Trigger the Connection refused exception
+        stopBroker();
+
+        log.info("trigger partitionsAutoUpdateTimerTask run failed for producer");
+        Timeout timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+            assertTrue(FutureUtil.getException(partitionedProducer.getPartitionsAutoUpdateFuture()).get().getMessage()
+                    .contains("Connection refused:"));
+        });
+
+        startBroker();
+
+        log.info("trigger partitionsAutoUpdateTimerTask run successful for producer");
+        timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isDone());
+            assertFalse(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+        });
+
+        log.info("-- Exiting {} test --", methodName);
     }
 }

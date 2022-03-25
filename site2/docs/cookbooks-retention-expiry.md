@@ -29,9 +29,12 @@ Pulsar's [admin interface](admin-api-overview.md) enables you to manage both ret
 
 By default, when a Pulsar message arrives at a broker, the message is stored until it has been acknowledged on all subscriptions, at which point it is marked for deletion. You can override this behavior and retain messages that have already been acknowledged on all subscriptions by setting a *retention policy* for all topics in a given namespace. Retention is based on both a *size limit* and a *time limit*.
 
+The diagram below illustrates the concept of message retention.
+![](assets/retention.svg)
+
 Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
-When you set a retention policy on topics in a namespace, you must set **both** a *size limit* and a *time limit*. You can refer to the following table to set retention policies in `pulsar-admin` and Java.
+When you set a retention policy on topics in a namespace, you must set **both** a *size limit* (via `defaultRetentionSizeInMB`) and a *time limit* (via `defaultRetentionTimeInMinutes`) . You can refer to the following table to set retention policies in `pulsar-admin` and Java.
 
 |Time limit|Size limit| Message retention      |
 |----------|----------|------------------------|
@@ -153,11 +156,14 @@ admin.namespaces().getRetention(namespace);
 
 *Backlogs* are sets of unacknowledged messages for a topic that have been stored by bookies. Pulsar stores all unacknowledged messages in backlogs until they are processed and acknowledged.
 
-You can control the allowable size of backlogs, at the namespace level, using *backlog quotas*. Setting a backlog quota involves setting:
+You can control the allowable size and/or time of backlogs, at the namespace level, using *backlog quotas*. Pulsar uses a quota to enforce a hard limit on the logical size of the backlogs in a topic. Backlog quota triggers an alert policy (for example, producer exception) once the quota limit is reached.
 
-TODO: Expand on is this per backlog or per topic?
+The diagram below illustrates the concept of backlog quota.
+![](assets/backlog-quota.svg)
 
-* an allowable *size threshold* for each topic in the namespace
+Setting a backlog quota involves setting:
+
+* an allowable *size and/or time threshold* for each topic in the namespace
 * a *retention policy* that determines which action the [broker](reference-terminology.md#broker) takes if the threshold is exceeded.
 
 The following retention policies are available:
@@ -284,6 +290,11 @@ By default, you will be prompted to ensure that you really want to clear the bac
 
 By default, Pulsar stores all unacknowledged messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will be retained.
 
+The TTL parameter is like a stopwatch attached to each message that defines the amount of time a message is allowed to stay in the unacknowledged state. When the TTL expires, Pulsar automatically moves the message to the acknowledged state (and thus makes it ready for deletion).
+
+The diagram below illustrates the concept of TTL.
+![](assets/ttl.svg)
+
 ### Set the TTL for a namespace
 
 <!--DOCUSAURUS_CODE_TABS-->
@@ -360,7 +371,13 @@ admin.namespaces().removeNamespaceMessageTTL(namespace)
 
 ## Delete messages from namespaces
 
-If you do not have any retention period and that you never have much of a backlog, the upper limit for retaining messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).
+When it comes to the physical storage size, message expiry and retention are just like two sides of the same coin.
+* The backlog quota and TTL parameters prevent disk size from growing indefinitely, as Pulsar’s default behaviour is to persist unacknowledged messages. 
+* The retention policy allocates storage space to accommodate the messages that are supposed to be deleted by Pulsar by default.
+
+As a conclusion, the size of your physical storage should accommodate the sum of the backlog quota and the retention size. 
+
+The message deletion rate (releasing rate of disk space) can be determined by multiple factors. 
 
 - **Segment rollover period**: basically, the segment rollover period is how often a new segment is created. Once a new segment is created, the old segment will be deleted. By default, this happens either when you have written 50,000 entries (messages) or have waited 240 minutes. You can tune this in your broker.
 
@@ -368,3 +385,8 @@ If you do not have any retention period and that you never have much of a backlo
 The entry log rollover period is configurable, but is purely based on the entry log size. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-settings). Once the entry log is rolled over, the entry log can be garbage collected.
 
 - **Garbage collection interval**: because entry logs have interleaved ledgers, to free up space, the entry logs need to be rewritten. The garbage collection interval is how often BookKeeper performs garbage collection. which is related to minor compaction and major compaction of entry logs. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-compaction-settings).
+
+The diagram below illustrates one of the cases that the consumed storage size is larger than the given limits for backlog and retention. Messages over the retention limit are kept because other messages in the same segment are still within retention period.
+![](assets/retention-storage-size.svg)
+
+If you do not have any retention period and that you never have much of a backlog, the upper limit for retained messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).

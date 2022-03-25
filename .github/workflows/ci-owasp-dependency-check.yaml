@@ -27,13 +27,26 @@ env:
 
 jobs:
   run-owasp-dependency-check:
+    if: ${{ github.repository == 'apache/pulsar' }}
     name: Run OWASP Dependency Check
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: master
+            checkout_branch: 'master'
+          - name: branch-2.9
+            checkout_branch: 'branch-2.9'
+          - name: branch-2.8
+            checkout_branch: 'branch-2.8'
 
     steps:
       - name: checkout
         uses: actions/checkout@v2
+        with:
+          ref: ${{ matrix.checkout_branch }}
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -53,7 +66,7 @@ jobs:
       - name: Set up JDK 11
         uses: actions/setup-java@v2
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: 11
 
       - name: run install by skip tests
@@ -69,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: owasp-dependency-check-reports
+          name: owasp-dependency-check-reports-${{ matrix.checkout_branch }}
           path: |
             distribution/server/target/dependency-check-report.html
             distribution/offloaders/target/dependency-check-report.html

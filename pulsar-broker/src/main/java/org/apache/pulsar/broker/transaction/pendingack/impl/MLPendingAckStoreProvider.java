@@ -26,9 +26,9 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.exception.pendingack.TransactionPendingAckException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
-import org.apache.pulsar.broker.transaction.pendingack.exceptions.TransactionPendingAckStoreProviderException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 
@@ -45,7 +45,8 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
         if (subscription == null) {
             pendingAckStoreFuture.completeExceptionally(
-                    new TransactionPendingAckStoreProviderException("The subscription is null."));
+                    new TransactionPendingAckException
+                            .TransactionPendingAckStoreProviderException("The subscription is null."));
             return pendingAckStoreFuture;
         }
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
@@ -111,5 +112,14 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
             return null;
         });
         return pendingAckStoreFuture;
+    }
+
+    @Override
+    public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+        PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
+        String pendingAckTopicName = MLPendingAckStore
+                .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
+        return originPersistentTopic.getBrokerService().getManagedLedgerFactory()
+                .asyncExists(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding());
     }
 }

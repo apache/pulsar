@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.lang.reflect.Method;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -31,15 +35,8 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SinkSpecOrBuilder;
 import org.apache.pulsar.functions.proto.Function.SourceSpecOrBuilder;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Method;
-import java.util.Map;
-
-import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 public class JavaInstanceRunnableTest {
 
@@ -71,12 +68,13 @@ public class JavaInstanceRunnableTest {
         ClientBuilder clientBuilder = mock(ClientBuilder.class);
         when(clientBuilder.build()).thenReturn(null);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, clientBuilder, null, null, null, null, null, null);
+                config, clientBuilder, null, null, null, null, null, null, null);
         return javaInstanceRunnable;
     }
 
     private Method makeAccessible(JavaInstanceRunnable javaInstanceRunnable) throws Exception {
-        Method method = javaInstanceRunnable.getClass().getDeclaredMethod("setupSerDe", Class[].class, ClassLoader.class);
+        Method method =
+                javaInstanceRunnable.getClass().getDeclaredMethod("setupSerDe", Class[].class, ClassLoader.class);
         method.setAccessible(true);
         return method;
     }
@@ -125,7 +123,8 @@ public class JavaInstanceRunnableTest {
     public void testStatsManagerNull() throws Exception {
         JavaInstanceRunnable javaInstanceRunnable = createRunnable(null);
 
-        Assert.assertEquals(javaInstanceRunnable.getFunctionStatus().build(), InstanceCommunication.FunctionStatus.newBuilder().build());
+        Assert.assertEquals(javaInstanceRunnable.getFunctionStatus().build(),
+                InstanceCommunication.FunctionStatus.newBuilder().build());
 
         Assert.assertEquals(javaInstanceRunnable.getMetrics(), InstanceCommunication.MetricsData.newBuilder().build());
     }
@@ -133,9 +132,10 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testSinkConfigParsingPreservesOriginalType() throws Exception {
         SinkSpecOrBuilder sinkSpec = mock(SinkSpecOrBuilder.class);
-        Mockito.when(sinkSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
+        when(sinkSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
         Map<String, Object> parsedConfig =
-                new ObjectMapper().readValue(sinkSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
+                new ObjectMapper().readValue(sinkSpec.getConfigs(), new TypeReference<Map<String, Object>>() {
+                });
         Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }
@@ -143,9 +143,10 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testSourceConfigParsingPreservesOriginalType() throws Exception {
         SourceSpecOrBuilder sourceSpec = mock(SourceSpecOrBuilder.class);
-        Mockito.when(sourceSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
+        when(sourceSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
         Map<String, Object> parsedConfig =
-                new ObjectMapper().readValue(sourceSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
+                new ObjectMapper().readValue(sourceSpec.getConfigs(), new TypeReference<Map<String, Object>>() {
+                });
         Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }

@@ -20,11 +20,8 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.util.concurrent.RateLimiter;
-
 import io.prometheus.client.Counter;
-
 import java.io.IOException;
-
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;

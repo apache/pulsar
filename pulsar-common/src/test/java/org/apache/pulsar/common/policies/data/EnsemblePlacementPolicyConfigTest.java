@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -33,7 +32,7 @@ public class EnsemblePlacementPolicyConfigTest {
         throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
 
         EnsemblePlacementPolicyConfig originalConfig =
-            new EnsemblePlacementPolicyConfig(MockedEnsemblePlacementPolicy.class, Collections.EMPTY_MAP);
+            new EnsemblePlacementPolicyConfig(MockedEnsemblePlacementPolicy.class, Collections.emptyMap());
         byte[] encodedConfig = originalConfig.encode();
 
         EnsemblePlacementPolicyConfig decodedConfig =

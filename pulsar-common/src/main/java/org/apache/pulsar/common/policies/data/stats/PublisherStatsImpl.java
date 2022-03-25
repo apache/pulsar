@@ -19,10 +19,10 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import java.util.Map;
 
 /**
  * Statistics about a publisher.
@@ -43,11 +43,14 @@ public class PublisherStatsImpl implements PublisherStats {
     /** Average message size published by this publisher. */
     public double averageMsgSize;
 
-    /** total chunked message count received. **/
+    /** The total rate of chunked messages published by this publisher. **/
     public double chunkedMessageRate;
 
     /** Id of this publisher. */
     public long producerId;
+
+    /** Whether partial producer is supported at client. */
+    public boolean supportsPartialProducer;
 
     /** Producer name. */
     @JsonIgnore
@@ -85,7 +88,7 @@ public class PublisherStatsImpl implements PublisherStats {
 
     public PublisherStatsImpl add(PublisherStatsImpl stats) {
         if (stats == null) {
-            throw new NullPointerException();
+            throw new IllegalArgumentException("stats can't be null");
         }
         this.count++;
         this.msgRateIn += stats.msgRateIn;

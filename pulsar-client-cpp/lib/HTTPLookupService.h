@@ -22,7 +22,7 @@
 #include <lib/LookupService.h>
 #include <lib/ClientImpl.h>
 #include <lib/Url.h>
-#include <lib/Version.h>
+#include <lib/VersionInternal.h>
 
 namespace pulsar {
 class HTTPLookupService : public LookupService, public std::enable_shared_from_this<HTTPLookupService> {
@@ -57,7 +57,7 @@ class HTTPLookupService : public LookupService, public std::enable_shared_from_t
     void handleLookupHTTPRequest(LookupPromise, const std::string, RequestType);
     void handleNamespaceTopicsHTTPRequest(NamespaceTopicsPromise promise, const std::string completeUrl);
 
-    Result sendHTTPRequest(const std::string completeUrl, std::string& responseData);
+    Result sendHTTPRequest(std::string completeUrl, std::string& responseData);
 
    public:
     HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);

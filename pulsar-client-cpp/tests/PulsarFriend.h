@@ -79,6 +79,12 @@ class PulsarFriend {
         return std::static_pointer_cast<ConsumerImpl>(consumer.impl_);
     }
 
+    static decltype(ConsumerImpl::chunkedMessageCache_) & getChunkedMessageCache(Consumer consumer) {
+        auto consumerImpl = getConsumerImplPtr(consumer);
+        ConsumerImpl::Lock lock(consumerImpl->chunkProcessMutex_);
+        return consumerImpl->chunkedMessageCache_;
+    }
+
     static std::shared_ptr<PartitionedConsumerImpl> getPartitionedConsumerImplPtr(Consumer consumer) {
         return std::static_pointer_cast<PartitionedConsumerImpl>(consumer.impl_);
     }
@@ -88,6 +94,14 @@ class PulsarFriend {
     }
 
     static std::shared_ptr<ClientImpl> getClientImplPtr(Client client) { return client.impl_; }
+
+    static ClientImpl::ProducersList& getProducers(const Client& client) {
+        return getClientImplPtr(client)->producers_;
+    }
+
+    static ClientImpl::ConsumersList& getConsumers(const Client& client) {
+        return getClientImplPtr(client)->consumers_;
+    }
 
     static void setNegativeAckEnabled(Consumer consumer, bool enabled) {
         consumer.impl_->setNegativeAcknowledgeEnabledForTesting(enabled);

@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.io.netty.tcp;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.Channel;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 
 /**

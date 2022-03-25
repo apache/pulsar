@@ -377,7 +377,7 @@ class Client:
 
         * `authentication`:
           Set the authentication provider to be used with the broker. For example:
-          `AuthenticationTls`, AuthenticaionToken, `AuthenticationAthenz`or `AuthenticationOauth2`
+          `AuthenticationTls`, `AuthenticationToken`, `AuthenticationAthenz` or `AuthenticationOauth2`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
@@ -602,6 +602,7 @@ class Client:
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         p._schema = schema
+        p._client = self._client
         return p
 
     def subscribe(self, topic, subscription_name,
@@ -864,6 +865,15 @@ class Client:
         _check_type(str, topic, 'topic')
         return self._client.get_topic_partitions(topic)
 
+    def shutdown(self):
+        """
+        Perform immediate shutdown of Pulsar client.
+
+        Release all resources and close all producer, consumer, and readers without waiting
+        for ongoing operations to complete.
+        """
+        self._client.shutdown()
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
@@ -1067,6 +1077,12 @@ class Producer:
 
         return mb.build()
 
+    def is_connected(self):
+        """
+        Check if the producer is connected or not.
+        """
+        return self._producer.is_connected()
+
 
 class Consumer:
     """
@@ -1223,6 +1239,13 @@ class Consumer:
         self._consumer.close()
         self._client._consumers.remove(self)
 
+    def is_connected(self):
+        """
+        Check if the consumer is connected or not.
+        """
+        return self._consumer.is_connected()
+
+
 
 class Reader:
     """
@@ -1285,6 +1308,13 @@ class Reader:
         """
         self._reader.close()
         self._client._consumers.remove(self)
+
+    def is_connected(self):
+        """
+        Check if the reader is connected or not.
+        """
+        return self._reader.is_connected()
+
 
 class CryptoKeyReader:
     """

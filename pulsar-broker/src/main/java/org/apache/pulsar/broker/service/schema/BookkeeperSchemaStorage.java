@@ -58,8 +58,9 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +70,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final String SchemaPath = "/schemas";
     private static final byte[] LedgerPassword = "".getBytes();
 
-    private final MetadataStore store;
+    private final MetadataStoreExtended store;
     private final PulsarService pulsar;
     private final MetadataCache<SchemaStorageFormat.SchemaLocator> locatorEntryCache;
 
@@ -86,12 +87,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         this.config = pulsar.getConfiguration();
         this.locatorEntryCache = store.getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
             @Override
-            public byte[] serialize(SchemaStorageFormat.SchemaLocator value) {
+            public byte[] serialize(String path, SchemaStorageFormat.SchemaLocator value) {
                 return value.toByteArray();
             }
 
             @Override
-            public SchemaStorageFormat.SchemaLocator deserialize(byte[] content) throws IOException {
+            public SchemaStorageFormat.SchemaLocator deserialize(String path, byte[] content, Stat stat)
+                    throws IOException {
                 return SchemaStorageFormat.SchemaLocator.parseFrom(content);
             }
         });
@@ -101,7 +103,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     public void start() throws IOException {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
             pulsar.getConfiguration(),
-            pulsar.getZkClient(),
+            store,
             pulsar.getIoEventLoopGroup(),
             Optional.empty(),
             null
@@ -160,7 +162,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         try {
             locatorEntry = getLocator(key).get();
         } catch (Exception e) {
-            log.warn("Failed to get list of schema-storage ledger for {} , the exception as follow: \n {}", key,
+            log.warn("Failed to get list of schema-storage ledger for {}, the exception as follow: \n {}", key,
                     (e instanceof ExecutionException ? e.getCause() : e));
             throw new IOException("Failed to get schema ledger for" + key);
         }

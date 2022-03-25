@@ -19,8 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 
@@ -71,8 +71,9 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         //enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.ofNullable(2));
 
@@ -82,7 +83,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
-        assertEquals( proxyLogLevel , proxyService.getConfiguration().getProxyLogLevel());
+        assertEquals( proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
         proxyService.start();
     }
 
@@ -128,7 +129,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
             consumer.acknowledge(msg);
         }
 
@@ -162,7 +163,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
         }
     }
 
@@ -231,7 +232,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
             consumer.acknowledge(msg);
         }
 

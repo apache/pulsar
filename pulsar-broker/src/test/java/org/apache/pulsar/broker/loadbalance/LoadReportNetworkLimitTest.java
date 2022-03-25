@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
+import java.util.Optional;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
@@ -35,7 +36,7 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
-        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(5.4);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(5.4));
         super.internalSetup();
 
         if (SystemUtils.IS_OS_LINUX) {

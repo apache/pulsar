@@ -19,15 +19,14 @@
 package org.apache.pulsar.functions.worker.service;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -50,8 +49,10 @@ public class WorkerServiceLoader {
      */
     public static WorkerServiceDefinition getWorkerServiceDefinition(String narPath, String narExtractionDirectory)
         throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(
-            new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .extractionDirectory(narExtractionDirectory)
+                .build();) {
             return getWorkerServiceDefinition(ncl);
         }
     }
@@ -72,10 +73,12 @@ public class WorkerServiceLoader {
      */
     static WorkerServiceWithClassLoader load(WorkerServiceMetadata metadata,
                                              String narExtractionDirectory) throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
-            metadata.getArchivePath().toAbsolutePath().toFile(),
-            Collections.emptySet(),
-            WorkerService.class.getClassLoader(), narExtractionDirectory);
+        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(narFile)
+                .parentClassLoader(WorkerService.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build();
 
         WorkerServiceDefinition phDef = getWorkerServiceDefinition(ncl);
         if (StringUtils.isBlank(phDef.getHandlerClass())) {
@@ -85,7 +88,7 @@ public class WorkerServiceLoader {
 
         try {
             Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
-            Object handler = handlerClass.newInstance();
+            Object handler = handlerClass.getDeclaredConstructor().newInstance();
             if (!(handler instanceof WorkerService)) {
                 throw new IOException("Class " + phDef.getHandlerClass()
                     + " does not implement worker service interface");

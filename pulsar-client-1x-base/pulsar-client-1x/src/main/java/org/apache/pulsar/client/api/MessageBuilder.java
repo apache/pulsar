@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.pulsar.client.impl.MessageBuilderImpl;
 
 /**
@@ -38,14 +37,14 @@ public interface MessageBuilder {
     }
 
     /**
-     * Finalize the immutable message
+     * Finalize the immutable message.
      *
      * @return a {@link Message} ready to be sent through a {@link Producer}
      */
     Message<byte[]> build();
 
     /**
-     * Set the content of the message
+     * Set the content of the message.
      *
      * @param data
      *            array containing the payload
@@ -53,7 +52,7 @@ public interface MessageBuilder {
     MessageBuilder setContent(byte[] data);
 
     /**
-     * Set the content of the message
+     * Set the content of the message.
      *
      * @param data
      *            array containing the payload
@@ -65,7 +64,7 @@ public interface MessageBuilder {
     MessageBuilder setContent(byte[] data, int offset, int length);
 
     /**
-     * Set the content of the message
+     * Set the content of the message.
      *
      * @param buf
      *            a {@link ByteBuffer} with the payload of the message
@@ -83,12 +82,12 @@ public interface MessageBuilder {
     MessageBuilder setProperty(String name, String value);
 
     /**
-     * Add all the properties in the provided map
+     * Add all the properties in the provided map.
      */
     MessageBuilder setProperties(Map<String, String> properties);
 
     /**
-     * Sets the key of the message for routing policy
+     * Sets the key of the message for routing policy.
      *
      * @param key
      */

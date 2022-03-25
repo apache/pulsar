@@ -19,11 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.HandlerState.State;
 import org.slf4j.Logger;
@@ -39,7 +36,8 @@ public class ConnectionHandler {
     protected final Backoff backoff;
     private static final AtomicLongFieldUpdater<ConnectionHandler> EPOCH_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ConnectionHandler.class, "epoch");
-    private volatile long epoch = 0L;
+    // Start with -1L because it gets incremented before sending on the first connection
+    private volatile long epoch = -1L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
 
     interface Connection {
@@ -58,13 +56,15 @@ public class ConnectionHandler {
 
     protected void grabCnx() {
         if (CLIENT_CNX_UPDATER.get(this) != null) {
-            log.warn("[{}] [{}] Client cnx already set, ignoring reconnection request", state.topic, state.getHandlerName());
+            log.warn("[{}] [{}] Client cnx already set, ignoring reconnection request",
+                    state.topic, state.getHandlerName());
             return;
         }
 
         if (!isValidStateForReconnection()) {
             // Ignore connection closed when we are shutting down
-            log.info("[{}] [{}] Ignoring reconnection request (state: {})", state.topic, state.getHandlerName(), state.getState());
+            log.info("[{}] [{}] Ignoring reconnection request (state: {})",
+                    state.topic, state.getHandlerName(), state.getState());
             return;
         }
 
@@ -79,11 +79,12 @@ public class ConnectionHandler {
     }
 
     private Void handleConnectionError(Throwable exception) {
-        log.warn("[{}] [{}] Error connecting to broker: {}", state.topic, state.getHandlerName(), exception.getMessage());
+        log.warn("[{}] [{}] Error connecting to broker: {}",
+                state.topic, state.getHandlerName(), exception.getMessage());
         if (exception instanceof PulsarClientException) {
             connection.connectionFailed((PulsarClientException) exception);
         } else if (exception.getCause() instanceof  PulsarClientException) {
-            connection.connectionFailed((PulsarClientException)exception.getCause());
+            connection.connectionFailed((PulsarClientException) exception.getCause());
         } else {
             connection.connectionFailed(new PulsarClientException(exception));
         }
@@ -99,40 +100,41 @@ public class ConnectionHandler {
     protected void reconnectLater(Throwable exception) {
         CLIENT_CNX_UPDATER.set(this, null);
         if (!isValidStateForReconnection()) {
-            log.info("[{}] [{}] Ignoring reconnection request (state: {})", state.topic, state.getHandlerName(), state.getState());
+            log.info("[{}] [{}] Ignoring reconnection request (state: {})",
+                    state.topic, state.getHandlerName(), state.getState());
             return;
         }
         long delayMs = backoff.next();
-        log.warn("[{}] [{}] Could not get connection to broker: {} -- Will try again in {} s", state.topic, state.getHandlerName(),
+        log.warn("[{}] [{}] Could not get connection to broker: {} -- Will try again in {} s",
+                state.topic, state.getHandlerName(),
                 exception.getMessage(), delayMs / 1000.0);
-        state.setState(State.Connecting);
-        state.client.timer().newTimeout(timeout -> {
-            log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
-            incrementEpoch();
-            grabCnx();
-        }, delayMs, TimeUnit.MILLISECONDS);
+        if (state.changeToConnecting()) {
+            state.client.timer().newTimeout(timeout -> {
+                log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
+                grabCnx();
+            }, delayMs, TimeUnit.MILLISECONDS);
+        } else {
+            log.info("[{}] [{}] Ignoring reconnection request (state: {})",
+                    state.topic, state.getHandlerName(), state.getState());
+        }
     }
 
-    protected long incrementEpoch() {
-        return EPOCH_UPDATER.incrementAndGet(this);
-    }
-
-    @VisibleForTesting
     public void connectionClosed(ClientCnx cnx) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {
-                log.info("[{}] [{}] Ignoring reconnection request (state: {})", state.topic, state.getHandlerName(), state.getState());
+                log.info("[{}] [{}] Ignoring reconnection request (state: {})",
+                        state.topic, state.getHandlerName(), state.getState());
                 return;
             }
             long delayMs = backoff.next();
             state.setState(State.Connecting);
-            log.info("[{}] [{}] Closed connection {} -- Will try again in {} s", state.topic, state.getHandlerName(), cnx.channel(),
+            log.info("[{}] [{}] Closed connection {} -- Will try again in {} s",
+                    state.topic, state.getHandlerName(), cnx.channel(),
                     delayMs / 1000.0);
             state.client.timer().newTimeout(timeout -> {
                 log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
-                incrementEpoch();
                 grabCnx();
             }, delayMs, TimeUnit.MILLISECONDS);
         }
@@ -142,7 +144,6 @@ public class ConnectionHandler {
         backoff.reset();
     }
 
-    @VisibleForTesting
     public ClientCnx cnx() {
         return CLIENT_CNX_UPDATER.get(this);
     }
@@ -151,11 +152,23 @@ public class ConnectionHandler {
         CLIENT_CNX_UPDATER.set(this, clientCnx);
     }
 
+    /**
+     * Update the {@link ClientCnx} for the class, then increment and get the epoch value. Note that the epoch value is
+     * currently only used by the {@link ProducerImpl}.
+     * @param clientCnx - the new {@link ClientCnx}
+     * @return the epoch value to use for this pair of {@link ClientCnx} and {@link ProducerImpl}
+     */
+    protected long switchClientCnx(ClientCnx clientCnx) {
+        setClientCnx(clientCnx);
+        return EPOCH_UPDATER.incrementAndGet(this);
+    }
+
     private boolean isValidStateForReconnection() {
         State state = this.state.getState();
         switch (state) {
             case Uninitialized:
             case Connecting:
+            case RegisteringSchema:
             case Ready:
                 // Ok
                 return true;
@@ -170,7 +183,6 @@ public class ConnectionHandler {
         return false;
     }
 
-    @VisibleForTesting
     public long getEpoch() {
         return epoch;
     }

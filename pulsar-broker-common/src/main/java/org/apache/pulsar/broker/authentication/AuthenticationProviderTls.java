@@ -21,9 +21,7 @@ package org.apache.pulsar.broker.authentication;
 import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
@@ -50,8 +48,8 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
         try {
             if (authData.hasDataFromTls()) {
                 /**
-                 * Maybe authentication type should be checked if it is an HTTPS session. However this check fails actually
-                 * because authType is null.
+                 * Maybe authentication type should be checked if it is an HTTPS session. However this check fails
+                 * actually because authType is null.
                  *
                  * This check is not necessarily needed, because an untrusted certificate is not passed to
                  * HttpServletRequest.
@@ -91,7 +89,8 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             }
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
+                    exception.getMessage());
             throw exception;
         }
         return commonName;

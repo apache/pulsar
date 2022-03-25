@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-
 import lombok.Data;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -98,18 +97,18 @@ public class FunctionStatsImpl implements FunctionStats {
             }
 
             oneMin.setReceivedTotal(oneMin.getReceivedTotal() + functionInstanceStatsData.oneMin.getReceivedTotal());
-            oneMin.setProcessedSuccessfullyTotal(oneMin.getProcessedSuccessfullyTotal() +
-                    functionInstanceStatsData.oneMin.getProcessedSuccessfullyTotal());
-            oneMin.setSystemExceptionsTotal(oneMin.getSystemExceptionsTotal() +
-                    functionInstanceStatsData.oneMin.getSystemExceptionsTotal());
-            oneMin.setUserExceptionsTotal(oneMin.getUserExceptionsTotal() +
-                    functionInstanceStatsData.oneMin.getUserExceptionsTotal());
+            oneMin.setProcessedSuccessfullyTotal(oneMin.getProcessedSuccessfullyTotal()
+                    + functionInstanceStatsData.oneMin.getProcessedSuccessfullyTotal());
+            oneMin.setSystemExceptionsTotal(oneMin.getSystemExceptionsTotal()
+                    + functionInstanceStatsData.oneMin.getSystemExceptionsTotal());
+            oneMin.setUserExceptionsTotal(oneMin.getUserExceptionsTotal()
+                    + functionInstanceStatsData.oneMin.getUserExceptionsTotal());
             if (functionInstanceStatsData.oneMin.getAvgProcessLatency() != null) {
                 if (oneMin.getAvgProcessLatency() == null) {
                     oneMin.setAvgProcessLatency(0.0);
                 }
-                oneMin.setAvgProcessLatency(oneMin.getAvgProcessLatency() +
-                        functionInstanceStatsData.oneMin.getAvgProcessLatency());
+                oneMin.setAvgProcessLatency(oneMin.getAvgProcessLatency()
+                        + functionInstanceStatsData.oneMin.getAvgProcessLatency());
                 nonNullInstancesOneMin++;
             }
 

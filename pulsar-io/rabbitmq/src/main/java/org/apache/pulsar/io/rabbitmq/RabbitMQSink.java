@@ -22,6 +22,8 @@ import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import java.io.IOException;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.api.Record;
@@ -29,9 +31,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-
-import java.io.IOException;
-import java.util.Map;
 
 /**
  * A Simple RabbitMQ sink, which transfer records from Pulsar to RabbitMQ.
@@ -84,7 +83,8 @@ public class RabbitMQSink implements Sink<byte[]> {
         byte[] value = record.getValue();
         try {
             String routingKey = record.getProperties().get("routingKey");
-            rabbitMQChannel.basicPublish(exchangeName, StringUtils.isEmpty(routingKey) ? defaultRoutingKey : routingKey, null, value);
+            rabbitMQChannel.basicPublish(exchangeName,
+                    StringUtils.isEmpty(routingKey) ? defaultRoutingKey : routingKey, null, value);
             record.ack();
         } catch (IOException e) {
             record.fail();

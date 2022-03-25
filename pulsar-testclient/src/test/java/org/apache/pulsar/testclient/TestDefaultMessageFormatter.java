@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -32,7 +31,7 @@ public class TestDefaultMessageFormatter {
     public void testFormatMessage() {
         String producerName = "producer-1";
         long msgId = 3;
-        byte[] message = "{ \"producer\": \"%p\", \"msgId\": %i, \"nanoTime\": %t, \"float1\": %5.2f, \"float2\": %-5.2f, \"long1\": %12l, \"long2\": %l, \"int1\": %d, \"int2\": %1d , \"long3\": %5l,  \"str\": \"%5s\" }".getBytes();
+        byte[] message = "{ \"producer\": \"%p\", \"msgId\": %i, \"nanoTime\": %t, \"float1\": %5.2f, \"float2\": %-5.2f, \"long1\": %12l, \"long2\": %l, \"int1\": %d, \"int2\": %1d, \"long3\": %5l,  \"str\": \"%5s\" }".getBytes();
         byte[] formatted = new DefaultMessageFormatter().formatMessage(producerName, msgId, message);
         String jsonString = new String(formatted, StandardCharsets.UTF_8);
 
@@ -69,6 +68,6 @@ public class TestDefaultMessageFormatter {
         Assert.assertTrue(0 < i2, "i2 was " + i2);
         Assert.assertTrue(f2 < 100000);
         Assert.assertTrue( -100000 < f2);
-
     }
+
 }

@@ -21,10 +21,8 @@
 void export_schema() {
     using namespace boost::python;
 
-    class_<SchemaInfo>("SchemaInfo",
-            init<SchemaType, const std::string& , const std::string&>())
-            .def("schema_type", &SchemaInfo::getSchemaType)
-            .def("name", &SchemaInfo::getName, return_value_policy<copy_const_reference>())
-            .def("schema", &SchemaInfo::getSchema, return_value_policy<copy_const_reference>())
-            ;
+    class_<SchemaInfo>("SchemaInfo", init<SchemaType, const std::string&, const std::string&>())
+        .def("schema_type", &SchemaInfo::getSchemaType)
+        .def("name", &SchemaInfo::getName, return_value_policy<copy_const_reference>())
+        .def("schema", &SchemaInfo::getSchema, return_value_policy<copy_const_reference>());
 }

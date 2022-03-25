@@ -19,11 +19,11 @@
 package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
-
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
@@ -31,9 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -87,6 +85,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
 
+    // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
+    // of the BatchMessageIdImpl will not complete.
+    private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
+
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
 
@@ -95,7 +99,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
-        this.pullMode = Boolean.valueOf(queryParams.get("pullMode"));
+        this.pullMode = Boolean.parseBoolean(queryParams.get("pullMode"));
 
         try {
             // checkAuth() and getConsumerConfiguration() should be called after assigning a value to this.subscription
@@ -133,7 +137,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void receiveMessage() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}:{}] [{}] [{}] Receive next message", request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
+            log.debug("[{}:{}] [{}] [{}] Receive next message",
+                    request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
         }
 
         consumer.receiveAsync().thenAccept(msg -> {
@@ -148,6 +153,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             dm.properties = msg.getProperties();
             dm.publishTime = DateFormatter.format(msg.getPublishTime());
             dm.redeliveryCount = msg.getRedeliveryCount();
+            dm.encryptionContext = msg.getEncryptionCtx().orElse(null);
             if (msg.getEventTime() != 0) {
                 dm.eventTime = DateFormatter.format(msg.getEventTime());
             }
@@ -155,6 +161,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 dm.key = msg.getKey();
             }
             final long msgSize = msg.getData().length;
+
+            messageIdCache.put(dm.messageId, msg.getMessageId());
 
             try {
                 getSession().getRemote()
@@ -232,6 +240,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     // Check and notify consumer if reached end of topic.
     private void handleEndOfTopic() {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}/{}] Received check reach the end of topic request from {} ", consumer.getTopic(),
+                    subscription, getRemote().getInetSocketAddress().toString());
+        }
         try {
             String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
                     new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
@@ -259,6 +271,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     private void handleUnsubscribe(ConsumerCommand command) throws PulsarClientException {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}/{}] Received unsubscribe request from {} ", consumer.getTopic(),
+                    subscription, getRemote().getInetSocketAddress().toString());
+        }
         consumer.unsubscribe();
     }
 
@@ -276,18 +292,43 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         // We should have received an ack
         MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
                 topic.toString());
-        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
+                    subscription, msgId, getRemote().getInetSocketAddress().toString());
+        }
+
+        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
+        if (originalMsgId != null) {
+            consumer.acknowledgeAsync(originalMsgId).thenAccept(consumer -> numMsgsAcked.increment());
+        } else {
+            consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        }
+
         checkResumeReceive();
     }
 
     private void handleNack(ConsumerCommand command) throws IOException {
         MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
             topic.toString());
-        consumer.negativeAcknowledge(msgId);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}/{}] Received negative ack request of message {} from {} ", consumer.getTopic(),
+                    subscription, msgId, getRemote().getInetSocketAddress().toString());
+        }
+
+        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
+        if (originalMsgId != null) {
+            consumer.negativeAcknowledge(originalMsgId);
+        } else {
+            consumer.negativeAcknowledge(msgId);
+        }
         checkResumeReceive();
     }
 
     private void handlePermit(ConsumerCommand command) throws IOException {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}/{}] Received {} permits request from {} ", consumer.getTopic(),
+                    subscription, command.permitMessages, getRemote().getInetSocketAddress().toString());
+        }
         if (command.permitMessages == null) {
             throw new IOException("Missing required permitMessages field for 'permit' command");
         }
@@ -409,7 +450,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             try {
                 builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
             } catch (Exception e) {
-                log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+                log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
             }
         }
 
@@ -436,8 +477,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
         final boolean isV2Format = parts.get(2).equals("v2");
         final int domainIndex = isV2Format ? 4 : 3;
-        checkArgument(parts.get(domainIndex).equals("persistent") ||
-                parts.get(domainIndex).equals("non-persistent"));
+        checkArgument(parts.get(domainIndex).equals("persistent")
+                || parts.get(domainIndex).equals("non-persistent"));
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
         return Codec.decode(parts.get(8));

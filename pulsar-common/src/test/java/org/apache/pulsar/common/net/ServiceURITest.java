@@ -278,4 +278,40 @@ public class ServiceURITest {
             "/path/to/namespace");
     }
 
+    @Test
+    public void testSelectOneSingleHost() {
+        String serviceUri = "https://host1:6650/path/to/namespace";
+        assertEquals(ServiceURI.create(serviceUri).selectOne(),
+                     serviceUri);
+    }
+
+    @Test
+    public void testSelectOneMultipleHosts() {
+        String serviceUri = "https://host1:6650;host2/";
+        for (int i = 0; i < 10; i++) {
+            String selected = ServiceURI.create(serviceUri).selectOne();
+            boolean option1 = selected.equals("https://host1:6650/");
+            boolean option2 = selected.equals("https://host2:443/");
+            assertTrue(option1 || option2);
+        }
+    }
+
+    @Test
+    public void testSelectOneAllBellsAndWhistles() {
+        String serviceUri = "https+blah://user1@host1:6650;host2;host3:4032/path/to/namespace";
+        for (int i = 0; i < 10; i++) {
+            String selected = ServiceURI.create(serviceUri).selectOne();
+            boolean option1 = selected.equals("https+blah://user1@host1:6650/path/to/namespace");
+            boolean option2 = selected.equals("https+blah://user1@host2:443/path/to/namespace");
+            boolean option3 = selected.equals("https+blah://user1@host3:4032/path/to/namespace");
+            assertTrue(option1 || option2 || option3);
+        }
+    }
+
+    @Test
+    public void testKubeProxyURI() {
+        String serviceUri = "http://localhost:57777/api/v1/namespaces/blah-blah/services/pulsar:8080/proxy";
+        assertEquals(ServiceURI.create(serviceUri).selectOne(),
+                     serviceUri);
+    }
 }

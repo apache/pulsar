@@ -30,6 +30,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 
 /**
@@ -37,6 +40,7 @@ import org.slf4j.Logger;
  * operations.
  *
  */
+@Slf4j
 public class FileUtils {
 
     public static final long MILLIS_BETWEEN_ATTEMPTS = 50L;
@@ -219,6 +223,22 @@ public class FileUtils {
             Thread.sleep(millis);
         } catch (final InterruptedException ex) {
             /* do nothing */
+        }
+    }
+
+    public static boolean mayBeANarArchive(File jarFile) {
+        try (ZipFile zipFile = new ZipFile(jarFile);) {
+            ZipEntry entry = zipFile.getEntry("META-INF/bundled-dependencies");
+            if (entry == null || !entry.isDirectory()) {
+                log.info("Jar file {} does not contain META-INF/bundled-dependencies, it is not a NAR file", jarFile);
+                return false;
+            } else {
+                log.info("Jar file {} contains META-INF/bundled-dependencies, it may be a NAR file", jarFile);
+                return true;
+            }
+        } catch (IOException err) {
+            log.info("Cannot safely detect if {} is a NAR archive", jarFile, err);
+            return true;
         }
     }
 }

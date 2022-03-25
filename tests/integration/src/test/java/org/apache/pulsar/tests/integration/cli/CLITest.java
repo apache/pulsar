@@ -88,12 +88,12 @@ public class CLITest extends PulsarTestSuite {
         final String persistentTopicName = TopicName.get(
                 "persistent",
                 NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+                "get_topics_mode_" + UUID.randomUUID()).toString();
 
         final String nonPersistentTopicName = TopicName.get(
                 "non-persistent",
                 NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+                "get_topics_mode_" + UUID.randomUUID()).toString();
 
         Producer<byte[]> producer1 = client.newProducer()
                 .topic(persistentTopicName)
@@ -200,7 +200,7 @@ public class CLITest extends PulsarTestSuite {
             "topics",
             "terminate",
             topicName);
-        assertTrue(result.getStdout().contains("Topic succesfully terminated at"));
+        assertTrue(result.getStdout().contains("Topic successfully terminated at"));
 
         // try to produce should fail
         try {
@@ -282,6 +282,28 @@ public class CLITest extends PulsarTestSuite {
                 "clear-properties",
                 namespace);
         assertTrue(result.getStdout().isEmpty());
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "bookies",
+                    "set-bookie-rack",
+                    "-b", "localhost:8082",
+                    "-r", "");
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "rack name is invalid, it should not be null, empty or '/'\n\n");
+        }
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "namespaces",
+                    "set-schema-autoupdate-strategy",
+                    namespace);
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "Either --compatibility or --disabled must be specified\n\n");
+        }
     }
 
     @Test
@@ -334,7 +356,21 @@ public class CLITest extends PulsarTestSuite {
                               );
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
-            assertTrue(e.getResult().getStderr().contains("Reason: HTTP 404 Not Found"));
+            assertTrue(e.getResult().getStderr().contains("Schema not found"));
+        }
+
+        try {
+            container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "schemas",
+                    "extract",
+                    "--jar", "/pulsar/examples/api-examples.jar",
+                    "--type", "xml",
+                    "--classname", "org.apache.pulsar.functions.api.examples.pojo.Tick",
+                    topicName);
+            fail("Command should have exited with non-zero");
+        } catch (ContainerExecException e) {
+            assertEquals(e.getResult().getStderr(), "Invalid schema type xml. Valid options are: avro, json\n\n");
         }
     }
 

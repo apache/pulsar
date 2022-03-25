@@ -18,26 +18,35 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 
 public class BookieResources extends BaseResources<BookiesRackConfiguration> {
+
+    private static final String AVAILABLE_BOOKIES_ROOT = "/ledgers/available";
 
     public BookieResources(MetadataStore store, int operationTimeoutSec) {
         super(store, BookiesRackConfiguration.class, operationTimeoutSec);
     }
 
     public CompletableFuture<Optional<BookiesRackConfiguration>> get() {
-        return getAsync(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
+        return getAsync(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH);
     }
 
     public CompletableFuture<Void> update(Function<Optional<BookiesRackConfiguration>,
             BookiesRackConfiguration> modifyFunction) {
-        return getCache().readModifyUpdateOrCreate(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
+        return getCache().readModifyUpdateOrCreate(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
                 modifyFunction).thenApply(__ -> null);
+    }
+
+    public CompletableFuture<Set<String>> listAvailableBookiesAsync() {
+        return getChildrenAsync(AVAILABLE_BOOKIES_ROOT)
+                .thenApply(list -> new HashSet<>(list));
     }
 }

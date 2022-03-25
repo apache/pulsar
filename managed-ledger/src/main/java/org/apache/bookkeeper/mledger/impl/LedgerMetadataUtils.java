@@ -18,14 +18,12 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.common.util.JsonUtil.ParseJsonException;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 /**
  * Utilities for managing BookKeeper Ledgers custom metadata.
@@ -33,16 +31,14 @@ import java.util.Map;
 public final class LedgerMetadataUtils {
 
     private static final String METADATA_PROPERTY_APPLICATION = "application";
-    private static final byte[] METADATA_PROPERTY_APPLICATION_PULSAR
-            = "pulsar".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] METADATA_PROPERTY_APPLICATION_PULSAR = "pulsar".getBytes(StandardCharsets.UTF_8);
 
     private static final String METADATA_PROPERTY_COMPONENT = "component";
-    private static final byte[] METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER
-            = "managed-ledger".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER
-            = "compacted-ledger".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA
-            = "schema".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER =
+            "managed-ledger".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER =
+            "compacted-ledger".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA = "schema".getBytes(StandardCharsets.UTF_8);
 
     private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
     private static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
@@ -81,7 +77,8 @@ public final class LedgerMetadataUtils {
      * @param compactedToMessageId last mesasgeId.
      * @return an immutable map which describes the compacted ledger
      */
-    public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic, byte[] compactedToMessageId) {
+    public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic,
+                                                                      byte[] compactedToMessageId) {
         return ImmutableMap.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER,
@@ -91,7 +88,7 @@ public final class LedgerMetadataUtils {
     }
 
     /**
-     * Build additional metadata for a Schema
+     * Build additional metadata for a Schema.
      *
      * @param schemaId id of the schema
      * @return an immutable map which describes the schema

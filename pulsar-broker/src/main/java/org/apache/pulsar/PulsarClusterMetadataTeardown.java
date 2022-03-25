@@ -38,6 +38,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +98,7 @@ public class PulsarClusterMetadataTeardown {
         }
 
         @Cleanup
-        MetadataStore metadataStore = MetadataStoreFactory.create(arguments.zookeeper,
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.zookeeper,
                 MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis).build());
 
         if (arguments.bkMetadataServiceUri != null) {

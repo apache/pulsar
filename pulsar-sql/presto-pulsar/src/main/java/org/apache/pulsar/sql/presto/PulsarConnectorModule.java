@@ -30,7 +30,6 @@ import io.prestosql.decoder.DecoderModule;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.TypeId;
 import io.prestosql.spi.type.TypeManager;
-
 import javax.inject.Inject;
 
 /**

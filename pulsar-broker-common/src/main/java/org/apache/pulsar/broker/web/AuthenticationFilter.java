@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
-
 import javax.naming.AuthenticationException;
-
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -30,15 +28,15 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests
+ * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests.
  */
 public class AuthenticationFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationFilter.class);
@@ -47,14 +45,16 @@ public class AuthenticationFilter implements Filter {
 
     public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
     public static final String AuthenticatedDataAttributeName = AuthenticationFilter.class.getName() + "-data";
+    public static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
+
 
     public AuthenticationFilter(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
     }
 
     private boolean isSaslRequest(HttpServletRequest request) {
-        if (request.getHeader(SaslConstants.SASL_HEADER_TYPE) == null ||
-            request.getHeader(SaslConstants.SASL_HEADER_TYPE).isEmpty()) {
+        if (request.getHeader(SaslConstants.SASL_HEADER_TYPE) == null
+                || request.getHeader(SaslConstants.SASL_HEADER_TYPE).isEmpty()) {
             return false;
         }
         if (request.getHeader(SaslConstants.SASL_HEADER_TYPE)
@@ -74,10 +74,21 @@ public class AuthenticationFilter implements Filter {
 
             if (!isSaslRequest(httpRequest)) {
                 // not sasl type, return role directly.
-                String role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
+                String authMethodName = httpRequest.getHeader(PULSAR_AUTH_METHOD_NAME);
+                String role;
+                if (authMethodName != null && authenticationService.getAuthenticationProvider(authMethodName) != null) {
+                    AuthenticationState authenticationState = authenticationService
+                            .getAuthenticationProvider(authMethodName).newHttpAuthState(httpRequest);
+                    request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
+                    role = authenticationService.authenticateHttpRequest(
+                            (HttpServletRequest) request, authenticationState.getAuthDataSource());
+                } else {
+                    request.setAttribute(AuthenticatedDataAttributeName,
+                            new AuthenticationDataHttps((HttpServletRequest) request));
+                    role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
+                }
                 request.setAttribute(AuthenticatedRoleAttributeName, role);
-                request.setAttribute(AuthenticatedDataAttributeName,
-                    new AuthenticationDataHttps((HttpServletRequest) request));
+
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);
                 }

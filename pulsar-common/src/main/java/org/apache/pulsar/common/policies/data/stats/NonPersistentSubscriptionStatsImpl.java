@@ -27,7 +27,9 @@ import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
  * Statistics for subscription to non-persistent topics.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
-public class NonPersistentSubscriptionStatsImpl extends SubscriptionStatsImpl implements NonPersistentSubscriptionStats {
+public class NonPersistentSubscriptionStatsImpl
+        extends SubscriptionStatsImpl
+        implements NonPersistentSubscriptionStats {
 
     /**
      * for non-persistent topic: broker drops msg for subscription if none of the consumer available for message

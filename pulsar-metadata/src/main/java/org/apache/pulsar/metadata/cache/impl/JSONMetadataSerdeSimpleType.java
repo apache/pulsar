@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import java.io.IOException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.Stat;
 
 public class JSONMetadataSerdeSimpleType<T> implements MetadataSerde<T> {
 
@@ -32,12 +33,12 @@ public class JSONMetadataSerdeSimpleType<T> implements MetadataSerde<T> {
     }
 
     @Override
-    public byte[] serialize(T value) throws IOException {
+    public byte[] serialize(String path, T value) throws IOException {
         return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value);
     }
 
     @Override
-    public T deserialize(byte[] content) throws IOException {
+    public T deserialize(String path, byte[] content, Stat stat) throws IOException {
         return ObjectMapperFactory.getThreadLocal().readValue(content, typeRef);
     }
 }

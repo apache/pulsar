@@ -18,10 +18,19 @@
  */
 package org.apache.pulsar.broker.transaction;
 
-import com.google.common.collect.Sets;
-
+import static org.apache.pulsar.common.events.EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -33,9 +42,15 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,6 +58,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
@@ -50,12 +66,11 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.events.EventsTopicNames;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -63,17 +78,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-
 @Slf4j
 public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
-    private static final String TENANT = "tnx";
-    private static final String NAMESPACE1 = TENANT + "/ns1";
     private static final String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
     private static final String RECOVER_ABORT = NAMESPACE1 + "/recover-abort";
     private static final String SUBSCRIPTION_NAME = "test-recover";
@@ -82,36 +89,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
-        setBrokerCount(1);
-        internalSetup();
-
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
-        admin.topics().createNonPartitionedTopic(RECOVER_COMMIT);
+        setUpBase(1, NUM_PARTITIONS, RECOVER_COMMIT, 0);
         admin.topics().createNonPartitionedTopic(RECOVER_ABORT);
         admin.topics().createNonPartitionedTopic(TAKE_SNAPSHOT);
-
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
-
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-        }
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-
-
-        // wait tc init success to ready state
-        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -183,7 +163,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // can't receive message
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
-        admin.topics().unload(RECOVER_COMMIT);
+        admin.topics().unload(testTopic);
 
         Awaitility.await().until(() -> {
             for (int i = 0; i < getPulsarServiceList().size(); i++) {
@@ -279,30 +259,33 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         tnx1.commit().get();
         // wait timeout take snapshot
 
-        TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId1).getEntryId() + 1);
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
-        assertFalse(reader.hasMessageAvailable());
+        Awaitility.await().untilAsserted(() -> {
+            TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), -1);
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
+            transactionBufferSnapshot = reader.readNext().getValue();
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId1).getEntryId() + 1);
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
+            assertFalse(reader.hasMessageAvailable());
+        });
 
         // take snapshot by change times
         MessageId messageId2 = producer.newMessage(tnx2).value("test").send();
         tnx2.commit().get();
 
-        MessageId messageId3 = producer.newMessage(tnx3).value("test").send();
-        tnx3.commit().get();
 
         TransactionBufferSnapshot snapshot = reader.readNext().getValue();
-        assertEquals(snapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId3).getEntryId() + 1);
-        assertEquals(snapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId3).getLedgerId());
+        assertEquals(snapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId2).getEntryId() + 1);
+        assertEquals(snapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId2).getLedgerId());
         assertEquals(snapshot.getAborts().size(), 0);
         assertFalse(reader.hasMessageAvailable());
 
-        MessageId messageId4 = producer.newMessage(abortTxn).value("test").send();
+        MessageId messageId3 = producer.newMessage(abortTxn).value("test").send();
         abortTxn.abort().get();
 
-        transactionBufferSnapshot = reader.readNext().getValue();
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId4).getEntryId() + 1);
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId4).getLedgerId());
+        TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
+        assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId3).getEntryId() + 1);
+        assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId3).getLedgerId());
         assertEquals(transactionBufferSnapshot.getAborts().size(), 1);
         assertEquals(transactionBufferSnapshot.getAborts().get(0).getTxnIdLeastBits(),
                 ((TransactionImpl) abortTxn).getTxnIdLeastBits());
@@ -403,4 +386,187 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         }
         assertTrue(exist);
     }
+
+    @Test
+    public void clearTransactionBufferSnapshotTest() throws Exception {
+        String topic = NAMESPACE1 + "/tb-snapshot-delete-" + RandomUtils.nextInt();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        txn.commit().get();
+
+        // take snapshot
+        PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) originalTopic.getTransactionBuffer();
+        Method takeSnapshotMethod = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
+        takeSnapshotMethod.setAccessible(true);
+        takeSnapshotMethod.invoke(topicTransactionBuffer);
+
+        TopicName transactionBufferTopicName =
+                NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                        TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
+        PersistentTopic snapshotTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(transactionBufferTopicName.toString(), false).get().get();
+        Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
+        field.setAccessible(true);
+
+        // Trigger compaction and make sure it is finished.
+        checkSnapshotCount(transactionBufferTopicName, true, snapshotTopic, field);
+        admin.topics().delete(topic, true);
+        checkSnapshotCount(transactionBufferTopicName, false, snapshotTopic, field);
+    }
+
+    private void checkSnapshotCount(TopicName topicName, boolean hasSnapshot,
+                                    PersistentTopic persistentTopic, Field field) throws Exception {
+        persistentTopic.triggerCompaction();
+        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(persistentTopic);
+        Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
+
+        Reader<TransactionBufferSnapshot> reader = pulsarClient.newReader(Schema.AVRO(TransactionBufferSnapshot.class))
+                .readCompacted(true)
+                .startMessageId(MessageId.earliest)
+                .startMessageIdInclusive()
+                .topic(topicName.toString())
+                .create();
+
+        int count = 0;
+        while (true) {
+            Message<TransactionBufferSnapshot> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
+            if (snapshotMsg != null) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        assertTrue(hasSnapshot ? count > 0 : count == 0);
+        reader.close();
+    }
+
+
+    @Test(timeOut=30000)
+    public void testTransactionBufferRecoverThrowPulsarClientException() throws Exception {
+        String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        txn.commit().get();
+
+        producer.close();
+
+        PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        TransactionBufferSnapshotService transactionBufferSnapshotService =
+                mock(TransactionBufferSnapshotService.class);
+        SystemTopicClient.Reader<TransactionBufferSnapshot> reader = mock(SystemTopicClient.Reader.class);
+        SystemTopicClient.Writer<TransactionBufferSnapshot> writer = mock(SystemTopicClient.Writer.class);
+
+        doReturn(CompletableFuture.completedFuture(reader)).when(transactionBufferSnapshotService).createReader(any());
+        doReturn(CompletableFuture.completedFuture(writer)).when(transactionBufferSnapshotService).createWriter(any());
+        doReturn(CompletableFuture.completedFuture(null)).when(reader).closeAsync();
+        doReturn(CompletableFuture.completedFuture(null)).when(writer).closeAsync();
+        Field field = PulsarService.class.getDeclaredField("transactionBufferSnapshotService");
+        field.setAccessible(true);
+        TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal =
+                (TransactionBufferSnapshotService) field.get(getPulsarServiceList().get(0));
+        // mock reader can't read snapshot fail
+        doThrow(new PulsarClientException("test")).when(reader).hasMoreEvents();
+        // check reader close topic
+        checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
+                transactionBufferSnapshotService, originalTopic, field);
+        doReturn(true).when(reader).hasMoreEvents();
+
+        // mock create reader fail
+        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
+                .when(transactionBufferSnapshotService).createReader(any());
+        // check create reader fail close topic
+        originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
+                transactionBufferSnapshotService, originalTopic, field);
+        doReturn(CompletableFuture.completedFuture(reader)).when(transactionBufferSnapshotService).createReader(any());
+
+        // check create writer fail close topic
+        originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        // mock create writer fail
+        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
+                .when(transactionBufferSnapshotService).createWriter(any());
+        checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
+                transactionBufferSnapshotService, originalTopic, field);
+
+    }
+
+    private void checkCloseTopic(PulsarClient pulsarClient,
+                                 TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal,
+                                 TransactionBufferSnapshotService transactionBufferSnapshotService,
+                                 PersistentTopic originalTopic,
+                                 Field field) throws Exception {
+        field.set(getPulsarServiceList().get(0), transactionBufferSnapshotService);
+
+        // recover again will throw then close topic
+        new TopicTransactionBuffer(originalTopic);
+        Awaitility.await().untilAsserted(() -> {
+            // isFenced means closed
+            Field close = AbstractTopic.class.getDeclaredField("isFenced");
+            close.setAccessible(true);
+            assertTrue((boolean) close.get(originalTopic));
+        });
+
+        field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceOriginal);
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(originalTopic.getName())
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        txn.commit().get();
+        producer.close();
+    }
+
+
+    @Test
+    public void testTransactionBufferNoSnapshotCloseReader() throws Exception{
+        String topic = NAMESPACE1 + "/test";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
+                .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
+
+        admin.topics().unload(topic);
+
+        // unload success, all readers have been closed except for the compaction sub
+        producer.send("test");
+        TopicStats stats = admin.topics().getStats(NAMESPACE1 + "/" + TRANSACTION_BUFFER_SNAPSHOT);
+
+        // except for the compaction sub
+        assertEquals(stats.getSubscriptions().size(), 1);
+        assertTrue(stats.getSubscriptions().keySet().contains("__compaction"));
+    }
+
 }

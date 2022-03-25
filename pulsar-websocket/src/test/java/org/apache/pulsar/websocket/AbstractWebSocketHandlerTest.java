@@ -52,7 +52,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.mockito.Mock;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 public class AbstractWebSocketHandlerTest {
@@ -369,11 +368,12 @@ public class AbstractWebSocketHandlerTest {
         consumerHandler.clearQueryParams();
         consumerHandler.putQueryParam("receiverQueueSize", "1001");
         consumerHandler.putQueryParam("deadLetterTopic", "dead-letter-topic");
+        consumerHandler.putQueryParam("maxRedeliverCount", "3");
 
         conf = consumerHandler.getConf();
         // receive queue size is the minimum value of default value (1000) and user defined value(1001)
         assertEquals(conf.getReceiverQueueSize(), 1000);
         assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(), "dead-letter-topic");
-        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 0);
+        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 3);
     }
 }

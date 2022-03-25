@@ -33,6 +33,8 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -94,6 +96,21 @@ public interface Topic {
         default long getNumberOfMessages() {
             return  1L;
         }
+
+        default boolean isMarkerMessage() {
+            return false;
+        }
+
+        default void setProperty(String propertyName, Object value) {
+        }
+
+        default Object getProperty(String propertyName) {
+            return null;
+        }
+
+        default boolean isChunked() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
@@ -113,10 +130,24 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
+     * Wait TransactionBuffer Recovers completely.
+     * Take snapshot after TB Recovers completely.
+     * @param isTxnEnabled
+     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     */
+    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
+
+    /**
      * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
+    /**
+     * increase the publishing limited times.
+     */
+    long increasePublishLimitedTimes();
+
+    @Deprecated
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
                                           int priorityLevel, String consumerName, boolean isDurable,
                                           MessageId startMessageId,
@@ -124,6 +155,13 @@ public interface Topic {
                                           InitialPosition initialPosition,
                                           long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
                                           KeySharedMeta keySharedMeta);
+
+    /**
+     * Subscribe a topic.
+     * @param option
+     * @return
+     */
+    CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -182,7 +220,7 @@ public interface Topic {
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
-    boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType);
+    CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType);
 
     boolean isEncryptionRequired();
 
@@ -190,7 +228,7 @@ public interface Topic {
 
     boolean isReplicated();
 
-    BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType);
+    BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
@@ -200,7 +238,12 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize);
+    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                            boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
+                                                              boolean subscriptionBacklogSize,
+                                                              boolean getEarliestTimeInBacklog);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
@@ -242,9 +285,15 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
     default boolean isSystemTopic() {
         return false;
     }
+
+    boolean isPersistent();
 
     /* ------ Transaction related ------ */
 
@@ -273,5 +322,17 @@ public interface Topic {
      * @return
      */
     CompletableFuture<Void> truncate();
+
+    /**
+     * Get BrokerService.
+     * @return
+     */
+    BrokerService getBrokerService();
+
+    /**
+     * Get HierarchyTopicPolicies.
+     * @return
+     */
+    HierarchyTopicPolicies getHierarchyTopicPolicies();
 
 }

@@ -20,6 +20,13 @@ package org.apache.pulsar.io.redis.sink;
 
 import com.google.common.collect.Lists;
 import io.lettuce.core.RedisFuture;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.functions.api.Record;
@@ -28,14 +35,6 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 import org.apache.pulsar.io.redis.RedisSession;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A Simple Redis sink, which stores the key/value records from Pulsar in redis.
@@ -80,7 +79,7 @@ public class RedisSink implements Sink<byte[]> {
         batchSize = redisSinkConfig.getBatchSize();
         incomingList = Lists.newArrayList();
         flushExecutor = Executors.newScheduledThreadPool(1);
-        flushExecutor.scheduleAtFixedRate(() -> flush(), batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
+        flushExecutor.scheduleAtFixedRate(this::flush, batchTimeMs, batchTimeMs, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -91,7 +90,7 @@ public class RedisSink implements Sink<byte[]> {
             currentSize = incomingList.size();
         }
         if (currentSize == batchSize) {
-            flushExecutor.submit(() -> flush());
+            flushExecutor.submit(this::flush);
         }
     }
 
@@ -143,16 +142,17 @@ public class RedisSink implements Sink<byte[]> {
                 RedisFuture<?> future = redisSession.asyncCommands().mset(recordsToSet);
 
                 if (!future.await(operationTimeoutMs, TimeUnit.MILLISECONDS) || future.getError() != null) {
-                    log.warn("Operation failed with error {} or timeout {} is exceeded", future.getError(), operationTimeoutMs);
-                    recordsToFlush.forEach(tRecord -> tRecord.fail());
+                    log.warn("Operation failed with error {} or timeout {} is exceeded", future.getError(),
+                            operationTimeoutMs);
+                    recordsToFlush.forEach(Record::fail);
                     return;
                 }
             }
-            recordsToFlush.forEach(tRecord -> tRecord.ack());
+            recordsToFlush.forEach(Record::ack);
             recordsToSet.clear();
             recordsToFlush.clear();
         } catch (InterruptedException e) {
-            recordsToFlush.forEach(tRecord -> tRecord.fail());
+            recordsToFlush.forEach(Record::fail);
             log.error("Redis mset data interrupted exception ", e);
         }
     }

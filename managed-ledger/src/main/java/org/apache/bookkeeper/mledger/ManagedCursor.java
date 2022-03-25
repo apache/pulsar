@@ -20,11 +20,9 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -71,7 +69,7 @@ public interface ManagedCursor {
     long getLastActive();
 
     /**
-     * Update the last active time of the cursor
+     * Update the last active time of the cursor.
      *
      */
     void updateLastActive();
@@ -425,7 +423,11 @@ public interface ManagedCursor {
      * @param newReadPosition
      *            the position where to move the cursor
      */
-    void seek(Position newReadPosition);
+    default void seek(Position newReadPosition) {
+        seek(newReadPosition, false);
+    }
+
+    void seek(Position newReadPosition, boolean force);
 
     /**
      * Clear the cursor backlog.
@@ -472,7 +474,7 @@ public interface ManagedCursor {
      *            opaque context
      */
     void asyncSkipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries,
-            final SkipEntriesCallback callback, Object ctx);
+             SkipEntriesCallback callback, Object ctx);
 
     /**
      * Find the newest entry that matches the given predicate.  Will only search among active entries
@@ -497,7 +499,8 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
+    Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Find the newest entry that matches the given predicate.
@@ -522,17 +525,21 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void resetCursor(final Position position) throws InterruptedException, ManagedLedgerException;
+    void resetCursor(Position position) throws InterruptedException, ManagedLedgerException;
 
     /**
      * reset the cursor to specified position to enable replay of messages.
      *
      * @param position
      *            position to move the cursor to
+     * @param forceReset
+     *            whether to force reset the position even if the position is no longer in the managed ledger,
+     *            this is used by compacted topic which has data in the compacted ledger, to ensure the cursor can
+     *            read data from the compacted ledger.
      * @param callback
      *            callback object
      */
-    void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback);
+    void asyncResetCursor(Position position, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback);
 
     /**
      * Read the specified set of positions from ManagedLedger.
@@ -653,7 +660,7 @@ public interface ManagedCursor {
     int getNonContiguousDeletedMessagesRangeSerializedSize();
 
     /**
-     * Returns the estimated size of the unacknowledged backlog for this cursor
+     * Returns the estimated size of the unacknowledged backlog for this cursor.
      *
      * @return the estimated size from the mark delete position of the cursor
      */
@@ -673,20 +680,20 @@ public interface ManagedCursor {
     void setThrottleMarkDelete(double throttleMarkDelete);
 
     /**
-     * Get {@link ManagedLedger} attached with cursor
+     * Get {@link ManagedLedger} attached with cursor.
      *
      * @return ManagedLedger
      */
     ManagedLedger getManagedLedger();
 
     /**
-     * Get last individual deleted range
+     * Get last individual deleted range.
      * @return range
      */
     Range<PositionImpl> getLastIndividualDeletedRange();
 
     /**
-     * Trim delete entries for the given entries
+     * Trim delete entries for the given entries.
      */
     void trimDeletedEntries(List<Entry> entries);
 
@@ -706,4 +713,10 @@ public interface ManagedCursor {
      * @return if read position changed
      */
     boolean checkAndUpdateReadPositionChanged();
+
+    /**
+     * Checks if the cursor is closed.
+     * @return whether this cursor is closed.
+     */
+    boolean isClosed();
 }

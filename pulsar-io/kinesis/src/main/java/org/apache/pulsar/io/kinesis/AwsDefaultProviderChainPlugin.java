@@ -25,5 +25,6 @@ package org.apache.pulsar.io.kinesis;
  * @see org.apache.pulsar.io.aws.AwsDefaultProviderChainPlugin
  */
 @Deprecated
-public class AwsDefaultProviderChainPlugin extends org.apache.pulsar.io.aws.AwsDefaultProviderChainPlugin implements AwsCredentialProviderPlugin {
+public class AwsDefaultProviderChainPlugin extends org.apache.pulsar.io.aws.AwsDefaultProviderChainPlugin
+        implements AwsCredentialProviderPlugin {
 }

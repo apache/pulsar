@@ -23,7 +23,6 @@ import java.io.IOException;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 
 public class ContinuousAsyncProducer {
     public static void main(String[] args) throws InterruptedException, IOException {

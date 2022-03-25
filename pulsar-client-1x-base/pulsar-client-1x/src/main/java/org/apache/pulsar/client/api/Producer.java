@@ -93,7 +93,7 @@ public interface Producer extends Closeable {
     CompletableFuture<Void> flushAsync();
 
     /**
-     * Send a message
+     * Send a message.
      *
      * @param message
      *            a message
@@ -101,14 +101,14 @@ public interface Producer extends Closeable {
      * @throws PulsarClientException.TimeoutException
      *             if the message was not correctly received by the system within the timeout period
      *
-     * @deprecated since 2.0. Use {@link TypedMessageBuilder} as returned by {@link Producer#newMessage()} to create a
+     * @deprecated since 2.0. Use {@link TypedMessageBuilder} as returned by {@link Producer.newMessage()} to create a
      *             new message builder.
      */
     @Deprecated
     MessageId send(Message<byte[]> message) throws PulsarClientException;
 
     /**
-     * Send a message asynchronously
+     * Send a message asynchronously.
      * <p>
      * When the returned {@link CompletableFuture} is marked as completed successfully, the provided message will
      * contain the {@link MessageId} assigned by the broker to the published message.
@@ -153,7 +153,7 @@ public interface Producer extends Closeable {
     long getLastSequenceId();
 
     /**
-     * Get statistics for the producer
+     * Get statistics for the producer.
      *
      * <ul>
      * <li>numMsgsSent : Number of messages sent in the current interval

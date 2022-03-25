@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A schema for `java.time.Instant`.

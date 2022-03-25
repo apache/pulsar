@@ -26,7 +26,6 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
-import java.time.Clock;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -57,12 +56,8 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 )
 public class SchemasResource extends SchemasResourceBase {
 
-    public SchemasResource() {
-        super();
-    }
-
     @VisibleForTesting
-    public SchemasResource(Clock clock) {
+    public SchemasResource() {
         super();
     }
 
@@ -156,10 +151,11 @@ public class SchemasResource extends SchemasResourceBase {
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+        @QueryParam("force") @DefaultValue("false") boolean force,
         @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, namespace, topic);
-        deleteSchema(authoritative, response);
+        deleteSchema(authoritative, response, force);
     }
 
     @POST

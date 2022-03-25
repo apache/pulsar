@@ -21,7 +21,6 @@ package org.apache.pulsar.metadata.api.coordination;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -41,8 +40,6 @@ public interface LockManager<T> extends AutoCloseable {
      *
      * @param path
      *            the path of the resource on which to acquire the lock
-     * @param content
-     *            the payload of the lock
      * @return a future that will track the completion of the operation
      * @throws NotFoundException
      *             if the lock is not taken

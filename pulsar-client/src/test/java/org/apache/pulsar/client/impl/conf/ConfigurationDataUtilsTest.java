@@ -60,6 +60,8 @@ public class ConfigurationDataUtilsTest {
         config.put("maxLookupRedirects", 50);
         config.put("authParams", "testAuthParams");
         config.put("authParamMap", authParamMap);
+        config.put("dnsLookupBindAddress", "0.0.0.0");
+        config.put("dnsLookupBindPort", 0);
 
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
@@ -69,6 +71,8 @@ public class ConfigurationDataUtilsTest {
         assertEquals("testAuthParams", confData.getAuthParams());
         assertEquals("v1", confData.getAuthParamMap().get("k1"));
         assertEquals("v2", confData.getAuthParamMap().get("k2"));
+        assertEquals("0.0.0.0", confData.getDnsLookupBindAddress());
+        assertEquals(0, confData.getDnsLookupBindPort());
     }
 
     @Test

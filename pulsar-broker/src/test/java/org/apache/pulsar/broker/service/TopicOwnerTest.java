@@ -20,8 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 import java.util.LinkedHashMap;
@@ -40,14 +41,12 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -97,7 +96,7 @@ public class TopicOwnerTest {
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             configurations[i] = config;
@@ -312,14 +311,14 @@ public class TopicOwnerTest {
         Assert.assertEquals(partitions, allPartitionMap.size());
 
         Map<String, String> partitionedMap = new LinkedHashMap<>();
-        for(int i = 0; i < partitions; i++) {
+        for (int i = 0; i < partitions; i++) {
            String partitionTopicName = topic + "-partition-" + i;
            partitionedMap.put(partitionTopicName, pulsarAdmins[0].lookups().lookupTopic(partitionTopicName));
         }
 
         Assert.assertEquals(allPartitionMap.size(), partitionedMap.size());
 
-        for(Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
+        for (Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
             Assert.assertTrue(entry.getValue().equalsIgnoreCase(partitionedMap.get(entry.getKey())));
         }
 

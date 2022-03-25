@@ -18,7 +18,7 @@
  */
 #include "Commands.h"
 #include "MessageImpl.h"
-#include "Version.h"
+#include "VersionInternal.h"
 #include "pulsar/MessageBuilder.h"
 #include "LogUtils.h"
 #include "PulsarApi.pb.h"
@@ -141,16 +141,17 @@ SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId)
 }
 
 PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint64_t producerId,
-                                   uint64_t sequenceId, ChecksumType checksumType, const Message& msg) {
-    const proto::MessageMetadata& metadata = msg.impl_->metadata;
-    SharedBuffer& payload = msg.impl_->payload;
-
+                                   uint64_t sequenceId, ChecksumType checksumType,
+                                   const proto::MessageMetadata& metadata, const SharedBuffer& payload) {
     cmd.set_type(BaseCommand::SEND);
     CommandSend* send = cmd.mutable_send();
     send->set_producer_id(producerId);
     send->set_sequence_id(sequenceId);
     if (metadata.has_num_messages_in_batch()) {
         send->set_num_messages(metadata.num_messages_in_batch());
+    }
+    if (metadata.has_chunk_id()) {
+        send->set_is_chunk(true);
     }
 
     // / Wire format
@@ -199,7 +200,8 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
         int metadataStartIndex = checksumReaderIndex + checksumSize;
         uint32_t metadataChecksum =
             computeChecksum(0, headers.data() + metadataStartIndex, (writeIndex - metadataStartIndex));
-        uint32_t computedChecksum = computeChecksum(metadataChecksum, payload.data(), payload.writerIndex());
+        uint32_t computedChecksum =
+            computeChecksum(metadataChecksum, payload.data(), payload.readableBytes());
         // set computed checksum
         headers.setWriterIndex(checksumReaderIndex);
         headers.writeUnsignedInt(computedChecksum);
@@ -211,11 +213,11 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
 }
 
 SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
-                                  bool connectingThroughProxy) {
+                                  bool connectingThroughProxy, Result& result) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::CONNECT);
     CommandConnect* connect = cmd.mutable_connect();
-    connect->set_client_version(_PULSAR_VERSION_);
+    connect->set_client_version(_PULSAR_VERSION_INTERNAL_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
 
@@ -228,23 +230,33 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     }
 
     AuthenticationDataPtr authDataContent;
-    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+    result = authentication->getAuthData(authDataContent);
+    if (result != ResultOk) {
+        return SharedBuffer{};
+    }
+
+    if (authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
     }
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication) {
+SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication, Result& result) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::AUTH_RESPONSE);
     CommandAuthResponse* authResponse = cmd.mutable_authresponse();
-    authResponse->set_client_version(_PULSAR_VERSION_);
+    authResponse->set_client_version(_PULSAR_VERSION_INTERNAL_);
 
     AuthData* authData = authResponse->mutable_response();
     authData->set_auth_method_name(authentication->getAuthMethodName());
 
     AuthenticationDataPtr authDataContent;
-    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+    result = authentication->getAuthData(authDataContent);
+    if (result != ResultOk) {
+        return SharedBuffer{};
+    }
+
+    if (authDataContent->hasDataFromCommand()) {
         authData->set_auth_data(authDataContent->getCommandData());
     }
 
@@ -258,7 +270,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
                                     CommandSubscribe_InitialPosition subscriptionInitialPosition,
-                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy) {
+                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
+                                    int priorityLevel) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -272,6 +285,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_read_compacted(readCompacted);
     subscribe->set_initialposition(subscriptionInitialPosition);
     subscribe->set_replicate_subscription_state(replicateSubscriptionState);
+    subscribe->set_priority_level(priorityLevel);
 
     if (isBuiltInSchema(schemaInfo.getSchemaType())) {
         subscribe->set_allocated_schema(getSchema(schemaInfo));
@@ -641,6 +655,11 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
+            break;
+        case BaseCommand::TC_CLIENT_CONNECT_REQUEST:
+            return "TC_CLIENT_CONNECT_REQUEST";
+        case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
+            return "TC_CLIENT_CONNECT_RESPONSE";
             break;
     };
     BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));

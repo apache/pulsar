@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
 
 /**
  * Admin interface for namespaces management.
@@ -688,6 +689,19 @@ public interface Namespaces {
     CompletableFuture<Void> revokePermissionsOnNamespaceAsync(String namespace, String role);
 
     /**
+     * Get permission to role to access subscription's admin-api.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    Map<String, Set<String>> getPermissionOnSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get permission to role to access subscription's admin-api asynchronously.
+     * @param namespace
+     */
+    CompletableFuture<Map<String, Set<String>>> getPermissionOnSubscriptionAsync(String namespace);
+
+    /**
      * Grant permission to role to access subscription's admin-api.
      * @param namespace
      * @param subscription
@@ -1238,6 +1252,23 @@ public interface Namespaces {
             String namespace, AutoTopicCreationOverride autoTopicCreationOverride);
 
     /**
+     * Get the autoTopicCreation info within a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    AutoTopicCreationOverride getAutoTopicCreation(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the autoTopicCreation info within a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<AutoTopicCreationOverride> getAutoTopicCreationAsync(String namespace);
+
+    /**
      * Removes the autoTopicCreation policy for a given namespace.
      * <p/>
      * Allowing the broker to dictate the auto-creation policy.
@@ -1323,6 +1354,23 @@ public interface Namespaces {
             String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
 
     /**
+     * Get the autoSubscriptionCreation info within a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the autoSubscriptionCreation info within a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String namespace);
+
+    /**
      * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
      *
      * Request example:
@@ -1395,6 +1443,31 @@ public interface Namespaces {
      * @return the future of subscription types {@link Set<SubscriptionType>} the subscription types
      */
     CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace);
+
+    /**
+     * Removes the subscriptionTypesEnabled policy for a given namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     * @return
+     */
+    void removeSubscriptionTypesEnabled(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the subscriptionTypesEnabled policy for a given namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String namespace);
 
     /**
      * Removes the autoSubscriptionCreation policy for a given namespace.
@@ -2006,6 +2079,55 @@ public interface Namespaces {
             String namespace, String bundle, boolean unloadSplitBundles, String splitAlgorithmName);
 
     /**
+     * Split namespace bundle.
+     *
+     * @param namespace
+     * @param bundle range of bundle to split
+     * @param unloadSplitBundles
+     * @param splitAlgorithmName
+     * @param splitBoundaries
+     * @throws PulsarAdminException
+     */
+    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
+                              String splitAlgorithmName, List<Long> splitBoundaries) throws PulsarAdminException;
+
+    /**
+     * Split namespace bundle asynchronously.
+     *
+     * @param namespace
+     * @param bundle range of bundle to split
+     * @param unloadSplitBundles
+     * @param splitAlgorithmName
+     * @param splitBoundaries
+     */
+    CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle, boolean unloadSplitBundles,
+                                                      String splitAlgorithmName, List<Long> splitBoundaries);
+
+    /**
+     * Get positions for topic list in a bundle.
+     *
+     * @param namespace
+     * @param bundle range of bundle
+     * @param topics
+     * @return hash positions for all topics in topicList
+     * @throws PulsarAdminException
+     */
+    TopicHashPositions getTopicHashPositions(String namespace,
+                                             String bundle, List<String> topics) throws PulsarAdminException;
+
+    /**
+     * Get positions for topic list in a bundle.
+     *
+     * @param namespace
+     * @param bundle range of bundle
+     * @param topics
+     * @return hash positions for all topics in topicList
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<TopicHashPositions> getTopicHashPositionsAsync(String namespace,
+                                                                     String bundle, List<String> topics);
+
+    /**
      * Set message-publish-rate (topics under this namespace can publish this many messages per second).
      *
      * @param namespace
@@ -2439,6 +2561,23 @@ public interface Namespaces {
     void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
 
     /**
+     * Get the encryption required status within a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getEncryptionRequiredStatus(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the encryption required status within a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Boolean> getEncryptionRequiredStatusAsync(String namespace);
+
+    /**
      * Set the encryption required status for all topics within a namespace asynchronously.
      * <p/>
      * When encryption required is true, the broker will prevent to store unencrypted messages.
@@ -2645,6 +2784,23 @@ public interface Namespaces {
      * @param subscriptionAuthMode
      */
     CompletableFuture<Void> setSubscriptionAuthModeAsync(String namespace, SubscriptionAuthMode subscriptionAuthMode);
+
+    /**
+     * Get the subscriptionAuthMode within a namespace.
+     *
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    SubscriptionAuthMode getSubscriptionAuthMode(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the subscriptionAuthMode within a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<SubscriptionAuthMode> getSubscriptionAuthModeAsync(String namespace);
 
     /**
      * Get the deduplicationSnapshotInterval for a namespace.
@@ -3539,6 +3695,7 @@ public interface Namespaces {
 
     /**
      * Get schema validation enforced for namespace.
+     * @param namespace namespace for this command.
      * @return the schema validation enforced flag
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -3547,15 +3704,38 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    boolean getSchemaValidationEnforced(String namespace)
-            throws PulsarAdminException;
+    boolean getSchemaValidationEnforced(String namespace) throws PulsarAdminException;
 
     /**
      * Get schema validation enforced for namespace asynchronously.
+     * @param namespace namespace for this command.
      *
      * @return the schema validation enforced flag
      */
     CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace);
+
+    /**
+     * Get schema validation enforced for namespace.
+     * @param namespace namespace for this command.
+     * @param applied applied for this command.
+     * @return the schema validation enforced flag
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    boolean getSchemaValidationEnforced(String namespace, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for namespace asynchronously.
+     * @param namespace namespace for this command.
+     * @param applied applied for this command.
+     *
+     * @return the schema validation enforced flag
+     */
+    CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace, boolean applied);
 
     /**
      * Set schema validation enforced for namespace.

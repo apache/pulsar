@@ -47,8 +47,8 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -126,13 +126,16 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return time of the earliest message in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicOwnership(topicName, authoritative);
         validateTopicOperation(topicName, TopicOperation.GET_STATS);
 
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize);
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize,
+                getEarliestTimeInBacklog);
     }
 
     @GET
@@ -199,7 +202,8 @@ public class NonPersistentTopics extends PersistentTopics {
                     int numPartitions,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
-            validateGlobalNamespaceOwnership(tenant, namespace);
+            validateNamespaceName(tenant, namespace);
+            validateGlobalNamespaceOwnership();
             validateTopicName(tenant, namespace, encodedTopic);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
@@ -237,7 +241,9 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
             @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
-            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize,
+            @ApiParam(value = "If return the earliest time in backlog")
+            @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             if (topicName.isGlobal()) {
@@ -263,7 +269,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         topicStatsFutureList
                                 .add(pulsar().getAdminClient().topics().getStatsAsync(
                                         (topicName.getPartition(i).toString()), getPreciseBacklog,
-                                        subscriptionBacklogSize));
+                                        subscriptionBacklogSize, getEarliestTimeInBacklog));
                     } catch (PulsarServerException e) {
                         asyncResponse.resume(new RestException(e));
                         return;
@@ -288,10 +294,10 @@ public class NonPersistentTopics extends PersistentTopics {
                         }
                     }
                     if (perPartition && stats.partitions.isEmpty()) {
-                        String path = ZkAdminPaths.partitionedTopicPath(topicName);
                         try {
-                            boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
-                            if (zkPathExists) {
+                            boolean topicExists = namespaceResources().getPartitionedTopicResources()
+                                    .partitionedTopicExists(topicName);
+                            if (topicExists) {
                                 stats.getPartitions().put(topicName.toString(), new NonPersistentTopicStatsImpl());
                             } else {
                                 asyncResponse.resume(
@@ -369,7 +375,9 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the bundle name", required = false)
+            @QueryParam("bundle") String nsBundle) {
         Policies policies = null;
         try {
             validateNamespaceName(tenant, namespace);
@@ -393,6 +401,9 @@ public class NonPersistentTopics extends PersistentTopics {
         final List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+            if (StringUtils.isNotBlank(nsBundle) && !nsBundle.equals(bundle)) {
+                continue;
+            }
             try {
                 futures.add(pulsar().getAdminClient().topics().getListInBundleAsync(namespaceName.toString(), bundle));
             } catch (PulsarServerException e) {
@@ -403,26 +414,23 @@ public class NonPersistentTopics extends PersistentTopics {
             }
         }
 
-        final List<String> topics = Lists.newArrayList();
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            for (int i = 0; i < futures.size(); i++) {
-                try {
-                    if (futures.get(i).isDone() && futures.get(i).get() != null) {
-                        topics.addAll(futures.get(i).get());
+        FutureUtil.waitForAll(futures).whenComplete((result, ex) -> {
+            if (ex != null) {
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+            } else {
+                final List<String> topics = Lists.newArrayList();
+                for (int i = 0; i < futures.size(); i++) {
+                    List<String> topicList = futures.get(i).join();
+                    if (topicList != null) {
+                        topics.addAll(topicList);
                     }
-                } catch (InterruptedException | ExecutionException e) {
-                    log.error("[{}] Failed to get list of topics under namespace {}", clientAppId(), namespaceName, e);
-                    asyncResponse.resume(new RestException(e instanceof ExecutionException ? e.getCause() : e));
-                    return null;
                 }
+                final List<String> nonPersistentTopics =
+                        topics.stream()
+                                .filter(name -> !TopicName.get(name).isPersistent())
+                                .collect(Collectors.toList());
+                asyncResponse.resume(nonPersistentTopics);
             }
-
-            final List<String> nonPersistentTopics =
-                    topics.stream()
-                            .filter(name -> !TopicName.get(name).isPersistent())
-                            .collect(Collectors.toList());
-            asyncResponse.resume(nonPersistentTopics);
-            return null;
         });
     }
 
@@ -534,7 +542,7 @@ public class NonPersistentTopics extends PersistentTopics {
     private Topic getTopicReference(TopicName topicName) {
         try {
             return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());

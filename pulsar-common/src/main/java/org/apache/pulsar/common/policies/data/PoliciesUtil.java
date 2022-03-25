@@ -20,10 +20,10 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
-import org.apache.pulsar.common.util.RestException;
-import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
+import javax.ws.rs.core.Response;
+import org.apache.pulsar.common.util.RestException;
 
 /**
  * Utils of Pulsar policies.

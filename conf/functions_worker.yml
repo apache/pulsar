@@ -26,12 +26,21 @@ workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
-# Configuration Store connection string
-configurationStoreServers: localhost:2181
-# ZooKeeper session timeout in milliseconds
-zooKeeperSessionTimeoutMillis: 30000
-# ZooKeeper operation timeout in seconds
-zooKeeperOperationTimeoutSeconds: 30
+# The Configuration metadata store url
+# Examples:
+# * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
+# * my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 (will default to ZooKeeper when the schema is not specified)
+# * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181/my-chroot-path (to add a ZK chroot path)
+configurationMetadataStoreUrl: zk:localhost:2181
+
+# Metadata store session timeout in milliseconds
+metadataStoreSessionTimeoutMillis: 30000
+
+# Metadata store operation timeout in seconds
+metadataStoreOperationTimeoutSeconds: 30
+
+# Metadata store cache expiry time in seconds
+metadataStoreCacheExpirySeconds: 300
 
 ################################
 # Function package management
@@ -43,7 +52,7 @@ downloadDirectory: download/pulsar_functions
 # jvmGCMetricsLoggerClassName:
 
 #################################################################
-# Function metadata managment (assignment, scheduling, and etc)
+# Function metadata management (assignment, scheduling, and etc)
 #################################################################
 
 # Configure the pulsar client used by function metadata management
@@ -74,7 +83,7 @@ pulsarWebServiceUrl: http://localhost:8080
 #
 # Authentication plugin to use when connecting to bookies
 # bookkeeperClientAuthenticationPlugin:
-# BookKeeper auth plugin implementatation specifics parameters name and values
+# BookKeeper auth plugin implementation specifics parameters name and values
 # bookkeeperClientAuthenticationParametersName:
 # Parameters for bookkeeper auth plugin
 # bookkeeperClientAuthenticationParameters:
@@ -126,6 +135,10 @@ functionRuntimeFactoryConfigs:
     # change the extra dependencies location:
     extraFunctionDependenciesDir:
 
+#### Additional JVM tuning (only process and Kubernetes runtime) ####
+#   This arguments will be added to the command line execution of 'java'
+#additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError']
+
 #### Thread Runtime ####
 # Pulsar function instances are run as threads
 
@@ -143,6 +156,9 @@ functionRuntimeFactoryConfigs:
 #### Kubernetes Runtime ####
 # Pulsar function are deployed to Kubernetes
 
+# Upload the builtin sources/sinks to BookKeeper.
+# True by default.
+# uploadBuiltinSinksSources: true
 #functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory
 #functionRuntimeFactoryConfigs:
 #    # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
@@ -206,6 +222,7 @@ functionRuntimeFactoryConfigs:
 #    # The port inside the function pod which is used by the worker to communicate with the pod
 #    grpcPort: 9093
 #    # The port inside the function pod on which prometheus metrics are exposed
+#    # An empty value disables prometheus metrics.
 #    metricsPort: 9094
 #    # The directory inside the function pod where nar packages will be extracted
 #    narExtractionDirectory:
@@ -216,6 +233,10 @@ functionRuntimeFactoryConfigs:
 #    extraFunctionDependenciesDir:
 #    # Additional memory padding added on top of the memory requested by the function per on a per instance basis
 #    percentMemoryPadding: 10
+#    # The duration in seconds before the StatefulSet deleted on function stop/restart.
+#    # Value must be non-negative integer. The value zero indicates delete immediately.
+#    # Default is 5 seconds.
+#    gracePeriodSeconds: 5
 
 ## A set of the minimum amount of resources functions must request.
 ## Support for this depends on function runtime.
@@ -311,9 +332,20 @@ tlsCertRefreshCheckDurationSec: 300
 connectorsDirectory: ./connectors
 functionsDirectory: ./functions
 
-# Should connector config be validated during during submission
+# Should connector config be validated during submission
 validateConnectorConfig: false
 
 # Whether to initialize distributed log metadata by runtime.
 # If it is set to true, you must ensure that it has been initialized by "bin/pulsar initialize-cluster-metadata" command.
 initializedDlogMetadata: false
+
+### --- Deprecated settings --- ###
+configurationStoreServers: localhost:2181
+
+# ZooKeeper session timeout in milliseconds
+# Deprecated: use metadataStoreSessionTimeoutMillis
+zooKeeperSessionTimeoutMillis: -1
+
+# ZooKeeper operation timeout in seconds
+# Deprecated: use metadataStoreOperationTimeoutSeconds
+zooKeeperOperationTimeoutSeconds: -1

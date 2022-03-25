@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -26,10 +28,15 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -50,39 +57,112 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        this.interceptor.beforeSendMessage(
-            subscription, entry, ackSet, msgMetadata);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.beforeSendMessage(
+                    subscription, entry, ackSet, msgMetadata);
+        }
+    }
+
+    @Override
+    public void producerCreated(ServerCnx cnx, Producer producer,
+                                Map<String, String> metadata){
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.producerCreated(cnx, producer, metadata);
+        }
+    }
+
+    @Override
+    public void consumerCreated(ServerCnx cnx,
+                                Consumer consumer,
+                                Map<String, String> metadata) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.consumerCreated(
+                    cnx, consumer, metadata);
+        }
+    }
+
+    @Override
+    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
+                                long entryId, Topic.PublishContext publishContext) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
+        }
+    }
+
+    @Override
+    public  void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
+                                   long entryId, ByteBuf headersAndPayload) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
+        }
+    }
+
+    @Override
+    public void messageAcked(ServerCnx cnx, Consumer consumer,
+                             CommandAck ackCmd) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.messageAcked(cnx, consumer, ackCmd);
+        }
+    }
+
+    @Override
+    public void txnOpened(long tcId, String txnID) {
+        this.interceptor.txnOpened(tcId, txnID);
+    }
+
+    @Override
+    public void txnEnded(String txnID, long txnAction) {
+        this.interceptor.txnEnded(txnID, txnAction);
+    }
+
+    @Override
+    public void onConnectionCreated(ServerCnx cnx) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onConnectionCreated(cnx);
+        }
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
-        this.interceptor.onPulsarCommand(command, cnx);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onPulsarCommand(command, cnx);
+        }
     }
 
     @Override
     public void onConnectionClosed(ServerCnx cnx) {
-        this.interceptor.onConnectionClosed(cnx);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onConnectionClosed(cnx);
+        }
     }
 
     @Override
     public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
-        this.interceptor.onWebserviceRequest(request);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onWebserviceRequest(request);
+        }
     }
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response)
             throws IOException, ServletException {
-        this.interceptor.onWebserviceResponse(request, response);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onWebserviceResponse(request, response);
+        }
     }
 
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
-        this.interceptor.initialize(pulsarService);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.initialize(pulsarService);
+        }
     }
 
     @Override
     public void close() {
-        interceptor.close();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            interceptor.close();
+        }
         try {
             classLoader.close();
         } catch (IOException e) {

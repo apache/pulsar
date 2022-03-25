@@ -43,7 +43,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -100,7 +99,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         ManagedCursor cursor = ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get())
-                .getManagedLedger().newNonDurableCursor(PositionImpl.earliest);
+                .getManagedLedger().newNonDurableCursor(PositionImpl.EARLIEST);
 
         if (batchEnabled) {
             for (int i = 0; i < n - 1; i++) {

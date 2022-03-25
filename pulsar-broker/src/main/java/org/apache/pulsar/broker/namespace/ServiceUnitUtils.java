@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -35,9 +34,9 @@ public final class ServiceUnitUtils {
     /**
      * <code>ZooKeeper</code> root path for namespace ownership info.
      */
-    public static final String OWNER_INFO_ROOT = LocalZooKeeperCacheService.OWNER_INFO_ROOT;
+    private static final String OWNER_INFO_ROOT = "/namespace";
 
-    public static String path(NamespaceBundle suname) {
+    static String path(NamespaceBundle suname) {
         // The ephemeral node path for new namespaces should always have bundle name appended
         return OWNER_INFO_ROOT + "/" + suname.toString();
     }

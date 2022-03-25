@@ -82,6 +82,10 @@ public class PulsarVersion {
         }
     }
 
+    public static String getGitBranch() {
+        return "${git.branch}";
+    }
+
     public static String getBuildUser() {
         String email = "${git.build.user.email}";
         String name = "${git.build.user.name}";

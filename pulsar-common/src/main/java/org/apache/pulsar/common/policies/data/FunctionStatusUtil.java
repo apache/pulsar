@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import java.io.IOException;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class FunctionStatusUtil {
     public static FunctionStatus decode(String json) throws IOException {

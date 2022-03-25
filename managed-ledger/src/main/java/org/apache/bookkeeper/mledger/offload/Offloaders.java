@@ -39,8 +39,8 @@ public class Offloaders implements AutoCloseable {
                 return factory.getRight();
             }
         }
-        throw new IOException("No offloader found for driver '" + driverName + "'." +
-            " Please make sure you dropped the offloader nar packages under `${PULSAR_HOME}/offloaders`.");
+        throw new IOException("No offloader found for driver '" + driverName + "'."
+                + " Please make sure you dropped the offloader nar packages under `${PULSAR_HOME}/offloaders`.");
     }
 
     @Override

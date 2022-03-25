@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.ErrorHandler;
 import org.apache.logging.log4j.core.Layout;
@@ -26,9 +28,6 @@ import org.apache.logging.log4j.core.LogEvent;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
 
 /**
  * LogAppender class that is used to send log statements from Pulsar Functions logger
@@ -108,7 +107,7 @@ public class LogAppender implements Appender {
                     .property("function", fqn)
                     .create();
         } catch (Exception e) {
-            throw new RuntimeException("Error starting LogTopic Producer", e);
+            throw new RuntimeException("Error starting LogTopic Producer for function " + fqn, e);
         }
         this.state = State.STARTED;
     }
@@ -116,8 +115,10 @@ public class LogAppender implements Appender {
     @Override
     public void stop() {
         this.state = State.STOPPING;
-        producer.closeAsync();
-        producer = null;
+        if (producer != null) {
+            producer.closeAsync();
+            producer = null;
+        }
         this.state = State.STOPPED;
     }
 

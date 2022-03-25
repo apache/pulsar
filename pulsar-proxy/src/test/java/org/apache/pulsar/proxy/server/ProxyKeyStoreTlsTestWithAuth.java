@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 
 import com.google.common.collect.Sets;
@@ -78,6 +78,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
@@ -91,8 +92,8 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
         proxyConfig.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
 
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
         // config for authentication and authorization.
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
@@ -195,7 +196,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
         }
     }
 

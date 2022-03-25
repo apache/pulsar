@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.tutorial;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -26,9 +27,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-
-import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,7 +38,7 @@ public class SampleAsyncProducer {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")
                 .sendTimeout(3, TimeUnit.SECONDS).create();
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
             final String content = "my-message-" + i;

@@ -19,27 +19,24 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkState;
-
+import java.util.Optional;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.Optional;
 
 /**
  * Schema from a native Apache Avro schema.
- * This class is supposed to be used on the producer side for working with existing data serialized in Avro, 
+ * This class is supposed to be used on the producer side for working with existing data serialized in Avro,
  * possibly stored in another system like Kafka.
- * For this reason, it will not perform bytes validation against the schema in encoding and decoding, 
+ * For this reason, it will not perform bytes validation against the schema in encoding and decoding,
  * which are just identify functions.
- * This class also makes it possible for users to bring in their own Avro serialization method. 
+ * This class also makes it possible for users to bring in their own Avro serialization method.
  */
 public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
 
     private Schema<T> schema;
     private org.apache.avro.Schema nativeSchema;
-    
+
     public NativeAvroBytesSchema(org.apache.avro.Schema schema) {
         setSchema(schema);
     }
@@ -59,8 +56,9 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
     }
 
     private static org.apache.avro.Schema validateSchema (Object schema) {
-        if (! (schema instanceof org.apache.avro.Schema)) 
+        if (!(schema instanceof org.apache.avro.Schema)) {
             throw new IllegalArgumentException("The input schema is not of type 'org.apache.avro.Schema'.");
+        }
         return (org.apache.avro.Schema) schema;
     }
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.cache;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -43,7 +44,7 @@ public class BundlesQuotasTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
 
         PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
@@ -75,7 +76,9 @@ public class BundlesQuotasTest {
     @Test
     public void testGetSetBundleQuota() throws Exception {
         BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
-        NamespaceBundle testBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-2"));
+        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-2"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
         ResourceQuota quota2 = new ResourceQuota();
         quota2.setMsgRateIn(10);
         quota2.setMsgRateOut(20);

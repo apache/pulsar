@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
@@ -33,10 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +45,9 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("checkstyle:javadoctype")
 public class EntryCacheManager {
 
-    private final long maxSize;
-    private final long evictionTriggerThreshold;
-    private final double cacheEvictionWatermark;
+    private volatile long maxSize;
+    private volatile long evictionTriggerThreshold;
+    private volatile double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
     private final ConcurrentMap<String, EntryCache> caches = Maps.newConcurrentMap();
     private final EntryCacheEvictionPolicy evictionPolicy;
@@ -85,6 +86,15 @@ public class EntryCacheManager {
         } else {
             return newEntryCache;
         }
+    }
+
+    public void updateCacheSizeAndThreshold(long maxSize) {
+        this.maxSize = maxSize;
+        this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
+    }
+
+    public void updateCacheEvictionWatermark(double cacheEvictionWatermark) {
+        this.cacheEvictionWatermark = cacheEvictionWatermark;
     }
 
     void removeEntryCache(String name) {
@@ -148,15 +158,21 @@ public class EntryCacheManager {
         return maxSize;
     }
 
+    public double getCacheEvictionWatermark() {
+        return cacheEvictionWatermark;
+    }
+
     public void clear() {
         caches.values().forEach(EntryCache::clear);
     }
 
     protected class EntryCacheDisabled implements EntryCache {
         private final ManagedLedgerImpl ml;
+        private final ManagedLedgerInterceptor interceptor;
 
         public EntryCacheDisabled(ManagedLedgerImpl ml) {
             this.ml = ml;
+            this.interceptor = ml.getManagedLedgerInterceptor();
         }
 
         @Override
@@ -193,18 +209,14 @@ public class EntryCacheManager {
         @Override
         public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                 final ReadEntriesCallback callback, Object ctx) {
-            lh.readAsync(firstEntry, lastEntry).whenComplete(
-                    (ledgerEntries, exception) -> {
-                        if (exception != null) {
-                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                            return;
-                        }
+            lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
+                    ledgerEntries -> {
                         List<Entry> entries = Lists.newArrayList();
                         long totalSize = 0;
                         try {
                             for (LedgerEntry e : ledgerEntries) {
                                 // Insert the entries at the end of the list (they will be unsorted for now)
-                                EntryImpl entry = EntryImpl.create(e);
+                                EntryImpl entry = create(e, interceptor);
                                 entries.add(entry);
                                 totalSize += entry.getLength();
                             }
@@ -215,10 +227,10 @@ public class EntryCacheManager {
                         ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
                         callback.readEntriesComplete(entries, ctx);
-                    }).exceptionally(exception -> {
-                    	callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                    	return null;
-                    });
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                        callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                        return null;
+            });
         }
 
         @Override
@@ -236,13 +248,14 @@ public class EntryCacheManager {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
                                 LedgerEntry ledgerEntry = iterator.next();
-                                EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+                                EntryImpl returnEntry = create(ledgerEntry, interceptor);
 
                                 mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.getMBean().addReadEntriesSample(1, returnEntry.getLength());
                                 callback.readEntryComplete(returnEntry, ctx);
                             } else {
-                                callback.readEntryFailed(new ManagedLedgerException("Could not read given position"), ctx);
+                                callback.readEntryFailed(new ManagedLedgerException("Could not read given position"),
+                                        ctx);
                             }
                         } finally {
                             ledgerEntries.close();
@@ -264,6 +277,27 @@ public class EntryCacheManager {
 
     public static Entry create(long ledgerId, long entryId, ByteBuf data) {
         return EntryImpl.create(ledgerId, entryId, data);
+    }
+
+    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor) {
+        ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
+        if (interceptor != null) {
+            ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
+            processorHandle = interceptor
+                    .processPayloadBeforeEntryCache(duplicateBuffer);
+            if (processorHandle != null) {
+                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(),
+                        ledgerEntry.getLength(), processorHandle.getProcessedPayload());
+            } else {
+                duplicateBuffer.release();
+            }
+        }
+        EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+        if (processorHandle != null) {
+            processorHandle.release();
+            ledgerEntry.close();
+        }
+        return returnEntry;
     }
 
     private static final Logger log = LoggerFactory.getLogger(EntryCacheManager.class);

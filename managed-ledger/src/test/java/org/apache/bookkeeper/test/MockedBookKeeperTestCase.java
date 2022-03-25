@@ -22,13 +22,12 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +67,7 @@ public abstract class MockedBookKeeperTestCase {
     public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
         metadataStore = new FaultInjectionMetadataStore(
-                MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build()));
+                MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build()));
 
         try {
             // start bookkeeper service

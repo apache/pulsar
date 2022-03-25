@@ -21,7 +21,6 @@ package org.apache.pulsar.tests;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
-
 import org.testng.IAnnotationTransformer;
 import org.testng.annotations.IConfigurationAnnotation;
 import org.testng.annotations.ITestAnnotation;

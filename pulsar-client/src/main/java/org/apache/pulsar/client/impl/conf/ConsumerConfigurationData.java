@@ -19,18 +19,16 @@
 package org.apache.pulsar.client.impl.conf;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -42,6 +40,8 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -53,13 +53,15 @@ import org.apache.pulsar.client.api.SubscriptionType;
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
-    private Set<String> topicNames = Sets.newTreeSet();
+    private Set<String> topicNames = new TreeSet<>();
 
     private Pattern topicsPattern;
 
     private String subscriptionName;
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    private Map<String, String> subscriptionProperties;
 
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
@@ -68,6 +70,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @JsonIgnore
     private ConsumerEventListener consumerEventListener;
+
+    @JsonIgnore
+    private RedeliveryBackoff negativeAckRedeliveryBackoff;
+
+    @JsonIgnore
+    private RedeliveryBackoff ackTimeoutRedeliveryBackoff;
 
     private int receiverQueueSize = 1000;
 
@@ -106,7 +114,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-    private long expireTimeOfIncompleteChunkedMessageMillis = 60 * 1000;
+    private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.MINUTES.toMillis(1);
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
@@ -146,8 +154,13 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean batchIndexAckEnabled = false;
 
     private boolean ackReceiptEnabled = false;
-    
+
     private boolean poolMessages = false;
+
+    @JsonIgnore
+    private transient MessagePayloadProcessor payloadProcessor = null;
+
+    private boolean startPaused = false;
 
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
@@ -165,7 +178,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
             c.topicNames = Sets.newTreeSet(this.topicNames);
-            c.properties = Maps.newTreeMap(this.properties);
+            c.properties = new TreeMap<>(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ConsumerConfigurationData");

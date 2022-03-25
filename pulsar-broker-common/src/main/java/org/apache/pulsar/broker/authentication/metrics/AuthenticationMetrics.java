@@ -33,7 +33,7 @@ public class AuthenticationMetrics {
             .register();
 
     /**
-     * Log authenticate success event to the authentication metrics
+     * Log authenticate success event to the authentication metrics.
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name
      */

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -86,7 +86,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
                 // if lower and upper has different key/ledger then set ranges for lower-key only if
                 // a. bitSet already exist and given value is not the last value in the bitset.
                 // it will prevent setting up values which are not actually expected to set
-                // eg: (2:10..4:10] in this case , don't set any value for 2:10 and set [4:0..4:10]
+                // eg: (2:10..4:10] in this case, don't set any value for 2:10 and set [4:0..4:10]
                 if (rangeBitSet != null && (rangeBitSet.previousSetBit(rangeBitSet.size()) > lowerValueOpen)) {
                     int lastValue = rangeBitSet.previousSetBit(rangeBitSet.size());
                     rangeBitSet.set((int) lowerValue, (int) Math.max(lastValue, lowerValue) + 1);
@@ -152,14 +152,12 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         if (rangeBitSetMap.isEmpty()) {
             return true;
         }
-        AtomicBoolean isEmpty = new AtomicBoolean(false);
-        rangeBitSetMap.forEach((key, val) -> {
-            if (!isEmpty.get()) {
-                return;
+        for (BitSet rangeBitSet : rangeBitSetMap.values()) {
+            if (!rangeBitSet.isEmpty()) {
+                return false;
             }
-            isEmpty.set(val.isEmpty());
-        });
-        return isEmpty.get();
+        }
+        return true;
     }
 
     @Override
@@ -171,7 +169,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public Range<T> span() {
-        if (rangeBitSetMap.size() == 0) {
+        if (rangeBitSetMap.isEmpty()) {
             return null;
         }
         Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
@@ -309,7 +307,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     public boolean contains(LongPair position) {
-        checkNotNull(position, "argument can't be null");
+        requireNonNull(position, "argument can't be null");
         return contains(position.getKey(), position.getValue());
     }
 

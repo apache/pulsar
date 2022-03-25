@@ -86,6 +86,19 @@ public class AuthenticationOAuth2Test {
         params.put("privateKey", "data:base64,e30=");
         params.put("issuerUrl", "http://localhost");
         params.put("audience", "http://localhost");
+        params.put("scope", "http://localhost");
+        ObjectMapper mapper = new ObjectMapper();
+        String authParams = mapper.writeValueAsString(params);
+        this.auth.configure(authParams);
+        assertNotNull(this.auth.flow);
+    }
+
+    @Test
+    public void testConfigureWithoutOptionalParams() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put("type", "client_credentials");
+        params.put("privateKey", "data:base64,e30=");
+        params.put("issuerUrl", "http://localhost");
         ObjectMapper mapper = new ObjectMapper();
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);

@@ -19,6 +19,12 @@
 package org.apache.pulsar.admin.cli;
 
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import com.beust.jcommander.DefaultUsageFormatter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Schemas;
@@ -26,13 +32,6 @@ import org.apache.pulsar.client.admin.Topics;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
 
 public class DeprecatedCommanderTest {
     PulsarAdmin admin;
@@ -67,7 +66,7 @@ public class DeprecatedCommanderTest {
         assertTrue(defaultOutput.contains("enable-deduplication"));
         assertFalse(outputWithFiltered.contains("get-max-unacked-messages-on-consumer"));
         assertTrue(defaultOutput.contains("get-max-unacked-messages-on-consumer"));
-        assertTrue(outputWithFiltered.contains("get-deduplication"));
+        assertFalse(outputWithFiltered.contains("get-deduplication"));
         assertTrue(defaultOutput.contains("get-deduplication"));
 
         // annotation was changed to hidden, reset it.

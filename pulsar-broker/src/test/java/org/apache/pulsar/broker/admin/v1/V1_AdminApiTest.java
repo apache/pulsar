@@ -58,7 +58,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -119,7 +118,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(V1_AdminApiTest.class);
@@ -471,7 +470,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // (2) try to update non-dynamic field
         try {
-            admin.brokers().updateDynamicConfiguration("zookeeperServers", "test-zk:1234");
+            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
@@ -502,7 +501,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         final int newValue = 10;
 
         // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(),
+        pulsar.getLocalMetadataStore().put("/admin/configuration", "$".getBytes(),
                 Optional.empty()).join();
         stopBroker();
 
@@ -512,7 +511,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         // update zk with config-value which should fire watch and broker should update the config value
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+        pulsar.getLocalMetadataStore().put("/admin/configuration",
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated
@@ -650,6 +649,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         Policies policies = new Policies();
         policies.bundles = PoliciesUtil.defaultBundle();
         policies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.allOf(AuthAction.class));
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/use/ns1"), policies.auth_policies.getNamespaceAuthentication());
@@ -658,6 +658,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().revokePermissionsOnNamespace("prop-xyz/use/ns1", "my-role");
         policies.auth_policies.getNamespaceAuthentication().remove("my-role");
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
 
         assertNull(admin.namespaces().getPersistence("prop-xyz/use/ns1"));

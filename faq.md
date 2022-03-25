@@ -25,7 +25,7 @@ There are few parameters to look at :
 4. Initially the default is to have 4 “bundles” for a namespace
 5. When the traffic increases on a given bundle, it will be split in 2 and reassigned to a different broker
 6. There are some adjustable thresholds that can be used to control when the split happens, based on number of topics/partitions, messages in/out, bytes in/out, etc..
-7. It’s also possible to specify a higher number of bundles when creating a namepsac
+7. It’s also possible to specify a higher number of bundles when creating a namespace
 8. There are the load-manager threshold that control when a broker should offload some of the bundles to other brokers
 
 ### What is the lifecycle of subscription?
@@ -160,7 +160,7 @@ Once you reconnect, the subscription will still be there and it will be position
 ### I want some produce lock, i.e., to pessimistically or optimistically lock a specified topic so only one producer can write at a time and all further producers know they have to reprocess data before trying again to write a topic.
 To ensure only one producer is connected, you just need to use the same "producerName", the broker will ensure that no 2 producers with same name are publishing on a given topic.
 
-### I tested the performance using PerformanceProducer between two server node with 10,000Mbits NIC(and I tested tcp throughput can be larger than 1GB/s). I saw that the max msg throughput is around 1000,000 msg/s when using little msg_size(such as 64/128Bytes), when I increased the msg_size to 1028 or larger , then the msg/s will decreased sharply to 150,000msg/s, and both has max throughput around   1600Mbit/s, which is far from 1GB/s.  And I'm curious that the throughput between producer and broker why can't excess 1600Mbit/s ?  It seems that the Producer executor only use one thread, is this the reason？Then I start two producer client jvm, the throughput increased not much, just about little beyond 1600Mbit/s. Any other reasons?
+### I tested the performance using PerformanceProducer between two server node with 10,000Mbits NIC(and I tested tcp throughput can be larger than 1GB/s). I saw that the max msg throughput is around 1000,000 msg/s when using little msg_size(such as 64/128Bytes), when I increased the msg_size to 1028 or larger, then the msg/s will decreased sharply to 150,000msg/s, and both has max throughput around   1600Mbit/s, which is far from 1GB/s.  And I'm curious that the throughput between producer and broker why can't excess 1600Mbit/s ?  It seems that the Producer executor only use one thread, is this the reason？Then I start two producer client jvm, the throughput increased not much, just about little beyond 1600Mbit/s. Any other reasons?
 Most probably, when increasing the payload size, you're reaching the disk max write rate on a single bookie.
 
 There are few tricks that can be used to increase throughput (other than just partitioning)

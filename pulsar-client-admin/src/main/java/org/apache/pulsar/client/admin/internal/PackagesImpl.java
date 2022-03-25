@@ -25,11 +25,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -63,16 +61,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public PackageMetadata getMetadata(String packageName) throws PulsarAdminException {
-        try {
-            return getMetadataAsync(packageName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMetadataAsync(packageName));
     }
 
     @Override
@@ -94,14 +83,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException {
-        try {
-            updateMetadataAsync(packageName, metadata).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        sync(() -> updateMetadataAsync(packageName, metadata));
     }
 
     @Override
@@ -112,14 +94,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException {
-        try {
-            uploadAsync(metadata, packageName, path).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        sync(() -> uploadAsync(metadata, packageName, path));
     }
 
     @Override
@@ -154,19 +129,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public void download(String packageName, String path) throws PulsarAdminException {
-        try {
-            downloadAsync(packageName, path).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof PulsarAdminException) {
-                throw (PulsarAdminException) cause;
-            } else {
-                throw new PulsarAdminException(cause);
-            }
-        }
+        sync(() -> downloadAsync(packageName, path));
     }
 
     @Override
@@ -182,7 +145,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
                         if (destinyPath.getParent() != null) {
                             Files.createDirectories(destinyPath.getParent());
                         }
-                        Files.copy(inputStream, destinyPath);
+                        Files.copy(inputStream, destinyPath, StandardCopyOption.REPLACE_EXISTING);
                         future.complete(null);
                     } catch (IOException e) {
                         future.completeExceptionally(e);
@@ -202,14 +165,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public void delete(String packageName) throws PulsarAdminException {
-        try {
-            deleteAsync(packageName).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        sync(() -> deleteAsync(packageName));
     }
 
     @Override
@@ -221,14 +177,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public List<String> listPackageVersions(String packageName) throws PulsarAdminException {
-        try {
-            return listPackageVersionsAsync(packageName).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        return sync(() -> listPackageVersionsAsync(packageName));
     }
 
 
@@ -254,14 +203,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public List<String> listPackages(String type, String namespace) throws PulsarAdminException {
-        try {
-            return listPackagesAsync(type, namespace).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        }
+        return sync(() -> listPackagesAsync(type, namespace));
     }
 
     @Override

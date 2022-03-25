@@ -35,8 +35,10 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -47,7 +49,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -88,7 +89,7 @@ public class BacklogQuotaManagerTest {
 
             // start pulsar service
             config = new ServiceConfiguration();
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
@@ -187,7 +188,7 @@ public class BacklogQuotaManagerTest {
             assertEquals(stats.getSubscriptions().size(), 1);
             long nonDurableSubscriptionBacklog = stats.getSubscriptions().values().iterator().next().getMsgBacklog();
             assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
-              "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]"); ;
+              "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]");
 
             try {
                 // try to send over backlog quota and make sure it fails
@@ -476,10 +477,61 @@ public class BacklogQuotaManagerTest {
         rolloverStats();
 
         stats = admin.topics().getStats(topic1);
+        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
-        // message in current ledger which should be 4.
-        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 4);
-        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 4);
+        // message in current ledger.
+        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        client.close();
+    }
+
+    @Test
+    public void testConsumerBacklogEvictionTimeQuotaWithEmptyLedger() throws Exception {
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
+                Maps.newHashMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String topic = "persistent://prop/ns-quota/topic4";
+        final String subName = "c1";
+
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subName).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client, topic);
+        producer.send(new byte[1024]);
+        consumer.receive();
+
+        admin.topics().unload(topic);
+        Awaitility.await().until(consumer::isConnected);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+        assertEquals(internalStats.ledgers.size(), 2);
+        assertEquals(internalStats.ledgers.get(1).entries, 0);
+
+        TopicStats stats = admin.topics().getStats(topic);
+        assertEquals(stats.getSubscriptions().get(subName).getMsgBacklog(), 1);
+
+        TimeUnit.SECONDS.sleep(TIME_TO_CHECK_BACKLOG_QUOTA);
+
+        Awaitility.await()
+                .pollInterval(Duration.ofSeconds(1))
+                .atMost(Duration.ofSeconds(TIME_TO_CHECK_BACKLOG_QUOTA))
+                .untilAsserted(() -> {
+                    rolloverStats();
+
+                    // Cause the last ledger is empty, it is not possible to skip first ledger,
+                    // so the number of ledgers will keep unchanged, and backlog is clear
+                    PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
+                    assertEquals(latestInternalStats.ledgers.size(), 2);
+                    assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
+                    TopicStats latestStats = admin.topics().getStats(topic);
+                    assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
+                });
+
         client.close();
     }
 
@@ -679,40 +731,36 @@ public class BacklogQuotaManagerTest {
         Consumer<byte[]> consumer1 = client2.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
         Consumer<byte[]> consumer2 = client2.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
 
-        Thread producerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs; i++) {
-                        // only one consumer acknowledges the message
-                        consumer1.acknowledge(consumer1.receive());
-                        consumer2.receive();
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs; i++) {
+                    // only one consumer acknowledges the message
+                    consumer1.acknowledge(consumer1.receive());
+                    consumer2.receive();
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         producerThread.start();
         consumerThread.start();
@@ -755,39 +803,35 @@ public class BacklogQuotaManagerTest {
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
-        Thread producerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client2, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client2, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs; i++) {
-                        consumer1.acknowledge(consumer1.receive());
-                        consumer2.acknowledge(consumer2.receive());
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs; i++) {
+                    consumer1.acknowledge(consumer1.receive());
+                    consumer2.acknowledge(consumer2.receive());
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         producerThread.start();
         consumerThread.start();
@@ -826,71 +870,63 @@ public class BacklogQuotaManagerTest {
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
-        Thread producerThread1 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client2, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread1 = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client2, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread producerThread2 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client3, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread2 = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client3, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread1 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs * 2; i++) {
-                        consumer1.acknowledge(consumer1.receive());
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread1 = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs * 2; i++) {
+                    consumer1.acknowledge(consumer1.receive());
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread2 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs * 2; i++) {
-                        consumer2.acknowledge(consumer2.receive());
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread2 = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs * 2; i++) {
+                    consumer2.acknowledge(consumer2.receive());
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         producerThread1.start();
         producerThread2.start();
@@ -1074,6 +1110,8 @@ public class BacklogQuotaManagerTest {
         }
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         // publish should work now
+        producer.close();
+        producer = createProducer(client, topic1);
         Exception sendException = null;
         gotException = false;
         try {

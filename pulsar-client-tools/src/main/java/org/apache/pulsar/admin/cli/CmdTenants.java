@@ -21,12 +21,10 @@ package org.apache.pulsar.admin.cli;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -59,11 +57,14 @@ public class CmdTenants extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--admin-roles",
-                "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant", required = false, splitter = CommaParameterSplitter.class)
+                "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant",
+                required = false, splitter = CommaParameterSplitter.class)
         private java.util.List<String> adminRoles;
 
         @Parameter(names = { "--allowed-clusters",
-                "-c" }, description = "Comma separated allowed clusters. If empty, the tenant will have access to all clusters", required = false, splitter = CommaParameterSplitter.class)
+                "-c" }, description = "Comma separated allowed clusters. "
+                + "If empty, the tenant will have access to all clusters",
+                required = false, splitter = CommaParameterSplitter.class)
         private java.util.List<String> allowedClusters;
 
         @Override
@@ -90,11 +91,15 @@ public class CmdTenants extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--admin-roles",
-                "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant. If empty the current set of roles won't be modified", required = false, splitter = CommaParameterSplitter.class)
+                "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant. "
+                + "If empty the current set of roles won't be modified",
+                required = false, splitter = CommaParameterSplitter.class)
         private java.util.List<String> adminRoles;
 
         @Parameter(names = { "--allowed-clusters",
-                "-c" }, description = "Comma separated allowed clusters. If omitted, the current set of clusters will be preserved", required = false, splitter = CommaParameterSplitter.class)
+                "-c" }, description = "Comma separated allowed clusters. "
+                + "If omitted, the current set of clusters will be preserved",
+                required = false, splitter = CommaParameterSplitter.class)
         private java.util.List<String> allowedClusters;
 
         @Override

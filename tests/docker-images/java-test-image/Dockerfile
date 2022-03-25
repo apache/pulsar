@@ -33,8 +33,10 @@ RUN chmod a+rx /pulsar/bin/*
 WORKDIR /pulsar
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 
-RUN apt-get update \
+RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
+     && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install openjdk-11-jdk-headless
 
@@ -43,15 +45,12 @@ RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/s
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
-RUN apt-get install -y python3-kazoo python3-protobuf
-# use python3 for watch-znode.py and pulsar-managed-ledger-admin
-RUN sed -i '1 s/.*/#!\/usr\/bin\/python3/' /pulsar/bin/watch-znode.py /pulsar/bin/pulsar-managed-ledger-admin
-
-# required by gen-yml-from-env.py
-RUN apt-get install -y python-yaml
+# gen-yml-from-env.py requires python3-yaml
+# make python3 the default
+RUN apt-get install -y python3-kazoo python3-protobuf python3-yaml \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
-
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \

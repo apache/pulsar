@@ -124,9 +124,7 @@ discovery.uri=<coordinator-url>
 
 Also, modify ```pulsar.broker-service-url``` and  ```pulsar.zookeeper-uri``` configs in ```${project.root}/conf/presto/catalog/pulsar.properties``` accordingly
 
-You can also start the worker by just running:
-
-```$ ./bin/pulsar sql-worker run```
+You can also start the worker by just running: ```$ ./bin/pulsar sql-worker run```
 
 You can check the status of your cluster from the SQL CLI.  To start the SQL CLI:
 

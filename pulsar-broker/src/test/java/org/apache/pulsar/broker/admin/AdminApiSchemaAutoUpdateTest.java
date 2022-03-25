@@ -19,32 +19,25 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
-import java.lang.reflect.Field;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-admin")
 public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaAutoUpdateTest.class);
-
     @BeforeMethod
     @Override
     public void setup() throws Exception {
@@ -67,8 +60,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
+
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                                                                     SchemaAutoUpdateCompatibilityStrategy.Backward);
 
@@ -91,8 +84,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     private void testAutoUpdateForward(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
+
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                                                                     SchemaAutoUpdateCompatibilityStrategy.Forward);
 
@@ -114,8 +107,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     private void testAutoUpdateFull(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
             p.send(new V1Data("test1", 1));
@@ -142,8 +134,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     private void testAutoUpdateDisabled(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
+
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                 SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled);
 
@@ -179,15 +171,10 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                 SchemaAutoUpdateCompatibilityStrategy.Full);
 
-        for (int i = 0; i < 100; i++) {
-            Topic t = pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-            // get around fact that field is private and topic can be persistent or non-persistent
-            Field strategy = t.getClass().getSuperclass().getDeclaredField("schemaCompatibilityStrategy");
-            strategy.setAccessible(true);
-            if (strategy.get(t) == SchemaCompatibilityStrategy.FULL) {
-                break;
-            }
-        }
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
+                        SchemaAutoUpdateCompatibilityStrategy.Full));
+
         log.info("try with fully compat, again");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
             p.send(new V4Data("test2", 1, (short)100));

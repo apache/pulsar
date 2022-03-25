@@ -48,6 +48,24 @@ module.exports = [
         link: 'https://debezium.io/'
     },
     {
+        name: 'debezium-mongodb',
+        longName: 'Debezium MongoDB CDC source',
+        type: 'Source',
+        link: 'https://debezium.io/'
+    },
+    {
+        name: 'debezium-mssql',
+        longName: 'Debezium SQL Server CDC source',
+        type: 'Source',
+        link: 'https://debezium.io/'
+    },
+    {
+        name: 'debezium-oracle',
+        longName: 'Debezium Oracle CDC source',
+        type: 'Source',
+        link: 'https://debezium.io/'
+    },
+    {
         name: 'elastic-search',
         longName: 'ElasticSearch source and sink',
         type: 'Source and sink',

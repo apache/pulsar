@@ -70,6 +70,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
+import org.apache.pulsar.functions.api.examples.InitializableFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
@@ -120,7 +121,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    public void testFunctionLocalRun(Runtime runtime) throws  Exception {
+    protected void testFunctionLocalRun(Runtime runtime) throws  Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
         }
@@ -243,7 +244,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     }
 
-    public void testWindowFunction(String type, String[] expectedResults) throws Exception {
+    protected void testWindowFunction(String type, String[] expectedResults) throws Exception {
         int NUM_OF_MESSAGES = 100;
         int windowLengthCount = 10;
         int slidingIntervalCount = 5;
@@ -272,7 +273,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
 
         ContainerExecResult containerExecResult = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertTrue(containerExecResult.getStdout().contains("\"Created successfully\""));
+        assertTrue(containerExecResult.getStdout().contains("Created successfully"));
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -848,7 +849,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Created successfully\""));
+        assertTrue(result.getStdout().contains("Created successfully"));
 
         if (StringUtils.isNotEmpty(inputTopicName)) {
             ensureSubscriptionCreated(
@@ -869,7 +870,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Updated successfully\""));
+        assertTrue(result.getStdout().contains("Updated successfully"));
     }
 
     protected <T> void submitFunction(Runtime runtime,
@@ -912,7 +913,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Created successfully\""));
+        assertTrue(result.getStdout().contains("Created successfully"));
     }
 
     private <T> void ensureSubscriptionCreated(String inputTopicName,
@@ -1431,6 +1432,36 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
+
+    protected void testInitFunction(Runtime runtime) throws Exception {
+        if (runtime != Runtime.JAVA) {
+            // only java support init function
+            return;
+        }
+
+        Schema<?> schema = Schema.STRING;
+
+        String inputTopicName = "persistent://public/default/test-init-" + runtime + "-input-" + randomName(8);
+        String outputTopicName = "test-init-" + runtime + "-output-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(outputTopicName);
+        }
+
+        String functionName = "test-init-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema,
+                Collections.singletonMap("publish-topic", outputTopicName), null, null, null);
+
+        // publish and consume result
+        publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
+    }
+
     protected void testLoggingFunction(Runtime runtime) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
@@ -1514,7 +1545,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Created successfully\""));
+        assertTrue(result.getStdout().contains("Created successfully"));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
     }

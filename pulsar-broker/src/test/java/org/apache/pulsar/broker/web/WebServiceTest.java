@@ -18,18 +18,15 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
-
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -44,16 +41,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
-
 import lombok.Cleanup;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
@@ -66,14 +59,10 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooKeeper;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -285,8 +274,7 @@ public class WebServiceTest {
 
         // Create local cluster
         String localCluster = "test";
-        String clusterPath = PulsarWebResource.path("clusters", localCluster);
-        pulsar.getPulsarResources().getClusterResources().create(clusterPath, ClusterDataImpl.builder().build());
+        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster, ClusterDataImpl.builder().build());
         TenantInfo info2 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
@@ -383,36 +371,26 @@ public class WebServiceTest {
         config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
-        config.setZookeeperServers("localhost:2181");
+        config.setMetadataStoreUrl("zk:localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
         config.setDisableHttpDebugMethods(disableTrace);
         if (rateLimit > 0) {
             config.setHttpRequestsLimitEnabled(true);
             config.setHttpRequestsMaxPerSecond(rateLimit);
         }
-        pulsar = spy(new PulsarService(config));
+        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, config);
      // mock zk
         MockZooKeeper mockZooKeeper = MockedPulsarServiceBaseTest.createMockZooKeeper();
-        ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {
-
-             @Override
-             public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                     int zkSessionTimeoutMillis) {
-                 // Always return the same instance (so that we don't loose the mock ZK content on broker restart
-                 return CompletableFuture.completedFuture(mockZooKeeper);
-             }
-         };
-        doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createConfigurationMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createLocalMetadataStore();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
         pulsar.start();
 
         try {
-            pulsar.getZkClient().delete("/minApiVersion", -1);
+            pulsar.getLocalMetadataStore().delete("/minApiVersion", Optional.empty()).join();
         } catch (Exception ex) {
         }
-        pulsar.getZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
+        pulsar.getLocalMetadataStore().put("/minApiVersion", minApiVersion.getBytes(), Optional.of(-1L)).join();
 
         String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
         String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);

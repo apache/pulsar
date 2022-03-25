@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
@@ -36,7 +37,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     protected SocketAddress remoteAddress;
     private int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
     private final long keepAliveIntervalSeconds;
-    private boolean waitingForPingResponse = false;
+    private volatile boolean waitingForPingResponse = false;
     private ScheduledFuture<?> keepAliveTask;
 
     public int getRemoteEndpointProtocolVersion() {
@@ -52,7 +53,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void messageReceived() {
+    protected final void messageReceived() {
         waitingForPingResponse = false;
     }
 
@@ -65,8 +66,9 @@ public abstract class PulsarHandler extends PulsarDecoder {
             log.debug("[{}] Scheduling keep-alive task every {} s", ctx.channel(), keepAliveIntervalSeconds);
         }
         if (keepAliveIntervalSeconds > 0) {
-            this.keepAliveTask = ctx.executor().scheduleAtFixedRate(this::handleKeepAliveTimeout,
-                    keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
+            this.keepAliveTask = ctx.executor()
+                    .scheduleAtFixedRate(catchingAndLoggingThrowables(this::handleKeepAliveTimeout),
+                            keepAliveIntervalSeconds, keepAliveIntervalSeconds, TimeUnit.SECONDS);
         }
     }
 
@@ -76,7 +78,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void handlePing(CommandPing ping) {
+    protected final void handlePing(CommandPing ping) {
         // Immediately reply success to ping requests
         if (log.isDebugEnabled()) {
             log.debug("[{}] Replying back to ping message", ctx.channel());
@@ -85,7 +87,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    final protected void handlePong(CommandPong pong) {
+    protected final void handlePong(CommandPong pong) {
     }
 
     private void handleKeepAliveTimeout() {
@@ -116,7 +118,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
         }
     }
 
-    protected void cancelKeepAliveTask() {
+    public void cancelKeepAliveTask() {
         if (keepAliveTask != null) {
             keepAliveTask.cancel(false);
             keepAliveTask = null;

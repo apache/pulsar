@@ -18,40 +18,31 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.collect.Sets;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Consumer;
-
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 
 @Test(groups = "flaky")
 public class InactiveTopicDeleteTest extends BrokerTestBase {
@@ -128,23 +119,17 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topic, 5);
         pulsarClient.newProducer().topic(topic).create().close();
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
-        String managedPath = String.format("/managed-ledgers/%s/%s", topicName.getNamespace()
-                , topicName.getDomain().value());
 
-        String partition0 = topicName.getPartition(0).getLocalName();
-        Set<String> cacheSet = mock(Set.class);
-        LocalZooKeeperCacheService localZooKeeperCacheService = spy(pulsar.getLocalZkCacheService());
-        ZooKeeperManagedLedgerCache zooKeeperManagedLedgerCache = spy(localZooKeeperCacheService.managedLedgerListCache());
-        doReturn(localZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
-        doReturn(zooKeeperManagedLedgerCache).when(localZooKeeperCacheService).managedLedgerListCache();
-        doReturn(cacheSet).when(zooKeeperManagedLedgerCache).get(managedPath);
-        doReturn(true).when(cacheSet).contains(argThat(x -> x.equals(partition0)));
+        Thread.sleep(2000);
+
+        // Topic should not be deleted
+        Assert.assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topic));
 
         admin.topics().deleteSubscription(topic, "sub");
-        Thread.sleep(2000);
-        // node should not be deleted
-        Assert.assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topic));
-        verify(cacheSet, times(5)).contains(partition0);
+        Awaitility.await().untilAsserted(() -> {
+            // Now the topic should be deleted
+            Assert.assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topic));
+        });
     }
 
     @Test
@@ -216,12 +201,13 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         InactiveTopicPolicies policies;
         //wait for zk
-        Awaitility.await().until(()
-                -> {
-            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies;
+        Awaitility.await().until(() -> {
+            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get()
+                    .get()).getInactiveTopicPolicies();
             return temp.isDeleteWhileInactive();
         });
-        policies = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies;
+        policies = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get()
+                .get()).getInactiveTopicPolicies();
 
         Assert.assertTrue(policies.isDeleteWhileInactive());
         assertEquals(policies.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_no_subscriptions);
@@ -229,27 +215,27 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         assertEquals(policies, admin.namespaces().getInactiveTopicPolicies(namespace));
 
         admin.namespaces().removeInactiveTopicPolicies(namespace);
-        Awaitility.await().until(()
-                -> {
-            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies;
+        Awaitility.await().until(() -> {
+            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get()
+                    .get()).getInactiveTopicPolicies();
             return temp.getMaxInactiveDurationSeconds() == 1000;
         });
-        assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies
-                , defaultPolicy);
+        assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).getInactiveTopicPolicies(), defaultPolicy);
 
-        policies = ((PersistentTopic)pulsar.getBrokerService().getTopic(topic2,false).get().get()).inactiveTopicPolicies;
+        policies = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic2, false).get()
+                .get()).getInactiveTopicPolicies();
         Assert.assertTrue(policies.isDeleteWhileInactive());
         assertEquals(policies.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         assertEquals(policies.getMaxInactiveDurationSeconds(), 1);
         assertEquals(policies, admin.namespaces().getInactiveTopicPolicies(namespace2));
 
         admin.namespaces().removeInactiveTopicPolicies(namespace2);
-        Awaitility.await().until(()
-                -> {
-            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies;
+        Awaitility.await().until(() -> {
+            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get()
+                    .get()).getInactiveTopicPolicies();
             return temp.getMaxInactiveDurationSeconds() == 1000;
         });
-        assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic2, false).get().get()).inactiveTopicPolicies
+        assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic2, false).get().get()).getInactiveTopicPolicies()
                 , defaultPolicy);
     }
 
@@ -296,7 +282,8 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         //wait for zk
         Awaitility.await().until(() -> {
-            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies;
+            InactiveTopicPolicies temp = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get()
+                    .get()).getInactiveTopicPolicies();
             return temp.isDeleteWhileInactive();
         });
 
@@ -443,7 +430,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Awaitility.await().until(()
                 -> admin.topics().getInactiveTopicPolicies(topic) != null);
         InactiveTopicPolicies policies = ((PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topic, false).get().get()).inactiveTopicPolicies;
+                .getTopic(topic, false).get().get()).getInactiveTopicPolicies();
         Assert.assertTrue(policies.isDeleteWhileInactive());
         assertEquals(policies.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_no_subscriptions);
         assertEquals(policies.getMaxInactiveDurationSeconds(), 1);
@@ -451,24 +438,24 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         admin.topics().removeInactiveTopicPolicies(topic);
         //Only the broker-level policies is set, so after removing the topic-level policies
-        // , the topic will use the broker-level policies
+        //, the topic will use the broker-level policies
         Awaitility.await().untilAsserted(()
-                -> assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies
+                -> assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).getInactiveTopicPolicies()
                 , defaultPolicy));
 
-        policies = ((PersistentTopic)pulsar.getBrokerService().getTopic(topic2,false).get().get()).inactiveTopicPolicies;
+        policies = ((PersistentTopic)pulsar.getBrokerService().getTopic(topic2,false).get().get()).getInactiveTopicPolicies();
         Assert.assertTrue(policies.isDeleteWhileInactive());
         assertEquals(policies.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         assertEquals(policies.getMaxInactiveDurationSeconds(), 1);
         assertEquals(policies, admin.topics().getInactiveTopicPolicies(topic2));
         inactiveTopicPolicies.setMaxInactiveDurationSeconds(999);
         //Both broker level and namespace level policies are set, so after removing the topic level policies
-        // , the topic will use the namespace level policies
+        //, the topic will use the namespace level policies
         admin.namespaces().setInactiveTopicPolicies(namespace, inactiveTopicPolicies);
         //wait for zk
         Awaitility.await().until(() -> {
             InactiveTopicPolicies tempPolicies = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false)
-                    .get().get()).inactiveTopicPolicies;
+                    .get().get()).getInactiveTopicPolicies();
             return inactiveTopicPolicies.equals(tempPolicies);
         });
         admin.topics().removeInactiveTopicPolicies(topic2);
@@ -476,7 +463,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         // ，so wait for topic-policies update event
         Awaitility.await().untilAsserted(() -> {
             InactiveTopicPolicies nsPolicies = ((PersistentTopic) pulsar.getBrokerService()
-                    .getTopic(topic2, false).get().get()).inactiveTopicPolicies;
+                    .getTopic(topic2, false).get().get()).getInactiveTopicPolicies();
             assertEquals(nsPolicies.getMaxInactiveDurationSeconds(), 999);
         });
 
@@ -587,5 +574,35 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.namespaces().removeInactiveTopicPolicies(namespace);
         Awaitility.await().untilAsserted(()
                 -> assertEquals(admin.topics().getInactiveTopicPolicies(topic, true), brokerLevelPolicy));
+    }
+
+    @Test(timeOut = 30000)
+    public void testHealthTopicInactiveNotClean() throws Exception {
+        conf.setSystemTopicEnabled(true);
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        super.baseSetup();
+        // init topic
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        final String healthCheckTopicV1 = "persistent://" + heartbeatNamespaceV1 + "/healthcheck";
+
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        final String healthCheckTopicV2 = "persistent://" + heartbeatNamespaceV2 + "/healthcheck";
+
+        admin.brokers().healthcheck(TopicVersion.V1);
+        admin.brokers().healthcheck(TopicVersion.V2);
+
+        List<String> V1Partitions = pulsar
+                .getPulsarResources()
+                .getTopicResources()
+                .getExistingPartitions(TopicName.get(healthCheckTopicV1))
+                .get(10, TimeUnit.SECONDS);
+        List<String> V2Partitions = pulsar
+                .getPulsarResources()
+                .getTopicResources()
+                .getExistingPartitions(TopicName.get(healthCheckTopicV2))
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertTrue(V1Partitions.contains(healthCheckTopicV1));
+        Assert.assertTrue(V2Partitions.contains(healthCheckTopicV2));
     }
 }

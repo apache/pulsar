@@ -21,7 +21,6 @@
     "snappy",
     "zlib",
     "zstd",
-    "python3",
     "log4cxx",
     {
       "name": "dlfcn-win32",

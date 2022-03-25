@@ -31,7 +31,7 @@ All the message rates are updated every minute.
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
 ```shell
-http://$BROKER_ADDRESS:8080/metrics
+http://$BROKER_ADDRESS:8080/metrics/
 ```
 
 ### ZooKeeper stats
@@ -43,7 +43,7 @@ http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
 ```
 
-The default port of local ZooKeeper is `8000` and the default port of configuration store is `8001`. You can change the default port of local ZooKeeper and configuration store by specifying system property `stats_server_port`.
+The default port of local ZooKeeper is `8000` and the default port of the configuration store is `8001`. You can use a different stats port by configuring `metricsProvider.httpPort` in the `conf/zookeeper.conf` file.
 
 ### BookKeeper stats
 
@@ -108,20 +108,12 @@ The per-topic dashboard instructions are available at [Pulsar manager](administr
 
 You can use grafana to create dashboard driven by the data that is stored in Prometheus.
 
-When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled by default. You can use the docker image with the principal dashboards.
-
-Enter the command below to use the dashboard manually:
-
-```shell
-docker run -p3000:3000 \
-        -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
-        apachepulsar/pulsar-grafana:latest
-```
+When you deploy Pulsar on Kubernetes with the Pulsar Helm Chart, a `pulsar-grafana` Docker image is enabled by default. You can use the docker image with the principal dashboards.
 
 The following are some Grafana dashboards examples:
 
 - [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
 - [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
 
- ## Alerting rules
- You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).
+## Alerting rules
+You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).

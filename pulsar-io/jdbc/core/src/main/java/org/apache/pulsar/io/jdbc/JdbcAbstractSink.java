@@ -112,7 +112,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     private void initStatement()  throws Exception {
         List<String> keyList = Lists.newArrayList();
         String key = jdbcSinkConfig.getKey();
-        if (key !=null && !key.isEmpty()) {
+        if (key != null && !key.isEmpty()) {
             keyList = Arrays.asList(key.split(","));
         }
         List<String> nonKeyList = Lists.newArrayList();
@@ -167,7 +167,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 log.debug("Starting flush, queue size: {}", incomingList.size());
             }
             if (!swapList.isEmpty()) {
-                throw new IllegalStateException("swapList should be empty since last flush. swapList.size: " + swapList.size());
+                throw new IllegalStateException("swapList should be empty since last flush. swapList.size: "
+                        + swapList.size());
             }
             synchronized (this) {
                 List<Record<T>> tmpList;
@@ -203,8 +204,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                             insertStatement.execute();
                             break;
                         default:
-                            String msg = String.format("Unsupported action %s, can be one of %s, or not set which indicate %s",
-                                                       action, Arrays.asList(INSERT, UPDATE, DELETE), INSERT);
+                            String msg = String.format(
+                                    "Unsupported action %s, can be one of %s, or not set which indicate %s",
+                                    action, Arrays.asList(INSERT, UPDATE, DELETE), INSERT);
                             throw new IllegalArgumentException(msg);
                     }
                 }

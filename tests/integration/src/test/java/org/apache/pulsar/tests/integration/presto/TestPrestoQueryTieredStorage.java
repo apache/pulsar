@@ -29,7 +29,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -40,8 +39,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.testcontainers.shaded.org.apache.commons.lang.StringUtils;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
@@ -89,6 +86,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         String offloadProperties = getOffloadProperties(BUCKET, null, ENDPOINT);
         pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, offloadProperties);
         pulsarCluster.startPrestoFollowWorkers(1, OFFLOAD_DRIVER, offloadProperties);
+        initJdbcConnection();
     }
 
     private String getOffloadProperties(String bucket, String region, String endpoint) {
@@ -136,11 +134,6 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
                               Schema schema,
                               CompressionType compressionType) throws Exception {
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .build();
-
-        @Cleanup
         Consumer<Stock> consumer = pulsarClient.newConsumer(JSONSchema.of(Stock.class))
                 .topic(topicName.toString())
                 .subscriptionName("test")
@@ -157,7 +150,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         int sendMessageCnt = 0;
         while (true) {
             Stock stock = new Stock(
-                    sendMessageCnt,"STOCK_" + sendMessageCnt , 100.0 + sendMessageCnt * 10);
+                    sendMessageCnt,"STOCK_" + sendMessageCnt, 100.0 + sendMessageCnt * 10);
             MessageIdImpl messageId = (MessageIdImpl) producer.send(stock);
             sendMessageCnt ++;
             if (firstLedgerId == -1) {

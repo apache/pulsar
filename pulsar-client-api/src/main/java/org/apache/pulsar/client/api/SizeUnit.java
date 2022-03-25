@@ -26,7 +26,7 @@ public enum SizeUnit {
 
     private final long bytes;
 
-    private SizeUnit(long bytes) {
+    SizeUnit(long bytes) {
         this.bytes = bytes;
     }
 

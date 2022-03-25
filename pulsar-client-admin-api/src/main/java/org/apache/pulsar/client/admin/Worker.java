@@ -95,4 +95,16 @@ public interface Worker {
      * @return
      */
     CompletableFuture<Map<String, Collection<String>>> getAssignmentsAsync();
+
+    /**
+     * Triggers a rebalance of functions to workers.
+     * @throws PulsarAdminException
+     */
+    void rebalance() throws PulsarAdminException;
+
+    /**
+     * Triggers a rebalance of functions to workersasynchronously..
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Void> rebalanceAsync();
 }

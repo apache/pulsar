@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.transaction.pendingack;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,15 +41,12 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -60,38 +57,16 @@ import org.testng.annotations.Test;
  * Test for consuming transaction messages.
  */
 @Slf4j
+@Test(groups = "broker")
 public class PendingAckPersistentTest extends TransactionTestBase {
 
-    private static final String PENDING_ACK_REPLAY_TOPIC = "persistent://public/txn/pending-ack-replay";
-
-    private static final String NAMESPACE = "public/txn";
+    private static final String PENDING_ACK_REPLAY_TOPIC = NAMESPACE1 + "/pending-ack-replay";
 
     private static final int NUM_PARTITIONS = 16;
 
     @BeforeMethod
     public void setup() throws Exception {
-        setBrokerCount(1);
-        super.internalSetup();
-
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterDataImpl.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE, 10);
-        admin.topics().createNonPartitionedTopic(PENDING_ACK_REPLAY_TOPIC);
-
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-        // wait tc init success to ready state
-        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
+        setUpBase(1, NUM_PARTITIONS, PENDING_ACK_REPLAY_TOPIC, 0);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -159,7 +134,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
 
         txn.abort().get();
-        // commit this txn , normalAckMessageIds are in pending ack state
+        // commit this txn, normalAckMessageIds are in pending ack state
         commitTxn.commit().get();
         // abort this txn, pendingAckMessageIds are delete from pending ack state
         abortTxn.abort().get();
@@ -312,7 +287,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         String subName = "test-delete";
 
         String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE), "test-delete").toString();
+                NamespaceName.get(NAMESPACE1), "test-delete").toString();
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
@@ -325,7 +300,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         admin.topics().deleteSubscription(topic, subName);
 
-        List<String> topics = admin.namespaces().getTopics(NAMESPACE);
+        List<String> topics = admin.namespaces().getTopics(NAMESPACE1);
 
         TopicStats topicStats = admin.topics().getStats(topic, false);
 
@@ -341,7 +316,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         String subName2 = "test-delete";
 
         String topic = TopicName.get(TopicDomain.persistent.toString(),
-                NamespaceName.get(NAMESPACE), "test-delete").toString();
+                NamespaceName.get(NAMESPACE1), "test-delete").toString();
         @Cleanup
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
                 .topic(topic)
@@ -364,7 +339,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         admin.topics().delete(topic);
 
-        List<String> topics = admin.namespaces().getTopics(NAMESPACE);
+        List<String> topics = admin.namespaces().getTopics(NAMESPACE1);
 
         assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName1)));
         assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName2)));

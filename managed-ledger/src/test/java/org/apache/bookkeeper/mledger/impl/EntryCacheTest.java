@@ -29,7 +29,6 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.Unpooled;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +44,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class EntryCacheTest extends MockedBookKeeperTestCase {
@@ -78,7 +76,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 assertEquals(entries.size(), 10);
-                entries.forEach(e -> e.release());
+                entries.forEach(Entry::release);
                 counter.countDown();
             }
 

@@ -338,11 +338,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         int segmentMetadataLength = dis.readInt();
 
         byte[] metadataBytes = new byte[segmentMetadataLength];
-
-        if (segmentMetadataLength != dis.read(metadataBytes)) {
-            log.error("Read ledgerMetadata from bytes failed");
-            throw new IOException("Read ledgerMetadata from bytes failed");
-        }
+        dis.readFully(metadataBytes);
         this.segmentMetadata = parseLedgerMetadata(metadataBytes);
 
         for (int i = 0; i < indexEntryCount; i++) {

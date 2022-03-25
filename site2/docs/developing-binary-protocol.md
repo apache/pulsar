@@ -29,42 +29,63 @@ The Pulsar protocol allows for two types of commands:
 
 Simple (payload-free) commands have this basic structure:
 
-| Component   | Description                                                                             | Size (in bytes) |
-|:------------|:----------------------------------------------------------------------------------------|:----------------|
-| totalSize   | The size of the frame, counting everything that comes after it (in bytes)               | 4               |
-| commandSize | The size of the protobuf-serialized command                                             | 4               |
-| message     | The protobuf message serialized in a raw binary format (rather than in protobuf format) |                 |
+| Component     | Description                                                                             | Size (in bytes) |
+|:--------------|:----------------------------------------------------------------------------------------|:----------------|
+| `totalSize`   | The size of the frame, counting everything that comes after it (in bytes)               | 4               |
+| `commandSize` | The size of the protobuf-serialized command                                             | 4               |
+| `message`     | The protobuf message serialized in a raw binary format (rather than in protobuf format) |                 |
 
 ### Payload commands
 
 Payload commands have this basic structure:
 
-| Component    | Description                                                                                 | Size (in bytes) |
-|:-------------|:--------------------------------------------------------------------------------------------|:----------------|
-| totalSize    | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
-| commandSize  | The size of the protobuf-serialized command                                                 | 4               |
-| message      | The protobuf message serialized in a raw binary format (rather than in protobuf format)     |                 |
-| magicNumber  | A 2-byte byte array (`0x0e01`) identifying the current format                               | 2               |
-| checksum     | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it | 4               |
-| metadataSize | The size of the message [metadata](#message-metadata)                                       | 4               |
-| metadata     | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
-| payload      | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
+| Component                          | Required or optional| Description                                                                                 | Size (in bytes) |
+|:-----------------------------------|:----------|:--------------------------------------------------------------------------------------------|:----------------|
+| `totalSize`                        | Required  | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
+| `commandSize`                      | Required  | The size of the protobuf-serialized command                                                 | 4               |
+| `message`                          | Required  | The protobuf message serialized in a raw binary format (rather than in protobuf format)     |                 |
+| `magicNumberOfBrokerEntryMetadata` | Optional  | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**.                     | 2               |
+| `brokerEntryMetadataSize`          | Optional  | The size of the broker entry metadata                                                       | 4               |
+| `brokerEntryMetadata`              | Optional  | The broker entry metadata stored as a binary protobuf message                               |                 |
+| `magicNumber`                      | Required  | A 2-byte byte array (`0x0e01`) identifying the current format                               | 2               |
+| `checksum`                         | Required  | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it | 4               |
+| `metadataSize`                     | Required  | The size of the message [metadata](#message-metadata)                                       | 4               |
+| `metadata`                         | Required  | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
+| `payload`                          | Required  | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
+
+## Broker entry metadata
+
+Broker entry metadata is stored alongside the message metadata as a serialized protobuf message.
+It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.
+
+| Field              | Required or optional       | Description                                                                                                                   |
+|:-------------------|:----------------|:------------------------------------------------------------------------------------------------------------------------------|
+| `broker_timestamp` | Optional        | The timestamp when a message arrived at the broker (`id est` as the number of milliseconds since January 1st, 1970 in UTC)      |
+| `index`            | Optional        | The index of the message. It is assigned by the broker.
+
+If you want to use broker entry metadata for **brokers**, configure the [`brokerEntryMetadataInterceptors`](reference-configuration.md#broker) parameter in the `broker.conf` file.
+
+If you want to use broker entry metadata for **consumers**:
+
+1. Use the client protocol version [18 or later](https://github.com/apache/pulsar/blob/ca37e67211feda4f7e0984e6414e707f1c1dfd07/pulsar-common/src/main/proto/PulsarApi.proto#L259).
+   
+2. Configure the [`brokerEntryMetadataInterceptors`](reference-configuration.md#broker) parameter and set the [`enableExposingBrokerEntryMetadataToClient`](reference-configuration.md#broker) parameter to `true` in the `broker.conf` file.
 
 ## Message metadata
 
-Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed on unchanged to the consumer.
+Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without changes to the consumer.
 
-| Field                                | Description                                                                                                                                                                                                                                               |
-|:-------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `producer_name`                      | The name of the producer that published the message                                                                                                                                                                                         |
-| `sequence_id`                        | The sequence ID of the message, assigned by producer                                                                                                                                                                                        |
-| `publish_time`                       | The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)                                                                                                                                                    |
-| `properties`                         | A sequence of key/value pairs (using the [`KeyValue`](https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32) message). These are application-defined keys and values with no special meaning to Pulsar. |
-| `replicated_from` *(optional)*       | Indicates that the message has been replicated and specifies the name of the [cluster](reference-terminology.md#cluster) where the message was originally published                                                                                                             |
-| `partition_key` *(optional)*         | While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose. Partition key is used as the message key.                                                                                                                          |
-| `compression` *(optional)*           | Signals that payload has been compressed and with which compression library                                                                                                                                                                               |
-| `uncompressed_size` *(optional)*     | If compression is used, the producer must fill the uncompressed size field with the original payload size                                                                                                                                                 |
-| `num_messages_in_batch` *(optional)* | If this message is really a [batch](#batch-messages) of multiple entries, this field must be set to the number of messages in the batch                                                                                                                   |
+| Field                    | Required or optional | Description                                                                                                                                                                                                                                               |
+|:-------------------------|:----------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `producer_name`          | Required  | The name of the producer that published the message                                                                                                                                                                                         |
+| `sequence_id`            | Required  | The sequence ID of the message, assigned by producer                                                                                                                                                                                        |
+| `publish_time`           | Required  | The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)                                                                                                                                                    |
+| `properties`             | Required  | A sequence of key/value pairs (using the [`KeyValue`](https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32) message). These are application-defined keys and values with no special meaning to Pulsar. |
+| `replicated_from`        | Optional  |  Indicates that the message has been replicated and specifies the name of the [cluster](reference-terminology.md#cluster) where the message was originally published                                                                                                             |
+| `partition_key`          | Optional  | While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose. Partition key is used as the message key.                                                                                                                          |
+| `compression`            | Optional  | Signals that payload has been compressed and with which compression library                                                                                                                                                                               |
+| `uncompressed_size`      | Optional  | If compression is used, the producer must fill the uncompressed size field with the original payload size                                                                                                                                                 |
+| `num_messages_in_batch`  | Optional  | If this message is really a [batch](#batch-messages) of multiple entries, this field must be set to the number of messages in the batch                                                                                                                   |
 
 ### Batch messages
 
@@ -76,19 +97,19 @@ object.
 For a single batch, the payload format will look like this:
 
 
-| Field         | Description                                                 |
-|:--------------|:------------------------------------------------------------|
-| metadataSizeN | The size of the single message metadata serialized Protobuf |
-| metadataN     | Single message metadata                                     |
-| payloadN      | Message payload passed by application                       |
+| Field           | Required or optional | Description                                                |
+|:----------------|:---------------------|:-----------------------------------------------------------|
+| `metadataSizeN` | Required             |The size of the single message metadata serialized Protobuf |
+| `metadataN`     | Required             |Single message metadata                                     |
+| `payloadN`      | Required             |Message payload passed by application                       |
 
 Each metadata field looks like this;
 
-| Field                      | Description                                             |
-|:---------------------------|:--------------------------------------------------------|
-| properties                 | Application-defined properties                          |
-| partition key *(optional)* | Key to indicate the hashing to a particular partition   |
-| payload_size               | Size of the payload for the single message in the batch |
+| Field           | Required or optional  | Description                                             |
+|:----------------|:----------------------|:--------------------------------------------------------|
+| `properties`    | Required              | Application-defined properties                          |
+| `partition key` | Optional              | Key to indicate the hashing to a particular partition   |
+| `payload_size`  | Required              | Size of the payload for the single message in the batch |
 
 When compression is enabled, the whole batch will be compressed at once.
 
@@ -166,6 +187,10 @@ messages to the broker, referring to the producer id negotiated before.
 
 ![Producer interaction](assets/binary-protocol-producer.png)
 
+If the client does not receive a response indicating producer creation success or failure,
+the client should first send a command to close the original producer before sending a
+command to re-attempt producer creation.
+
 ##### Command Producer
 
 ```protobuf
@@ -208,9 +233,10 @@ Parameters:
 ##### Command Send
 
 Command `Send` is used to publish a new message within the context of an
-already existing producer. This command is used in a frame that includes command
-as well as message payload, for which the complete format is specified in the
-[payload commands](#payload-commands) section.
+already existing producer. If a producer has not yet been created for the
+connection, the broker will terminate the connection. This command is used
+in a frame that includes command as well as message payload, for which the
+complete format is specified in the [payload commands](#payload-commands) section.
 
 ```protobuf
 message CommandSend {
@@ -262,6 +288,11 @@ Parameters:
 When receiving a `CloseProducer` command, the broker will stop accepting any
 more messages for the producer, wait until all pending messages are persisted
 and then reply `Success` to the client.
+
+If the client does not receive a response to a `Producer` command within a timeout,
+the client must first send a `CloseProducer` command before sending another
+`Producer` command. The client does not need to await a response to the `CloseProducer`
+command before sending the next `Producer` command.
 
 The broker can send a `CloseProducer` command to client when it's performing
 a graceful failover (eg: broker is being restarted, or the topic is being unloaded

@@ -46,6 +46,7 @@
 #include <set>
 #include <lib/BrokerConsumerStatsImpl.h>
 #include "lib/PeriodicTask.h"
+#include "lib/GetLastMessageIdResponse.h"
 
 using namespace pulsar;
 
@@ -113,7 +114,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
      */
     void tcpConnectAsync();
 
-    void close();
+    void close(Result result = ResultConnectError);
 
     bool isClosed() const;
 
@@ -156,7 +157,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     Future<Result, BrokerConsumerStatsImpl> newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
-    Future<Result, MessageId> newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
+    Future<Result, GetLastMessageIdResponse> newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
 
     Future<Result, NamespaceTopicsPtr> newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
 
@@ -193,6 +194,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     bool verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& remainingBytes,
                         proto::BaseCommand& incomingCmd_);
 
+    void handleActiveConsumerChange(const proto::CommandActiveConsumerChange& change);
     void handleIncomingCommand();
     void handleIncomingMessage(const proto::CommandMessage& msg, bool isChecksumValid,
                                proto::MessageMetadata& msgMetadata, SharedBuffer& payload);
@@ -305,7 +307,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     typedef std::map<uint64_t, Promise<Result, BrokerConsumerStatsImpl>> PendingConsumerStatsMap;
     PendingConsumerStatsMap pendingConsumerStatsMap_;
 
-    typedef std::map<long, Promise<Result, MessageId>> PendingGetLastMessageIdRequestsMap;
+    typedef std::map<long, Promise<Result, GetLastMessageIdResponse>> PendingGetLastMessageIdRequestsMap;
     PendingGetLastMessageIdRequestsMap pendingGetLastMessageIdRequests_;
 
     typedef std::map<long, Promise<Result, NamespaceTopicsPtr>> PendingGetNamespaceTopicsMap;

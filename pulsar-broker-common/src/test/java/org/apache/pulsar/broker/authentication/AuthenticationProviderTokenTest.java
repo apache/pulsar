@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -56,6 +56,7 @@ import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class AuthenticationProviderTokenTest {
@@ -230,6 +231,26 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test
+    public void testTrimAuthSecretKeyFilePath() throws Exception {
+        String space = " ";
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        File secretKeyFile = File.createTempFile("pulsar-test-secret-key-", ".key");
+        secretKeyFile.deleteOnExit();
+        Files.write(Paths.get(secretKeyFile.toString()), secretKey.getEncoded());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        String secretKeyFileUri = secretKeyFile.toURI().toString() + space;
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFileUri);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+    }
+
+    @Test
     public void testAuthSecretKeyFromFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -240,7 +261,8 @@ public class AuthenticationProviderTokenTest {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         Properties properties = new Properties();
-        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "file://" + secretKeyFile.toString());
+        String secretKeyFileUri = secretKeyFile.toURI().toString();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFileUri);
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
@@ -799,6 +821,45 @@ public class AuthenticationProviderTokenTest {
         assertEquals(role, authRole);
 
         provider.close();
+    }
+
+    @Test
+    public void testTokenSettingPrefix() throws Exception {
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+        Properties properties = new Properties();
+        // Use public key for validation
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, publicKeyStr);
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        ServiceConfiguration mockConf = Mockito.mock(ServiceConfiguration.class);
+        String prefix = "test";
+
+        Mockito.when(mockConf.getProperty(anyString()))
+                .thenAnswer(invocationOnMock ->
+                        conf.getProperty(((String) invocationOnMock.getArgument(0)).substring(prefix.length()))
+                );
+        Mockito.when(mockConf.getProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX)).thenReturn(prefix);
+
+        provider.initialize(mockConf);
+
+        // Each property is fetched only once. Prevent multiple fetches.
+        Mockito.verify(mockConf, Mockito.times(1)).getProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUTH_CLAIM);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM);
+        Mockito.verify(mockConf, Mockito.times(1))
+                .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE);
     }
 
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {

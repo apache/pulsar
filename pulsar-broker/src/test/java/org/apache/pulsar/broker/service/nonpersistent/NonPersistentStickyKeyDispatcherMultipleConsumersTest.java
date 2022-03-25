@@ -18,9 +18,28 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -33,37 +52,12 @@ import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
+import org.mockito.MockedStatic;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
-@PrepareForTest({ DispatchRateLimiter.class })
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
 
     private PulsarService pulsarMock;
@@ -71,16 +65,10 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     private NonPersistentTopic topicMock;
     private NonPersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
-    private ChannelPromise channelMock;
 
     private NonPersistentStickyKeyDispatcherMultipleConsumers nonpersistentDispatcher;
 
     final String topicName = "non-persistent://public/default/testTopic";
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -96,24 +84,27 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
         brokerMock = mock(BrokerService.class);
         doReturn(pulsarMock).when(brokerMock).pulsar();
 
+        HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
+        topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
+
         topicMock = mock(NonPersistentTopic.class);
         doReturn(brokerMock).when(topicMock).getBrokerService();
         doReturn(topicName).when(topicMock).getName();
+        doReturn(topicPolicies).when(topicMock).getHierarchyTopicPolicies();
 
-        channelMock = mock(ChannelPromise.class);
         subscriptionMock = mock(NonPersistentSubscription.class);
 
-        PowerMockito.mockStatic(DispatchRateLimiter.class);
-        PowerMockito.when(DispatchRateLimiter.isDispatchRateNeeded(
-                any(BrokerService.class),
-                any(Optional.class),
-                anyString(),
-                any(DispatchRateLimiter.Type.class))
-        ).thenReturn(false);
-
-        nonpersistentDispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, subscriptionMock,
-                new HashRangeAutoSplitStickyKeyConsumerSelector());
+        try (MockedStatic<DispatchRateLimiter> rateLimiterMockedStatic = mockStatic(DispatchRateLimiter.class);) {
+            rateLimiterMockedStatic.when(() -> DispatchRateLimiter.isDispatchRateNeeded(
+                            any(BrokerService.class),
+                            any(Optional.class),
+                            anyString(),
+                            any(DispatchRateLimiter.Type.class)))
+                    .thenReturn(false);
+            nonpersistentDispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, subscriptionMock,
+                    new HashRangeAutoSplitStickyKeyConsumerSelector());
+        }
     }
 
     @Test(timeOut = 10000)
@@ -167,7 +158,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 ByteBuf byteBuf = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
-            };
+            }
             return mockPromise;
         }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));

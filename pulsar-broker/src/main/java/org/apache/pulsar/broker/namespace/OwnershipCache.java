@@ -76,7 +76,7 @@ public class OwnershipCache {
 
     private final LockManager<NamespaceEphemeralData> lockManager;
 
-    private final Map<NamespaceBundle, ResourceLock> locallyAcquiredLocks;
+    private final Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> locallyAcquiredLocks;
 
     /**
      * The loading cache of locally owned <code>NamespaceBundle</code> objects.
@@ -104,6 +104,8 @@ public class OwnershipCache {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
+                                    log.info("Resource lock for {} has expired", rl.getPath());
+                                    namespaceService.unloadNamespaceBundle(namespaceBundle);
                                     ownedBundlesCache.synchronous().invalidate(namespaceBundle);
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
                                 });
@@ -121,7 +123,7 @@ public class OwnershipCache {
                           NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
-        this.ownerBrokerUrl = pulsar.getSafeBrokerServiceUrl();
+        this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
@@ -175,7 +177,8 @@ public class OwnershipCache {
     }
 
     /**
-     * Method to get the current owner of the <code>ServiceUnit</code> or set the local broker as the owner if absent.
+     * Method to get the current owner of the <code>NamespaceBundle</code>
+     * or set the local broker as the owner if absent.
      *
      * @param bundle
      *            the <code>NamespaceBundle</code>
@@ -185,12 +188,12 @@ public class OwnershipCache {
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle bundle) throws Exception {
         if (!refreshSelfOwnerInfo()) {
             return FutureUtil.failedFuture(
-                    new RuntimeException("Namespace service does not ready for acquiring ownership"));
+                    new RuntimeException("Namespace service is not ready for acquiring ownership"));
         }
 
         LOG.info("Trying to acquire ownership of {}", bundle);
 
-        // Doing a get() on the ownedBundlesCache will trigger an async metatada write to acquire the lock over the
+        // Doing a get() on the ownedBundlesCache will trigger an async metadata write to acquire the lock over the
         // service unit
         return ownedBundlesCache.get(bundle)
                 .thenApply(namespaceBundle -> {
@@ -264,7 +267,8 @@ public class OwnershipCache {
 
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             try {
-                return future.get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                return future.get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(),
+                        TimeUnit.SECONDS);
             } catch (InterruptedException | TimeoutException e) {
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {
@@ -314,11 +318,9 @@ public class OwnershipCache {
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {
-        if (selfOwnerInfo.getNativeUrl() == null) {
-            this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getSafeBrokerServiceUrl(),
-                    pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
-                    pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
-        }
-        return selfOwnerInfo.getNativeUrl() != null;
+        this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
+        return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;
     }
 }

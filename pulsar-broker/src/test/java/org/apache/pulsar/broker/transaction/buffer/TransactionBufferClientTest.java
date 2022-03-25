@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -84,9 +83,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(namespace, 10);
         admin.topics().createPartitionedTopic(partitionedTopicName.getPartitionedTopicName(), partitions);
-        pulsarClient.newConsumer()
-                .topic(partitionedTopicName.getPartitionedTopicName())
-                .subscriptionName("test").subscribe();
         tbClient = TransactionBufferClientImpl.create(pulsarClient,
                 new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));
     }
@@ -241,9 +237,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(commitTopic);
         admin.topics().createSubscription(commitTopic, subName, MessageId.earliest);
 
-        waitPendingAckInit(abortTopic, subName);
-        waitPendingAckInit(commitTopic, subName);
-
         tbClient.abortTxnOnSubscription(abortTopic, "test", 1L, 1L, -1L).get();
 
         tbClient.commitTxnOnSubscription(commitTopic, "test", 1L, 1L, -1L).get();
@@ -254,16 +247,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferHandlerSemaphore() throws Exception {
-
-        Field field = TransactionBufferClientImpl.class.getDeclaredField("tbHandler");
-        field.setAccessible(true);
-        TransactionBufferHandlerImpl transactionBufferHandler = (TransactionBufferHandlerImpl) field.get(tbClient);
-
-        field = TransactionBufferHandlerImpl.class.getDeclaredField("semaphore");
-        field.setAccessible(true);
-        field.set(transactionBufferHandler, new Semaphore(2));
-
-
         String topic = "persistent://" + namespace + "/testTransactionBufferHandlerSemaphore";
         String subName = "test";
 
@@ -276,8 +259,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(commitTopic);
         admin.topics().createSubscription(commitTopic, subName, MessageId.earliest);
 
-        waitPendingAckInit(abortTopic, subName);
-        waitPendingAckInit(commitTopic, subName);
         tbClient.abortTxnOnSubscription(abortTopic, "test", 1L, 1L, -1L).get();
 
         tbClient.commitTxnOnSubscription(commitTopic, "test", 1L, 1L, -1L).get();

@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import java.util.List;
-
 import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
+import java.util.List;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -106,7 +105,8 @@ public interface ReadOnlyCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    Position findNewestMatching(ManagedCursor.FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
+    Position findNewestMatching(ManagedCursor.FindPositionConstraint constraint, Predicate<Entry> condition)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Return the number of messages that this cursor still has to read.

@@ -21,13 +21,12 @@ package org.apache.pulsar.common.compression;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 
-import com.google.common.base.Charsets;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
@@ -185,7 +184,7 @@ public class CompressorCodecTest {
         compressed.writeBytes(ByteBufUtil.decodeHexDump(compressedText));
 
         ByteBuf uncompressed = codec.decode(compressed, text.length());
-        assertEquals(uncompressed.toString(Charsets.UTF_8), text);
+        assertEquals(uncompressed.toString(StandardCharsets.UTF_8), text);
 
         compressed.release();
         uncompressed.release();

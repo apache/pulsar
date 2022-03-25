@@ -20,12 +20,10 @@ package org.apache.pulsar.metadata.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.Beta;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 
@@ -111,6 +109,18 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
+
+    /**
+     * Delete a key-value pair and all the children nodes.
+     *
+     * Note: the operation might not be carried in an atomic fashion. If the operation fails, the deletion of the
+     *       tree might be only partial.
+     *
+     * @param path
+     *            the path of the key to delete from the store
+     * @return a future to track the async request
+     */
+    CompletableFuture<Void> deleteRecursive(String path);
 
     /**
      * Register a listener that will be called on changes in the underlying store.

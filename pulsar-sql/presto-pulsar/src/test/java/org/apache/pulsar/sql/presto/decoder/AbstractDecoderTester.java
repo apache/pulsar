@@ -62,7 +62,7 @@ public abstract class AbstractDecoderTester {
     protected void init() {
         ConnectorContext prestoConnectorContext = new TestingConnectorContext();
         this.decoderFactory = new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
-        this.pulsarConnectorConfig = spy(new PulsarConnectorConfig());
+        this.pulsarConnectorConfig = spy(PulsarConnectorConfig.class);
         this.pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
         this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
         this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);

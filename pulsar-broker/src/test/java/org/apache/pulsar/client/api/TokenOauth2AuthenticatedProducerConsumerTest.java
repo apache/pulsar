@@ -36,7 +36,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -96,7 +95,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         // AuthenticationOAuth2
         Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
                 new URL("https://dev-kt-aa9ne.us.auth0.com"),
-                new URL("file://" + path.toString()),  // key file path
+                path.toUri().toURL(),  // key file path
                 "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
         );
 

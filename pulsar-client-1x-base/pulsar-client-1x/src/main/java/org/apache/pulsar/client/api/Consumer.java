@@ -28,14 +28,14 @@ import java.util.concurrent.TimeUnit;
 public interface Consumer extends Closeable {
 
     /**
-     * Get a topic for the consumer
+     * Get a topic for the consumer.
      *
      * @return topic for the consumer
      */
     String getTopic();
 
     /**
-     * Get a subscription for the consumer
+     * Get a subscription for the consumer.
      *
      * @return subscription for the consumer
      */
@@ -51,7 +51,7 @@ public interface Consumer extends Closeable {
     void unsubscribe() throws PulsarClientException;
 
     /**
-     * Asynchronously unsubscribe the consumer
+     * Asynchronously unsubscribe the consumer.
      *
      * @return {@link CompletableFuture} for this operation
      */
@@ -101,7 +101,7 @@ public interface Consumer extends Closeable {
     Message<byte[]> receive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     /**
-     * Acknowledge the consumption of a single message
+     * Acknowledge the consumption of a single message.
      *
      * @param message
      *            The {@code Message} to be acknowledged
@@ -111,7 +111,7 @@ public interface Consumer extends Closeable {
     void acknowledge(Message<?> message) throws PulsarClientException;
 
     /**
-     * Acknowledge the consumption of a single message, identified by its MessageId
+     * Acknowledge the consumption of a single message, identified by its MessageId.
      *
      * @param messageId
      *            The {@code MessageId} to be acknowledged
@@ -155,7 +155,7 @@ public interface Consumer extends Closeable {
     void acknowledgeCumulative(MessageId messageId) throws PulsarClientException;
 
     /**
-     * Asynchronously acknowledge the consumption of a single message
+     * Asynchronously acknowledge the consumption of a single message.
      *
      * @param message
      *            The {@code Message} to be acknowledged
@@ -164,7 +164,7 @@ public interface Consumer extends Closeable {
     CompletableFuture<Void> acknowledgeAsync(Message<?> message);
 
     /**
-     * Asynchronously acknowledge the consumption of a single message
+     * Asynchronously acknowledge the consumption of a single message.
      *
      * @param messageId
      *            The {@code MessageId} to be acknowledged
@@ -223,7 +223,7 @@ public interface Consumer extends Closeable {
     void close() throws PulsarClientException;
 
     /**
-     * Asynchronously close the consumer and stop the broker to push more messages
+     * Asynchronously close the consumer and stop the broker to push more messages.
      *
      * @return a future that can be used to track the completion of the operation
      */

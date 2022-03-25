@@ -105,6 +105,22 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
         }
 
         @Override
+        public MessageId delete(TransactionBufferSnapshot transactionBufferSnapshot) throws PulsarClientException {
+            return producer.newMessage()
+                    .key(transactionBufferSnapshot.getTopicName())
+                    .value(null)
+                    .send();
+        }
+
+        @Override
+        public CompletableFuture<MessageId> deleteAsync(TransactionBufferSnapshot transactionBufferSnapshot) {
+            return producer.newMessage()
+                    .key(transactionBufferSnapshot.getTopicName())
+                    .value(null)
+                    .sendAsync();
+        }
+
+        @Override
         public void close() throws IOException {
             this.producer.close();
             transactionBufferSystemTopicClient.removeWriter(this);
@@ -112,10 +128,17 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return producer.closeAsync().thenCompose(v -> {
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            producer.closeAsync().whenComplete((v, e) -> {
+                // if close fail, also need remove the producer
                 transactionBufferSystemTopicClient.removeWriter(this);
-                return CompletableFuture.completedFuture(null);
+                if (e != null) {
+                    completableFuture.completeExceptionally(e);
+                    return;
+                }
+                completableFuture.complete(null);
             });
+            return completableFuture;
         }
 
         @Override
@@ -163,10 +186,17 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return reader.closeAsync().thenCompose(v -> {
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            reader.closeAsync().whenComplete((v, e) -> {
+                // if close fail, also need remove the reader
                 transactionBufferSystemTopicClient.removeReader(this);
-                return CompletableFuture.completedFuture(null);
+                if (e != null) {
+                    completableFuture.completeExceptionally(e);
+                    return;
+                }
+                completableFuture.complete(null);
             });
+            return completableFuture;
         }
 
         @Override

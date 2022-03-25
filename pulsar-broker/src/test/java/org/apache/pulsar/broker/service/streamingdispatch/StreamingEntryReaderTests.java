@@ -38,8 +38,6 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.annotations.Test;
 
 import java.nio.charset.Charset;
@@ -56,25 +54,17 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.spy;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 /**
  * Tests for {@link StreamingEntryReader}
  */
-@PowerMockIgnore({
-        "javax.management.*",
-        "javax.xml.parsers.*",
-        "com.sun.org.apache.xerces.internal.jaxp.*",
-        "ch.qos.logback.*",
-        "org.slf4j.*",
-        "org.apache.logging.*"})
 @Test(groups = "flaky")
-@PrepareForTest({ManagedLedgerImpl.class})
 public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;

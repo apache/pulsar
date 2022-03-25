@@ -25,8 +25,8 @@ import static org.testng.Assert.assertNotEquals;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
-import com.google.common.base.Objects;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -76,16 +76,16 @@ public class LocalPolicesTest {
 
         @Override
         public int hashCode() {
-            return Objects.hashCode(bundles, bookieAffinityGroup);
+            return Objects.hash(bundles, bookieAffinityGroup);
         }
 
         @Override
         public boolean equals(Object obj) {
             if (obj instanceof LocalPolicies) {
                 LocalPolicies other = (LocalPolicies) obj;
-                return Objects.equal(bundles, other.bundles)
-                        && Objects.equal(bookieAffinityGroup, other.bookieAffinityGroup)
-                        && Objects.equal(namespaceAntiAffinityGroup, other.namespaceAntiAffinityGroup);
+                return Objects.equals(bundles, other.bundles)
+                        && Objects.equals(bookieAffinityGroup, other.bookieAffinityGroup)
+                        && Objects.equals(namespaceAntiAffinityGroup, other.namespaceAntiAffinityGroup);
             }
             return false;
         }

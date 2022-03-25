@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -50,16 +49,20 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The index name that the connector writes messages to, the default is the topic name"
+        help = "The index name to which the connector writes messages. The default value is the topic name."
+                + " It accepts date formats in the name to support event time based index with"
+                + " the pattern %{+<date-format>}. For example, suppose the event time of the record"
+                + " is 1645182000000L, the indexName is \"logs-%{+yyyy-MM-dd}\", then the formatted"
+                + " index name would be \"logs-2022-02-18\"."
     )
     private String indexName;
 
     @FieldDoc(
         required = false,
         defaultValue = "_doc",
-        help = "The type name that the connector writes messages to, with the default value set to _doc." +
-                " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2," +
-                " and left to the default value otherwise."
+        help = "The type name that the connector writes messages to, with the default value set to _doc."
+                + " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2,"
+                + " and left to the default value otherwise."
     )
     private String typeName = "_doc";
 
@@ -79,14 +82,14 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "true",
+            defaultValue = "false",
             help = "Create the index if it does not exist"
     )
     private boolean createIndexIfNeeded = false;
 
     @FieldDoc(
         required = false,
-        defaultValue = "1",
+        defaultValue = "0",
         help = "The number of replicas of the index"
     )
     private int indexNumberOfReplicas = 0;
@@ -109,7 +112,7 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "-1",
+            defaultValue = "1",
             help = "The maximum number of retries for elasticsearch requests. Use -1 to disable it."
     )
     private int maxRetries = 1;
@@ -216,7 +219,7 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "id",
+            defaultValue = "",
             help = "The comma separated ordered list of field names used to build the Elasticsearch document _id from the record value. If this list is a singleton, the field is converted as a string. If this list has 2 or more fields, the generated _id is a string representation of a JSON array of the field values."
     )
     private String primaryFields = "";
@@ -273,14 +276,14 @@ public class ElasticSearchConfig implements Serializable {
 
         if (StringUtils.isNotEmpty(indexName) && createIndexIfNeeded) {
             // see https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
-            if (!indexName.toLowerCase(Locale.ROOT).equals(indexName)) {
-                throw new IllegalArgumentException("indexName should be lowercase only.");
-            }
+            // date format may contain upper cases, so we need to valid against parsed index name
+            IndexNameFormatter.validate(indexName);
             if (indexName.startsWith("-") || indexName.startsWith("_") || indexName.startsWith("+")) {
                 throw new IllegalArgumentException("indexName start with an invalid character.");
             }
             if (indexName.equals(".") || indexName.equals("..")) {
-                throw new IllegalArgumentException("indexName cannot be . or ..");            }
+                throw new IllegalArgumentException("indexName cannot be . or ..");
+            }
             if (indexName.getBytes(StandardCharsets.UTF_8).length > 255) {
                 throw new IllegalArgumentException("indexName cannot be longer than 255 bytes.");
             }

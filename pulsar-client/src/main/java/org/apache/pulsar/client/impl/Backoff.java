@@ -19,11 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import lombok.Data;
-
 import java.time.Clock;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import lombok.Data;
 
 // All variables are in TimeUnit millis by default
 @Data
@@ -41,7 +40,6 @@ public class Backoff {
 
     private static final Random random = new Random();
 
-    @VisibleForTesting
     Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
             TimeUnit unitMandatoryStop, Clock clock) {
         this.initial = unitInitial.toMillis(initial);
@@ -103,8 +101,8 @@ public class Backoff {
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
-    									long defaultInterval, long maxBackoffInterval) {
-    	long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
+                                        long defaultInterval, long maxBackoffInterval) {
+        long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
         long currentTime = System.nanoTime();
         long interval = defaultInterval;
         for (int i = 1; i < failedAttempts; i++) {
@@ -121,6 +119,6 @@ public class Backoff {
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
         return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts,
-        							 DEFAULT_INTERVAL_IN_NANOSECONDS, MAX_BACKOFF_INTERVAL_NANOSECONDS);
+                                     DEFAULT_INTERVAL_IN_NANOSECONDS, MAX_BACKOFF_INTERVAL_NANOSECONDS);
     }
 }

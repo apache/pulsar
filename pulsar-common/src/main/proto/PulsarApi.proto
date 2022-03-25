@@ -61,6 +61,9 @@ message MessageIdData {
     optional int32 batch_index = 4 [default = -1];
     repeated int64 ack_set = 5;
     optional int32 batch_size = 6;
+
+    // For the chunk message id, we need to specify the first chunk message id.
+    optional MessageIdData first_chunk_message_id = 7;
 }
 
 message KeyValue {
@@ -257,6 +260,7 @@ enum ProtocolVersion {
     v16 = 16; // Add support for broker entry metadata
     v17 = 17; // Added support ack receipt
     v18 = 18; // Add client support for broker entry metadata
+    v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
 }
 
 message CommandConnect {
@@ -288,6 +292,7 @@ message CommandConnect {
 message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
   optional bool supports_broker_entry_metadata = 2 [default = false];
+  optional bool supports_partial_producer = 3 [default = false];
 }
 
 message CommandConnected {
@@ -381,6 +386,11 @@ message CommandSubscribe {
     optional uint64 start_message_rollback_duration_sec = 16 [default = 0];
 
     optional KeySharedMeta keySharedMeta = 17;
+
+    repeated KeyValue subscription_properties = 18;
+
+    // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
+    optional uint64 consumer_epoch = 19;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -482,6 +492,14 @@ message CommandProducer {
     // leave it empty and then it will always carry the same epoch number on
     // the subsequent reconnections.
     optional uint64 topic_epoch = 11;
+
+    optional bool txn_enabled = 12 [default = false];
+
+    // Name of the initial subscription of the topic.
+    // If this field is not set, the initial subscription will not be created.
+    // If this field is set but the broker's `allowAutoSubscriptionCreation`
+    // is disabled, the producer will fail to be created.
+    optional string initial_subscription_name = 13;
 }
 
 message CommandSend {
@@ -494,6 +512,9 @@ message CommandSend {
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
     optional bool is_chunk     =7 [default = false];
+
+    // Specify if the message being published is a Pulsar marker or not
+    optional bool marker = 8 [default = false];
 }
 
 message CommandSendReceipt {
@@ -515,6 +536,7 @@ message CommandMessage {
     required MessageIdData message_id = 2;
     optional uint32 redelivery_count  = 3 [default = 0];
     repeated int64 ack_set = 4;
+    optional uint64 consumer_epoch = 5;
 }
 
 message CommandAck {
@@ -605,6 +627,7 @@ message CommandCloseConsumer {
 message CommandRedeliverUnacknowledgedMessages {
     required uint64 consumer_id = 1;
     repeated MessageIdData message_ids = 2;
+    optional uint64 consumer_epoch = 3;
 }
 
 message CommandSuccess {
@@ -757,6 +780,17 @@ message CommandGetOrCreateSchemaResponse {
 enum TxnAction {
     COMMIT = 0;
     ABORT = 1;
+}
+
+message CommandTcClientConnectRequest {
+    required uint64 request_id = 1;
+    required uint64 tc_id = 2 [default = 0];
+}
+
+message CommandTcClientConnectResponse {
+    required uint64 request_id = 1;
+    optional ServerError error  = 2;
+    optional string message     = 3;
 }
 
 message CommandNewTxn {
@@ -938,6 +972,8 @@ message BaseCommand {
 
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
+        TC_CLIENT_CONNECT_REQUEST = 62;
+        TC_CLIENT_CONNECT_RESPONSE = 63;
 
     }
 
@@ -1013,4 +1049,6 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+    optional CommandTcClientConnectRequest tcClientConnectRequest = 62;
+    optional CommandTcClientConnectResponse tcClientConnectResponse = 63;
 }

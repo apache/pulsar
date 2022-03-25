@@ -169,7 +169,7 @@ public enum SchemaType {
      */
     AUTO_PUBLISH(-4);
 
-    int value;
+    final int value;
 
     SchemaType(int value) {
         this.value = value;

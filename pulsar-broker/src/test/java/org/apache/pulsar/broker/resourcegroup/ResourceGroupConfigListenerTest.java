@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
-import static org.apache.pulsar.common.policies.path.PolicyPath.path;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import com.google.common.collect.Sets;
 import java.util.Random;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -110,6 +109,70 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     }
 
     @Test
+    public void testResourceGroupUpdatePart() throws Exception {
+        testAddRg = new ResourceGroup();
+        testAddRg.setPublishRateInBytes(1024 * 1024L);
+        createResourceGroup(rgName, testAddRg);
+        ResourceGroup resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes().longValue(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs().intValue(), -1);
+        assertEquals(resourceGroup.getDispatchRateInBytes().longValue(), -1);
+        assertEquals(resourceGroup.getDispatchRateInMsgs().longValue(), -1);
+
+        // automatically set publishRateInMsgs to 200000 in updateResourceGroup()
+        testAddRg = new ResourceGroup();
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes().longValue(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs().intValue(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes().longValue(), -1);
+        assertEquals(resourceGroup.getDispatchRateInMsgs().intValue(), -1);
+
+        // manually set dispatchRateInBytes to 2*1024*1024
+        testAddRg = new ResourceGroup();
+        testAddRg.setDispatchRateInBytes(2 * 1024 * 1024L);
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes().longValue(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs().intValue(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes().longValue(), 2 * 1024 * 1024);
+        assertEquals(resourceGroup.getDispatchRateInMsgs().intValue(), -1);
+
+        // manually update dispatchRateInBytes to 3*1024*1024
+        testAddRg = new ResourceGroup();
+        testAddRg.setDispatchRateInBytes(3 * 1024 * 1024L);
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes().longValue(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs().intValue(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes().longValue(), 3 * 1024 * 1024);
+        assertEquals(resourceGroup.getDispatchRateInMsgs().intValue(), -1);
+
+        // manually update dispatchRateInBytes to 4*1024*1024 and set dispatchRateInMsgs to 400000
+        testAddRg = new ResourceGroup();
+        testAddRg.setDispatchRateInBytes(4 * 1024 * 1024L);
+        testAddRg.setDispatchRateInMsgs(400000);
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes().longValue(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs().intValue(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes().longValue(), 4 * 1024 * 1024);
+        assertEquals(resourceGroup.getDispatchRateInMsgs().intValue(), 400000);
+
+        // manually update dispatchRateInBytes to -1
+        testAddRg = new ResourceGroup();
+        testAddRg.setDispatchRateInBytes(-1L);
+        updateResourceGroup(rgName, testAddRg);
+        resourceGroup = admin.resourcegroups().getResourceGroup(rgName);
+        assertEquals(resourceGroup.getPublishRateInBytes().longValue(), 1024 * 1024);
+        assertEquals(resourceGroup.getPublishRateInMsgs().intValue(), 200000);
+        assertEquals(resourceGroup.getDispatchRateInBytes().longValue(), -1);
+        assertEquals(resourceGroup.getDispatchRateInMsgs().intValue(), 400000);
+
+        deleteResourceGroup(rgName);
+    }
+
+    @Test
     public void testResourceGroupCreateDeleteCreate() throws Exception {
         createResourceGroup(rgName, testAddRg);
         deleteResourceGroup(rgName);
@@ -126,11 +189,13 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
 
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
+                assertNotNull(pulsar.getResourceGroupServiceManager()
+                        .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
 
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
         Awaitility.await().untilAsserted(() ->
-            assertNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
+                assertNull(pulsar.getResourceGroupServiceManager()
+                        .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
 
         admin.namespaces().deleteNamespace(namespaceName);
         deleteResourceGroup(rgName);
@@ -142,10 +207,10 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
 
         for (int i = 0; i < MAX_RGS; i++) {
             String rgName = String.format("testRg-%d", i);
-            testAddRg.setDispatchRateInBytes(random.nextInt());
-            testAddRg.setDispatchRateInMsgs(random.nextInt());
-            testAddRg.setPublishRateInBytes(random.nextInt());
-            testAddRg.setPublishRateInMsgs(random.nextInt());
+            testAddRg.setDispatchRateInBytes(Long.valueOf(random.nextInt()));
+            testAddRg.setDispatchRateInMsgs(Integer.valueOf(random.nextInt()));
+            testAddRg.setPublishRateInBytes(Long.valueOf(random.nextInt()));
+            testAddRg.setPublishRateInMsgs(Integer.valueOf(random.nextInt()));
 
             admin.resourcegroups().createResourceGroup(rgName, testAddRg);
         }
@@ -178,15 +243,13 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         pulsar.getPulsarResources().getResourcegroupResources().getStore().registerListener(
           notification -> {
               String notifyPath = notification.getPath();
-              String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
-              if (!notifyPath.startsWith(path(RESOURCEGROUPS))) {
+              if (!ResourceGroupResources.isResourceGroupPath(notifyPath)) {
                   return;
               }
-              if (RESOURCEGROUPS.equals(rgName)) {
-                  return;
-              }
+
+              String rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath).get();
               pulsar.getPulsarResources().getResourcegroupResources()
-                .getAsync(notifyPath).whenComplete((optionalRg, ex) -> {
+                .getResourceGroupAsync(rgName).whenComplete((optionalRg, ex) -> {
                   if (ex != null) {
                       return;
                   }
@@ -203,9 +266,9 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         );
         ResourceGroup rg = new ResourceGroup();
         rg.setPublishRateInMsgs(-1);
-        rg.setPublishRateInBytes(10);
+        rg.setPublishRateInBytes(10L);
         rg.setDispatchRateInMsgs(10);
-        rg.setDispatchRateInBytes(20);
+        rg.setDispatchRateInBytes(20L);
         createResourceGroup("myrg", rg);
 
         for (int i = 0; i < 100; i++) {
@@ -219,10 +282,10 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
 
-        testAddRg.setPublishRateInBytes(10000);
+        testAddRg.setPublishRateInBytes(10000L);
         testAddRg.setPublishRateInMsgs(100);
         testAddRg.setDispatchRateInMsgs(20000);
-        testAddRg.setDispatchRateInBytes(200);
+        testAddRg.setDispatchRateInBytes(200L);
 
     }
 }

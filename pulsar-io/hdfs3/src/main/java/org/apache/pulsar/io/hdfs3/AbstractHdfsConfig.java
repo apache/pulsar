@@ -19,10 +19,8 @@
 package org.apache.pulsar.io.hdfs3;
 
 import java.io.Serializable;
-
 import lombok.Data;
 import lombok.experimental.Accessors;
-
 import org.apache.commons.lang.StringUtils;
 
 /**

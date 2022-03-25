@@ -86,7 +86,8 @@ public final class AuthenticationFactory {
     public static Authentication create(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         try {
-            return DefaultImplementation.getDefaultImplementation().createAuthentication(authPluginClassName, authParamsString);
+            return DefaultImplementation.getDefaultImplementation()
+                    .createAuthentication(authPluginClassName, authParamsString);
         } catch (Throwable t) {
             throw new UnsupportedAuthenticationException(t);
         }
@@ -103,7 +104,8 @@ public final class AuthenticationFactory {
     public static Authentication create(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
         try {
-            return DefaultImplementation.getDefaultImplementation().createAuthentication(authPluginClassName, authParams);
+            return DefaultImplementation.getDefaultImplementation()
+                    .createAuthentication(authPluginClassName, authParams);
         } catch (Throwable t) {
             throw new UnsupportedAuthenticationException(t);
         }

@@ -129,7 +129,7 @@ Pulsar Node.js producers have the following methods available:
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
 | `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object whose result is the message ID runs executor function. | `Promise<Object>` |
-| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
+| `flush()` | Sends message from send queue to Pulsar broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
 | `close()` | Closes the producer and releases all resources allocated to it. Once `close()` is called, no more messages are accepted from the publisher. This method returns a Promise object. It runs the executor function when all pending publish requests are persisted by Pulsar. If an error is thrown, no pending writes are retried. | `Promise<null>` |
 | `getProducerName()` | Getter method of the producer name. | `string` |
 | `getTopic()` | Getter method of the name of the topic. | `string` |
@@ -138,7 +138,7 @@ Pulsar Node.js producers have the following methods available:
 
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
-| `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer publishes messages. | |
+| `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer publishes messages. The topic format is `<topic-name>` or `<tenant-name>/<namespace-name>/<topic-name>`. For example, `sample/ns1/my-topic`. | |
 | `producerName` | A name for the producer. If you do not explicitly assign a name, Pulsar automatically generates a globally unique name.  If you choose to explicitly assign a name, it needs to be unique across *all* Pulsar clusters, otherwise the creation operation throws an error. | |
 | `sendTimeoutMs` | When publishing a message to a topic, the producer waits for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error is thrown. If you set `sendTimeoutMs` to -1, the timeout is set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30000 |
 | `initialSequenceId` | The initial sequence ID of the message. When producer send message, add sequence ID to message. The ID is increased each time to send. | |

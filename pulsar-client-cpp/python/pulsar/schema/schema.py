@@ -58,6 +58,9 @@ class BytesSchema(Schema):
     def decode(self, data):
         return data
 
+    def __str__(self):
+        return 'BytesSchema'
+
 
 class StringSchema(Schema):
     def __init__(self):
@@ -69,6 +72,10 @@ class StringSchema(Schema):
 
     def decode(self, data):
         return data.decode('utf-8')
+
+    def __str__(self):
+        return 'StringSchema'
+
 
 
 class JsonSchema(Schema):
@@ -85,11 +92,16 @@ class JsonSchema(Schema):
 
     def encode(self, obj):
         self._validate_object_type(obj)
-        del obj.__dict__['_default']
-        del obj.__dict__['_required']
-        del obj.__dict__['_required_default']
+        # Copy the dict of the object as to not modify the provided object via the reference provided
+        data = obj.__dict__.copy()
+        if '_default' in data:
+            del data['_default']
+        if '_required' in data:
+            del data['_required']
+        if '_required_default' in data:
+            del data['_required_default']
 
-        return json.dumps(obj.__dict__, default=self._get_serialized_value, indent=True).encode('utf-8')
+        return json.dumps(data, default=self._get_serialized_value, indent=True).encode('utf-8')
 
     def decode(self, data):
         return self._record_cls(**json.loads(data))

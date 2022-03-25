@@ -39,6 +39,7 @@ public class WebSocketProducerServlet extends WebSocketServlet {
         if (service.getConfig().getWebSocketSessionIdleTimeoutMillis() > 0) {
             factory.getPolicy().setIdleTimeout(service.getConfig().getWebSocketSessionIdleTimeoutMillis());
         }
-        factory.setCreator((request, response) -> new ProducerHandler(service, request.getHttpServletRequest(), response));
+        factory.setCreator((request, response) ->
+                new ProducerHandler(service, request.getHttpServletRequest(), response));
     }
 }

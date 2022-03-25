@@ -1,58 +1,274 @@
 module.exports = {
+  books: [
+    {
+      book: 'Apache Pulsar in Action',
+      author: "David Kjerrumgaard",
+      link: 'https://www.manning.com/books/apache-pulsar-in-action/'      
+    },
+    {
+      book: 'Mastering Apache Pulsar',
+      author: "Jowanza Joseph",
+      link: 'https://www.oreilly.com/library/view/mastering-apache-pulsar/9781492084891/'      
+    },
+    {
+      book: 'Cloud-Native Microservices with Apache Pulsar',
+      author: "Rahul Sharma, Mohammad Atyab",
+      link: 'https://link.springer.com/book/10.1007/978-1-4842-7839-0'      
+    },
+    {
+      book: '深入解析 Apache Pulsar（Chinese Book, which means "Deep Dive into Apache Pulsar")',
+      author: "Lin Lin",
+      link: 'https://www.phei.com.cn/module/goods/wssd_content.jsp?bookid=59310'      
+    }
+  ],
   articles: [
-    {
-      forum: 'StreamNative blog',
-      forum_link: 'https://streamnative.io/',
-      title: "Pulsar vs Kafka - Part 2 - Adoption, Use Cases, Differentiators, and Community",
-      link: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-2'
+  {
+      forum: 'Pedro Silvestre',
+      forum_link: 'https://www.doc.ic.ac.uk/~pms20/',
+      date: 'Oct 2021',
+      title: "On the Internals of Stream Processing Systems",
+      link: 'https://www.doc.ic.ac.uk/~pms20/post/stream-processing-thread-model/'
     },
     {
+      forum: 'Memgraph Blog',
+      forum_link: 'https://memgraph.com/blog',
+      date: 'Nov 2021',
+      title: "Announcing Memgraph 2.1",
+      link: 'https://memgraph.com/blog/memgraph-2-1-release'
+    },
+    {
+      forum: 'DataStax Blog',
+      forum_link: 'https://www.datastax.com/blog',
+      date: 'Nov 2021',
+      title: "Infinite Scale without Fail",
+      link: 'https://www.datastax.com/blog/infinite-scale-without-fail-starlight-rabbitmq'
+    },
+    {
+      forum: 'Splunk-MaaS',
+      forum_link: 'https://medium.com/splunk-maas',
+      date: 'Oct/Nov 2021',
+      title: "Apache BookKeeper Observability — Part 1 of 5  ",
+      link: 'https://medium.com/splunk-maas/apache-bookkeeper-observability-part-1-introducing-the-metrics-7f0acb32d0dc'
+    },
+    {
+      forum: 'BetterProgramming',
+      forum_link: 'https://betterprogramming.pub/',
+      date: 'Nov 2021',
+      title: "Distributed Locks With Apache Pulsar",
+      link: 'https://betterprogramming.pub/distributed-locks-with-apache-pulsar-2d95a4d5ff5e'
+    },
+    {
+      forum: 'Data in Motion',
+      forum_link: 'https://www.datainmotion.dev/',
+      date: 'Nov 2021',
+      title: "Producing and Consuming Pulsar messages with Apache NiFi",
+      link: 'https://www.datainmotion.dev/2021/11/producing-and-consuming-pulsar-messages.html'
+    },
+    {
+      forum: 'Umut Bayram\'s Medium',
+      forum_link: 'https://medium.com/@ubayram',
+      date: 'Nov 2021',
+      title: "Apache Pulsar- Apache Kafka vs Apache Pulsar (Turkish)",
+      link: 'https://medium.com/@ubayram/apache-pulsar-apache-kafka-vs-apache-pulsar-418a998084d'
+    },
+    {
+      forum: 'StreamNative Blog ',
+      forum_link: 'https://streamnative.io/blogs/',
+      date: 'Nov 2021',
+      title: "Building Edge Applications With Apache Pulsar",
+      link: 'https://streamnative.io/blog/engineering/2021-11-17-building-edge-applications-with-apache-pulsar/'
+    },
+    {
+      forum: 'The New Stack',
+      forum_link: 'https://thenewstack.io/',
+      date: 'Nov 2021',
+      title: "Apache Pulsar: A Unified Queueing and Streaming Platform",
+      link: 'https://thenewstack.io/apache-pulsar-a-unified-queueing-and-streaming-platform/'
+    },
+    {
+      forum: 'jaxenter',
+      forum_link: 'https://jaxenter.com/',
+      date: 'Nov 2021',
+      title: "Why Pulsar Beats Kafka for a Scalable, Distributed Data Architecture",
+      link: 'https://jaxenter.com/pulsar-kafka-175830.html'
+    },
+    {
+      forum: 'RT Instights',
+      forum_link: 'https://www.rtinsights.com/',
+      date: 'Oct 2021',
+      title: "The Critical Role Streaming Plays in a Data Stack",
+      link: 'https://www.rtinsights.com/the-critical-role-streaming-plays-in-a-data-stack/'
+    },
+    {
+      forum: 'Mikel\'s TechBlog',
+      forum_link: 'https://mikeldeltio.com/',
+      date: 'Sept 2021',
+      title: "Distributed Databases: Apache Pulsar (in ESP)",
+      link: 'https://mikeldeltio.com/2021/09/20/distributed-databases-apache-pulsar/'
+    },
+    {
+      forum: 'Pandio Blog',
+      forum_link: 'https://pandio.com/blog/',
+      date: 'Sept 2021',
+      title: "Apache Pulsar vs. Google PubSub",
+      link: 'https://pandio.com/blog/a-detailed-deep-dive-into-pulsar-and-google-pubsub-which-is-better-and-why'
+    },
+    {
+      forum: 'StreamNative Blog',
+      forum_link: 'https://streamnative.io/',
+      date: 'Aug 2021',
+      title: "Scalable Stream Processing with Pulsar’s Key_Shared Subscription",
+      link: 'https://streamnative.io/en/blog/engineering/2021-08-25-scalable-stream-processing-with-pulsars-key-shared-subscription/'
+    },
+    {
+      forum: 'Pandio Blog',
+      forum_link: 'https://pandio.com/blog/',
+      date: 'July 2021',
+      title: "Pulsar vs. Kafka",
+      link: 'https://pandio.com/blog/pulsar-vs-kafka/'
+    },
+    {
+      forum: 'Building the Open Data Stack',
+      forum_link: 'https://medium.com/building-the-open-data-stack',
+      date: 'June 2021',
+      title: "5 More Reasons to Choose Apache Pulsar Over Apache Kafka",
+      link: 'https://medium.com/building-the-open-data-stack/5-more-reasons-to-choose-apache-pulsar-over-apache-kafka-c09b259e3691'
+    },
+    {
+      forum: 'dattell',
+      forum_link: 'https://dattell.com/data-architecture-blog/',
+      date: 'Feb 2021',
+      title: "Apache Pulsar Subscription Types",
+      link: 'https://dattell.com/data-architecture-blog/subscription-types-in-apache-pulsar/'
+    }
+    
+    ],
+
+  /******************************
+   * Presentations
+   * 
+   ******************************/ 
+  presentations: [
+   {
+      forum: 'P99Conf',
+      forum_link: 'https://www.p99conf.io/',
+      presenter: 'Karthik Ramasamy',
+      date: 'Oct 2021',
+      title: "Scaling Apache Pulsar to 10 PB/day",
+      link: 'https://www.youtube.com/watch?v=x76sX4BU2mA'
+    },
+   {
+      forum: 'Apache Pulsar Summit',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Many',
+      date: 'Oct 2021',
+      title: "Apache Pulsar Summit Europe 2021 Playlist",
+      link: 'https://www.youtube.com/playlist?list=PLqRma1oIkcWh7zes7mNeTUCr2iU-2C1jB'
+    },
+
+    {
+      forum: 'ApacheCon @Home 2021',
+      forum_link: 'https://www.apachecon.com/acah2021/',
+      presenter: 'Many',
+      date: 'Sept 2021',
+      title: "Apache Pulsar Playlist",
+      link: 'https://www.youtube.com/watch?v=igwxegspSGw&list=PLIt9PL1-3shvC0dGjaPyd0Rqfg1_PZLvS'
+    },
+   {
+      forum: 'Apache Pulsar Neighborhood YouTube',
+      forum_link: 'https://www.youtube.com/apachepulsarneighborhood',
+      presenter: 'Enrico Olivelli',
+      date: 'Sept 2021',
+      title: "Apache Pulsar Deep Dive- an End-to-end view of the Data Flow",
+      link: 'https://www.youtube.com/watch?v=oLXCCCGsrWM'
+    },
+    {
+      forum: 'Apache Pulsar Neighborhood YouTube',
+      forum_link: 'https://www.youtube.com/apachepulsarneighborhood',
+      presenter: 'Simba Khadder',
+      date: 'Sept 2021',
+      title: "Apache Pulsar and Machine Learning",
+      link: 'https://youtu.be/K2WXDwo1y0k'
+    },
+    {
+      forum: 'Apache Pulsar Neighborhood YouTube',
+      forum_link: 'https://www.youtube.com/apachepulsarneighborhood',
+      presenter: 'Enrico Olivelli',
+      date: 'Sept 2021',
+      title: "Leveraging Pulsar's Next Gen Streaming Capabilities from a JavaEE Application",
+      link: 'https://www.youtube.com/watch?v=0NA0BIvkQrs'
+    },
+   {
+      forum: 'Devin Bost\'s YouTube',
+      forum_link: 'https://www.youtube.com/channel/UCz_Y86AT4G15xU3IojhX2Kw',
+      presenter: 'Devin Bost',
+      date: 'Aug 2021',
+      title: "Streaming Patterns and Best Practices with Apache Pulsar for Enabling Machine Learning and Analytics",
+      link: 'https://www.youtube.com/watch?v=Fdqre_hTnUI'
+    },
+
+    {
+      forum: 'Pulsar Summit NA 2021',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: '',
+      date: 'June 2021',
+      title: "Pulsar Summit NA 2021 Playlist",
+      link: 'https://www.youtube.com/watch?v=-Bm1h508oIQ&list=PLqRma1oIkcWjyezVodJHcp8GSypvGuc1C'
+    }
+  ],
+    /***************************
+     * Older Articles
+     * 
+     * 
+     * *************************/
+  older_articles: [
+    
+    {
       forum: 'StreamNative blog',
       forum_link: 'https://streamnative.io/',
+      date: 'July 2020',
       title: "Pulsar vs Kafka - Part 1 - A More Accurate Perspective on Performance, Architecture, and Features",
-      link: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-1'
+      link: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-1',
+      title2: "Pulsar vs Kafka - Part 2 - Adoption, Use Cases, Differentiators, and Community",
+      link2: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-2'
     },
     {
       forum: 'StreamNative blog',
       forum_link: 'https://streamnative.io/',
+      date: 'June 2020',
       title: "Taking messaging and data ingestion systems to the next level",
       link: 'https://streamnative.io/blog/tech/2020-07-08-podcast'
     },
     {
       forum: 'StreamNative blog',
       forum_link: 'https://streamnative.io/',
+      date: 'June 2020',
       title: "Announcing AMQP-on-Pulsar: bring native AMQP protocol support to Apache Pulsar",
       link: 'https://streamnative.io/blog/tech/2020-06-15-announcing-aop-on-pulsar'
     },
     {
       forum: 'StreamNative blog',
       forum_link: 'https://streamnative.io/',
+      date: 'June 2020',
       title: "How to trace Pulsar messages with OpenTracing and Jaeger",
       link: 'https://streamnative.io/blog/tech/2020-06-11-opentracing-instrumentation-for-pulsar'
     },
     {
       forum: 'StreamNative blog',
       forum_link: 'https://streamnative.io/',
+      date: 'May 2020',
       title: "Introducing StreamNative Hub — Extend Pulsar Capabilities with Rich Integrations",
       link: 'https://streamnative.io/blog/tech/2020-05-26-intro-to-hub'
     },
     {
       forum: 'StreamNative blog',
       forum_link: 'https://streamnative.io/',
-      title: "How to Build a Distributed Database with Apache BookKeeper — Part 3",
-      link: 'https://streamnative.io/blog/tech/2020-05-12-distributed-database-bk3'
-    },
-    {
-      forum: 'StreamNative blog',
-      forum_link: 'https://streamnative.io/',
-      title: "How to Build a Distributed Database with Apache BookKeeper — Part 2",
-      link: 'https://streamnative.io/blog/tech/2020-04-14-distributed-database-bk2'
-    },
-    {
-      forum: 'StreamNative blog',
-      forum_link: 'https://streamnative.io/',
       title: "How to Build a Distributed Database with Apache BookKeeper — Part 1",
-      link: 'https://streamnative.io/blog/tech/2020-02-04-how-to-build-database'
+      link: 'https://streamnative.io/blog/tech/2020-02-04-how-to-build-database',
+      title2: "How to Build a Distributed Database with Apache BookKeeper — Part 2",
+      link2: 'https://streamnative.io/blog/tech/2020-04-14-distributed-database-bk2',
+      title3: "How to Build a Distributed Database with Apache BookKeeper — Part 3",
+      link3: 'https://streamnative.io/blog/tech/2020-05-12-distributed-database-bk3'
     },
     {
       forum: 'StreamNative blog',
@@ -99,14 +315,10 @@ module.exports = {
     {
       forum: 'Streamlio blog',
       forum_link: 'https://streaml.io/blog',
-      title: 'Why Apache Pulsar? Part 2',
-      link: 'https://streaml.io/blog/why-apache-pulsar-part-2'
-    },
-    {
-      forum: 'Streamlio blog',
-      forum_link: 'https://streaml.io/blog',
       title: 'Why Apache Pulsar? Part 1',
-      link: 'https://streaml.io/blog/why-apache-pulsar/'
+      link: 'https://streaml.io/blog/why-apache-pulsar/',
+      title2: 'Why Apache Pulsar? Part 2',
+      link2: 'https://streaml.io/blog/why-apache-pulsar-part-2'
     },
     {
       forum: "Jack Vanlightly's blog",
@@ -326,13 +538,18 @@ module.exports = {
         link: 'https://debezium.io/blog/2019/05/23/tutorial-using-debezium-connectors-with-apache-pulsar/'
     },
     {
-     	forum: 'Pulsar in Action',
-     	forum_link: 'https://www.manning.com/books/pulsar-in-action',
-     	title: "Pulsar in Action",
-     	link: 'https://www.manning.com/books/pulsar-in-action'
+        forum: 'Pulsar in Action',
+        forum_link: 'https://www.manning.com/books/pulsar-in-action',
+        title: "Pulsar in Action",
+        link: 'https://www.manning.com/books/pulsar-in-action'
      }
   ],
-  presentations: [
+      /***************************
+     * Older Presentations
+     * 
+     * 
+     * *************************/
+  older_presentations: [
     {
       forum: 'Pulsar Summit 2020',
       forum_link: 'https://pulsar-summit.org/',

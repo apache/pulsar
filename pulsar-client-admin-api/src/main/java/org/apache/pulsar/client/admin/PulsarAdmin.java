@@ -75,6 +75,18 @@ public interface PulsarAdmin extends Closeable {
     Topics topics();
 
     /**
+     * Get the topic policies management object.
+     * @return the topic policies management object
+     */
+    TopicPolicies topicPolicies();
+
+    /**
+     * Get the local/global topic policies management object.
+     * @return the topic policies management object
+     */
+    TopicPolicies topicPolicies(boolean isGlobal);
+
+    /**
      * @return the bookies management object
      */
     Bookies bookies();

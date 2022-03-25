@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.util.Collections;
+import java.util.List;
 import lombok.Data;
 import lombok.Getter;
 import org.apache.pulsar.functions.proto.Function;
@@ -44,6 +46,7 @@ public class InstanceConfig {
     @Getter
     private boolean exposePulsarAdminClientEnabled = false;
     private int metricsPort;
+    private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
 
     /**
      * Get the string representation of {@link #getInstanceId()}.

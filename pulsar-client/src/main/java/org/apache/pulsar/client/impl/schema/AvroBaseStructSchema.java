@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.avro.Schema;
-import org.apache.pulsar.common.schema.SchemaInfo;
-
-import java.util.Optional;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
+import java.util.Optional;
+import org.apache.avro.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
  * This is a base schema implementation for Avro Based `Struct` types.

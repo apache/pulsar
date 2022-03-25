@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -67,9 +67,10 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setWebServicePort(Optional.of(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 
@@ -120,7 +121,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
             consumer.acknowledge(msg);
         }
 
@@ -169,7 +170,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
-            checkNotNull(msg);
+            requireNonNull(msg);
             consumer.acknowledge(msg);
             msg = consumer2.receive(1, TimeUnit.SECONDS);
         }

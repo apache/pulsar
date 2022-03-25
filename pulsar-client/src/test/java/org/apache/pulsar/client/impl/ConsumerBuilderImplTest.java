@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -37,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 
@@ -227,7 +229,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void testConsumerBuilderImplWhenPropertiesIsEmpty() {
         Map<String, String> properties = new HashMap<>();
 
@@ -288,6 +290,15 @@ public class ConsumerBuilderImplTest {
                 .build());
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testRedeliverCountOfDeadLetterPolicy() {
+        consumerBuilderImpl.deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(0)
+                .deadLetterTopic("test-dead-letter-topic")
+                .retryLetterTopic("test-retry-letter-topic")
+                .build());
+    }
+
     @Test
     public void testConsumerBuilderImplWhenNumericPropertiesAreValid() {
         consumerBuilderImpl.negativeAckRedeliveryDelay(1, TimeUnit.MILLISECONDS);
@@ -301,5 +312,19 @@ public class ConsumerBuilderImplTest {
     public void testConsumerMode() {
         consumerBuilderImpl.subscriptionMode(SubscriptionMode.NonDurable)
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+    }
+
+    @Test
+    public void testNegativeAckRedeliveryBackoff() {
+        consumerBuilderImpl.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(10 * 1000)
+                .build());
+    }
+
+    @Test
+    public void testStartPaused() {
+        consumerBuilderImpl.startPaused(true);
+        verify(consumerBuilderImpl.getConf()).setStartPaused(true);
     }
 }

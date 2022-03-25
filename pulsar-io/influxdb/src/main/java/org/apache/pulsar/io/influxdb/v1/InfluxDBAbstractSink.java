@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.io.influxdb.v1;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.influxdb.BatchSink;
@@ -25,12 +28,8 @@ import org.influxdb.InfluxDB;
 import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
 /**
- * A simple abstract class for InfluxDB sink
+ * A simple abstract class for InfluxDB sink.
  */
 @Slf4j
 public abstract class InfluxDBAbstractSink<T> extends BatchSink<Point, T> {
@@ -50,7 +49,8 @@ public abstract class InfluxDBAbstractSink<T> extends BatchSink<Point, T> {
         super.init(influxDBSinkConfig.getBatchTimeMs(), influxDBSinkConfig.getBatchSize());
 
         try {
-            consistencyLevel = InfluxDB.ConsistencyLevel.valueOf(influxDBSinkConfig.getConsistencyLevel().toUpperCase());
+            consistencyLevel = InfluxDB.ConsistencyLevel.valueOf(
+                    influxDBSinkConfig.getConsistencyLevel().toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Illegal Consistency Level, valid values are: "
                 + Arrays.asList(InfluxDB.ConsistencyLevel.values()));

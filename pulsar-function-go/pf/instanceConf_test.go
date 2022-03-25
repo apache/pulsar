@@ -62,9 +62,10 @@ func Test_newInstanceConf(t *testing.T) {
 							},
 						},
 					},
-					TimeoutMs:           0,
-					SubscriptionName:    "",
-					CleanupSubscription: false,
+					TimeoutMs:            0,
+					SubscriptionName:     "",
+					CleanupSubscription:  false,
+					SubscriptionPosition: pb.SubscriptionPosition_EARLIEST,
 				},
 				Sink: &pb.SinkSpec{
 					Topic:      "persistent://public/default/topic-02",

@@ -19,14 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -56,7 +53,7 @@ public class AuthenticationUtil {
     }
 
     /**
-     * Create an instance of the Authentication-Plugin
+     * Create an instance of the Authentication-Plugin.
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
@@ -71,7 +68,7 @@ public class AuthenticationUtil {
         try {
             if (isNotBlank(authPluginClassName)) {
                 Class<?> authClass = Class.forName(authPluginClassName);
-                Authentication auth = (Authentication) authClass.newInstance();
+                Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 if (auth instanceof EncodedAuthenticationParameterSupport) {
                     // Parse parameters on plugin side.
                     ((EncodedAuthenticationParameterSupport) auth).configure(authParamsString);
@@ -89,7 +86,7 @@ public class AuthenticationUtil {
     }
 
     /**
-     * Create an instance of the Authentication-Plugin
+     * Create an instance of the Authentication-Plugin.
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
@@ -104,7 +101,7 @@ public class AuthenticationUtil {
         try {
             if (isNotBlank(authPluginClassName)) {
                 Class<?> authClass = Class.forName(authPluginClassName);
-                Authentication auth = (Authentication) authClass.newInstance();
+                Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 auth.configure(authParams);
                 return auth;
             } else {

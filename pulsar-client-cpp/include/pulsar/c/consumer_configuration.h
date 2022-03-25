@@ -275,6 +275,12 @@ PULSAR_PUBLIC void pulsar_consumer_set_subscription_initial_position(
 PULSAR_PUBLIC void pulsar_consumer_configuration_set_property(pulsar_consumer_configuration_t *conf,
                                                               const char *name, const char *value);
 
+PULSAR_PUBLIC void pulsar_consumer_configuration_set_priority_level(
+    pulsar_consumer_configuration_t *consumer_configuration, int priority_level);
+
+PULSAR_PUBLIC int pulsar_consumer_configuration_get_priority_level(
+    pulsar_consumer_configuration_t *consumer_configuration);
+
 // const CryptoKeyReaderPtr getCryptoKeyReader()
 //
 // const;

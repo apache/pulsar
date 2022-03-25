@@ -22,19 +22,18 @@ import static com.google.common.base.Functions.identity;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
-
 import com.google.protobuf.DynamicMessage;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.PrestoException;
-import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeRecord;
-import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
-import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
+import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 
 /**
  * Pulsar {@link org.apache.pulsar.common.schema.SchemaType#PROTOBUF_NATIVE} RowDecoder.
@@ -44,8 +43,10 @@ public class PulsarProtobufNativeRowDecoder implements PulsarRowDecoder {
     private final GenericProtobufNativeSchema genericProtobufNativeSchema;
     private final Map<DecoderColumnHandle, PulsarProtobufNativeColumnDecoder> columnDecoders;
 
-    public PulsarProtobufNativeRowDecoder(GenericProtobufNativeSchema genericProtobufNativeSchema, Set<DecoderColumnHandle> columns) {
-        this.genericProtobufNativeSchema = requireNonNull(genericProtobufNativeSchema, "genericProtobufNativeSchema is null");
+    public PulsarProtobufNativeRowDecoder(GenericProtobufNativeSchema genericProtobufNativeSchema,
+                                          Set<DecoderColumnHandle> columns) {
+        this.genericProtobufNativeSchema = requireNonNull(genericProtobufNativeSchema,
+                "genericProtobufNativeSchema is null");
         columnDecoders = columns.stream()
                 .collect(toImmutableMap(identity(), this::createColumnDecoder));
     }
@@ -63,7 +64,8 @@ public class PulsarProtobufNativeRowDecoder implements PulsarRowDecoder {
     public Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodeRow(ByteBuf byteBuf) {
         DynamicMessage dynamicMessage;
         try {
-            GenericProtobufNativeRecord record = (GenericProtobufNativeRecord) genericProtobufNativeSchema.decode(byteBuf);
+            GenericProtobufNativeRecord record = (GenericProtobufNativeRecord) genericProtobufNativeSchema
+                    .decode(byteBuf);
             dynamicMessage = record.getProtobufRecord();
         } catch (Exception e) {
             log.error(e);

@@ -19,15 +19,17 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Sets;
-
 import io.swagger.annotations.ApiModelProperty;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,10 +37,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
-
-import java.io.Serializable;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.util.Secret;
 
 /**
@@ -91,19 +89,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "operationTimeoutMs",
-            value = "Client operation timeout (in millisecond)."
+            value = "Client operation timeout (in milliseconds)."
     )
     private long operationTimeoutMs = 30000;
 
     @ApiModelProperty(
             name = "lookupTimeoutMs",
-            value = "Client lookup timeout (in millisecond)."
+            value = "Client lookup timeout (in milliseconds)."
     )
     private long lookupTimeoutMs = -1;
 
     @ApiModelProperty(
             name = "statsIntervalSeconds",
-            value = " Interval to print client stats (in second)."
+            value = "Interval to print client stats (in seconds)."
     )
     private long statsIntervalSeconds = 60;
 
@@ -122,6 +120,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "connectionsPerBroker",
             value = "Number of connections established between the client and each Broker."
+                    + " A value of 0 means to disable connection pooling."
     )
     private int connectionsPerBroker = 1;
 
@@ -239,7 +238,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "tlsTrustStoreType",
-            value = "TLS TrustStore type configuration. You need to set this configuration when client authentication is required."
+            value = "TLS TrustStore type configuration. You need to set this configuration when client authentication"
+                    + " is required."
     )
     private String tlsTrustStoreType = "JKS";
 
@@ -253,25 +253,26 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "tlsTrustStorePassword",
             value = "Password of TLS TrustStore."
     )
+    @Secret
     private String tlsTrustStorePassword = null;
 
     @ApiModelProperty(
             name = "tlsCiphers",
             value = "Set of TLS Ciphers."
     )
-    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsCiphers = new TreeSet<>();
 
     @ApiModelProperty(
             name = "tlsProtocols",
             value = "Protocols of TLS."
     )
-    private Set<String> tlsProtocols = Sets.newTreeSet();
+    private Set<String> tlsProtocols = new TreeSet<>();
 
     @ApiModelProperty(
             name = "memoryLimitBytes",
-            value = "Limit of client memory usage (in byte)."
+            value = "Limit of client memory usage (in byte). The 64M default can guarantee a high producer throughput."
     )
-    private long memoryLimitBytes = 0;
+    private long memoryLimitBytes = 64 * 1024 * 1024;
 
     @ApiModelProperty(
             name = "proxyServiceUrl",
@@ -294,6 +295,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 
+    @ApiModelProperty(
+            name = "dnsLookupBindAddress",
+            value = "The Pulsar client dns lookup bind address, default behavior is bind on 0.0.0.0"
+    )
+    private String dnsLookupBindAddress = null;
+
+    @ApiModelProperty(
+            name = "dnsLookupBindPort",
+            value = "The Pulsar client dns lookup bind port, takes effect when dnsLookupBindAddress is configured,"
+                    + " default value is 0."
+    )
+    private int dnsLookupBindPort = 0;
+
     // socks5
     @ApiModelProperty(
             name = "socks5ProxyAddress",
@@ -308,9 +322,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String socks5ProxyUsername;
 
     @ApiModelProperty(
-            name = "socks5ProxyUsername",
+            name = "socks5ProxyPassword",
             value = "Password of SOCKS5 proxy."
     )
+    @Secret
     private String socks5ProxyPassword;
 
     public Authentication getAuthentication() {
@@ -324,9 +339,11 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         this.authentication = authentication;
     }
     public boolean isUseTls() {
-        if (useTls)
+        if (useTls) {
             return true;
-        if (getServiceUrl() != null && (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https"))) {
+        }
+        if (getServiceUrl() != null
+                && (this.getServiceUrl().startsWith("pulsar+ssl") || this.getServiceUrl().startsWith("https"))) {
             this.useTls = true;
             return true;
         }

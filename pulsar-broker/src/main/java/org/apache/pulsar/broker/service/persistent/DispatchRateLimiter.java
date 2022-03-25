@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -43,7 +40,8 @@ public class DispatchRateLimiter {
     public enum Type {
         TOPIC,
         SUBSCRIPTION,
-        REPLICATOR
+        REPLICATOR,
+        BROKER
     }
 
     private final PersistentTopic topic;
@@ -53,16 +51,20 @@ public class DispatchRateLimiter {
     private final BrokerService brokerService;
     private RateLimiter dispatchRateLimiterOnMessage;
     private RateLimiter dispatchRateLimiterOnByte;
-    private long subscriptionRelativeRatelimiterOnMessage;
-    private long subscriptionRelativeRatelimiterOnByte;
 
     public DispatchRateLimiter(PersistentTopic topic, Type type) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         this.type = type;
-        this.subscriptionRelativeRatelimiterOnMessage = -1;
-        this.subscriptionRelativeRatelimiterOnByte = -1;
+        updateDispatchRate();
+    }
+
+    public DispatchRateLimiter(BrokerService brokerService) {
+        this.topic = null;
+        this.topicName = null;
+        this.brokerService = brokerService;
+        this.type = Type.BROKER;
         updateDispatchRate();
     }
 
@@ -143,6 +145,10 @@ public class DispatchRateLimiter {
                 dispatchThrottlingRateInMsg = config.getDispatchThrottlingRatePerReplicatorInMsg();
                 dispatchThrottlingRateInByte = config.getDispatchThrottlingRatePerReplicatorInByte();
                 break;
+            case BROKER:
+                dispatchThrottlingRateInMsg = config.getDispatchThrottlingRateInMsg();
+                dispatchThrottlingRateInByte = config.getDispatchThrottlingRateInByte();
+                break;
             default:
                 dispatchThrottlingRateInMsg = -1;
                 dispatchThrottlingRateInByte = -1;
@@ -153,7 +159,7 @@ public class DispatchRateLimiter {
                 .dispatchThrottlingRateInMsg(dispatchThrottlingRateInMsg)
                 .dispatchThrottlingRateInByte(dispatchThrottlingRateInByte)
                 .ratePeriodInSecond(1)
-                .relativeToPublishRate(config.isDispatchThrottlingRateRelativeToPublishRate())
+                .relativeToPublishRate(type != Type.BROKER && config.isDispatchThrottlingRateRelativeToPublishRate())
                 .build();
     }
 
@@ -163,22 +169,40 @@ public class DispatchRateLimiter {
      * broker-level
      */
     public void updateDispatchRate() {
-        Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
-        if (!dispatchRate.isPresent()) {
-            dispatchRate = Optional.ofNullable(getPoliciesDispatchRate(brokerService));
-
-            if (!dispatchRate.isPresent()) {
-                dispatchRate = Optional.of(createDispatchRate());
-            }
+        DispatchRate dispatchRate;
+        switch (type) {
+            case TOPIC:
+                dispatchRate = topic.getDispatchRate();
+                break;
+            case SUBSCRIPTION:
+                dispatchRate = topic.getSubscriptionDispatchRate();
+                break;
+            case REPLICATOR:
+                dispatchRate = topic.getReplicatorDispatchRate();
+                break;
+            case BROKER:
+                dispatchRate = createDispatchRate();
+                break;
+            default:
+                log.warn("ignore configured dispatch rate for type {}", type);
+                return;
         }
-
-        updateDispatchRate(dispatchRate.get());
-        log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate.get());
+        if (type == Type.BROKER) {
+            log.info("configured broker message-dispatch rate {}", dispatchRate);
+        } else {
+            log.info("[{}] configured {} message-dispatch rate at broker {}",
+                this.topicName, type, dispatchRate);
+        }
+        updateDispatchRate(dispatchRate);
     }
 
     public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
             String topicName, Type type) {
         final ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
+        if (type == Type.BROKER) {
+            return brokerService.getBrokerDispatchRateLimiter().isDispatchRateLimitingEnabled();
+        }
+
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
         if (dispatchRate.isPresent()) {
             return true;
@@ -310,32 +334,15 @@ public class DispatchRateLimiter {
         }).orElse(null);
     }
 
-
-    /**
-     * Gets configured dispatch-rate from namespace policies. Returns null if dispatch-rate is not configured
-     *
-     * @return
-     */
-    public DispatchRate getPoliciesDispatchRate(BrokerService brokerService) {
-        final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-        final Optional<Policies> policies = getPolicies(brokerService, topicName);
-        return getPoliciesDispatchRate(cluster, policies, type);
+    public static CompletableFuture<Optional<Policies>> getPoliciesAsync(BrokerService brokerService,
+         String topicName) {
+        final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace);
     }
 
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
-        final String path = path(POLICIES, namespace.toString());
-        Optional<Policies> policies = Optional.empty();
-        try {
-            ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
-            if (configurationCacheService != null) {
-                policies = configurationCacheService.policiesCache().getAsync(path)
-                        .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to get message-rate for {} ", topicName, e);
-        }
-        return policies;
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(namespace);
     }
 
     /**
@@ -438,7 +445,7 @@ public class DispatchRateLimiter {
     }
 
 
-    private static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
+    public static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
         return dispatchRate != null && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
                 || dispatchRate.getDispatchThrottlingRateInByte() > 0);
     }

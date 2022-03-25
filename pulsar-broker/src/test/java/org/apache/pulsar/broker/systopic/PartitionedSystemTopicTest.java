@@ -18,13 +18,22 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import com.google.common.collect.Sets;
+import org.apache.commons.lang.RandomStringUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Test(groups = "broker")
 public class PartitionedSystemTopicTest extends BrokerTestBase {
@@ -66,4 +75,28 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Assert.assertEquals(partitions, PARTITIONS);
         Assert.assertEquals(admin.topics().getList(ns).size(), PARTITIONS);
     }
+
+    @Test(timeOut = 1000 * 60)
+    public void testConsumerCreationWhenEnablingTopicPolicy() throws Exception {
+        String tenant = "tenant-" + RandomStringUtils.randomAlphabetic(4).toLowerCase();
+        admin.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+        int namespaceCount = 30;
+        for (int i = 0; i < namespaceCount; i++) {
+            String ns = tenant + "/ns-" + i;
+            admin.namespaces().createNamespace(ns, 4);
+            String topic = ns + "/t1";
+            admin.topics().createPartitionedTopic(topic, 2);
+        }
+
+        List<CompletableFuture<Consumer<byte[]>>> futureList = new ArrayList<>();
+        for (int i = 0; i < namespaceCount; i++) {
+            String topic = tenant + "/ns-" + i + "/t1";
+            futureList.add(pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionName("sub")
+                    .subscribeAsync());
+        }
+        FutureUtil.waitForAll(futureList).get();
+    }
+
 }

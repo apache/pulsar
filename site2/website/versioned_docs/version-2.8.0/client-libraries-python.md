@@ -29,13 +29,13 @@ To support aspects like pulsar functions or Avro serialization, additional optio
 
 ```shell
 # avro serialization
-$ pip install pulsar-client=='{{pulsar:version_number}}[avro]'
+$ pip install pulsar-client[avro]=='{{pulsar:version_number}}'
 
 # functions runtime
-$ pip install pulsar-client=='{{pulsar:version_number}}[functions]'
+$ pip install pulsar-client[functions]=='{{pulsar:version_number}}'
 
 # all optional components
-$ pip install pulsar-client=='{{pulsar:version_number}}[all]'
+$ pip install pulsar-client[all]=='{{pulsar:version_number}}'
 ```
 
 Installation via PyPi is available for the following Python versions:

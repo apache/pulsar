@@ -27,7 +27,6 @@ import static io.prestosql.spi.type.Varchars.truncateToLength;
 import static java.lang.Float.floatToIntBits;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
@@ -70,7 +69,8 @@ public class PulsarProtobufNativeColumnDecoder {
             BigintType.BIGINT,
             RealType.REAL,
             DoubleType.DOUBLE,
-            VarbinaryType.VARBINARY);
+            VarbinaryType.VARBINARY,
+            TimestampType.TIMESTAMP);
 
     private final Type columnType;
     private final String columnMapping;
@@ -141,7 +141,8 @@ public class PulsarProtobufNativeColumnDecoder {
             if (value == null) {
                 return null;
             }
-            value = ((DynamicMessage) value).getField(((DynamicMessage) value).getDescriptorForType().findFieldByName(pathElement));
+            value = ((DynamicMessage) value).getField(((DynamicMessage) value).getDescriptorForType()
+                    .findFieldByName(pathElement));
         }
         return value;
     }
@@ -191,6 +192,15 @@ public class PulsarProtobufNativeColumnDecoder {
 
             if (columnType instanceof RealType) {
                 return floatToIntBits((Float) value);
+            }
+
+            //return millisecond which parsed from protobuf/timestamp
+            if (columnType instanceof TimestampType && value instanceof DynamicMessage) {
+                DynamicMessage message = (DynamicMessage) value;
+                int nanos = (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));
+                long seconds = (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
+                //maybe an exception here, but seems will never happen in hundred years.
+                return seconds * MILLIS_PER_SECOND + nanos / NANOS_PER_MILLISECOND;
             }
 
             throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
@@ -341,7 +351,10 @@ public class PulsarProtobufNativeColumnDecoder {
     protected static Map parseProtobufMap(Object value) {
         Map map = new HashMap();
         for (Object mapMsg : ((List) value)) {
-            map.put(((DynamicMessage) mapMsg).getField(((DynamicMessage) mapMsg).getDescriptorForType().findFieldByName(PROTOBUF_MAP_KEY_NAME)), ((DynamicMessage) mapMsg).getField(((DynamicMessage) mapMsg).getDescriptorForType().findFieldByName(PROTOBUF_MAP_VALUE_NAME)));
+            map.put(((DynamicMessage) mapMsg).getField(((DynamicMessage) mapMsg).getDescriptorForType()
+                    .findFieldByName(PROTOBUF_MAP_KEY_NAME)), ((DynamicMessage) mapMsg)
+                    .getField(((DynamicMessage) mapMsg).getDescriptorForType()
+                            .findFieldByName(PROTOBUF_MAP_VALUE_NAME)));
         }
         return map;
     }
@@ -365,7 +378,8 @@ public class PulsarProtobufNativeColumnDecoder {
         List<Field> fields = ((RowType) type).getFields();
         for (Field field : fields) {
             checkState(field.getName().isPresent(), "field name not found");
-            serializeObject(singleRowBuilder, record.getField(((DynamicMessage) value).getDescriptorForType().findFieldByName(field.getName().get())), field.getType(), columnName);
+            serializeObject(singleRowBuilder, record.getField(((DynamicMessage) value).getDescriptorForType()
+                    .findFieldByName(field.getName().get())), field.getType(), columnName);
 
         }
         blockBuilder.closeEntry();
@@ -377,5 +391,6 @@ public class PulsarProtobufNativeColumnDecoder {
 
     protected static final String PROTOBUF_MAP_KEY_NAME = "key";
     protected static final String PROTOBUF_MAP_VALUE_NAME = "value";
-
+    private static final long MILLIS_PER_SECOND = 1000;
+    private static final long NANOS_PER_MILLISECOND = 1000000;
 }

@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
-import lombok.EqualsAndHashCode;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import lombok.EqualsAndHashCode;
 
 /**
  * A set comprising zero or more ranges type of key-value pair.
@@ -177,13 +175,21 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public int compareTo(LongPair o) {
-            return ComparisonChain.start().compare(key, o.getKey()).compare(value, o.getValue()).result();
+        public int compareTo(LongPair that) {
+            if (this.key != that.key) {
+                return this.key < that.key ? -1 : 1;
+            }
+
+            if (this.value != that.value) {
+                return this.value < that.value ? -1 : 1;
+            }
+
+            return 0;
         }
 
         @Override
         public String toString() {
-            return String.format("%d:%d", key, value);
+            return key + ":" + value;
         }
     }
 

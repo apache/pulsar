@@ -40,6 +40,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.same;
@@ -124,6 +125,34 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testConnectionCreation() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        pulsarClient.newProducer(Schema.BOOL).topic("test").create();
+        pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
+        // single connection for both producer and consumer
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConnectionCreationCount() == 1);
+    }
+
+    @Test
+    public void testProducerCreation() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getProducerCount() == 0);
+        pulsarClient.newProducer(Schema.BOOL).topic("test").create();
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getProducerCount() == 1);
+    }
+
+    @Test
+    public void testConsumerCreation() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConsumerCount() == 0);
+        pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConsumerCount() == 1);
+    }
+
+    @Test
     public void testBeforeSendMessage() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
@@ -138,13 +167,34 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             .subscriptionName("test")
             .subscribe();
 
+        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),0);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),0);
         producer.send("hello world");
+        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),1);
 
         Message<String> msg = consumer.receive();
 
         assertEquals(msg.getValue(), "hello world");
 
         assertEquals(((CounterBrokerInterceptor) listener).getBeforeSendCount(), 1);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),1);
+    }
+
+    @Test
+    public void testInterceptAck() throws Exception {
+        final String topic = "test-intercept-ack" + UUID.randomUUID();
+        BrokerInterceptor interceptor = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(interceptor instanceof CounterBrokerInterceptor);
+
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                     .subscriptionName("test-sub").subscribe()) {
+            producer.send("test intercept ack message");
+            Message<String> message = consumer.receive();
+            consumer.acknowledge(message);
+        }
+
+        Assert.assertEquals(((CounterBrokerInterceptor) interceptor).getHandleAckCount(), 1);
     }
 
     @Test

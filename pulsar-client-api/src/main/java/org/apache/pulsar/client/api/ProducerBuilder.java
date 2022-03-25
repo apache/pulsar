@@ -172,7 +172,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * the client application. Until, the producer gets a successful acknowledgment back from the broker,
      * it will keep in memory (direct memory pool) all the messages in the pending queue.
      *
-     * <p>Default is 1000.
+     * <p>Default is 0, disable the pending messages check.
      *
      * @param maxPendingMessages
      *            the max size of the pending messages queue for the producer
@@ -188,7 +188,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * The purpose of this setting is to have an upper-limit on the number
      * of pending messages when publishing on a partitioned topic.
      *
-     * <p>Default is 50000.
+     * <p>Default is 0, disable the pending messages across partitions check.
      *
      * <p>If publishing at high rate over a topic with many partitions (especially when publishing messages without a
      * partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the
@@ -198,6 +198,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            max pending messages across all the partitions
      * @return the producer builder instance
      */
+    @Deprecated
     ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
 
     /**
@@ -334,13 +335,23 @@ public interface ProducerBuilder<T> extends Cloneable {
      * (sometime due to broker-restart or publish time, producer might fail to publish entire large message
      * so, consumer will not be able to consume and ack those messages. So, those messages can
      * be only discared by msg ttl) Or configure
-     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage()}
+     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage}
      * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChunkedMessage
      * </pre>
      * @param enableChunking
      * @return
      */
     ProducerBuilder<T> enableChunking(boolean enableChunking);
+
+    /**
+     * Max chunk message size in bytes. Producer chunks the message if chunking is enabled and message size is larger
+     * than max chunk-message size. By default chunkMaxMessageSize value is -1 and in that case, producer chunks based
+     * on max-message size configured at broker.
+     *
+     * @param chunkMaxMessageSize
+     * @return
+     */
+    ProducerBuilder<T> chunkMaxMessageSize(int chunkMaxMessageSize);
 
     /**
      * Sets a {@link CryptoKeyReader}.
@@ -576,4 +587,23 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @since 2.5.0
      */
     ProducerBuilder<T> enableMultiSchema(boolean multiSchema);
+
+    /**
+     * This config affects Shared mode producers of partitioned topics only. It controls whether
+     * producers register and connect immediately to the owner broker of each partition
+     * or start lazily on demand. The internal producer of one partition is always
+     * started eagerly, chosen by the routing policy, but the internal producers of
+     * any additional partitions are started on demand, upon receiving their first
+     * message.
+     * Using this mode can reduce the strain on brokers for topics with large numbers of
+     * partitions and when the SinglePartition or some custom partial partition routing policy
+     * like PartialRoundRobinMessageRouterImpl is used without keyed messages.
+     * Because producer connection can be on demand, this can produce extra send latency
+     * for the first messages of a given partition.
+     *
+     * @param lazyStartPartitionedProducers
+     *            true/false as to whether to start partition producers lazily
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers);
 }

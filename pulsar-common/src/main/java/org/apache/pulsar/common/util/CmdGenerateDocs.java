@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.common.util;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterDescription;
+import com.beust.jcommander.Parameters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +117,7 @@ public class CmdGenerateDocs {
         }
         sb.append(module);
         if (cmd.getObjects().size() > 0
-                && cmd.getObjects().get(0).getClass().getName() == "com.beust.jcommander.JCommander") {
+                && cmd.getObjects().get(0).getClass().getName().equals("com.beust.jcommander.JCommander")) {
             JCommander cmdObj = (JCommander) cmd.getObjects().get(0);
             sb.append(" subcommand").append("\n```").append("\n\n");
             for (String s : cmdObj.getCommands().keySet()) {

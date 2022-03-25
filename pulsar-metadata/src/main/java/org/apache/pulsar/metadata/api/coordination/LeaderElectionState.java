@@ -23,17 +23,17 @@ package org.apache.pulsar.metadata.api.coordination;
  */
 public enum LeaderElectionState {
     /**
-     * No leader has been elected yet
+     * No leader has been elected yet.
      */
     NoLeader,
 
     /**
-     * We are currently the leader
+     * We are currently the leader.
      */
     Leading,
 
     /**
-     * Follower state
+     * Follower state.
      */
     Following
 }

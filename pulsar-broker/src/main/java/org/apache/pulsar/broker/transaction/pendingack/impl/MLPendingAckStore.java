@@ -34,7 +34,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -111,7 +110,7 @@ public class MLPendingAckStore implements PendingAckStore {
     //TODO can control the number of entry to read
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.latest);
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
     }
 
     @Override
@@ -120,12 +119,23 @@ public class MLPendingAckStore implements PendingAckStore {
         cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
             @Override
             public void closeComplete(Object ctx) {
-                try {
-                    managedLedger.close();
-                } catch (Exception e) {
-                    completableFuture.completeExceptionally(e);
-                }
-                completableFuture.complete(null);
+                managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+
+                    @Override
+                    public void closeComplete(Object ctx) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] MLPendingAckStore closed successfully！", managedLedger.getName(), ctx);
+                        }
+                        completableFuture.complete(null);
+                    }
+
+                    @Override
+                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error("[{}][{}] MLPendingAckStore closed failed,exception={}", managedLedger.getName(),
+                                ctx, exception);
+                        completableFuture.completeExceptionally(exception);
+                    }
+                }, ctx);
             }
 
             @Override
@@ -272,10 +282,14 @@ public class MLPendingAckStore implements PendingAckStore {
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
                         managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
+
+                if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
+                    managedLedger.readyToCreateNewLedger();
+                }
                 buf.release();
                 completableFuture.completeExceptionally(new PersistenceException(exception));
             }
-        } , null);
+        }, null);
         return completableFuture;
     }
 
@@ -292,13 +306,14 @@ public class MLPendingAckStore implements PendingAckStore {
         @Override
         public void run() {
             try {
-                while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
-                    if (((ManagedCursorImpl) cursor).isClosed()) {
-                        log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
-                                cursor.getManagedLedger().getName());
-                        return;
-                    }
-                    fillEntryQueueCallback.fillQueue();
+                if (cursor.isClosed()) {
+                    pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
+                            .CursorAlreadyClosedException("MLPendingAckStore cursor have been closed."));
+                    log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
+                            cursor.getManagedLedger().getName());
+                    return;
+                }
+                while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0 && fillEntryQueueCallback.fillQueue()) {
                     Entry entry = entryQueue.poll();
                     if (entry != null) {
                         ByteBuf buffer = entry.getDataBuffer();
@@ -341,6 +356,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     }
                 }
             } catch (Exception e) {
+                pendingAckReplyCallBack.replayFailed(e);
                 log.error("[{}] Pending ack recover fail!", subManagedCursor.getManagedLedger().getName(), e);
                 return;
             }
@@ -350,15 +366,17 @@ public class MLPendingAckStore implements PendingAckStore {
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
+        private volatile boolean isReadable = true;
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
 
-        void fillQueue() {
+        boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
                 }
             }
+            return isReadable;
         }
 
         @Override
@@ -378,7 +396,13 @@ public class MLPendingAckStore implements PendingAckStore {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            log.error("MLPendingAckStore stat reply fail!", exception);
+            if (managedLedger.getConfig().isAutoSkipNonRecoverableData()
+                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+                isReadable = false;
+            }
+            log.error("MLPendingAckStore of topic [{}] stat reply fail!", managedLedger.getName(), exception);
             outstandingReadsRequests.decrementAndGet();
         }
 

@@ -23,7 +23,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * The metadata of additional servlet
+ * The metadata of additional servlet.
  */
 @Data
 @NoArgsConstructor

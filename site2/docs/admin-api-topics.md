@@ -197,6 +197,8 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **storageSize**: The sum of the ledgers' storage size for this topic. The space used to store the messages for the topic.
 
+  -   **earliestMsgPublishTimeInBacklogs**: The publish time of the earliest message in the backlog (ms).
+
   -   **bytesInCounter**: Total bytes published to the topic.
 
   -   **msgInCounter**: Total messages published to the topic.
@@ -231,7 +233,7 @@ You can check the following statistics of a given non-partitioned topic.
 
       -   **averageMsgSize**: The average message size in bytes from this publisher within the last interval.
 
-      -   **chunkedMessageRate**: Total chunked message count received for this producer on this topic.
+      -   **chunkedMessageRate**: The total rate of chunked messages published by this publisher.
 
       -   **producerId**: The internal identifier for this producer on this topic.
 
@@ -276,6 +278,8 @@ You can check the following statistics of a given non-partitioned topic.
           -   **chunkedMessageRate**: Chunked message dispatch rate.
 
           -   **backlogSize**: Size of backlog for this subscription (in bytes).
+          
+          -   **earliestMsgPublishTimeInBacklog**: The publish time of the earliest message in the backlog for the subscription (ms).
 
           -   **msgBacklogNoDelayed**: Number of messages in the subscription backlog that do not contain the delay messages.
 
@@ -294,6 +298,10 @@ You can check the following statistics of a given non-partitioned topic.
           -   **durable**: Whether the subscription is durable or ephemeral (for example, from a reader).
 
           -   **replicated**: Mark that the subscription state is kept in sync across different regions.
+
+          -   **allowOutOfOrderDelivery**: Whether out of order delivery is allowed on the Key_Shared subscription.
+
+          -   **keySharedMode**: Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY.
 
           -   **consumersAfterMarkDeletePosition**: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.
 
@@ -331,7 +339,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **msgRateRedeliver**: Total rate of messages redelivered by this consumer (msg/s).
 
-                -   **chunkedMessageRate**: Total chunked messages dispatched.
+                -   **chunkedMessageRate**: The total rate of chunked messages delivered to this consumer.
 
                 -   **avgMessagesPerEntry**: Number of average messages per entry for the consumer consumed.
 
@@ -383,6 +391,7 @@ The following is an example of a topic status.
   "msgChunkPublished" : false,
   "storageSize" : 504,
   "backlogSize" : 0,
+  "earliestMsgPublishTimeInBacklogs": 0,
   "offloadedStorageSize" : 0,
   "publishers" : [ {
     "accessMode" : "Shared",
@@ -408,6 +417,7 @@ The following is an example of a topic status.
       "chunkedMessageRate" : 0,
       "msgBacklog" : 0,
       "backlogSize" : 0,
+      "earliestMsgPublishTimeInBacklog": 0,
       "msgBacklogNoDelayed" : 0,
       "blockedSubscriptionOnUnackedMsgs" : false,
       "msgDelayed" : 0,
@@ -440,6 +450,7 @@ The following is an example of a topic status.
         "connectedSince" : "2021-06-09T17:22:45.353+08:00",
         "clientVersion" : "2.9.0-SNAPSHOT"
       } ],
+      "allowOutOfOrderDelivery": false,
       "consumersAfterMarkDeletePosition" : { },
       "nonContiguousDeletedMessagesRanges" : 0,
       "nonContiguousDeletedMessagesRangesSerializedSize" : 0,
@@ -806,7 +817,7 @@ $ pulsar-admin topics reset-cursor \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
-admin.topics().skipAllMessages(topic, subName, timestamp);
+admin.topics().resetCursor(topic, subName, timestamp);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -832,6 +843,40 @@ $ pulsar-admin topics lookup \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupDestination(topic);
 ```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Lookup of partitioned topic
+
+You can locate the broker URL of each partitioned topic which is serving the given topic in the following ways.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics partitioned-lookup \
+  persistent://test-tenant/ns1/my-topic \
+
+  "persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"
+  "persistent://test-tenant/ns1/my-topic-partition-3   pulsar://localhost:6650"
+```
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.lookup().lookupPartitionedTopic(topic);
+```
+
+Lookup the partitioned topics sorted by broker URL
+
+```shell
+$ pulsar-admin topics partitioned-lookup \
+  persistent://test-tenant/ns1/my-topic --sort-by-broker \
+
+  "pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]"
+```
+
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -883,30 +928,6 @@ admin.topics().getSubscriptions(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Unsubscribe
-
-When a subscription does not process messages any more, you can unsubscribe it in the following ways. 
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-```shell
-$ pulsar-admin topics unsubscribe \
-  --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
-```
-
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
-
-<!--Java-->
-```java
-String topic = "persistent://my-tenant/my-namespace/my-topic";
-String subscriptionName = "my-subscription";
-admin.topics().deleteSubscription(topic, subscriptionName);
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
 ### Last Message Id
 
 You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
@@ -927,6 +948,264 @@ admin.topics().getLastMessage(topic);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
+
+### Get backlog size
+
+You can get the backlog size of a single partition topic or a non-partitioned topic with a given message ID (in bytes).
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+$ pulsar-admin topics get-backlog-size \
+  -m 1:1 \
+  persistent://test-tenant/ns1/tp1-partition-0 \
+```
+
+<!--REST API-->
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+MessageId messageId = MessageId.earliest;
+admin.topics().getBacklogSizeByMessageId(topic, messageId);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
+### Configure deduplication snapshot interval
+
+#### Get deduplication snapshot interval
+
+To get the topic-level deduplication snapshot interval, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-deduplication-snapshot-interval options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getDeduplicationSnapshotInterval(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set deduplication snapshot interval
+
+To set the topic-level deduplication snapshot interval, use one of the following methods.
+
+> **Prerequisite** `brokerDeduplicationEnabled` must be set to `true`.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-deduplication-snapshot-interval options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+```json
+{
+  "interval": 1000
+}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setDeduplicationSnapshotInterval(topic, 1000)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove deduplication snapshot interval
+
+To remove the topic-level deduplication snapshot interval, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-deduplication-snapshot-interval options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeDeduplicationSnapshotInterval(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
+### Configure inactive topic policies
+
+#### Get inactive topic policies
+
+To get the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-inactive-topic-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getInactiveTopicPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set inactive topic policies
+
+To set the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-inactive-topic-policies options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove inactive topic policies
+
+To remove the topic-level inactive topic policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-inactive-topic-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeInactiveTopicPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+
+### Configure offload policies
+
+#### Get offload policies
+
+To get the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics get-offload-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().getOffloadPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Set offload policies
+
+To set the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics set-offload-policies options 
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().setOffloadPolicies(topic, offloadPolicies)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+#### Remove offload policies
+
+To remove the topic-level offload policies, use one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Pulsar-admin API-->
+
+```
+pulsar-admin topics remove-offload-policies options
+```
+
+<!--REST API-->
+
+```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+```
+
+<!--Java API-->
+
+```java
+admin.topics().removeOffloadPolicies(topic)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 
 ## Manage non-partitioned topics
 You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
@@ -1195,11 +1474,11 @@ admin.topics().delete(topic);
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### List
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of partitioned topics under a given namespace in the following ways.  
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 ```shell
-$ pulsar-admin topics list tenant/namespace
+$ pulsar-admin topics list-partitioned-topics tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
 ```
@@ -1209,7 +1488,7 @@ persistent://tenant/namespace/topic2
 
 <!--Java-->
 ```java
-admin.topics().getList(namespace);
+admin.topics().getPartitionedTopicList(namespace);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -1353,6 +1632,7 @@ admin.topics().getInternalStats(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+
 ## Publish to partitioned topics
 
 By default, Pulsar topics are served by a single broker, which limits the maximum throughput of a topic. *Partitioned topics* can span multiple brokers and thus allow for higher throughput. 
@@ -1435,3 +1715,90 @@ If a message has a key, it supersedes the round robin routing policy. The follow
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
 ```        
+
+## Manage subscriptions
+
+You can use [Pulsar admin API](admin-api-overview.md) to create, check, and delete subscriptions.
+
+### Create subscription
+
+You can create a subscription for a topic using one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+
+```shell
+pulsar-admin topics create-subscription \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1
+```
+
+<!--REST API-->
+
+{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subscription|operation/createSubscriptions?version=[[pulsar:version_number]]}
+
+<!--Java-->
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Get subscription
+
+You can check all subscription names for a given topic using one of the following methods.
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+
+```shell
+pulsar-admin topics subscriptions \
+persistent://test-tenant/ns1/tp1 \
+my-subscription
+```
+
+<!--REST API-->
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
+
+<!--Java-->
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().getSubscriptions(topic);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+### Unsubscribe subscription 
+
+When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
+
+<!--DOCUSAURUS_CODE_TABS-->
+
+<!--pulsar-admin-->
+
+```shell
+pulsar-admin topics unsubscribe \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1 
+```
+
+<!--REST API-->
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
+
+<!--Java-->
+
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+String subscriptionName = "my-subscription";
+admin.topics().deleteSubscription(topic, subscriptionName);
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->

@@ -40,7 +40,6 @@ $ROOT_DIR/bin/pulsar delete-cluster-metadata -zk zk -g > $ROOT_DIR/site2/website
 $ROOT_DIR/bin/pulsar initialize-transaction-coordinator-metadata -cs cs -c c -g > $ROOT_DIR/site2/website/brodocs/documents/initialize-transaction-coordinator-metadata.md
 $ROOT_DIR/bin/pulsar initialize-namespace -cs cs -c c -g demo > $ROOT_DIR/site2/website/brodocs/documents/initialize-namespace.md
 $ROOT_DIR/bin/pulsar version -g > $ROOT_DIR/site2/website/brodocs/documents/version.md
-$ROOT_DIR/bin/pulsar discovery -g > $ROOT_DIR/site2/website/brodocs/documents/discovery.md
 $ROOT_DIR/bin/pulsar websocket -g > $ROOT_DIR/site2/website/brodocs/documents/websocket.md
 
 cd $ROOT_DIR/site2/website/brodocs

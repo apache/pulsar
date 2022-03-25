@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import java.util.Optional;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
@@ -29,29 +30,14 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 public interface CompactorMXBean {
 
     /**
-     * @return the removed event count of last compaction
-     */
-    long getLastCompactionRemovedEventCount(String topic);
-
-    /**
-     * @return the timestamp of last succeed compaction
-     */
-    long getLastCompactionSucceedTimestamp(String topic);
-
-    /**
-     * @return the timestamp of last failed compaction
-     */
-    long getLastCompactionFailedTimestamp(String topic);
-
-    /**
-     * @return the duration time of last compaction
-     */
-    long getLastCompactionDurationTimeInMills(String topic);
-
-    /**
      *  Remove metrics about this topic.
      * @param topic
      */
     void removeTopic(String topic);
 
+    /**
+     *  Get the compaction record of the topic.
+     * @param topic
+     */
+    Optional<CompactionRecord> getCompactionRecordForTopic(String topic);
 }

@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.Type;
-
 import java.util.Objects;
 
 /**

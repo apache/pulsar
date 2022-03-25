@@ -35,7 +35,6 @@ import org.testng.annotations.Test;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker")
 public class EnableProxyProtocolTest extends BrokerTestBase  {

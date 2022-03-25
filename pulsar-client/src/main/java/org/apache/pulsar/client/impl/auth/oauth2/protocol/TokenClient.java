@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
@@ -47,20 +47,55 @@ public class TokenClient implements ClientCredentialsExchanger {
     private final AsyncHttpClient httpClient;
 
     public TokenClient(URL tokenUrl) {
-        this.tokenUrl = tokenUrl;
+        this(tokenUrl, null);
+    }
 
-        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-        AsyncHttpClientConfig config = confBuilder.build();
-        httpClient = new DefaultAsyncHttpClient(config);
+    TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
+        if (httpClient == null) {
+            DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+            confBuilder.setFollowRedirect(true);
+            confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
+            confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+            confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+            AsyncHttpClientConfig config = confBuilder.build();
+            this.httpClient = new DefaultAsyncHttpClient(config);
+        } else {
+            this.httpClient = httpClient;
+        }
+        this.tokenUrl = tokenUrl;
     }
 
     @Override
     public void close() throws Exception {
         httpClient.close();
+    }
+
+    /**
+     * Constructing http request parameters.
+     * @param req object with relevant request parameters
+     * @return Generate the final request body from a map.
+     */
+    String buildClientCredentialsBody(ClientCredentialsExchangeRequest req) {
+        Map<String, String> bodyMap = new TreeMap<>();
+        bodyMap.put("grant_type", "client_credentials");
+        bodyMap.put("client_id", req.getClientId());
+        bodyMap.put("client_secret", req.getClientSecret());
+        // Only set audience and scope if they are non-empty.
+        if (!StringUtils.isBlank(req.getAudience())) {
+            bodyMap.put("audience", req.getAudience());
+        }
+        if (!StringUtils.isBlank(req.getScope())) {
+            bodyMap.put("scope", req.getScope());
+        }
+        return bodyMap.entrySet().stream()
+                .map(e -> {
+                    try {
+                        return URLEncoder.encode(e.getKey(), "UTF-8") + '=' + URLEncoder.encode(e.getValue(), "UTF-8");
+                    } catch (UnsupportedEncodingException e1) {
+                        throw new RuntimeException(e1);
+                    }
+                })
+                .collect(Collectors.joining("&"));
     }
 
     /**
@@ -71,20 +106,7 @@ public class TokenClient implements ClientCredentialsExchanger {
      */
     public TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException {
-        Map<String, String> bodyMap = new TreeMap<>();
-        bodyMap.put("grant_type", "client_credentials");
-        bodyMap.put("client_id", req.getClientId());
-        bodyMap.put("client_secret", req.getClientSecret());
-        bodyMap.put("audience", req.getAudience());
-        String body = bodyMap.entrySet().stream()
-                .map(e -> {
-                    try {
-                        return URLEncoder.encode(e.getKey(), "UTF-8") + '=' + URLEncoder.encode(e.getValue(), "UTF-8");
-                    } catch (UnsupportedEncodingException e1) {
-                        throw new RuntimeException(e1);
-                    }
-                })
-                .collect(Collectors.joining("&"));
+        String body = buildClientCredentialsBody(req);
 
         try {
 

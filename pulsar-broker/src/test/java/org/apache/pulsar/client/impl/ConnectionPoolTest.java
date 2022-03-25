@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import com.google.common.collect.Lists;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -58,7 +59,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     public void testSingleIpAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
@@ -78,7 +79,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
@@ -101,7 +102,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(0);
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(8, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
 
         InetSocketAddress brokerAddress =
             InetSocketAddress.createUnresolved("127.0.0.1", pulsar.getBrokerListenPort().get());
@@ -123,7 +124,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(5);
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(8, false, new DefaultThreadFactory("test"));
-        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
 
         InetSocketAddress brokerAddress =
             InetSocketAddress.createUnresolved("127.0.0.1", pulsar.getBrokerListenPort().get());

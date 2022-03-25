@@ -28,7 +28,8 @@ find . -name CMakeFiles | xargs -r rm -rf
 cmake . -DPYTHON_INCLUDE_DIR=/opt/python/$PYTHON_SPEC/include/python$PYTHON_VERSION \
         -DPYTHON_LIBRARY=/opt/python/$PYTHON_SPEC/lib \
         -DLINK_STATIC=ON \
-        -DBUILD_TESTS=OFF
+        -DBUILD_TESTS=OFF \
+        -DBUILD_WIRESHARK=OFF
 
 make clean
 make _pulsar -j3 VERBOSE=1

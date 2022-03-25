@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
@@ -78,7 +78,7 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
         }
 
         if (txnEntries.isEmpty()) {
-            readFuture.completeExceptionally(new EndOfTransactionException(
+            readFuture.completeExceptionally(new TransactionBufferException.EndOfTransactionException(
                 "No more entries found in transaction `" + txnId + "`"
             ));
         } else {

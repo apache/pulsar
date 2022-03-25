@@ -18,33 +18,37 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState.State.NoSnapshot;
+import static org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState.State.Ready;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
-import com.google.common.collect.Sets;
-
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -54,35 +58,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionStablePositionTest extends TransactionTestBase {
 
-    private static final String TENANT = "tnx";
-    private static final String NAMESPACE1 = TENANT + "/ns1";
     private static final String TOPIC = NAMESPACE1 + "/test-topic";
 
     @BeforeMethod
     protected void setup() throws Exception {
-        internalSetup();
-
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
-        admin.topics().createNonPartitionedTopic(TOPIC);
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
-
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-        }
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-
+        setUpBase(1, 16, TOPIC, 0);
         Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
                 .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
     }
@@ -181,4 +161,82 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         assertNull(message);
     }
 
+    @DataProvider(name = "enableTransactionAndState")
+    public static Object[][] enableTransactionAndState() {
+        return new Object[][] {
+                { true, TopicTransactionBufferState.State.None },
+                { false, TopicTransactionBufferState.State.None },
+                { true, TopicTransactionBufferState.State.Initializing },
+                { false, TopicTransactionBufferState.State.Initializing }
+        };
+    }
+
+    @Test(dataProvider = "enableTransactionAndState")
+    public void testSyncNormalPositionWhenTBRecover(boolean clientEnableTransaction,
+                                                    TopicTransactionBufferState.State state) throws Exception {
+
+        final String topicName = NAMESPACE1 + "/testSyncNormalPositionWhenTBRecover-"
+                + clientEnableTransaction + state.name();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(clientEnableTransaction)
+                .build();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topicName)
+                .create();
+
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(TopicName.get(topicName).toString(), false).get().get();
+
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+
+        // wait topic transaction buffer recover success
+        checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
+
+        Field field = TopicTransactionBufferState.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(topicTransactionBuffer, state);
+
+        // init maxReadPosition is PositionImpl.EARLIEST
+        Position position = topicTransactionBuffer.getMaxReadPosition();
+        assertEquals(position, PositionImpl.EARLIEST);
+
+        MessageIdImpl messageId = (MessageIdImpl) producer.send("test".getBytes());
+
+        // send normal message can't change MaxReadPosition when state is None or Initializing
+        position = topicTransactionBuffer.getMaxReadPosition();
+        assertEquals(position, PositionImpl.EARLIEST);
+
+        // invoke recover
+        Method method = TopicTransactionBuffer.class.getDeclaredMethod("recover");
+        method.setAccessible(true);
+        method.invoke(topicTransactionBuffer);
+
+        // change to None state can recover
+        field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
+
+        // recover success again
+        checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
+
+        // change MaxReadPosition to normal message position
+        assertEquals(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
+                topicTransactionBuffer.getMaxReadPosition());
+    }
+
+    private void checkTopicTransactionBufferState(boolean clientEnableTransaction,
+                                                  TopicTransactionBuffer topicTransactionBuffer) {
+        // recover success
+        Awaitility.await().until(() -> {
+            if (clientEnableTransaction) {
+                // recover success, client enable transaction will change to Ready State
+                return topicTransactionBuffer.getStats().state.equals(Ready.name());
+            } else {
+                // recover success, client disable transaction will change to NoSnapshot State
+                return topicTransactionBuffer.getStats().state.equals(NoSnapshot.name());
+            }
+        });
+    }
 }

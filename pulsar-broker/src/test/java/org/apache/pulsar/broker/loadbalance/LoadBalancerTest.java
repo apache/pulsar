@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -26,7 +25,6 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -47,18 +45,16 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -127,7 +123,7 @@ public class LoadBalancerTest {
             config.setWebServicePort(Optional.of(0));
             config.setBrokerServicePortTls(Optional.of(0));
             config.setWebServicePortTls(Optional.of(0));
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -578,8 +574,7 @@ public class LoadBalancerTest {
     private void createNamespace(PulsarService pulsar, String namespace, int numBundles) throws Exception {
         Policies policies = new Policies();
         policies.bundles = getBundles(numBundles);
-        String path = AdminResource.path(POLICIES, namespace);
-        pulsar.getPulsarResources().getNamespaceResources().create(path, policies);
+        pulsar.getPulsarResources().getNamespaceResources().createPolicies(NamespaceName.get(namespace), policies);
 
     }
 
@@ -666,6 +661,11 @@ public class LoadBalancerTest {
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-09", "0x00000000_0x80000000",
                 isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-10", "0x00000000_0x02000000",
+                isAutoUnooadSplitBundleEnabled, null);
+        // disable max session
+        bundleStats.put("pulsar/use/primary-ns-03/0x00000000_0x80000000",
+                newBundleStats(2, -1, 0, 0, 0, 0, 0));
+        verify(namespaceAdmin, times(0)).splitNamespaceBundle("pulsar/use/primary-ns-12", "0x00000000_0x80000000",
                 isAutoUnooadSplitBundleEnabled, null);
     }
 
@@ -768,13 +768,12 @@ public class LoadBalancerTest {
                 .build();
         policies.setPolicy("otherBrokerPolicy", policyData);
 
-        String path = AdminResource.path("clusters", "use", "namespaceIsolationPolicies");
         try {
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().create(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().createIsolationData("use",
                     policies.getPolicies());
         } catch (BadVersionException e) {
             // isolation policy already exist
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().set(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().setIsolationData("use",
                     data -> policies.getPolicies());
         }
     }

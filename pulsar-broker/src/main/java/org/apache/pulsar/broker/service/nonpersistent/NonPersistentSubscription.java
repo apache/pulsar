@@ -28,22 +28,19 @@ import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
-import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
@@ -74,6 +71,8 @@ public class NonPersistentSubscription implements Subscription {
 
     // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
     private final boolean isDurable;
+
+    private KeySharedMode keySharedMode = null;
 
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable) {
         this.topic = topic;
@@ -143,29 +142,12 @@ public class NonPersistentSubscription implements Subscription {
                 }
                 break;
             case Key_Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                KeySharedMeta ksm = consumer.getKeySharedMeta();
+                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
+                        || !((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
+                                .hasSameKeySharedPolicy(ksm)) {
                     previousDispatcher = dispatcher;
-
-                    switch (consumer.getKeySharedMeta().getKeySharedMode()) {
-                        case STICKY:
-                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this,
-                                    new HashRangeExclusiveStickyKeyConsumerSelector());
-                            break;
-
-                        case AUTO_SPLIT:
-                        default:
-                            StickyKeyConsumerSelector selector;
-                            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
-                            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
-                                selector = new ConsistentHashingStickyKeyConsumerSelector(
-                                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
-                            } else {
-                                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-                            }
-
-                            dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, selector);
-                            break;
-                    }
+                    this.dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, this, ksm);
                 }
                 break;
             default:
@@ -479,11 +461,17 @@ public class NonPersistentSubscription implements Subscription {
 
         subStats.type = getTypeString();
         subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
+
+        KeySharedMode keySharedMode = this.keySharedMode;
+        if (getType() == SubType.Key_Shared && keySharedMode != null) {
+            subStats.keySharedMode = keySharedMode.toString();
+        }
+
         return subStats;
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
      // No-op
     }
 

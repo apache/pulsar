@@ -20,12 +20,11 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class JsonRecordBuilderImpl implements GenericRecordBuilder {
 
@@ -48,8 +47,9 @@ public class JsonRecordBuilderImpl implements GenericRecordBuilder {
     @Override
     public GenericRecordBuilder set(String fieldName, Object value) {
         if (value instanceof GenericRecord) {
-            if (!(value instanceof GenericJsonRecord))
+            if (!(value instanceof GenericJsonRecord)) {
                 throw new IllegalArgumentException("JSON Record Builder doesn't support non-JSON record as a field");
+            }
             GenericJsonRecord genericJsonRecord = (GenericJsonRecord) value;
             value = genericJsonRecord.getJsonNode();
         }

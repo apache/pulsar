@@ -24,6 +24,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ExecutionError;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Schema;
@@ -32,14 +35,9 @@ import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 @Slf4j
 public class PulsarSchemaToKafkaSchema {
-    private final static ImmutableMap<SchemaType, Schema> pulsarSchemaTypeToKafkaSchema;
+    private static final ImmutableMap<SchemaType, Schema> pulsarSchemaTypeToKafkaSchema;
     private static final AvroData avroData = new AvroData(1000);
     private static final Cache<byte[], Schema> schemaCache =
             CacheBuilder.newBuilder().maximumSize(10000)
@@ -62,7 +60,8 @@ public class PulsarSchemaToKafkaSchema {
 
     // Parse json to shaded schema
     private static org.apache.pulsar.kafka.shade.avro.Schema parseAvroSchema(String schemaJson) {
-        final org.apache.pulsar.kafka.shade.avro.Schema.Parser parser = new org.apache.pulsar.kafka.shade.avro.Schema.Parser();
+        final org.apache.pulsar.kafka.shade.avro.Schema.Parser parser =
+                new org.apache.pulsar.kafka.shade.avro.Schema.Parser();
         parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
     }
@@ -82,7 +81,8 @@ public class PulsarSchemaToKafkaSchema {
                                     .build();
                     }
                     org.apache.pulsar.kafka.shade.avro.Schema avroSchema =
-                            parseAvroSchema(new String(pulsarSchema.getSchemaInfo().getSchema(), UTF_8));
+                            parseAvroSchema(new String(pulsarSchema.getSchemaInfo().getSchema(),
+                                    StandardCharsets.UTF_8));
                     return avroData.toConnectSchema(avroSchema);
                 });
             } catch (ExecutionException | UncheckedExecutionException | ExecutionError ee) {
@@ -93,9 +93,10 @@ public class PulsarSchemaToKafkaSchema {
         throw logAndThrowOnUnsupportedSchema(pulsarSchema, "Schema is required.", null);
     }
 
-    private static IllegalStateException logAndThrowOnUnsupportedSchema(org.apache.pulsar.client.api.Schema pulsarSchema,
-                                                       String prefix,
-                                                       Throwable cause) {
+    private static IllegalStateException logAndThrowOnUnsupportedSchema(
+            org.apache.pulsar.client.api.Schema pulsarSchema,
+            String prefix,
+            Throwable cause) {
         String msg = prefix + " Pulsar Schema: "
                 + (pulsarSchema == null || pulsarSchema.getSchemaInfo() == null
                 ? "null" : pulsarSchema.getSchemaInfo().toString());

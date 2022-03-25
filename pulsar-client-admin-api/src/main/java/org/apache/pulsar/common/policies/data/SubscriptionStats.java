@@ -43,13 +43,16 @@ public interface SubscriptionStats {
     /** Chunked message dispatch rate. */
     int getChunkedMessageRate();
 
-    /** Number of messages in the subscription backlog. */
+    /** Number of entries in the subscription backlog. */
     long getMsgBacklog();
 
     /** Size of backlog in byte. **/
     long getBacklogSize();
 
-    /** Number of messages in the subscription backlog that do not contain the delay messages. */
+    /** Get the publish time of the earliest message in the backlog. */
+    long getEarliestMsgPublishTimeInBacklog();
+
+    /** Number of entries in the subscription backlog that do not contain the delay messages. */
     long getMsgBacklogNoDelayed();
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
@@ -97,8 +100,17 @@ public interface SubscriptionStats {
     /** Mark that the subscription state is kept in sync across different regions. */
     boolean isReplicated();
 
+    /** Whether out of order delivery is allowed on the Key_Shared subscription. */
+    boolean isAllowOutOfOrderDelivery();
+
+    /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
+    String getKeySharedMode();
+
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     Map<String, String> getConsumersAfterMarkDeletePosition();
+
+    /** SubscriptionProperties (key/value strings) associated with this subscribe. */
+    Map<String, String> getSubscriptionProperties();
 
     /** The number of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRanges();

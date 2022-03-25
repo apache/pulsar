@@ -26,7 +26,6 @@ package org.apache.pulsar.zookeeper;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -45,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
@@ -129,7 +127,7 @@ public class LocalBookkeeperEnsemble {
                                    String bkDataDirName,
                                    boolean clearOldData,
                                    String advertisedAddress) {
-        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress,
+        this(numberOfBookies, zkPort, streamStoragePort, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress,
                 new BasePortManager(bkBasePort));
     }
 
@@ -152,7 +150,7 @@ public class LocalBookkeeperEnsemble {
         LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, this.advertisedAddress);
     }
 
-    private String HOSTPORT;
+    private String hostPort;
     private final String advertisedAddress;
     private int zkPort;
 
@@ -217,9 +215,9 @@ public class LocalBookkeeperEnsemble {
         }
 
         this.zkPort = serverFactory.getLocalPort();
-        this.HOSTPORT = "127.0.0.1:" + zkPort;
+        this.hostPort = "127.0.0.1:" + zkPort;
 
-        boolean b = waitForServerUp(HOSTPORT, CONNECTION_TIMEOUT);
+        boolean b = waitForServerUp(hostPort, CONNECTION_TIMEOUT);
 
         LOG.info("ZooKeeper server up: {}", b);
         LOG.debug("Local ZK started (port: {}, data_directory: {})", zkPort, zkDataDir.getAbsolutePath());
@@ -231,7 +229,8 @@ public class LocalBookkeeperEnsemble {
             LOG.info("disconnect ZK server side connection {}", serverCnxn);
             Class disconnectReasonClass = Class.forName("org.apache.zookeeper.server.ServerCnxn$DisconnectReason");
             Method method = serverCnxn.getClass().getMethod("close", disconnectReasonClass);
-            method.invoke(serverCnxn, Stream.of(disconnectReasonClass.getEnumConstants()).filter(s->s.toString().equals("CONNECTION_CLOSE_FORCED")).findFirst().get());
+            method.invoke(serverCnxn, Stream.of(disconnectReasonClass.getEnumConstants()).filter(s ->
+                    s.toString().equals("CONNECTION_CLOSE_FORCED")).findFirst().get());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -249,7 +248,7 @@ public class LocalBookkeeperEnsemble {
         // initialize the zk client with values
         try {
             ZKConnectionWatcher zkConnectionWatcher = new ZKConnectionWatcher();
-            zkc = new ZooKeeper(HOSTPORT, zkSessionTimeOut, zkConnectionWatcher);
+            zkc = new ZooKeeper(hostPort, zkSessionTimeOut, zkConnectionWatcher);
             zkConnectionWatcher.waitForConnection();
             if (zkc.exists("/ledgers", false) == null) {
                 zkc.create("/ledgers", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -260,8 +259,8 @@ public class LocalBookkeeperEnsemble {
             if (zkc.exists("/ledgers/available/readonly", false) == null) {
                 zkc.create("/ledgers/available/readonly", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
-            if (zkc.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) == null) {
-                zkc.create(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes(), Ids.OPEN_ACL_UNSAFE,
+            if (zkc.exists("/bookies", false) == null) {
+                zkc.create("/bookies", "{}".getBytes(), Ids.OPEN_ACL_UNSAFE,
                         CreateMode.PERSISTENT);
             }
 
@@ -295,7 +294,8 @@ public class LocalBookkeeperEnsemble {
             int bookiePort = portManager.get();
 
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
-            String registrationZnode = String.format("/ledgers/available/%s:%d", baseConf.getAdvertisedAddress(), bookiePort);
+            String registrationZnode = String.format("/ledgers/available/%s:%d",
+                    baseConf.getAdvertisedAddress(), bookiePort);
             if (zkc.exists(registrationZnode, null) != null) {
                 try {
                     zkc.delete(registrationZnode, -1);

@@ -128,7 +128,7 @@ If you deploy a single-cluster instance, you do not need a separate cluster for 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom.You need to use the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum. You need to use the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -201,8 +201,8 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](refer
 ```shell
 $ bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
-  --zookeeper zk1.us-west.example.com:2181 \
-  --configuration-store zk1.us-west.example.com:2184 \
+  --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+  --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
@@ -212,7 +212,7 @@ $ bin/pulsar initialize-cluster-metadata \
 As you can see from the example above, you need to specify the following:
 
 * The name of the cluster
-* The local ZooKeeper connection string for the cluster
+* The local metadata store connection string for the cluster
 * The configuration store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
@@ -275,7 +275,7 @@ Once you set up ZooKeeper, initialize cluster metadata, and spin up BookKeeper b
 
 You can configure brokers using the [`conf/broker.conf`](reference-configuration.md#broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`metadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the local quorum and the [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
 
 You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter. In addition, you need to match the broker and web service ports provided when you initialize the metadata (especially when you use a different port from default) of the cluster.
 
@@ -283,10 +283,10 @@ The following is an example configuration:
 
 ```properties
 # Local ZooKeeper servers
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
 # Configuration store quorum connection string.
-configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+configurationMetadataStoreUrl=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
 
@@ -323,34 +323,12 @@ $ bin/pulsar broker
 
 ## Service discovery
 
-[Clients](getting-started-clients.md) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions immediately below.
+[Clients](getting-started-clients.md) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL.
 
-You can also use your own service discovery system . If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration.md) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to some active brokers in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
+You can use your own service discovery system. If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration.md) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to some active brokers in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
 > **Service discovery already provided by many scheduling systems**
 > Many large-scale deployment systems, such as [Kubernetes](deploy-kubernetes), have service discovery systems built in. If you run Pulsar on such a system, you may not need to provide your own service discovery mechanism.
-
-
-### Service discovery setup
-
-The service discovery mechanism included with Pulsar maintains a list of active brokers, which is stored in ZooKeeper, and supports lookup using HTTP and also the [binary protocol](developing-binary-protocol.md) of Pulsar.
-
-To get started setting up the built-in service of discovery of Pulsar, you need to change a few parameters in the [`conf/discovery.conf`](reference-configuration.md#service-discovery) configuration file. Set the [`zookeeperServers`](reference-configuration.md#service-discovery-zookeeperServers) parameter to the ZooKeeper quorum connection string of the cluster and the [`configurationStoreServers`](reference-configuration.md#service-discovery-configurationStoreServers) setting to the [configuration
-store](reference-terminology.md#configuration-store) quorum connection string.
-
-```properties
-# Zookeeper quorum connection string
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-
-# Global configuration store connection string
-configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
-```
-
-To start the discovery service:
-
-```shell
-$ bin/pulsar-daemon start discovery
-```
 
 ## Admin client and verification
 

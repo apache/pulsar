@@ -21,29 +21,27 @@ package org.apache.pulsar.policies.data.loadbalancer;
 import lombok.EqualsAndHashCode;
 
 /**
- * POJO used to represents any system specific resource usage this is the format that load manager expects it in.
+ * POJO used to represent any system specific resource usage this is the format that load manager expects it in.
  */
 @EqualsAndHashCode
 public class ResourceUsage {
-    public double usage;
-    public double limit;
+    public final double usage;
+    public final double limit;
+    @EqualsAndHashCode.Exclude
+    private final float percentUsage;
 
     public ResourceUsage(double usage, double limit) {
         this.usage = usage;
         this.limit = limit;
-    }
-
-    public ResourceUsage(ResourceUsage that) {
-        this.usage = that.usage;
-        this.limit = that.limit;
+        float proportion = 0;
+        if (limit > 0) {
+            proportion = ((float) usage) / ((float) limit);
+        }
+        percentUsage = proportion * 100;
     }
 
     public ResourceUsage() {
-    }
-
-    public void reset() {
-        this.usage = -1;
-        this.limit = -1;
+        this(0, 0);
     }
 
     /**
@@ -59,10 +57,6 @@ public class ResourceUsage {
     }
 
     public float percentUsage() {
-        float proportion = 0;
-        if (limit > 0) {
-            proportion = ((float) usage) / ((float) limit);
-        }
-        return proportion * 100;
+        return percentUsage;
     }
 }

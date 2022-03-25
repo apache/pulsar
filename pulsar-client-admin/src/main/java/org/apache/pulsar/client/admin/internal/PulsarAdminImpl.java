@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -47,6 +47,7 @@ import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.Worker;
@@ -88,6 +89,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final Namespaces namespaces;
     private final Bookies bookies;
     private final TopicsImpl topics;
+    private final TopicPolicies localTopicPolicies;
+    private final TopicPolicies globalTopicPolicies;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
     private final ClientConfigurationData clientConfigData;
@@ -146,6 +149,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
                        int autoCertRefreshTime,
                        TimeUnit autoCertRefreshTimeUnit,
                        ClassLoader clientBuilderClassLoader) throws PulsarClientException {
+        checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
+
         this.connectTimeout = connectTimeout;
         this.connectTimeoutUnit = connectTimeoutUnit;
         this.readTimeout = readTimeout;
@@ -192,10 +197,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
         this.serviceUrl = serviceUrl;
         ServiceURI serviceUri = ServiceURI.create(serviceUrl);
-        root = client.target(String.format("%s://%s"
-                , serviceUri.getServiceScheme()
-                , serviceUri.getServiceHosts()[ThreadLocalRandom.current()
-                        .nextInt(serviceUri.getServiceHosts().length)]));
+        root = client.target(serviceUri.selectOne());
 
         this.asyncHttpConnector = asyncConnectorProvider.getConnector(
                 Math.toIntExact(connectTimeoutUnit.toMillis(this.connectTimeout)),
@@ -213,6 +215,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.properties = new TenantsImpl(root, auth, readTimeoutMs);
         this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
         this.topics = new TopicsImpl(root, auth, readTimeoutMs);
+        this.localTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, false);
+        this.globalTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, true);
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
         this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs, topics);
@@ -336,6 +340,16 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
     public Topics topics() {
         return topics;
+    }
+
+    @Override
+    public TopicPolicies topicPolicies() {
+        return localTopicPolicies;
+    }
+
+    @Override
+    public TopicPolicies topicPolicies(boolean isGlobal) {
+        return isGlobal ? globalTopicPolicies : localTopicPolicies;
     }
 
     /**

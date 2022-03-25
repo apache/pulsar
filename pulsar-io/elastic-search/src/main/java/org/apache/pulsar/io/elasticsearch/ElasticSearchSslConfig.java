@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import java.io.Serializable;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import java.io.Serializable;
 
 @Data
 @Accessors(chain = true)

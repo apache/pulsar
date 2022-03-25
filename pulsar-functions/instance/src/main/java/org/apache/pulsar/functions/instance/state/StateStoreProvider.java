@@ -27,12 +27,14 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
  */
 public interface StateStoreProvider extends AutoCloseable {
 
+    String STATE_STORAGE_SERVICE_URL = "stateStorageServiceUrl";
+
     /**
      * The state store provider returns `null` state stores.
      */
     StateStoreProvider NULL = new StateStoreProvider() {
         @Override
-        public <S extends StateStore> S getStateStore(String tenant, String namespace, String name) {
+        public <T extends StateStore> T getStateStore(String tenant, String namespace, String name) {
             return null;
         }
 
@@ -57,13 +59,13 @@ public interface StateStoreProvider extends AutoCloseable {
      * @param tenant the tenant that owns this state store
      * @param namespace the namespace that owns this state store
      * @param name the state store name
-     * @param <S> the type of interface of the store to return
+     * @param <T> the type of interface of the store to return
      * @return the state store instance.
      *
      * @throws ClassCastException if the return type isn't a type
      * or interface of the actual returned store.
      */
-    <S extends StateStore> S getStateStore(String tenant, String namespace, String name) throws Exception;
+    <T extends StateStore> T getStateStore(String tenant, String namespace, String name) throws Exception;
 
     @Override
     void close();

@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -83,17 +84,20 @@ public class TopicSchema {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(clazz, schemaType));
     }
 
-    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
-        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
+    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input,
+                               ClassLoader classLoader) {
+        return cachedSchemas.computeIfAbsent(topic,
+                t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
     }
 
-    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
+    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input,
+                               ClassLoader classLoader) {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, conf, input, classLoader));
     }
 
 
     /**
-     * If the topic is already created, we should be able to fetch the schema type (avro, json, ...)
+     * If the topic is already created, we should be able to fetch the schema type (avro, json, ...).
      */
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
         if (GenericObject.class.isAssignableFrom(clazz)) {
@@ -167,10 +171,13 @@ public class TopicSchema {
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
-            return (Schema<T>)Schema.KV_BYTES();
+            return (Schema<T>) Schema.KV_BYTES();
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
+
+        case PROTOBUF_NATIVE:
+            return ProtobufNativeSchema.ofGenericClass(clazz, new HashMap<>());
 
         case AUTO_PUBLISH:
             return (Schema<T>) Schema.AUTO_PRODUCE_BYTES();
@@ -191,12 +198,14 @@ public class TopicSchema {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader){
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input,
+                                            ClassLoader classLoader) {
         return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, classLoader);
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input,
+                                            ClassLoader classLoader) {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
         String schemaTypeOrClassName = conf.getSchemaType();
@@ -234,7 +243,8 @@ public class TopicSchema {
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
-        return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, Thread.currentThread().getContextClassLoader());
+        return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input,
+                Thread.currentThread().getContextClassLoader());
     }
 
     @SuppressWarnings("unchecked")

@@ -27,7 +27,7 @@ import lombok.Data;
 @Data(staticConstructor = "of")
 public class ContainerExecResult {
 
-    private final int exitCode;
+    private final long exitCode;
     private final String stdout;
     private final String stderr;
 

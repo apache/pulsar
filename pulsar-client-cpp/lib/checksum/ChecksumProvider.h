@@ -25,8 +25,10 @@
 namespace pulsar {
 
 PULSAR_PUBLIC bool crc32cSupported();
+PULSAR_PUBLIC bool crc32cArmSupported();
 PULSAR_PUBLIC uint32_t computeChecksum(uint32_t previousChecksum, const void *data, int length);
 PULSAR_PUBLIC uint32_t crc32cHw(uint32_t previousChecksum, const void *data, int length);
+PULSAR_PUBLIC uint32_t crc32cHwArm(uint32_t previousChecksum, const void *data, int length);
 PULSAR_PUBLIC uint32_t crc32cSw(uint32_t previousChecksum, const void *data, int length);
 }  // namespace pulsar
 

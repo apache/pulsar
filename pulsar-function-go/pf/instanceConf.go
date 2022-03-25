@@ -82,9 +82,10 @@ func newInstanceConf() *instanceConf {
 						},
 					},
 				},
-				TimeoutMs:           cfg.TimeoutMs,
-				SubscriptionName:    cfg.SubscriptionName,
-				CleanupSubscription: cfg.CleanupSubscription,
+				TimeoutMs:            cfg.TimeoutMs,
+				SubscriptionName:     cfg.SubscriptionName,
+				CleanupSubscription:  cfg.CleanupSubscription,
+				SubscriptionPosition: pb.SubscriptionPosition(cfg.SubscriptionPosition),
 			},
 			Sink: &pb.SinkSpec{
 				Topic:      cfg.SinkSpecTopic,

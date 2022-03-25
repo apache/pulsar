@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket.data;
 
 import java.util.List;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -32,7 +31,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ProducerMessages {
     // Version of schema used for messages.
-    private long schemaVersion;
+    private long schemaVersion = -1;
 
     // Base64 encoded serialized schema for key
     private String keySchema;

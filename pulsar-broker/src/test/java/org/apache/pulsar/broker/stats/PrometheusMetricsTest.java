@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +57,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -63,10 +66,12 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -87,6 +92,108 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
+    }
+
+    @Test
+    public void testPublishRateLimitedTimes() throws Exception {
+        cleanup();
+        checkPublishRateLimitedTimes(true);
+        cleanup();
+        checkPublishRateLimitedTimes(false);
+    }
+
+    private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
+        if (preciseRateLimit) {
+            conf.setBrokerPublisherThrottlingTickTimeMillis(10000000);
+            conf.setMaxPublishRatePerTopicInMessages(1);
+            conf.setMaxPublishRatePerTopicInBytes(1);
+            conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
+            conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
+        } else {
+            conf.setBrokerPublisherThrottlingTickTimeMillis(1);
+            conf.setBrokerPublisherThrottlingMaxMessageRate(1);
+            conf.setBrokerPublisherThrottlingMaxByteRate(1);
+        }
+        conf.setStatsUpdateFrequencyInSecs(100000000);
+        conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
+        setup();
+        String ns1 = "prop/ns-abc1" + UUID.randomUUID();
+        admin.namespaces().createNamespace(ns1, 1);
+        String topicName = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        String topicName2 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        String topicName3 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        // Use another connection
+        @Cleanup
+        PulsarClient client2 = newPulsarClient(lookupUrl.toString(), 0);
+
+        Producer<byte[]> producer = pulsarClient.newProducer().producerName("my-pub").enableBatching(false)
+                .topic(topicName).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().producerName("my-pub-2").enableBatching(false)
+                .topic(topicName2).create();
+        Producer<byte[]> producer3 = client2.newProducer().producerName("my-pub-2").enableBatching(false)
+                .topic(topicName3).create();
+        producer.sendAsync(new byte[11]);
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        Field field = AbstractTopic.class.getDeclaredField("publishRateLimitedTimes");
+        field.setAccessible(true);
+        Awaitility.await().untilAsserted(() -> {
+            long value = (long) field.get(persistentTopic);
+            assertEquals(value, 1);
+        });
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_publish_rate_limit_times"));
+        metrics.get("pulsar_publish_rate_limit_times").forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                if (item.tags.get("topic").equals(topicName)) {
+                    assertEquals(item.value, 1);
+                    return;
+                } else if (item.tags.get("topic").equals(topicName2)) {
+                    assertEquals(item.value, 1);
+                    return;
+                } else if (item.tags.get("topic").equals(topicName3)) {
+                    //When using precise rate limiting, we only trigger the rate limiting of the topic,
+                    // so if the topic is not using the same connection, the rate limiting times will be 0
+                    //When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
+                    // and all connections will be limited at this time.
+                    if (preciseRateLimit) {
+                        assertEquals(item.value, 0);
+                    } else {
+                        assertEquals(item.value, 1);
+                    }
+                    return;
+                }
+                fail("should not fail");
+            }
+        });
+        // Stats updater will reset the stats
+        pulsar.getBrokerService().updateRates();
+        Awaitility.await().untilAsserted(() -> {
+            long value = (long) field.get(persistentTopic);
+            assertEquals(value, 0);
+        });
+
+        @Cleanup
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
+        String metricsStr2 = statsOut2.toString();
+        Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
+        assertTrue(metrics2.containsKey("pulsar_publish_rate_limit_times"));
+        metrics2.get("pulsar_publish_rate_limit_times").forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 0);
+            }
+        });
+
+        producer.close();
+        producer2.close();
+        producer3.close();
     }
 
     @Test
@@ -274,6 +381,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         for (String topic : topicList) {
             PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
+            persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().updateBrokerValue(-1);
         }
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
         //wait for checkMessageExpiry
@@ -335,6 +443,90 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             assertEquals(messages, (long) cm.get(i).value);
         }
 
+    }
+
+    @Test
+    public void testBundlesMetrics() throws Exception {
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+        }
+
+        pulsar.getBrokerService().updateRates();
+        Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
+        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
+        loadManager.getLoadManager().updateLocalBrokerData();
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_rate_in"));
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_rate_out"));
+        assertTrue(metrics.containsKey("pulsar_bundle_topics_count"));
+        assertTrue(metrics.containsKey("pulsar_bundle_consumer_count"));
+        assertTrue(metrics.containsKey("pulsar_bundle_producer_count"));
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_throughput_in"));
+        assertTrue(metrics.containsKey("pulsar_bundle_msg_throughput_out"));
+
+        assertTrue(metrics.containsKey("pulsar_lb_cpu_usage"));
+        assertTrue(metrics.containsKey("pulsar_lb_memory_usage"));
+        assertTrue(metrics.containsKey("pulsar_lb_directMemory_usage"));
+        assertTrue(metrics.containsKey("pulsar_lb_bandwidth_in_usage"));
+        assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
+
+        assertTrue(metrics.containsKey("pulsar_lb_bundles_split_count"));
+    }
+
+    @Test
+    public void testNonPersistentSubMetrics() throws Exception {
+        Producer<byte[]> p1 =
+                pulsarClient.newProducer().topic("non-persistent://my-property/use/my-ns/my-topic1").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("non-persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 100;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log"));
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log_no_delayed"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_throughput_out"));
+        assertTrue(metrics.containsKey("pulsar_throughput_out"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_rate_redeliver"));
+        assertTrue(metrics.containsKey("pulsar_subscription_unacked_messages"));
+        assertTrue(metrics.containsKey("pulsar_subscription_blocked_on_unacked_messages"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_rate_out"));
+        assertTrue(metrics.containsKey("pulsar_out_bytes_total"));
+        assertTrue(metrics.containsKey("pulsar_out_messages_total"));
+        assertTrue(metrics.containsKey("pulsar_subscription_last_expire_timestamp"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_drop_rate"));
     }
 
     @Test
@@ -807,12 +999,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_0");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
-
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_workers_completed_tasks_0");
-        assertEquals(cm.size(), 0);
-
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution_count");
-        assertEquals(cm.size(), 0);
     }
 
     @Test
@@ -1134,6 +1320,131 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
                 .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
         parseMetrics(sampleMetrics);
+    }
+
+    @Test
+    public void testCompaction() throws Exception {
+        final String topicName = "persistent://my-namespace/use/my-ns/my-compaction1";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_compaction_removed_event_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_succeed_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_failed_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_duration_time_in_mills");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_read_throughput");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_write_throughput");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_count");
+        assertEquals(cm.size(), 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_size");
+        assertEquals(cm.size(), 0);
+        //
+        final int numMessages = 1000;
+        final int maxKeys = 10;
+        Random r = new Random(0);
+        for (int j = 0; j < numMessages; j++) {
+            int keyIndex = r.nextInt(maxKeys);
+            String key = "key"+keyIndex;
+            byte[] data = ("my-message-" + key + "-" + j).getBytes();
+            producer.newMessage()
+                    .key(key)
+                    .value(data)
+                    .send();
+        }
+        Compactor compactor = pulsar.getCompactor(true);
+        compactor.compact(topicName).get();
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        metricsStr = statsOut.toString();
+        metrics = parseMetrics(metricsStr);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_removed_event_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 990);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_succeed_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 1);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_failed_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_duration_time_in_mills");
+        assertEquals(cm.size(), 1);
+        assertTrue(cm.get(0).value > 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_read_throughput");
+        assertEquals(cm.size(), 1);
+        assertTrue(cm.get(0).value > 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_write_throughput");
+        assertEquals(cm.size(), 1);
+        assertTrue(cm.get(0).value > 0);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 10);
+        cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_size");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 870);
+
+        pulsarClient.close();
+    }
+
+    @Test
+    public void testSplitTopicAndPartitionLabel() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        String ns2 = "prop/ns-abc2";
+        admin.namespaces().createNamespace(ns1);
+        admin.namespaces().createNamespace(ns2);
+        String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
+        String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
+        for (int i = 0; i < 6; i++) {
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID());
+        }
+        for (int i = 0; i < 3; i++) {
+            admin.topics().createPartitionedTopic(baseTopic2 + UUID.randomUUID(), 3);
+        }
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topicsPattern("persistent://" + ns1 + "/.*")
+                .subscriptionName("sub")
+                .subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topicsPattern("persistent://" + ns2 + "/.*")
+                .subscriptionName("sub")
+                .subscribe();
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true,  statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Collection<Metric> metric = metrics.get("pulsar_consumers_count");
+        assertTrue(metric.size() >= 15);
+        metric.forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.tags.get("partition"), "-1");
+            }
+            if (ns2.equals(item.tags.get("namespace"))) {
+                System.out.println(item);
+                assertTrue(Integer.parseInt(item.tags.get("partition")) >= 0);
+            }
+        });
+        consumer1.close();
+        consumer2.close();
+    }
+
+    private void compareCompactionStateCount(List<Metric> cm, double count) {
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("broker"), "localhost");
+        assertEquals(cm.get(0).value, count);
     }
 
     /**

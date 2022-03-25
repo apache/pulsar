@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.functions.source;
 
+import java.security.Security;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
@@ -28,18 +34,10 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.io.core.Source;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-
-import java.security.Security;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public abstract class PulsarSource<T> implements Source<T> {
     protected final PulsarClient pulsarClient;
@@ -138,7 +136,8 @@ public abstract class PulsarSource<T> implements Source<T> {
                     }
                 }).failFunction(() -> {
                     try {
-                        if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                        if (pulsarSourceConfig.getProcessingGuarantees()
+                                == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                             throw new RuntimeException("Failed to process message: " + message.getMessageId());
                         }
                         consumer.negativeAcknowledge(message);
@@ -151,9 +150,10 @@ public abstract class PulsarSource<T> implements Source<T> {
                 .build();
     }
 
-    protected PulsarSourceConsumerConfig<T> buildPulsarSourceConsumerConfig(String topic, ConsumerConfig conf, Class<?> typeArg) {
-        PulsarSourceConsumerConfig.PulsarSourceConsumerConfigBuilder<T> consumerConfBuilder
-                = PulsarSourceConsumerConfig.<T>builder().isRegexPattern(conf.isRegexPattern())
+    protected PulsarSourceConsumerConfig<T> buildPulsarSourceConsumerConfig(String topic, ConsumerConfig conf,
+                                                                            Class<?> typeArg) {
+        PulsarSourceConsumerConfig.PulsarSourceConsumerConfigBuilder<T> consumerConfBuilder =
+                PulsarSourceConsumerConfig.<T>builder().isRegexPattern(conf.isRegexPattern())
                 .receiverQueueSize(conf.getReceiverQueueSize())
                 .consumerProperties(conf.getConsumerProperties());
 

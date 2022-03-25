@@ -21,13 +21,12 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.Data;
-import lombok.experimental.Accessors;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import lombok.Data;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data
@@ -73,6 +72,14 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             defaultValue = "true",
             help = "In case of Record<KeyValue<>> data use key from KeyValue<> instead of one from Record.")
     private boolean unwrapKeyValueIfAvailable = true;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "Some connectors cannot handle pulsar topic names like persistent://a/b/topic"
+                    + " and do not sanitize the topic name themselves. \n"
+                    + "If enabled, all non alpha-digital characters in topic name will be replaced with underscores. \n"
+                    + "In some cases it may result in topic name collisions (topic_a and topic.a will become the same)")
+    private boolean sanitizeTopicName = false;
 
     public static PulsarKafkaConnectSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

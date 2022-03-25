@@ -19,6 +19,11 @@
 package org.apache.pulsar.io.solr;
 
 import com.google.common.base.Strings;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -31,14 +36,8 @@ import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrInputDocument;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 /**
- * A simple abstract class for Solr sink
+ * A simple abstract class for Solr sink.
  */
 @Slf4j
 public abstract class SolrAbstractSink<T> implements Sink<T> {

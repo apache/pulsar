@@ -41,7 +41,7 @@ public interface ReaderListener<T> extends Serializable {
     void received(Reader reader, Message<T> msg);
 
     /**
-     * Get the notification when a topic is terminated
+     * Get the notification when a topic is terminated.
      *
      * @param reader
      *            the Reader object associated with the terminated topic

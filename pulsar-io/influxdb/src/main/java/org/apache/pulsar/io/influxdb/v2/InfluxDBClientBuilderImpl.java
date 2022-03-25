@@ -38,9 +38,10 @@ public class InfluxDBClientBuilderImpl implements InfluxDBClientBuilder {
 
         InfluxDBClient influxDBClient = InfluxDBClientFactory.create(options);
 
-        if(influxDBSinkConfig.isGzipEnable()) {
-            influxDBClient.enableGzip();
+        if (!influxDBSinkConfig.isGzipEnable()) {
+            return influxDBClient;
         }
+        influxDBClient.enableGzip();
 
         return influxDBClient;
     }

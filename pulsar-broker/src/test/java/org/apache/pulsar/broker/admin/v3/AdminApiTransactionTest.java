@@ -37,7 +37,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
@@ -53,6 +52,7 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -276,17 +276,38 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertTrue(transactionBufferStats.lastSnapshotTimestamps > currentTime);
     }
 
-    @Test(timeOut = 20000)
-    public void testGetPendingAckStats() throws Exception {
+    @DataProvider(name = "ackType")
+    public static Object[] ackType() {
+        return new Object[] { "cumulative", "individual"};
+    }
+
+    @Test(timeOut = 20000, dataProvider = "ackType")
+    public void testGetPendingAckStats(String ackType) throws Exception {
         initTransaction(2);
         final String topic = "persistent://public/default/testGetPendingAckStats";
         final String subName = "test1";
         admin.topics().createNonPartitionedTopic(topic);
 
-        pulsarClient.newConsumer(Schema.BYTES).topic(topic)
-                .subscriptionName(subName).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .sendTimeout(0, TimeUnit.SECONDS).topic(topic).create();
 
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName).subscribe();
         TransactionPendingAckStats transactionPendingAckStats = admin.transactions().
+                getPendingAckStatsAsync(topic, subName).get();
+        assertEquals(transactionPendingAckStats.state, "None");
+
+        producer.newMessage().value("Hello pulsar!".getBytes()).send();
+
+        TransactionImpl transaction  = (TransactionImpl) getTransaction();
+        if (ackType.equals("individual")) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+        } else {
+            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), transaction);
+        }
+        transaction.commit().get();
+
+        transactionPendingAckStats = admin.transactions().
                 getPendingAckStatsAsync(topic, subName).get();
 
         assertEquals(transactionPendingAckStats.state, "Ready");
@@ -396,6 +417,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     private void initTransaction(int coordinatorSize) throws Exception {
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
         admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        pulsarClient.close();
         Awaitility.await().until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == coordinatorSize);
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();

@@ -59,7 +59,7 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
                 .create();
         this.stopBroker();
         try {
-            producer.send("memroy-test".getBytes(StandardCharsets.UTF_8));
+            producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
             throw new IllegalStateException("can not reach here");
         } catch (PulsarClientException.TimeoutException ex) {
             PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
@@ -67,6 +67,24 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
             Assert.assertEquals(memoryLimitController.currentUsage(), 0);
         }
 
+    }
+
+    @Test(timeOut = 10_000)
+    public void testProducerCloseMemoryRelease() throws Exception {
+        initClientWithMemoryLimit();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerMemoryLimit")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .maxPendingMessages(0)
+                .enableBatching(false)
+                .create();
+        this.stopBroker();
+        producer.sendAsync("memory-test".getBytes(StandardCharsets.UTF_8));
+        producer.close();
+        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
     }
 
     private void initClientWithMemoryLimit() throws PulsarClientException {

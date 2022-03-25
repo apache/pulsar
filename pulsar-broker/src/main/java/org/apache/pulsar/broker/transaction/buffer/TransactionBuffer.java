@@ -125,6 +125,13 @@ public interface TransactionBuffer {
     CompletableFuture<Void> purgeTxns(List<Long> dataLedgers);
 
     /**
+     * Clear up the snapshot of the TransactionBuffer.
+     *
+     * @return Clear up operation result.
+     */
+    CompletableFuture<Void> clearSnapshot();
+
+    /**
      * Close the buffer asynchronously.
      *
      * @return
@@ -161,4 +168,12 @@ public interface TransactionBuffer {
      * @return the transaction stats in buffer.
      */
     TransactionBufferStats getStats();
+
+    /**
+     * Wait TransactionBuffer Recovers completely.
+     * Take snapshot after TB Recovers completely.
+     * @param isTxn
+     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     */
+    CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
 }

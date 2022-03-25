@@ -96,9 +96,8 @@ public class FixedColumnLengthTableMaker {
 
     /**
      * Make a table using the specified settings.
-     * 
-     * @param rows
-     *            Rows to construct the table from.
+     *
+     * @param rows Rows to construct the table from.
      * @return A String version of the table.
      */
     public String make(final Object[][] rows) {

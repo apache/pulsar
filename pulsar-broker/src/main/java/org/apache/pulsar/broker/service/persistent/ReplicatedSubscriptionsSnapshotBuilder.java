@@ -131,4 +131,8 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     boolean isTimedOut() {
         return (startTimeMillis + timeoutMillis) < clock.millis();
     }
+
+    long getStartTimeMillis() {
+        return startTimeMillis;
+    }
 }

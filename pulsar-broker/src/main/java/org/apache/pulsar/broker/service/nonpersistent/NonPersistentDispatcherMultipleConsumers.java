@@ -85,7 +85,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
 
     @Override
     protected boolean isConsumersExceededOnSubscription() {
-        return isConsumersExceededOnSubscription(topic.getBrokerService(), topic.getName(), consumerList.size());
+        return isConsumersExceededOnSubscription(topic, consumerList.size());
     }
 
     @Override
@@ -216,6 +216,11 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     @Override
     public boolean isConsumerAvailable(Consumer consumer) {
         return consumer != null && consumer.getAvailablePermits() > 0 && consumer.isWritable();
+    }
+
+    @Override
+    protected void reScheduleRead() {
+        // No-op
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherMultipleConsumers.class);

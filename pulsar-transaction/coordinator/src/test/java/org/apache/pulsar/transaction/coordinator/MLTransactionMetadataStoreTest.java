@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
@@ -46,6 +47,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.ClosedLedger;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -65,12 +67,16 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
+                managedLedgerConfig);
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
         int checkReplayRetryCount = 0;
         while (true) {
             checkReplayRetryCount++;
@@ -122,13 +128,13 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @DataProvider(name = "isUseManagedLedger")
+    @DataProvider(name = "isUseManagedLedgerProperties")
     public Object[][] versions() {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "isUseManagedLedger")
-    public void testRecoverSequenceId(boolean isUseManagedLedger) throws Exception {
+    @Test(dataProvider = "isUseManagedLedgerProperties")
+    public void testRecoverSequenceId(boolean isUseManagedLedgerProperties) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
@@ -136,18 +142,21 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         managedLedgerConfig.setMaxEntriesPerLedger(3);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
         transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
-        if (isUseManagedLedger) {
+        if (isUseManagedLedgerProperties) {
             transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
         }
         assertEquals(txnID.getLeastSigBits(), 0);
@@ -155,16 +164,24 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         field.setAccessible(true);
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(mlTransactionLog);
         Position position = managedLedger.getLastConfirmedEntry();
-
-        if (isUseManagedLedger) {
-            Awaitility.await().until(() -> {
-                managedLedger.rollCurrentLedgerIfFull();
-                return !managedLedger.ledgerExists(position.getLedgerId());
+        if (isUseManagedLedgerProperties) {
+            Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+            stateUpdater.setAccessible(true);
+            stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
+            managedLedger.rollCurrentLedgerIfFull();
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertTrue(managedLedger.ledgerExists(position.getLedgerId()));
+                Assert.assertEquals(managedLedger.getState(), ClosedLedger);
             });
         }
+        mlTransactionLog.closeAsync().get();
+        mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
+                managedLedgerConfig);
+        mlTransactionLog.initialize().join();
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         txnID = transactionMetadataStore.newTransaction(100000).get();
@@ -181,12 +198,15 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -224,11 +244,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 transactionMetadataStore.closeAsync();
 
                 MLTransactionLogImpl txnLog2 = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                        new ManagedLedgerConfig());
+                        managedLedgerConfig);
                 txnLog2.initialize().join();
                 MLTransactionMetadataStore transactionMetadataStoreTest =
                         new MLTransactionMetadataStore(transactionCoordinatorID,
-                                txnLog2, new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                                txnLog2, new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                                mlTransactionSequenceIdGenerator);
 
                 while (true) {
                     if (checkReplayRetryCount > 6) {
@@ -288,12 +309,16 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
+                managedLedgerConfig);
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -351,12 +376,16 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
+                managedLedgerConfig);
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
 
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
@@ -370,11 +399,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false).get();
 
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
+                managedLedgerConfig);
         mlTransactionLog.initialize().join();
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
     }
@@ -387,12 +417,16 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                new ManagedLedgerConfig());
+                managedLedgerConfig);
         mlTransactionLog.initialize().join();
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl(),
+                        mlTransactionSequenceIdGenerator);
 
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         transactionMetadataStore.newTransaction(5000).get();

@@ -43,6 +43,21 @@ public class ResetCursorData {
         this.isExcluded = isExcluded;
     }
 
+    // Private constructor used only for json deserialization
+    private ResetCursorData(String position) {
+        if ("latest".equals(position)) {
+            this.ledgerId = Long.MAX_VALUE;
+            this.entryId = Long.MAX_VALUE;
+        } else if ("earliest".equals(position)) {
+            this.ledgerId = -1;
+            this.entryId = -1;
+        } else {
+            throw new IllegalArgumentException(
+                    String.format("Invalid value %s for the position. Allowed values are [latest, earliest]",
+                            position));
+        }
+    }
+
     public ResetCursorData(MessageId messageId) {
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;

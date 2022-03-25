@@ -37,11 +37,14 @@ public interface PublisherStats {
     /** Average message size published by this publisher. */
     double getAverageMsgSize();
 
-    /** total chunked message count received. **/
+    /** The total rate of chunked messages published by this publisher. **/
     double getChunkedMessageRate();
 
     /** Id of this publisher. */
     long getProducerId();
+
+    /** Whether partial producer is supported at client. */
+    boolean isSupportsPartialProducer();
 
     /** Producer name. */
     String getProducerName();

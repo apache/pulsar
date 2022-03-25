@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.bookkeeper.mledger.Position;
-
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import org.apache.bookkeeper.mledger.Position;
 
 public class PositionImplRecyclable extends PositionImpl implements Position {
 
@@ -35,7 +34,7 @@ public class PositionImplRecyclable extends PositionImpl implements Position {
     };
 
     private PositionImplRecyclable(Handle<PositionImplRecyclable> recyclerHandle) {
-        super(PositionImpl.earliest);
+        super(PositionImpl.EARLIEST);
         this.recyclerHandle = recyclerHandle;
     }
 

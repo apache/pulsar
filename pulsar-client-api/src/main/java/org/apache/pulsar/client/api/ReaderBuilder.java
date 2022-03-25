@@ -286,8 +286,38 @@ public interface ReaderBuilder<T> extends Cloneable {
      * <p/>
      * When pooling is enabled, the application is responsible for calling Message.release() after the handling of every
      * received message. If “release()” is not called on a received message, there will be a memory leak. If an
-     * application attempts to use and already “released” message, it might experience undefined behavior (for example, memory
-     * corruption, deserialization error, etc.).
+     * application attempts to use and already “released” message, it might experience undefined behavior (for example,
+     * memory corruption, deserialization error, etc.).
      */
     ReaderBuilder<T> poolMessages(boolean poolMessages);
+
+    /**
+     * If enabled, the reader will auto subscribe for partitions increasement.
+     * This is only for partitioned reader.
+     *
+     * @param autoUpdate
+     *            whether to auto update partition increasement
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+    /**
+     * Set the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
+     * enabled.
+     *
+     * @param interval
+     *            the interval of updating partitions
+     * @param unit
+     *            the time unit of the interval.
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+    /**
+     * Intercept {@link Reader}.
+     *
+     * @param interceptors the list of interceptors to intercept the reader created by this builder.
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors);
 }

@@ -18,18 +18,26 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.assertj.core.util.Sets;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -353,5 +361,45 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testManagedLedgerTotalSize() throws Exception {
+        final String topic = newTopicName();
+        final int messages = 10;
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.lookups().lookupTopic(topic);
+        final ManagedLedgerImpl managedLedger = pulsar.getBrokerService().getTopicIfExists(topic).get()
+                .map(topicObject -> (ManagedLedgerImpl) ((PersistentTopic) topicObject).getManagedLedger())
+                .orElse(null);
+        Assert.assertNotNull(managedLedger);
+        final ManagedCursor cursor = managedLedger.openCursor("cursor"); // prevent ledgers being removed
+
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        for (int i = 0; i < messages; i++) {
+            producer.send("msg-" + i);
+        }
+
+        Assert.assertTrue(managedLedger.getTotalSize() > 0);
+
+        managedLedger.getConfig().setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        managedLedger.getConfig().setMaxEntriesPerLedger(1);
+        managedLedger.rollCurrentLedgerIfFull();
+
+        Awaitility.await().atMost(Duration.ofSeconds(3))
+                .untilAsserted(() -> {
+                    Assert.assertEquals(managedLedger.getLedgersInfo().size(), 1);
+                    Assert.assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.ClosedLedger);
+                });
+
+        final List<LedgerInfo> ledgerInfoList = managedLedger.getLedgersInfoAsList();
+        Assert.assertEquals(ledgerInfoList.size(), 1);
+        Assert.assertEquals(ledgerInfoList.get(0).getSize(), managedLedger.getTotalSize());
+
+        cursor.close();
     }
 }

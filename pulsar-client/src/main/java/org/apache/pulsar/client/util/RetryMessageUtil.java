@@ -24,8 +24,9 @@ public class RetryMessageUtil {
     public static final String SYSTEM_PROPERTY_DELAY_TIME = "DELAY_TIME";
     public static final String SYSTEM_PROPERTY_REAL_TOPIC = "REAL_TOPIC";
     public static final String SYSTEM_PROPERTY_RETRY_TOPIC = "RETRY_TOPIC";
+    @Deprecated
     public static final String SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID = "ORIGIN_MESSAGE_IDY_TIME";
-    
+    public static final String PROPERTY_ORIGIN_MESSAGE_ID = "ORIGIN_MESSAGE_ID";
     public static final int MAX_RECONSUMETIMES = 16;
     public static final String RETRY_GROUP_TOPIC_SUFFIX = "-RETRY";
     public static final String DLQ_GROUP_TOPIC_SUFFIX = "-DLQ";

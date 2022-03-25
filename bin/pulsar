@@ -20,12 +20,12 @@
 
 BINDIR=$(dirname "$0")
 export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
+export BK_HOME=`cd -P $BINDIR/..;pwd`
 
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
 DEFAULT_ZK_CONF=$PULSAR_HOME/conf/zookeeper.conf
 DEFAULT_CONFIGURATION_STORE_CONF=$PULSAR_HOME/conf/global_zookeeper.conf
-DEFAULT_DISCOVERY_CONF=$PULSAR_HOME/conf/discovery.conf
 DEFAULT_PROXY_CONF=$PULSAR_HOME/conf/proxy.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
@@ -51,7 +51,7 @@ then
     . "$PULSAR_HOME/conf/bkenv.sh"
 fi
 
-# Check pulsar env and load pulser_env.sh
+# Check pulsar env and load pulsar_env.sh
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
     . "$PULSAR_HOME/conf/pulsar_env.sh"
@@ -135,13 +135,13 @@ where command is one of:
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
     configuration-store Run a configuration-store server
-    discovery           Run a discovery server
     proxy               Run a pulsar proxy
     websocket           Run a web socket proxy server
     functions-worker    Run a functions worker server
     sql-worker          Run a sql worker server
     sql                 Run sql CLI
     standalone          Run a broker server with local bookies and local zookeeper
+    autorecovery        Run an autorecovery service
 
     initialize-cluster-metadata     One-time metadata initialization
     delete-cluster-metadata         Delete a cluster's metadata
@@ -164,7 +164,6 @@ Environment variables:
    PULSAR_BOOKKEEPER_CONF        Configuration file for bookie (default: $DEFAULT_BOOKKEEPER_CONF)
    PULSAR_ZK_CONF                Configuration file for zookeeper (default: $DEFAULT_ZK_CONF)
    PULSAR_CONFIGURATION_STORE_CONF         Configuration file for global configuration store (default: $DEFAULT_CONFIGURATION_STORE_CONF)
-   PULSAR_DISCOVERY_CONF         Configuration file for discovery service (default: $DEFAULT_DISCOVERY_CONF)
    PULSAR_WEBSOCKET_CONF         Configuration file for websocket proxy (default: $DEFAULT_WEBSOCKET_CONF)
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
@@ -239,10 +238,6 @@ if [ -z "$PULSAR_CONFIGURATION_STORE_CONF" ]; then
     PULSAR_CONFIGURATION_STORE_CONF=$DEFAULT_CONFIGURATION_STORE_CONF
 fi
 
-if [ -z "$PULSAR_DISCOVERY_CONF" ]; then
-    PULSAR_DISCOVERY_CONF=$DEFAULT_DISCOVERY_CONF
-fi
-
 if [ -z "$PULSAR_PROXY_CONF" ]; then
     PULSAR_PROXY_CONF=$DEFAULT_PROXY_CONF
 fi
@@ -283,17 +278,20 @@ OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
 if [ $COMMAND == "bookie" ]; then
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
-  OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
+  OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 else
-  OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
+  OPTS="$OPTS $PULSAR_MEM $PULSAR_GC $PULSAR_GC_LOG $PULSAR_EXTRA_OPTS"
 fi
 
 # log directory & file
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
-PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"info"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
+PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
+if [ ! -d "$PULSAR_LOG_DIR" ]; then
+  mkdir -p "$PULSAR_LOG_DIR"
+fi
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
@@ -313,9 +311,13 @@ OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR
 OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
 OPTS="$OPTS -Dpulsar.functions.log.conf=${FUNCTIONS_LOG_CONF}"
 
-ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true"
+ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true -Dzookeeper.tcpKeepAlive=true -Dzookeeper.clientTcpKeepAlive=true"
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
+
+# Adding pulsar metadata as a recognized provider
+BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
+OPTS="$OPTS $BK_METADATA_OPTIONS"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
@@ -338,9 +340,6 @@ elif [ $COMMAND == "configuration-store" ]; then
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_CONFIGURATION_STORE_CONF $@
-elif [ $COMMAND == "discovery" ]; then
-    PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
 elif [ $COMMAND == "proxy" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-proxy.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.proxy.server.ProxyServiceStarter --config $PULSAR_PROXY_CONF $@
@@ -353,6 +352,9 @@ elif [ $COMMAND == "functions-worker" ]; then
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
     exec $JAVA $LOG4J2_SHUTDOWN_HOOK_DISABLED $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+elif [ ${COMMAND} == "autorecovery" ]; then
+    PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-autorecovery.log"}
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.replication.AutoRecoveryMain --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "delete-cluster-metadata" ]; then

@@ -22,7 +22,6 @@ import static com.google.common.base.Functions.identity;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
-
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
@@ -30,7 +29,6 @@ import io.prestosql.spi.PrestoException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;

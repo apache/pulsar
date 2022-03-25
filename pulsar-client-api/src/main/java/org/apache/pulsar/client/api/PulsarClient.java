@@ -57,7 +57,7 @@ public interface PulsarClient extends Closeable {
 
     /**
      * Create a producer builder that can be used to configure
-     * and construct a producer with default {@link Schema.BYTES}.
+     * and construct a producer with default {@link Schema#BYTES}.
      *
      * <p>Example:
      *
@@ -97,7 +97,7 @@ public interface PulsarClient extends Closeable {
     <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
-     * Create a consumer builder with no schema ({@link Schema.BYTES}) for subscribing to
+     * Create a consumer builder with no schema ({@link Schema#BYTES}) for subscribing to
      * one or more topics.
      *
      * <pre>{@code
@@ -147,7 +147,7 @@ public interface PulsarClient extends Closeable {
     <T> ConsumerBuilder<T> newConsumer(Schema<T> schema);
 
     /**
-     * Create a topic reader builder with no schema ({@link Schema.BYTES}) to read from the specified topic.
+     * Create a topic reader builder with no schema ({@link Schema#BYTES}) to read from the specified topic.
      *
      * <p>The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
      * subscription. A reader needs to be specified a {@link ReaderBuilder#startMessageId(MessageId)}
@@ -223,6 +223,27 @@ public interface PulsarClient extends Closeable {
     <T> ReaderBuilder<T> newReader(Schema<T> schema);
 
     /**
+     * Create a table view builder with a specific schema for subscribing on a specific topic.
+     *
+     * <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will
+     * be ignored.
+     *
+     * <p>Example:
+     * <pre>{@code
+     *  TableView<byte[]> tableView = client.newTableView(Schema.BYTES)
+     *            .topic("my-topic")
+     *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+     *            .create();
+     *
+     *  tableView.forEach((k, v) -> System.out.println(k + ":" + v));
+     * }</pre>
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
+     */
+    <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema);
+
+    /**
      * Update the service URL this client is using.
      *
      * <p>This will force the client close all existing connections and to restart service discovery to the new service
@@ -272,8 +293,7 @@ public interface PulsarClient extends Closeable {
      * this client has currently active. That implies that close and wait, asynchronously, until all pending producer
      * send requests are persisted.
      *
-     * @throws PulsarClientException
-     *             if the close operation fails
+     * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> closeAsync();
 

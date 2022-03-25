@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.base.Objects;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -167,7 +167,7 @@ public class NamespaceName implements ServiceUnitId {
     public boolean equals(Object obj) {
         if (obj instanceof NamespaceName) {
             NamespaceName other = (NamespaceName) obj;
-            return Objects.equal(namespace, other.namespace);
+            return Objects.equals(namespace, other.namespace);
         }
 
         return false;

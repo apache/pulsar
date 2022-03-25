@@ -52,10 +52,11 @@ type Conf struct {
 	AutoACK              bool   `json:"autoAck" yaml:"autoAck"`
 	Parallelism          int32  `json:"parallelism" yaml:"parallelism"`
 	//source config
-	SubscriptionType    int32  `json:"subscriptionType" yaml:"subscriptionType"`
-	TimeoutMs           uint64 `json:"timeoutMs" yaml:"timeoutMs"`
-	SubscriptionName    string `json:"subscriptionName" yaml:"subscriptionName"`
-	CleanupSubscription bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
+	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
+	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`
+	SubscriptionName     string `json:"subscriptionName" yaml:"subscriptionName"`
+	CleanupSubscription  bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
+	SubscriptionPosition int32  `json:"subscriptionPosition" yaml:"subscriptionPosition"`
 	//source input specs
 	SourceSpecTopic            string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
 	SourceSchemaType           string `json:"sourceSchemaType" yaml:"sourceSchemaType"`

@@ -18,24 +18,22 @@
  */
 package org.apache.pulsar.websocket.stats;
 
+// CHECKSTYLE.OFF: IllegalImport
+import static io.netty.util.internal.PlatformDependent.maxDirectMemory;
 import static org.apache.pulsar.common.stats.Metrics.create;
-
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import java.lang.management.ManagementFactory;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Maps;
-
-import io.netty.util.internal.PlatformDependent;
+// CHECKSTYLE.ON: IllegalImport
 
 public class JvmMetrics {
 
@@ -52,11 +50,12 @@ public class JvmMetrics {
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
 
     public JvmMetrics(WebSocketService service) {
-        service.getExecutor().scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
+        service.getExecutor()
+                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::updateGcStats), 0, 1, TimeUnit.MINUTES);
     }
 
     public Metrics generate() {
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
         dimensionMap.put("system", "jvm");
         Metrics m = create(dimensionMap);
 
@@ -66,7 +65,7 @@ public class JvmMetrics {
         m.put("jvm_max_memory", r.maxMemory());
         m.put("jvm_total_memory", r.totalMemory());
 
-        m.put("jvm_max_direct_memory", PlatformDependent.maxDirectMemory());
+        m.put("jvm_max_direct_memory", maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         m.put("jvm_gc_young_pause", currentYoungGcTime);

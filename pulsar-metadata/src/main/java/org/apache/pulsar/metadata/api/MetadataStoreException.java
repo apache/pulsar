@@ -40,7 +40,7 @@ public class MetadataStoreException extends IOException {
     }
 
     /**
-     * Implementation is invalid
+     * Implementation is invalid.
      */
     public static class InvalidImplementationException extends MetadataStoreException {
         public InvalidImplementationException() {
@@ -103,6 +103,10 @@ public class MetadataStoreException extends IOException {
      * Failed to de-serialize the metadata.
      */
     public static class ContentDeserializationException extends MetadataStoreException {
+        public ContentDeserializationException(String msg, Throwable t) {
+            super(msg, t);
+        }
+
         public ContentDeserializationException(Throwable t) {
             super(t);
         }
@@ -142,6 +146,12 @@ public class MetadataStoreException extends IOException {
         }
     }
 
+    public static class InvalidPathException extends MetadataStoreException {
+        public InvalidPathException(String path) {
+            super("Path(" + path + ") is invalid");
+        }
+    }
+
     public static MetadataStoreException unwrap(Throwable t) {
         if (t instanceof MetadataStoreException) {
             return (MetadataStoreException) t;
@@ -170,6 +180,14 @@ public class MetadataStoreException extends IOException {
             return new InvalidImplementationException(msg);
         } else if (cause instanceof LockBusyException) {
             return new LockBusyException(msg);
+        } else {
+            return new MetadataStoreException(t);
+        }
+    }
+
+    public static MetadataStoreException wrap(Throwable t) {
+        if (t instanceof MetadataStoreException) {
+            return (MetadataStoreException) t;
         } else {
             return new MetadataStoreException(t);
         }

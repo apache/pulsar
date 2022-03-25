@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.Objects;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -60,6 +61,23 @@ public class Range {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Range range = (Range) o;
+        return start == range.start && end == range.end;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(start, end);
     }
 
     @Override

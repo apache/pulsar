@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import lombok.Data;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Data;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 
 /**
  * Statistics about subscription.
@@ -49,13 +50,16 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Chunked message dispatch rate. */
     public int chunkedMessageRate;
 
-    /** Number of messages in the subscription backlog. */
+    /** Number of entries in the subscription backlog. */
     public long msgBacklog;
 
     /** Size of backlog in byte. **/
     public long backlogSize;
 
-    /** Number of messages in the subscription backlog that do not contain the delay messages. */
+    /** Get the publish time of the earliest message in the backlog. */
+    public long earliestMsgPublishTimeInBacklog;
+
+    /** Number of entries in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
@@ -103,6 +107,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Mark that the subscription state is kept in sync across different regions. */
     public boolean isReplicated;
 
+    /** Whether out of order delivery is allowed on the Key_Shared subscription. */
+    public boolean allowOutOfOrderDelivery;
+
+    /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
+    public String keySharedMode;
+
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
 
@@ -112,9 +122,13 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** SubscriptionProperties (key/value strings) associated with this subscribe. */
+    public Map<String, String> subscriptionProperties;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
+        this.subscriptionProperties = new HashMap<>();
     }
 
     public void reset() {
@@ -135,6 +149,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
+        subscriptionProperties.clear();
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -165,9 +180,11 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
                 this.consumers.get(i).add(stats.consumers.get(i));
             }
         }
+        this.allowOutOfOrderDelivery |= stats.allowOutOfOrderDelivery;
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        this.subscriptionProperties.putAll(stats.subscriptionProperties);
         return this;
     }
 }

@@ -19,18 +19,29 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.compaction.CompactedTopicContext;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactorMXBean;
 
+@Slf4j
 public class NamespaceStatsAggregator {
 
     private static FastThreadLocal<AggregatedNamespaceStats> localNamespaceStats =
@@ -49,7 +60,7 @@ public class NamespaceStatsAggregator {
     };
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-           boolean includeProducerMetrics, SimpleTextOutputStream stream) {
+           boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel, SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats.resetTypes();
@@ -57,6 +68,7 @@ public class NamespaceStatsAggregator {
 
         printDefaultBrokerStats(stream, cluster);
 
+        Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
@@ -66,11 +78,14 @@ public class NamespaceStatsAggregator {
                 topicsMap.forEach((name, topic) -> {
                     getTopicStats(topic, topicStats, includeConsumerMetrics, includeProducerMetrics,
                             pulsar.getConfiguration().isExposePreciseBacklogInPrometheus(),
-                            pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus());
+                            pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus(),
+                            compactorMXBean
+                    );
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
-                        TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats);
+                        TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats, compactorMXBean,
+                                splitTopicAndPartitionIndexLabel);
                     } else {
                         namespaceStats.updateStats(topicStats);
                     }
@@ -87,8 +102,50 @@ public class NamespaceStatsAggregator {
         });
     }
 
+    private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
+        Compactor compactor = null;
+        try {
+            compactor = pulsar.getCompactor(false);
+        } catch (PulsarServerException e) {
+            log.error("get compactor error", e);
+        }
+        return Optional.ofNullable(compactor).map(c -> c.getStats());
+    }
+
+    private static void aggregateTopicStats(TopicStats stats, SubscriptionStatsImpl subscriptionStats,
+                                            AggregatedSubscriptionStats subsStats) {
+        stats.subscriptionsCount++;
+        stats.msgBacklog += subscriptionStats.msgBacklog;
+        subsStats.msgBacklog = subscriptionStats.msgBacklog;
+        subsStats.msgDelayed = subscriptionStats.msgDelayed;
+        subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
+        subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
+        subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
+        subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
+        subsStats.lastAckedTimestamp = subscriptionStats.lastAckedTimestamp;
+        subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+        subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
+        subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
+        subscriptionStats.consumers.forEach(cStats -> {
+            stats.consumersCount++;
+            subsStats.unackedMessages += cStats.unackedMessages;
+            subsStats.msgRateRedeliver += cStats.msgRateRedeliver;
+            subsStats.msgRateOut += cStats.msgRateOut;
+            subsStats.msgThroughputOut += cStats.msgThroughputOut;
+            subsStats.bytesOutCounter += cStats.bytesOutCounter;
+            subsStats.msgOutCounter += cStats.msgOutCounter;
+            if (!subsStats.blockedSubscriptionOnUnackedMsgs && cStats.blockedConsumerOnUnackedMsgs) {
+                subsStats.blockedSubscriptionOnUnackedMsgs = true;
+            }
+        });
+        stats.rateOut += subsStats.msgRateOut;
+        stats.throughputOut += subsStats.msgThroughputOut;
+
+    }
+
     private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
-            boolean includeProducerMetrics, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+            boolean includeProducerMetrics, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                      Optional<CompactorMXBean> compactorMXBean) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -118,13 +175,13 @@ public class NamespaceStatsAggregator {
             stats.managedLedgerStats.storageWriteRate = mlStats.getAddEntryMessagesRate();
             stats.managedLedgerStats.storageReadRate = mlStats.getReadEntriesRate();
         }
-
-        TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize);
+        TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize, false);
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
+        stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -151,37 +208,23 @@ public class NamespaceStatsAggregator {
             }
         });
 
-        tStatus.subscriptions.forEach((subName, subscriptionStats) -> {
-            stats.subscriptionsCount++;
-            stats.msgBacklog += subscriptionStats.msgBacklog;
-
-            AggregatedSubscriptionStats subsStats = stats.subscriptionStats
-                    .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
-            subsStats.msgBacklog = subscriptionStats.msgBacklog;
-            subsStats.msgDelayed = subscriptionStats.msgDelayed;
-            subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
-            subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
-            subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
-            subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
-            subsStats.lastAckedTimestamp = subscriptionStats.lastAckedTimestamp;
-            subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
-            subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
-            subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
-            subscriptionStats.consumers.forEach(cStats -> {
-                stats.consumersCount++;
-                subsStats.unackedMessages += cStats.unackedMessages;
-                subsStats.msgRateRedeliver += cStats.msgRateRedeliver;
-                subsStats.msgRateOut += cStats.msgRateOut;
-                subsStats.msgThroughputOut += cStats.msgThroughputOut;
-                subsStats.bytesOutCounter += cStats.bytesOutCounter;
-                subsStats.msgOutCounter += cStats.msgOutCounter;
-                if (!subsStats.blockedSubscriptionOnUnackedMsgs && cStats.blockedConsumerOnUnackedMsgs) {
-                    subsStats.blockedSubscriptionOnUnackedMsgs = true;
-                }
+        if (topic instanceof PersistentTopic) {
+            tStatus.subscriptions.forEach((subName, subscriptionStats) -> {
+                AggregatedSubscriptionStats subsStats = stats.subscriptionStats
+                        .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
+                aggregateTopicStats(stats, subscriptionStats, subsStats);
             });
-            stats.rateOut += subsStats.msgRateOut;
-            stats.throughputOut += subsStats.msgThroughputOut;
-        });
+        } else {
+            ((NonPersistentTopicStatsImpl) tStatus).getNonPersistentSubscriptions()
+                    .forEach((subName, nonPersistentSubscriptionStats) -> {
+                NonPersistentSubscriptionStatsImpl subscriptionStats =
+                                (NonPersistentSubscriptionStatsImpl) nonPersistentSubscriptionStats;
+                AggregatedSubscriptionStats subsStats = stats.subscriptionStats
+                        .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
+                aggregateTopicStats(stats, subscriptionStats, subsStats);
+                subsStats.msgDropRate += subscriptionStats.getMsgDropRate();
+            });
+        }
 
         // Consumer stats can be a lot if a subscription has many consumers
         if (includeConsumerMetrics) {
@@ -220,6 +263,31 @@ public class NamespaceStatsAggregator {
             aggReplStats.connectedCount += replStats.connected ? 1 : 0;
             aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
+
+        compactorMXBean
+                .flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic.getName()))
+                .map(compactionRecord -> {
+                    stats.compactionRemovedEventCount = compactionRecord.getCompactionRemovedEventCount();
+                    stats.compactionSucceedCount = compactionRecord.getCompactionSucceedCount();
+                    stats.compactionFailedCount = compactionRecord.getCompactionFailedCount();
+                    stats.compactionDurationTimeInMills = compactionRecord.getCompactionDurationTimeInMills();
+                    stats.compactionReadThroughput = compactionRecord.getCompactionReadThroughput();
+                    stats.compactionWriteThroughput = compactionRecord.getCompactionWriteThroughput();
+                    stats.compactionLatencyBuckets.addAll(compactionRecord.getCompactionLatencyStats());
+                    stats.compactionLatencyBuckets.refresh();
+                    PersistentTopic persistentTopic = (PersistentTopic) topic;
+                    Optional<CompactedTopicContext> compactedTopicContext = persistentTopic
+                            .getCompactedTopicContext();
+                    if (compactedTopicContext.isPresent()) {
+                        LedgerHandle ledger = compactedTopicContext.get().getLedger();
+                        long entries = ledger.getLastAddConfirmed() + 1;
+                        long size = ledger.getLength();
+
+                        stats.compactionCompactedEntriesCount = entries;
+                        stats.compactionCompactedEntriesSize = size;
+                    }
+                    return compactionRecord;
+                });
     }
 
     private static void printDefaultBrokerStats(SimpleTextOutputStream stream, String cluster) {

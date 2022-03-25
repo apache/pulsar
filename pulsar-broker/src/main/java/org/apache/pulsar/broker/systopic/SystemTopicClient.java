@@ -21,12 +21,9 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
@@ -106,6 +103,25 @@ public interface SystemTopicClient<T> {
         CompletableFuture<MessageId> writeAsync(T t);
 
         /**
+         * Delete event in the system topic.
+         * @param t pulsar event
+         * @return message id
+         * @throws PulsarClientException exception while write event cause
+         */
+        default MessageId delete(T t) throws PulsarClientException {
+            throw new UnsupportedOperationException("Unsupported operation");
+        }
+
+        /**
+         * Async delete event in the system topic.
+         * @param t pulsar event
+         * @return message id future
+         */
+        default CompletableFuture<MessageId> deleteAsync(T t) {
+            throw new UnsupportedOperationException("Unsupported operation");
+        }
+
+        /**
          * Close the system topic writer.
          */
         void close() throws IOException;
@@ -167,23 +183,6 @@ public interface SystemTopicClient<T> {
          * @return system topic
          */
         SystemTopicClient<T> getSystemTopic();
-    }
-
-    static boolean isSystemTopic(TopicName topicName) {
-        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-
-        // event topic
-        if (EventsTopicNames.checkTopicIsEventsNames(nonePartitionedTopicName)) {
-            return true;
-        }
-
-        String localName = nonePartitionedTopicName.getLocalName();
-        // transaction pending ack topic
-        if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
-            return true;
-        }
-
-        return false;
     }
 
 }

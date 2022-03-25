@@ -25,7 +25,6 @@ import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespace
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHandle;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;

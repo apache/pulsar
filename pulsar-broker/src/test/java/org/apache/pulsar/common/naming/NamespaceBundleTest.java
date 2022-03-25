@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -28,19 +26,13 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
 public class NamespaceBundleTest {
@@ -127,11 +119,6 @@ public class NamespaceBundleTest {
     @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
-        LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
-        when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
-        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
-        doNothing().when(poilciesCache).registerListener(any());
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
         when(pulsar.getConfigurationMetadataStore()).thenReturn(store);

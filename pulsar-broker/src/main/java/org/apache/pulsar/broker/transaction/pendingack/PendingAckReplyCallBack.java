@@ -36,4 +36,10 @@ public interface PendingAckReplyCallBack {
      * @param pendingAckMetadataEntry {@link PendingAckMetadataEntry} the metadata entry of pending ack
      */
     void handleMetadataEntry(PendingAckMetadataEntry pendingAckMetadataEntry);
+
+    /**
+     * Pending ack replay failed callback for pending ack store.
+     */
+    void replayFailed(Throwable t);
+
 }

@@ -40,8 +40,8 @@ public class OffloadSegmentInfoImpl {
     public final long beginLedgerId;
     public final long beginEntryId;
     public final String driverName;
-    volatile private long endLedgerId;
-    volatile private long endEntryId;
+    private volatile long endLedgerId;
+    private volatile long endEntryId;
     volatile boolean closed = false;
     public final Map<String, String> driverMetadata;
 

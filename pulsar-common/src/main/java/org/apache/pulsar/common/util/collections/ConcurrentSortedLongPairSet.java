@@ -79,7 +79,10 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
     @Override
     public boolean add(long item1, long item2) {
         ConcurrentLongPairSet messagesToReplay = longPairSets.computeIfAbsent(item1,
-                (key) -> new ConcurrentLongPairSet(expectedItems, concurrencyLevel));
+                (key) -> ConcurrentLongPairSet.newBuilder()
+                        .expectedItems(expectedItems)
+                        .concurrencyLevel(concurrencyLevel)
+                        .build());
         return messagesToReplay.add(item1, item2);
     }
 
@@ -166,13 +169,15 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public boolean isEmpty() {
-        AtomicBoolean isEmpty = new AtomicBoolean(true);
-        longPairSets.forEach((item1, longPairSet) -> {
-            if (isEmpty.get() && !longPairSet.isEmpty()) {
-                isEmpty.set(false);
+        if (longPairSets.isEmpty()) {
+            return true;
+        }
+        for (ConcurrentLongPairSet subSet : longPairSets.values()) {
+            if (!subSet.isEmpty()) {
+                return false;
             }
-        });
-        return isEmpty.get();
+        }
+        return true;
     }
 
     @Override

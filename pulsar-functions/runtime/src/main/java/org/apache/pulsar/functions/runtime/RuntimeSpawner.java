@@ -23,14 +23,13 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -81,23 +80,25 @@ public class RuntimeSpawner implements AutoCloseable {
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
         if (!runtimeFactory.externallyManaged() && instanceLivenessCheckFreqMs > 0) {
-            processLivenessCheckTimer = InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
-                Runtime runtime = RuntimeSpawner.this.runtime;
-                if (runtime != null && !runtime.isAlive()) {
-                    log.error("{}/{}/{}-{} Function Container is dead with exception.. restarting", details.getTenant(),
-                            details.getNamespace(), details.getName(), runtime.getDeathException());
-                    // Just for the sake of sanity, just destroy the runtime
-                    try {
-                        runtime.stop();
-                        runtimeDeathException = runtime.getDeathException();
-                        runtime.start();
-                    } catch (Exception e) {
-                        log.error("{}/{}/{}-{} Function Restart failed", details.getTenant(),
-                                details.getNamespace(), details.getName(), e, e);
-                    }
-                    numRestarts++;
-                }
-            }, instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs, TimeUnit.MILLISECONDS);
+            processLivenessCheckTimer = InstanceCache.getInstanceCache().getScheduledExecutorService()
+                    .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
+                        Runtime runtime = RuntimeSpawner.this.runtime;
+                        if (runtime != null && !runtime.isAlive()) {
+                            log.error("{}/{}/{} Function Container is dead with following exception. Restarting.",
+                                    details.getTenant(),
+                                    details.getNamespace(), details.getName(), runtime.getDeathException());
+                            // Just for the sake of sanity, just destroy the runtime
+                            try {
+                                runtime.stop();
+                                runtimeDeathException = runtime.getDeathException();
+                                runtime.start();
+                            } catch (Exception e) {
+                                log.error("{}/{}/{}-{} Function Restart failed", details.getTenant(),
+                                        details.getNamespace(), details.getName(), e, e);
+                            }
+                            numRestarts++;
+                        }
+                    }), instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs, TimeUnit.MILLISECONDS);
         }
     }
 

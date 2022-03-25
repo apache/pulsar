@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -288,7 +289,7 @@ public interface Consumer<T> extends Closeable {
      *          consumer.acknowledge(msg);
      *     } catch (Throwable t) {
      *          log.warn("Failed to process message");
-     *          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+     *          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
      *     }
      * }
      * </code></pre>
@@ -303,6 +304,43 @@ public interface Consumer<T> extends Closeable {
      *              if the consumer was already closed
      */
     void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException;
+
+    /**
+     * reconsumeLater the consumption of {@link Messages}.
+     *
+     *<p>When a message is "reconsumeLater" it will be marked for redelivery after
+     * some custom delay.
+     *
+     * <p>Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message&lt;String&gt; msg = consumer.receive();
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.reconsumeLater(msg, 1000, TimeUnit.MILLISECONDS);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param message
+     *            the {@code Message} to be reconsumeLater
+     * @param customProperties
+     *            the custom properties to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @throws PulsarClientException.AlreadyClosedException
+     *              if the consumer was already closed
+     */
+    void reconsumeLater(Message<?> message,
+                        Map<String, String> customProperties,
+                        long delayTime, TimeUnit unit) throws PulsarClientException;
 
     /**
      * reconsumeLater the consumption of {@link Messages}.
@@ -474,6 +512,23 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit);
 
     /**
+     * Asynchronously reconsumeLater the consumption of a single message.
+     *
+     * @param message
+     *            The {@code Message} to be reconsumeLater
+     * @param customProperties
+     *            The custom properties to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterAsync(Message<?> message,
+                                                Map<String, String> customProperties,
+                                                long delayTime, TimeUnit unit);
+
+    /**
      * Asynchronously reconsumeLater the consumption of {@link Messages}.
      *
      * @param messages
@@ -525,6 +580,26 @@ public interface Consumer<T> extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit);
+
+    /**
+     * Asynchronously ReconsumeLater the reception of all the messages in the stream up to (and including) the provided
+     * message.
+     *
+     * <p>Cumulative reconsumeLater cannot be used when the consumer type is set to ConsumerShared.
+     *
+     * @param message
+     *            The {@code message} to be cumulatively reconsumeLater
+     * @param customProperties
+     *            The custom properties to be cumulatively reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message,
+                                                          Map<String, String> customProperties,
+                                                          long delayTime, TimeUnit unit);
 
     /**
      * Get statistics for the consumer.

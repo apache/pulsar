@@ -19,11 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
@@ -137,7 +135,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set the operation timeout <i>(default: 30 seconds)</i>
+     * Set the operation timeout <i>(default: 30 seconds)</i>.
      * <p>
      * Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
      * operation will be marked as failed
@@ -160,7 +158,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>
+     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
      *
      * @param numIoThreads
      */
@@ -177,7 +175,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>
+     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
      *
      * @param numListenerThreads
      */
@@ -238,7 +236,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Configure whether to use TLS encryption on the connection <i>(default: false)</i>
+     * Configure whether to use TLS encryption on the connection <i>(default: false)</i>.
      *
      * @param useTls
      */
@@ -254,7 +252,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set the path to the trusted TLS certificate file
+     * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
      */
@@ -270,7 +268,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i>
+     * Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i>.
      *
      * @param tlsAllowInsecureConnection
      */
@@ -279,7 +277,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Stats will be activated with positive statsIntervalSeconds
+     * Stats will be activated with positive statsIntervalSeconds.
      *
      * @return the interval between each stat info <i>(default: 60 seconds)</i>
      */
@@ -288,7 +286,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
+     * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive.
      * statsIntervalSeconds It should be set to at least 1 second
      *
      * @param statsInterval
@@ -321,7 +319,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed
+     * Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed.
      *
      * @return
      */
@@ -330,7 +328,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
+     * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection.
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>
      *
@@ -370,7 +368,7 @@ public class ClientConfiguration implements Serializable {
      * @param unit the time unit in which the duration is defined
      */
     public void setConnectionTimeout(int duration, TimeUnit unit) {
-        confData.setConnectionTimeoutMs((int)unit.toMillis(duration));
+        confData.setConnectionTimeoutMs((int) unit.toMillis(duration));
     }
 
     /**

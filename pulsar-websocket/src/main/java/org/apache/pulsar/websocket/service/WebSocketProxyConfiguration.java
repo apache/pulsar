@@ -21,15 +21,12 @@ package org.apache.pulsar.websocket.service;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-
+import java.util.TreeSet;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-
-import com.google.common.collect.Sets;
-
-import lombok.Getter;
-import lombok.Setter;
 
 @Getter
 @Setter
@@ -68,14 +65,32 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     )
     private String globalZookeeperServers;
 
-    @FieldContext(doc = "Connection string of configuration store servers")
+    @Deprecated
+    @FieldContext(
+            deprecated = true,
+            doc = "Connection string of configuration store servers")
     private String configurationStoreServers;
 
-    @FieldContext(doc = "ZooKeeper session timeout in milliseconds")
-    private long zooKeeperSessionTimeoutMillis = 30000;
+    @FieldContext(doc = "Connection string of configuration metadata store servers")
+    private String configurationMetadataStoreUrl;
 
-    @FieldContext(doc = "ZooKeeper cache expiry time in seconds")
-    private int zooKeeperCacheExpirySeconds = 300;
+    @FieldContext(doc = "Metadata store session timeout in milliseconds.")
+    private long metadataStoreSessionTimeoutMillis = 30_000;
+
+    @FieldContext(doc = "Metadata store cache expiry time in seconds.")
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @FieldContext(
+            deprecated = true,
+            doc = "ZooKeeper session timeout in milliseconds. "
+                        + "@deprecated - Use metadataStoreSessionTimeoutMillis instead.")
+    private long zooKeeperSessionTimeoutMillis = -1;
+
+    @FieldContext(
+            deprecated = true,
+            doc = "ZooKeeper cache expiry time in seconds. "
+                        + "@deprecated - Use metadataStoreCacheExpirySeconds instead.")
+    private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(doc = "Port to use to server HTTP request")
     private Optional<Integer> webServicePort = Optional.of(8080);
@@ -84,7 +99,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
-    private String bindAddress;
+    private String bindAddress = "0.0.0.0";
 
     @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
@@ -93,7 +108,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private boolean authenticationEnabled;
 
     @FieldContext(doc = "Authentication provider name list, which is a list of class names")
-    private Set<String> authenticationProviders = Sets.newTreeSet();
+    private Set<String> authenticationProviders = new TreeSet<>();
 
     @FieldContext(doc = "Enforce authorization")
     private boolean authorizationEnabled;
@@ -103,7 +118,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "Role names that are treated as \"super-user\", "
             + "which means they can do all admin operations and publish to or consume from all topics")
-    private Set<String> superUserRoles = Sets.newTreeSet();
+    private Set<String> superUserRoles = new TreeSet<>();
 
     @FieldContext(doc = "Allow wildcard matching in authorization "
             + "(wildcard matching only applicable if wildcard-char: "
@@ -128,13 +143,13 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
-    @FieldContext(doc = "Timeout of idling WebSocket session (in millisecond)")
+    @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
-    /***** --- TLS --- ****/
+    /* --- TLS --- */
     @Deprecated
     private boolean tlsEnabled = false;
 
@@ -157,9 +172,17 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "TLS rejecting the connection if the client certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    @FieldContext(doc = "TLS cert refresh duration (in second). 0 means checking every new connection.")
+    @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
+
+    public long getMetadataStoreSessionTimeoutMillis() {
+        return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
 }

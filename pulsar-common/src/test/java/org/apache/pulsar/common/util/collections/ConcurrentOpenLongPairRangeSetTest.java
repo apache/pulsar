@@ -19,8 +19,11 @@
 package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -29,13 +32,23 @@ import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsum
 import org.testng.annotations.Test;
 
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
 
 public class ConcurrentOpenLongPairRangeSetTest {
 
     static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
+
+    @Test
+    public void testIsEmpty() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        assertTrue(set.isEmpty());
+        // lowerValueOpen and upperValue are both -1 so that an empty set will be added
+        set.addOpenClosed(0, -1, 0, -1);
+        assertTrue(set.isEmpty());
+        set.addOpenClosed(1, 1, 1, 5);
+        assertFalse(set.isEmpty());
+    }
 
     @Test
     public void testAddForSameKey() {
@@ -129,7 +142,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         // add 10K values for key 0
         int totalInsert = 10_000;
         // add single values
-        List<Range<LongPair>> removedRanges = Lists.newArrayList();
+        List<Range<LongPair>> removedRanges = new ArrayList<>();
         for (int i = 0; i < totalInsert; i++) {
             if (i % 3 == 0 || i % 7 == 0 || i % 11 == 0) {
                 continue;
@@ -415,7 +428,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
     }
 
     private List<Range<LongPair>> getConnectedRange(Set<Range<LongPair>> gRanges) {
-        List<Range<LongPair>> gRangeConnected = Lists.newArrayList();
+        List<Range<LongPair>> gRangeConnected = new ArrayList<>();
         Range<LongPair> lastRange = null;
         for (Range<LongPair> range : gRanges) {
             if (lastRange == null) {

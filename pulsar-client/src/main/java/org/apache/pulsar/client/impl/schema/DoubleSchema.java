@@ -99,7 +99,7 @@ public class DoubleSchema extends AbstractSchema<Double> {
         validate(byteBuf);
         long value = 0;
 
-        for (int i = 0; i < 8; i ++) {
+        for (int i = 0; i < 8; i++) {
             value <<= 8;
             value |= byteBuf.getByte(i) & 0xFF;
         }

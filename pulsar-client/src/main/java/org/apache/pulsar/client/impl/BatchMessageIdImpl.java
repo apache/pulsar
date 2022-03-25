@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.ComparisonChain;
 import org.apache.pulsar.client.api.MessageId;
 
 /**
@@ -42,7 +41,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         this(ledgerId, entryId, partitionIndex, batchIndex, 0, BatchMessageAckerDisabled.INSTANCE);
     }
 
-    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize, BatchMessageAcker acker) {
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize,
+                              BatchMessageAcker acker) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
         this.batchSize = batchSize;
@@ -136,6 +136,10 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     public int getBatchSize() {
         return acker.getBatchSize();
+    }
+
+    public int getOriginalBatchSize() {
+        return this.batchSize;
     }
 
     public MessageIdImpl prevBatchMessageId() {

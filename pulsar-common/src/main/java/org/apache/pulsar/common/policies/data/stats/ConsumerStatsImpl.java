@@ -19,11 +19,11 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.Data;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.Data;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 
 /**
  * Consumer statistics.
@@ -45,7 +45,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
-    /** Total chunked messages dispatched. */
+    /** The total rate of chunked messages delivered to this consumer. */
     public double chunkedMessageRate;
 
     /** Name of the consumer. */
