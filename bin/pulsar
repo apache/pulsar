@@ -45,6 +45,12 @@ FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS
 SQL_HOME=$PULSAR_HOME/pulsar-sql
 PRESTO_HOME=${PULSAR_HOME}/lib/presto
 
+# Check zookeeper env and load zkenv.sh
+if [ -f "$PULSAR_HOME/conf/zkenv.sh" ]
+then
+    . "$PULSAR_HOME/conf/zkenv.sh"
+fi
+
 # Check bookkeeper env and load bkenv.sh
 if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
 then
@@ -55,6 +61,12 @@ fi
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
     . "$PULSAR_HOME/conf/pulsar_env.sh"
+fi
+
+# Check proxy env and load proxyenv.sh
+if [ -f "$PULSAR_HOME/conf/proxyenv.sh" ]
+then
+    . "$PULSAR_HOME/conf/proxyenv.sh"
 fi
 
 # Check for the java to use
@@ -275,6 +287,19 @@ OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
+
+if [ $COMMAND == "bookie" ]; then
+  # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
+  OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
+elif [ $COMMAND == "zookeeper" ]; then
+  # Pass $ZOOKEEPER_EXTRA_OPTS option defined in zkenv.sh
+  OPTS="$OPTS $ZOOKEEPER_MEM $ZOOKEEPER_GC $ZOOKEEPER_GC_LOG $ZOOKEEPER_EXTRA_OPTS"
+elif [ $COMMAND == "proxy" ]; then
+  # Pass $PROXY_EXTRA_OPTS option defined in proxyenv.sh
+  OPTS="$OPTS $PROXY_MEM $PROXY_GC $PROXY_GC_LOG $PROXY_EXTRA_OPTS"
+else
+  OPTS="$OPTS $PULSAR_MEM $PULSAR_GC $PULSAR_GC_LOG $PULSAR_EXTRA_OPTS"
+fi
 
 if [ $COMMAND == "bookie" ]; then
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
