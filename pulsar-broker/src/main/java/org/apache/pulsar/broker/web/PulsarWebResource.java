@@ -395,7 +395,7 @@ public abstract class PulsarWebResource {
      * @throws Exception In case the redirect happens
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
-        sync(() -> validateClusterOwnershipAsync(cluster));
+        sync(()-> validateClusterOwnershipAsync(cluster));
     }
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
@@ -845,7 +845,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {
-        sync(() -> validateTenantOperationAsync(tenant, operation));
+        sync(()-> validateTenantOperationAsync(tenant, operation));
     }
 
     public CompletableFuture<Void> validateTenantOperationAsync(String tenant, TenantOperation operation) {
@@ -1049,7 +1049,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
-        sync(() -> validateTopicPolicyOperationAsync(topicName, policy, operation));
+        sync(()-> validateTopicPolicyOperationAsync(topicName, policy, operation));
     }
 
     public CompletableFuture<Void> validateTopicPolicyOperationAsync(TopicName topicName,
