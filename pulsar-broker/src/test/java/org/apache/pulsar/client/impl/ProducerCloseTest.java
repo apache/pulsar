@@ -19,18 +19,22 @@
 package org.apache.pulsar.client.impl;
 
 import lombok.Cleanup;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -97,6 +101,25 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         } catch (ExecutionException e) {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.AlreadyClosedException);
         }
+    }
+
+    @Test(timeOut = 10_000)
+    public void brokerCloseTest() throws Exception {
+        initClient();
+
+        String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        producer.newMessage().value("test".getBytes()).send();
+
+        Optional<Topic> topicOptional = pulsar.getBrokerService()
+                .getTopicReference(TopicName.get(topic).getPartitionedTopicName());
+        Assert.assertTrue(topicOptional.isPresent());
+        topicOptional.get().close(true).get();
+        Assert.assertEquals(producer.getState(), HandlerState.State.Connecting);
+        producer.newMessage().value("test".getBytes()).sendAsync().get();
     }
 
     private void initClient() throws PulsarClientException {
