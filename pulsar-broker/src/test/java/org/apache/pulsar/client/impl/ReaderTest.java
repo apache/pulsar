@@ -53,7 +53,12 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.*;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
@@ -611,6 +616,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         String key = new ArrayList<>(internalStats.cursors.keySet()).get(0);
         ManagedLedgerInternalStats.CursorStats cursor = internalStats.cursors.get(key);
         Assert.assertEquals(cursor.state, "Open");
+        reader.close();
+        internalStats = admin.topics().getInternalStats(readerNotAckTopic);
+        Assert.assertEquals(internalStats.cursors.size(), 0);
     }
 
 }
