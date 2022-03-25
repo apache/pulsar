@@ -1041,10 +1041,12 @@ public class PersistentTopic extends AbstractTopic
 
     void removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
-        // preserve accumulative stats form removed subscription
-        SubscriptionStatsImpl stats = sub.getStats(false, false);
-        bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-        msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        if (sub != null) {
+            // preserve accumulative stats form removed subscription
+            SubscriptionStatsImpl stats = sub.getStats(false, false);
+            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        }
     }
 
     /**
