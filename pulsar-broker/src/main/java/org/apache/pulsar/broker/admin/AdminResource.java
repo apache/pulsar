@@ -558,11 +558,9 @@ public abstract class AdminResource extends PulsarWebResource {
             Policies policies = getNamespacePolicies(namespaceName);
             maxTopicsPerNamespace = policies.max_topics_per_namespace;
         } catch (RestException e) {
-            if (e.getResponse().getStatus() != Status.NOT_FOUND.getStatusCode()) {
-                log.error("[{}] Failed to create partitioned topic {}", clientAppId(), namespaceName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
+            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), namespaceName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
         }
 
         try {
