@@ -566,6 +566,18 @@ public class TransactionTest extends TransactionTestBase {
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer2.getStats().state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
+
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("test"), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+
+        managedCursors.add(managedCursor);
+        TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(buffer3.getStats().state, "Ready"));
+        managedCursors.removeCursor("transaction-buffer-sub");
     }
 
     @Test
