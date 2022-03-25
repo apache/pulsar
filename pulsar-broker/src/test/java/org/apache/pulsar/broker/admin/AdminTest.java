@@ -821,9 +821,21 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         String message = "my-message";
         RestException exception = new RestException(Status.PRECONDITION_FAILED, message);
         assertEquals(exception.getMessage(), message);
-
     }
 
+    @Test
+    public void testNamespaceNotExist() {
+        final String property = "prop-xyz";
+        final String cluster = "use";
+        final String namespace = "ns-not-exist";
+        final String partitionedTopicName = "old-special-topic";
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createPartitionedTopic(response, property, cluster, namespace, partitionedTopicName, 5, false);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        Assert.assertEquals(responseCaptor.getValue().getMessage(), "Namespace does not exist");
+    }
 
     @Test
     public void testUpdatePartitionedTopicCoontainedInOldTopic() throws Exception {
