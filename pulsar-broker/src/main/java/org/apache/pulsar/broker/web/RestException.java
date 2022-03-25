@@ -81,8 +81,8 @@ public class RestException extends WebApplicationException {
         } else {
             return Response
                 .status(Status.INTERNAL_SERVER_ERROR)
-                .entity(getExceptionData(t))
-                .type(MediaType.TEXT_PLAIN)
+                .entity(new ErrorData(getExceptionData(t)))
+                .type(MediaType.APPLICATION_JSON)
                 .build();
         }
     }
