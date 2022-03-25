@@ -181,6 +181,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void recoverExceptionally(Throwable e) {
 
+                        log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
+                                + "transaction buffer throw exception", topic.getName(), e);
                         // when create reader or writer fail throw PulsarClientException,
                         // should close this topic and then reinit this topic
                         if (e instanceof PulsarClientException) {
@@ -189,8 +191,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             // the tc do op will retry
                             transactionBufferFuture.completeExceptionally
                                     (new BrokerServiceException.ServiceUnitNotReadyException(e.getMessage(), e));
-                            log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
-                                    + "transaction buffer throw exception", topic.getName(), e);
                         } else {
                             transactionBufferFuture.completeExceptionally(e);
                         }
@@ -590,6 +590,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     }
                                 }
                                 if (!hasSnapshot) {
+                                    closeReader(reader);
                                     callBack.noNeedToRecover();
                                     return;
                                 }
@@ -597,16 +598,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 log.error("[{}]Transaction buffer recover fail when read "
                                         + "transactionBufferSnapshot!", topic.getName(), pulsarClientException);
                                 callBack.recoverExceptionally(pulsarClientException);
-                                reader.closeAsync().exceptionally(e -> {
-                                    log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                                    return null;
-                                });
+                                closeReader(reader);
                                 return;
                             }
-                            reader.closeAsync().exceptionally(e -> {
-                                log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                                return null;
-                            });
+                            closeReader(reader);
 
                             ManagedCursor managedCursor;
                             try {
@@ -678,6 +673,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         private void callBackException(ManagedLedgerException e) {
             log.error("Transaction buffer recover fail when recover transaction entry!", e);
             this.exceptionNumber.getAndIncrement();
+        }
+
+        private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {
+            reader.closeAsync().exceptionally(e -> {
+                log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
+                return null;
+            });
         }
     }
 
