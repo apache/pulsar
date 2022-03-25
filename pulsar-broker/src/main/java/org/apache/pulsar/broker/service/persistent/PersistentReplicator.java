@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
@@ -89,6 +90,11 @@ public class PersistentReplicator extends AbstractReplicator
             AtomicIntegerFieldUpdater
                     .newUpdater(PersistentReplicator.class, "havePendingRead");
     private volatile int havePendingRead = FALSE;
+
+    private volatile int cursorResetting  = FALSE;
+
+    private static final AtomicIntegerFieldUpdater<PersistentReplicator> CURSOR_RESETTING_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(PersistentReplicator.class, "cursorResetting");
 
     private final Rate msgOut = new Rate();
     private final Rate msgExpired = new Rate();
@@ -219,6 +225,13 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     protected void readMoreEntries() {
+
+        if (CURSOR_RESETTING_UPDATER.get(this) == TRUE) {
+            log.info("[{}][{} -> {}] replicator cursor Resetting, stop read message."
+                    , topicName, localCluster, remoteCluster);
+            return;
+        }
+
         int availablePermits = getAvailablePermits();
 
         if (availablePermits > 0) {
@@ -769,6 +782,40 @@ public class PersistentReplicator extends AbstractReplicator
     public boolean isConnected() {
         ProducerImpl<?> producer = this.producer;
         return producer != null && producer.isConnected();
+    }
+
+    @Override
+    public CompletableFuture<Void> resetCursor(Position position) {
+        CURSOR_RESETTING_UPDATER.set(this, TRUE);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cursor.asyncResetCursor(position, false, new AsyncCallbacks.ResetCursorCallback() {
+
+            @Override
+            public void resetComplete(Object ctx) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{} -> {}] Successfully reset replicator to position {}", topicName, localCluster,
+                            remoteCluster, position);
+                }
+                CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
+            }
+
+            @Override
+            public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("[{}][{} -> {}] Fail to reset replicator to position {}", topicName, localCluster,
+                        remoteCluster, position);
+                CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
+                if (exception instanceof ManagedLedgerException.InvalidCursorPositionException) {
+                    future.completeExceptionally(
+                            new BrokerServiceException.SubscriptionInvalidCursorPosition(exception.getMessage()));
+                } else if (exception instanceof ManagedLedgerException.ConcurrentFindCursorPositionException) {
+                    future.completeExceptionally(
+                            new BrokerServiceException.SubscriptionBusyException(exception.getMessage()));
+                } else {
+                    future.completeExceptionally(new BrokerServiceException(exception));
+                }
+            }
+        });
+        return future;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);

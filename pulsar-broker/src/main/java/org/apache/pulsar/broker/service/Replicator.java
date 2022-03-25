@@ -20,8 +20,12 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public interface Replicator {
 
@@ -46,4 +50,8 @@ public interface Replicator {
     }
 
     boolean isConnected();
+
+    default CompletableFuture<Void> resetCursor(Position position) {
+         return FutureUtil.failedFuture(new UnsupportedOperationException("Unsupported operation"));
+    }
 }

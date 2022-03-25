@@ -75,6 +75,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
@@ -2278,7 +2279,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
+    protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String name, boolean authoritative,
             MessageIdImpl messageId, boolean isExcluded, int batchIndex) {
         CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
@@ -2286,82 +2287,79 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             ret = CompletableFuture.completedFuture(null);
         }
-        ret.thenAccept(__ -> {
-            log.info("[{}][{}] received reset cursor on subscription {} to position {}", clientAppId(), topicName,
-                    subName, messageId);
+        ret.thenCompose(__ -> {
+            log.info("[{}][{}] received reset cursor on {} to position {}", clientAppId(), topicName,
+                    name, messageId);
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (!topicName.isPartitioned()
-                    && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
-                log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), topicName,
-                        subName);
-                asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Reset-cursor at position is not allowed for partitioned-topic"));
-                return;
+                    && getPartitionedTopicMetadata(
+                            topicName, authoritative, false).partitions > 0) {
+                log.warn("[{}] Not supported operation on partitioned-topic {} {}",
+                        clientAppId(), topicName, name);
+               throw new RestException(Status.METHOD_NOT_ALLOWED,
+                       "Reset-cursor at position is not allowed for partitioned-topic");
             } else {
                 validateTopicOwnershipAsync(topicName, authoritative)
                         .thenCompose(ignore ->
-                                validateTopicOperationAsync(topicName, TopicOperation.RESET_CURSOR, subName))
+                                validateTopicOperationAsync(topicName, TopicOperation.RESET_CURSOR, name))
                         .thenCompose(ignore -> getTopicReferenceAsync(topicName))
-                        .thenAccept(topic -> {
-                                if (topic == null) {
-                                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
-                                    return;
-                                }
-                                PersistentSubscription sub = ((PersistentTopic) topic).getSubscription(subName);
-                                if (sub == null) {
-                                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
-                                    return;
+                        .thenCompose(topic -> {
+                            if (topic == null) {
+                                throw new RestException(Status.NOT_FOUND, "Topic not found");
+                            }
+                            String replicatorPrefix = ((PersistentTopic) topic).getReplicatorPrefix();
+                            if (name.startsWith(replicatorPrefix))  {
+                                Replicator persistentReplicator =
+                                        ((PersistentTopic) topic).getPersistentReplicator(name);
+                                if (persistentReplicator == null) {
+                                    throw new RestException(Status.NOT_FOUND, "replicator not found");
                                 }
                                 CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
                                 getEntryBatchSize(batchSizeFuture, (PersistentTopic) topic, messageId, batchIndex);
-                                batchSizeFuture.thenAccept(bi -> {
+                                batchSizeFuture.thenCompose(bi -> {
                                     PositionImpl seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
                                             messageId);
-                                    sub.resetCursor(seekPosition).thenRun(() -> {
-                                        log.info("[{}][{}] successfully reset cursor on subscription {}"
-                                                        + " to position {}", clientAppId(),
-                                                topicName, subName, messageId);
-                                        asyncResponse.resume(Response.noContent().build());
-                                    }).exceptionally(ex -> {
-                                        Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-                                        log.warn("[{}][{}] Failed to reset cursor on subscription {}"
-                                                        + " to position {}", clientAppId(),
-                                                        topicName, subName, messageId, t);
-                                        if (t instanceof SubscriptionInvalidCursorPosition) {
-                                            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                                    "Unable to find position for position specified: "
-                                                            + t.getMessage()));
-                                        } else if (t instanceof SubscriptionBusyException) {
-                                            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                                    "Failed for Subscription Busy: " + t.getMessage()));
-                                        } else {
-                                            resumeAsyncResponseExceptionally(asyncResponse, t);
-                                        }
-                                        return null;
-                                    });
-                                }).exceptionally(e -> {
-                                    asyncResponse.resume(e);
-                                    return null;
+                                    return persistentReplicator.resetCursor(seekPosition);
                                 });
-                        }).exceptionally(ex -> {
-                            // If the exception is not redirect exception we need to log it.
-                            if (!isRedirectException(ex)) {
-                                log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}",
-                                        clientAppId(), topicName, subName, messageId, ex.getCause());
+                                return batchSizeFuture;
+                            } else {
+                                PersistentSubscription sub = ((PersistentTopic) topic).getSubscription(name);
+                                if (sub == null) {
+                                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                                }
+                                CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
+                                getEntryBatchSize(batchSizeFuture, (PersistentTopic) topic, messageId, batchIndex);
+                                batchSizeFuture.thenCompose(bi -> {
+                                    PositionImpl seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
+                                            messageId);
+                                    return sub.resetCursor(seekPosition);
+                                });
+                                return batchSizeFuture;
                             }
-                            resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                        }).thenRun(() -> {
+                            log.info("[{}][{}] successfully reset cursor on subscription {}"
+                                            + " to position {}", clientAppId(),
+                                    topicName, name, messageId);
+                            asyncResponse.resume(Response.noContent().build());
+                        }).exceptionally(ex -> {
+                            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+                            log.warn("[{}][{}] Failed to reset cursor on subscription {}"
+                                            + " to position {}", clientAppId(),
+                                    topicName, name, messageId, t);
+                            if (t instanceof SubscriptionInvalidCursorPosition) {
+                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                        "Unable to find position for position specified: "
+                                                + t.getMessage()));
+                            } else if (t instanceof SubscriptionBusyException) {
+                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                        "Failed for Subscription Busy: " + t.getMessage()));
+                            } else {
+                                resumeAsyncResponseExceptionally(asyncResponse, t);
+                            }
                             return null;
                         });
-                }
-        }).exceptionally(ex -> {
-            // If the exception is not redirect exception we need to log it.
-            if (!isRedirectException(ex)) {
-                log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}",
-                        clientAppId(), topicName, subName, messageId, ex.getCause());
-            }
-            resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
-            return null;
-        });
+            })
+        })
     }
 
     private void getEntryBatchSize(CompletableFuture<Integer> batchSizeFuture, PersistentTopic topic,
