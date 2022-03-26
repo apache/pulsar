@@ -53,6 +53,8 @@ import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.slf4j.Logger;
@@ -980,6 +982,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
     public void testMultiReaderMessageAvailableAfterRestart() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart2";
         String content = "my-message-1";
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("my-property", "use", "my-ns"), new Policies());
         admin.topics().createPartitionedTopic(topic, 3);
         // stop retention from cleaning up
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub2").subscribe().close();
