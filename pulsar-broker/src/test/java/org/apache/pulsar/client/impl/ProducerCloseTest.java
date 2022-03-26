@@ -31,6 +31,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -53,6 +54,20 @@ public class ProducerCloseTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    /**
+     * Param1: Producer enableBatch or not
+     * Param2: Send in async way or not
+     */
+    @DataProvider(name = "produceConf")
+    public Object[][] produceConf() {
+        return new Object[][]{
+                {true, true},
+                {true, false},
+                {false, true},
+                {false, false}
+        };
     }
 
     @Test(timeOut = 10_000)
@@ -103,14 +118,18 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10_000)
-    public void brokerCloseTest() throws Exception {
-        initClient();
-
+    @Test(timeOut = 10_000, dataProvider = "produceConf")
+    public void brokerCloseTopicTest(boolean enableBatch, boolean isAsyncSend) throws Exception {
+        PulsarClient longBackOffClient = PulsarClient.builder()
+                .startingBackoffInterval(5, TimeUnit.SECONDS)
+                .maxBackoffInterval(5, TimeUnit.SECONDS)
+                .serviceUrl(lookupUrl.toString())
+                .build();
         String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) longBackOffClient.newProducer()
                 .topic(topic)
+                .enableBatching(enableBatch)
                 .create();
         producer.newMessage().value("test".getBytes()).send();
 
@@ -119,7 +138,11 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         Assert.assertTrue(topicOptional.isPresent());
         topicOptional.get().close(true).get();
         Assert.assertEquals(producer.getState(), HandlerState.State.Connecting);
-        producer.newMessage().value("test".getBytes()).sendAsync().get();
+        if (isAsyncSend) {
+            producer.newMessage().value("test".getBytes()).sendAsync().get();
+        } else {
+            producer.newMessage().value("test".getBytes()).send();
+        }
     }
 
     private void initClient() throws PulsarClientException {

@@ -1803,9 +1803,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     return;
                 }
 
-                if (isBatchMessagingEnabled()) {
-                    batchMessageAndSend(false);
-                }
                 int messagesToResend = pendingMessages.messagesCount();
                 if (messagesToResend == 0) {
                     if (log.isDebugEnabled()) {
@@ -1813,6 +1810,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                     if (changeToReadyState()) {
                         producerCreatedFuture.complete(ProducerImpl.this);
+                        scheduleBatchFlushTask(0);
                         return;
                     } else {
                         // Producer was closed while reconnecting, close the connection to make sure the broker
@@ -2037,7 +2035,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // must acquire semaphore before calling
     private void scheduleBatchFlushTask(long batchingDelayMicros) {
         ClientCnx cnx = cnx();
-        if (cnx != null) {
+        if (cnx != null && isBatchMessagingEnabled()) {
             this.batchFlushTask = cnx.ctx().executor().schedule(catchingAndLoggingThrowables(this::batchFlushTask),
                     batchingDelayMicros, TimeUnit.MICROSECONDS);
         }
