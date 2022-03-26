@@ -106,6 +106,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc1"), new Policies());
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc2"), new Policies());
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc3"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -135,6 +141,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -179,6 +187,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -332,6 +342,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -467,6 +479,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName, 3);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
@@ -498,6 +512,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -618,7 +634,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String localPartitionName = localTopicName + "-partition-0";
         final String topicNameWithNamespace = "public/default/" + localTopicName;
         final String topicNameWithDomain = "persistent://" + topicNameWithNamespace;
-
         admin.topics().createPartitionedTopic(localTopicName, 2);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -660,6 +675,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -730,6 +747,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName1, 2);
 
         // 1. producer connect
@@ -1008,6 +1027,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 

@@ -51,7 +51,9 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -67,6 +69,10 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     protected void setup() throws Exception {
         super.baseSetup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abcd"), new Policies());
     }
 
     @AfterClass(alwaysRun = true)
