@@ -1697,13 +1697,13 @@ public interface Topics {
     void resetCursor(String topic, String subName, long timestamp) throws PulsarAdminException;
 
     /**
-     * Reset cursor position on a topic subscription.
+     * Reset cursor position on a topic subscription/replicator.
      * <p/>
      * and start consume messages from the next position of the reset position.
-     * @param topic
-     * @param subName
-     * @param messageId
-     * @param isExcluded
+     * @param topic topic name
+     * @param subName Subscription/replicator name
+     * @param messageId message id
+     * @param isExcluded if exclusive specific message id
      * @throws PulsarAdminException
      */
     void resetCursor(String topic, String subName, MessageId messageId, boolean isExcluded) throws PulsarAdminException;

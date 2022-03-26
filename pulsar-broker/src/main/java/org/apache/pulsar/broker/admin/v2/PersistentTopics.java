@@ -46,6 +46,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -72,6 +73,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1532,49 +1534,30 @@ public class PersistentTopics extends PersistentTopicsBase {
                     ResetCursorData resetCursorData) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative
-                    , new MessageIdImpl(resetCursorData.getLedgerId(),
-                            resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
-                    , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());
-        } catch (Exception e) {
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
-    }
-
-    @POST
-    @Path("/{tenant}/{namespace}/{topic}/replicator/{clusterName}/resetcursor")
-    @ApiOperation(value = "Reset replicator cursor to message position closest to given position.",
-            notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
-                    + "subscriber is not authorized to access this operation"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
-            @ApiResponse(code = 405, message = "Not supported for partitioned topics"),
-            @ApiResponse(code = 412, message = "Unable to find position for position specified"),
-            @ApiResponse(code = 500, message = "Internal server error"),
-            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
-    public void resetReplicatorCursor(
-            @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
-            @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(name = "clusterName", value = "ClusterName to reset position on", required = true)
-            @PathParam("clusterName") String encodedClusterName,
-            @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
-                    ResetCursorData resetCursorData) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedClusterName), authoritative
-                    , new MessageIdImpl(resetCursorData.getLedgerId(),
-                            resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
-                    , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());
+            String decodeSubName = decode(encodedSubName);
+            MessageIdImpl messageId = new  MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                    resetCursorData.getPartitionIndex());
+            internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId,
+                    resetCursorData.isExcluded(), resetCursorData.getBatchIndex())
+                    .thenRun(() -> {
+                        log.info("[{}][{}] successfully reset cursor on subscription/replicator {} to position {}",
+                                clientAppId(), topicName, decodeSubName, messageId);
+                        asyncResponse.resume(Response.noContent().build());
+                    }).exceptionally(ex -> {
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn("[{}][{}] Failed to reset cursor on subscription/replicator {} to position {}", clientAppId(),
+                                topicName, decodeSubName, messageId, realCause);
+                        if (realCause instanceof BrokerServiceException.SubscriptionInvalidCursorPosition) {
+                            asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "Unable to find position for position specified: " + realCause.getMessage()));
+                        } else if (realCause instanceof BrokerServiceException.SubscriptionBusyException) {
+                            asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "Failed for subscription/replicator Busy: " + realCause.getMessage()));
+                        } else {
+                            resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                        }
+                        return null;
+                    });
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }

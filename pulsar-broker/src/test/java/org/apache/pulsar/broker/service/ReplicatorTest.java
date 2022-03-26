@@ -78,6 +78,7 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -595,6 +596,34 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer1.receive(2);
 
         admin1.topics().resetCursor(dest.toString(), "sub-id", System.currentTimeMillis());
+    }
+
+    @Test(timeOut = 30000)
+    public void testResetReplicatorCursor() throws Exception {
+
+        log.info("--- Starting ReplicatorTest::testResetReplicatorCursor ---");
+        final TopicName topicName = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/testResetReplicatorCursor"));
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, topicName);
+        log.info("--- Starting producer --- " + url1);
+
+        @Cleanup
+        MessageConsumer consumer1 = new MessageConsumer(url1, topicName);
+        log.info("--- Starting Consumer --- " + url1);
+
+        @Cleanup
+        MessageConsumer consumer2 = new MessageConsumer(url2, topicName);
+        log.info("--- Starting Consumer --- " + url2);
+
+        producer1.produce(2);
+
+        consumer2.receive(2);
+
+        admin1.topics().resetCursor(topicName.toString(), "pulsar.repl.r2", new MessageIdImpl(0,0,-1));
+
+        consumer2.receive(2);
     }
 
     @Test

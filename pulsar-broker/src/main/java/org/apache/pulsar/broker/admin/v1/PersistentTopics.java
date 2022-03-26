@@ -43,6 +43,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -52,6 +53,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -665,10 +667,30 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                   boolean authoritative, ResetCursorData resetCursorData) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative,
-                    new MessageIdImpl(resetCursorData.getLedgerId(),
-                            resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
-                    , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());
+            String decodeSubName = decode(encodedSubName);
+            MessageIdImpl messageId = new  MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                    resetCursorData.getPartitionIndex());
+            internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId,
+                    resetCursorData.isExcluded(), resetCursorData.getBatchIndex())
+                    .thenRun(() -> {
+                        log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(),
+                                topicName, decodeSubName, messageId);
+                        asyncResponse.resume(Response.noContent().build());
+                    }).exceptionally(ex -> {
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(),
+                                topicName, decodeSubName, messageId, realCause);
+                        if (realCause instanceof BrokerServiceException.SubscriptionInvalidCursorPosition) {
+                            asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "Unable to find position for position specified: " + realCause.getMessage()));
+                        } else if (realCause instanceof BrokerServiceException.SubscriptionBusyException) {
+                            asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "Failed for Subscription Busy: " + realCause.getMessage()));
+                        } else {
+                            resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                        }
+                        return null;
+                    });
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }

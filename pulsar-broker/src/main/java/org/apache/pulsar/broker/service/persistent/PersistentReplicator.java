@@ -227,8 +227,8 @@ public class PersistentReplicator extends AbstractReplicator
     protected void readMoreEntries() {
 
         if (CURSOR_RESETTING_UPDATER.get(this) == TRUE) {
-            log.info("[{}][{} -> {}] replicator cursor Resetting, stop read message."
-                    , topicName, localCluster, remoteCluster);
+            log.warn("[{}][{} -> {}] Resetting cursor, stop read more entries.",
+                    topicName, localCluster, remoteCluster);
             return;
         }
 
@@ -436,10 +436,10 @@ public class PersistentReplicator extends AbstractReplicator
                 // cursor should be rewinded since it was incremented when readMoreEntries
                 replicator.cursor.rewind();
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{} -> {}] Message persisted on remote broker", replicator.topicName,
+//                if (log.isDebugEnabled()) {
+                    log.info("[{}][{} -> {}] Message persisted on remote broker", replicator.topicName,
                             replicator.localCluster, replicator.remoteCluster);
-                }
+//                }
                 replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
             entry.release();
@@ -796,14 +796,20 @@ public class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}][{} -> {}] Successfully reset replicator to position {}", topicName, localCluster,
                             remoteCluster, position);
                 }
-                CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
+                future.complete(null);
+                brokerService.getPulsar().getExecutor().execute(() -> {
+                    cursor.cancelPendingReadRequest();
+                    PENDING_MESSAGES_UPDATER.set(PersistentReplicator.this, 0);
+                    HAVE_PENDING_READ_UPDATER.set(PersistentReplicator.this, FALSE);
+                    CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
+                    readMoreEntries();
+                });
             }
 
             @Override
             public void resetFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("[{}][{} -> {}] Fail to reset replicator to position {}", topicName, localCluster,
                         remoteCluster, position);
-                CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
                 if (exception instanceof ManagedLedgerException.InvalidCursorPositionException) {
                     future.completeExceptionally(
                             new BrokerServiceException.SubscriptionInvalidCursorPosition(exception.getMessage()));
@@ -813,6 +819,10 @@ public class PersistentReplicator extends AbstractReplicator
                 } else {
                     future.completeExceptionally(new BrokerServiceException(exception));
                 }
+                brokerService.getPulsar().getExecutor().execute(() -> {
+                    CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
+                    readMoreEntries();
+                });
             }
         });
         return future;
@@ -824,4 +834,5 @@ public class PersistentReplicator extends AbstractReplicator
     public ManagedCursor getCursor() {
         return cursor;
     }
+
 }

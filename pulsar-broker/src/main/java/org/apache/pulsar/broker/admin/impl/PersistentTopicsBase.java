@@ -2279,7 +2279,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String name, boolean authoritative,
+    protected CompletableFuture<Void> internalResetCursorOnPosition(String name, boolean authoritative,
             MessageIdImpl messageId, boolean isExcluded, int batchIndex) {
         CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
@@ -2287,79 +2287,53 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             ret = CompletableFuture.completedFuture(null);
         }
-        ret.thenCompose(__ -> {
+        return ret.thenCompose(__ -> {
             log.info("[{}][{}] received reset cursor on {} to position {}", clientAppId(), topicName,
                     name, messageId);
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (!topicName.isPartitioned()
                     && getPartitionedTopicMetadata(
-                            topicName, authoritative, false).partitions > 0) {
-                log.warn("[{}] Not supported operation on partitioned-topic {} {}",
-                        clientAppId(), topicName, name);
-               throw new RestException(Status.METHOD_NOT_ALLOWED,
-                       "Reset-cursor at position is not allowed for partitioned-topic");
-            } else {
-                validateTopicOwnershipAsync(topicName, authoritative)
-                        .thenCompose(ignore ->
-                                validateTopicOperationAsync(topicName, TopicOperation.RESET_CURSOR, name))
-                        .thenCompose(ignore -> getTopicReferenceAsync(topicName))
-                        .thenCompose(topic -> {
-                            if (topic == null) {
-                                throw new RestException(Status.NOT_FOUND, "Topic not found");
+                    topicName, authoritative, false).partitions > 0) {
+                log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), topicName, name);
+                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Reset-cursor at position is not allowed for partitioned-topic");
+            }
+            return validateTopicOwnershipAsync(topicName, authoritative)
+                    .thenCompose(ignore -> validateTopicOperationAsync(topicName, TopicOperation.RESET_CURSOR, name))
+                    .thenCompose(ignore -> getTopicReferenceAsync(topicName))
+                    .thenCompose(topic -> {
+                        if (topic == null) {
+                            throw new RestException(Status.NOT_FOUND, "Topic not found");
+                        }
+                        boolean isResetReplicator = ((PersistentTopic) topic).isReplicatorName(name);
+                        if (isResetReplicator) {
+                            Replicator persistentReplicator = ((PersistentTopic) topic)
+                                    .getPersistentReplicator(((PersistentTopic) topic).getClusterName(name));
+                            if (persistentReplicator == null) {
+                                throw new RestException(Status.NOT_FOUND, "replicator not found");
                             }
-                            String replicatorPrefix = ((PersistentTopic) topic).getReplicatorPrefix();
-                            if (name.startsWith(replicatorPrefix))  {
-                                Replicator persistentReplicator =
-                                        ((PersistentTopic) topic).getPersistentReplicator(name);
-                                if (persistentReplicator == null) {
-                                    throw new RestException(Status.NOT_FOUND, "replicator not found");
-                                }
-                                CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
-                                getEntryBatchSize(batchSizeFuture, (PersistentTopic) topic, messageId, batchIndex);
-                                batchSizeFuture.thenCompose(bi -> {
-                                    PositionImpl seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
-                                            messageId);
-                                    return persistentReplicator.resetCursor(seekPosition);
-                                });
-                                return batchSizeFuture;
-                            } else {
-                                PersistentSubscription sub = ((PersistentTopic) topic).getSubscription(name);
-                                if (sub == null) {
-                                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
-                                }
-                                CompletableFuture<Integer> batchSizeFuture = new CompletableFuture<>();
-                                getEntryBatchSize(batchSizeFuture, (PersistentTopic) topic, messageId, batchIndex);
-                                batchSizeFuture.thenCompose(bi -> {
-                                    PositionImpl seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
-                                            messageId);
-                                    return sub.resetCursor(seekPosition);
-                                });
-                                return batchSizeFuture;
+                            CompletableFuture<Integer> future = new CompletableFuture<>();
+                            getEntryBatchSize(future, (PersistentTopic) topic, messageId, batchIndex);
+                            return future.thenCompose(bi -> {
+                                PositionImpl seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
+                                        messageId);
+                                return persistentReplicator.resetCursor(seekPosition);
+                            });
+                        } else {
+                            PersistentSubscription sub = ((PersistentTopic) topic).getSubscription(name);
+                            if (sub == null) {
+                                throw new RestException(Status.NOT_FOUND, "Subscription not found");
                             }
-                        }).thenRun(() -> {
-                            log.info("[{}][{}] successfully reset cursor on subscription {}"
-                                            + " to position {}", clientAppId(),
-                                    topicName, name, messageId);
-                            asyncResponse.resume(Response.noContent().build());
-                        }).exceptionally(ex -> {
-                            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-                            log.warn("[{}][{}] Failed to reset cursor on subscription {}"
-                                            + " to position {}", clientAppId(),
-                                    topicName, name, messageId, t);
-                            if (t instanceof SubscriptionInvalidCursorPosition) {
-                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                        "Unable to find position for position specified: "
-                                                + t.getMessage()));
-                            } else if (t instanceof SubscriptionBusyException) {
-                                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                        "Failed for Subscription Busy: " + t.getMessage()));
-                            } else {
-                                resumeAsyncResponseExceptionally(asyncResponse, t);
-                            }
-                            return null;
-                        });
-            })
-        })
+                            CompletableFuture<Integer> future = new CompletableFuture<>();
+                            getEntryBatchSize(future, (PersistentTopic) topic, messageId, batchIndex);
+                            return future.thenCompose(bi -> {
+                                PositionImpl seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
+                                        messageId);
+                                return sub.resetCursor(seekPosition);
+                            });
+                        }
+                    });
+        });
     }
 
     private void getEntryBatchSize(CompletableFuture<Integer> batchSizeFuture, PersistentTopic topic,

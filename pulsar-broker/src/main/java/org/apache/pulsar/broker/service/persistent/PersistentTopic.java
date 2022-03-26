@@ -2582,6 +2582,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return !replicators.isEmpty();
     }
 
+    public boolean isReplicatorName(String name) {
+        return name.startsWith(replicatorPrefix);
+    }
+
+    public String getClusterName(String replicatorName) {
+        return replicatorName.replace(replicatorPrefix + ".","");
+    }
+
     public CompletableFuture<MessageId> terminate() {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         ledger.asyncTerminate(new TerminateCallback() {
