@@ -610,10 +610,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         log.info("--- Starting producer --- " + url1);
 
         @Cleanup
-        MessageConsumer consumer1 = new MessageConsumer(url1, topicName);
-        log.info("--- Starting Consumer --- " + url1);
-
-        @Cleanup
         MessageConsumer consumer2 = new MessageConsumer(url2, topicName);
         log.info("--- Starting Consumer --- " + url2);
 
