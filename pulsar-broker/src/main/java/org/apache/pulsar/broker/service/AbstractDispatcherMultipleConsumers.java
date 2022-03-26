@@ -113,7 +113,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
      *
      * @return nextAvailableConsumer
      */
-    public Consumer getNextConsumer() {
+    public synchronized Consumer getNextConsumer() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return null;
