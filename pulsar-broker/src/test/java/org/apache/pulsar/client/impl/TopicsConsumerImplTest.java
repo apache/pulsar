@@ -38,8 +38,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -243,6 +245,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 

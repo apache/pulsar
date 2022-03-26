@@ -590,6 +590,8 @@ public class ResendRequestTest extends BrokerTestBase {
         final int numberOfPartitions = 3;
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         Random rn = new Random();
         // Special step to create partitioned topic
