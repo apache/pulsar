@@ -1680,7 +1680,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(persistenceTopic);
         admin.lookups().lookupTopic(persistenceTopic);
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(persistenceTopic).get().get();
-        Field field = PersistentTopic.class.getDeclaredField("subscribeRateLimiter");
+        Field field = AbstractTopic.class.getDeclaredField("subscribeRateLimiter");
         field.setAccessible(true);
         Optional<SubscribeRateLimiter> limiter = (Optional<SubscribeRateLimiter>) field.get(topic);
         // sub rate limiter should be null by default
