@@ -1545,8 +1545,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                         asyncResponse.resume(Response.noContent().build());
                     }).exceptionally(ex -> {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        log.warn("[{}][{}] Failed to reset cursor on subscription/replicator {} to position {}", clientAppId(),
-                                topicName, decodeSubName, messageId, realCause);
+                        log.warn("[{}][{}] Failed to reset cursor on subscription/replicator {} to position {}"
+                                , clientAppId(), topicName, decodeSubName, messageId, realCause);
                         if (realCause instanceof BrokerServiceException.SubscriptionInvalidCursorPosition) {
                             asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
                                     "Unable to find position for position specified: " + realCause.getMessage()));

@@ -224,6 +224,10 @@ public abstract class AbstractReplicator {
         return (replicatorPrefix + "." + cluster).intern();
     }
 
+    public static String getClusterName(String replicatorPrefix, String replicatorName) {
+        return replicatorName.replace(replicatorPrefix + ".", "");
+    }
+
     /**
      * Replication can't be started on root-partitioned-topic to avoid producer startup conflict.
      *

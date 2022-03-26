@@ -2308,7 +2308,7 @@ public class PersistentTopicsBase extends AdminResource {
                         boolean isResetReplicator = ((PersistentTopic) topic).isReplicatorName(name);
                         if (isResetReplicator) {
                             Replicator persistentReplicator = ((PersistentTopic) topic)
-                                    .getPersistentReplicator(((PersistentTopic) topic).getClusterName(name));
+                                    .getPersistentReplicator(((PersistentTopic) topic).getReplicatorClusterName(name));
                             if (persistentReplicator == null) {
                                 throw new RestException(Status.NOT_FOUND, "replicator not found");
                             }

@@ -2586,8 +2586,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return name.startsWith(replicatorPrefix);
     }
 
-    public String getClusterName(String replicatorName) {
-        return replicatorName.replace(replicatorPrefix + ".","");
+    public String getReplicatorClusterName(String replicatorName) {
+        return AbstractReplicator.getClusterName(replicatorPrefix, replicatorName);
     }
 
     public CompletableFuture<MessageId> terminate() {
