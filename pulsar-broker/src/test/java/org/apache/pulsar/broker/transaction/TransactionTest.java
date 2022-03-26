@@ -849,7 +849,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testExternalThreadToAcquireSemaphore() throws Exception {
         long st = System.currentTimeMillis();
         String topic = NAMESPACE1 + "/test";
-        int numOfTransaction = 1000;
+        int numOfTransaction = 900;
         int transactionTimeoutInSec = 30;
         int numOfMessagesPerTransaction = 20;
 
@@ -895,7 +895,9 @@ public class TransactionTest extends TransactionTestBase {
                 Thread.sleep(30000);
                 exitByException.set(true);
                 log.error("Failed to complete the test in 30 sec");
-                waitSendCompletely.countDown();
+                for (int i = 0; i < waitSendCompletely.getCount(); i++) {
+                    waitSendCompletely.countDown();
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

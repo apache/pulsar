@@ -568,7 +568,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         CompletableFuture<Void> ackFuture;
         if (txn != null) {
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
-                    .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
+                    .thenComposeAsync(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
             txn.registerAckOp(ackFuture);
         } else {
             ackFuture = doAcknowledge(messageIdList, ackType, properties, null);

@@ -58,7 +58,7 @@ public class TransactionBuilderImpl implements TransactionBuilder {
         CompletableFuture<Transaction> future = new CompletableFuture<>();
         transactionCoordinatorClient
                 .newTransactionAsync(txnTimeout, timeUnit)
-                .whenComplete((txnID, throwable) -> {
+                .whenCompleteAsync((txnID, throwable) -> {
                     if (log.isDebugEnabled()) {
                         log.debug("Success to new txn. txnID: {}", txnID);
                     }

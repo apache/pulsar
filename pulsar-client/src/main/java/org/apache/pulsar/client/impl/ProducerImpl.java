@@ -415,7 +415,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                return completableFuture;
             }
             return ((TransactionImpl) txn).registerProducedTopic(topic)
-                        .thenCompose(ignored -> internalSendAsync(message));
+                        .thenComposeAsync(ignored -> internalSendAsync(message));
         }
     }
 
