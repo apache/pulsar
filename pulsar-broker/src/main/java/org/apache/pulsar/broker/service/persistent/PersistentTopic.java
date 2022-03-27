@@ -2434,7 +2434,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         preCreateSubscriptionForCompactionIfNeeded());
             });
         }).exceptionally(ex -> {
-            log.error("update namespace polices : {} error", data, ex);
+            log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
             throw FutureUtil.wrapToCompletionException(ex);
         });
     }
