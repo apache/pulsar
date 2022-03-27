@@ -180,6 +180,8 @@ class ProducerImpl : public HandlerBase,
     std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailedWithLock();
 
     void failPendingMessages(Result result, bool withLock);
+    void clearPendingBatches(std::function<void(Result, const OpSendMsg&)> opSendMsgCallback,
+                             FlushCallback flushCallback = nullptr);
 
     MessageCryptoPtr msgCrypto_;
     DeadlineTimerPtr dataKeyGenTImer_;

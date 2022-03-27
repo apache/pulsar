@@ -269,13 +269,12 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
     }
 
     if (batchMessageContainer_) {
-        OpSendMsg opSendMsg;
-        if (batchMessageContainer_->createOpSendMsg(opSendMsg) == ResultOk) {
-            callbacks->opSendMsgs.emplace_back(opSendMsg);
-        }
-
-        releaseSemaphoreForSendOp(opSendMsg);
-        batchMessageContainer_->clear();
+        clearPendingBatches([this, &callbacks](Result result, const OpSendMsg& opSendMsg) {
+            if (result == ResultOk) {
+                callbacks->opSendMsgs.emplace_back(opSendMsg);
+            }
+            releaseSemaphoreForSendOp(opSendMsg);
+        });
     }
     pendingMessagesQueue_.clear();
 
@@ -293,6 +292,29 @@ void ProducerImpl::failPendingMessages(Result result, bool withLock) {
     } else {
         getPendingCallbacksWhenFailed()->complete(result);
     }
+}
+
+void ProducerImpl::clearPendingBatches(std::function<void(Result, const OpSendMsg&)> opSendMsgCallback,
+                                       FlushCallback flushCallback) {
+    if (PULSAR_UNLIKELY(batchMessageContainer_->isEmpty())) {
+        if (flushCallback) {
+            flushCallback(ResultOk);
+        }
+    } else {
+        const auto numBatches = batchMessageContainer_->getNumBatches();
+        if (numBatches == 1) {
+            OpSendMsg opSendMsg;
+            Result result = batchMessageContainer_->createOpSendMsg(opSendMsg, flushCallback);
+            opSendMsgCallback(result, opSendMsg);
+        } else if (numBatches > 1) {
+            std::vector<OpSendMsg> opSendMsgs;
+            std::vector<Result> results = batchMessageContainer_->createOpSendMsgs(opSendMsgs, flushCallback);
+            for (size_t i = 0; i < results.size(); i++) {
+                opSendMsgCallback(results[i], opSendMsgs[i]);
+            }
+        }  // else numBatches is 0, do nothing
+    }
+    batchMessageContainer_->clear();
 }
 
 void ProducerImpl::resendMessages(ClientConnectionPtr cnx) {
@@ -570,15 +592,8 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
     LOG_DEBUG("batchMessageAndSend " << *batchMessageContainer_);
     batchTimer_->cancel();
 
-    if (PULSAR_UNLIKELY(batchMessageContainer_->isEmpty())) {
-        if (flushCallback) {
-            flushCallback(ResultOk);
-        }
-    } else {
-        const size_t numBatches = batchMessageContainer_->getNumBatches();
-        if (numBatches == 1) {
-            OpSendMsg opSendMsg;
-            Result result = batchMessageContainer_->createOpSendMsg(opSendMsg, flushCallback);
+    clearPendingBatches(
+        [this, &failures](Result result, const OpSendMsg& opSendMsg) {
             if (result == ResultOk) {
                 sendMessage(opSendMsg);
             } else {
@@ -588,27 +603,8 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
                 releaseSemaphoreForSendOp(opSendMsg);
                 failures.add([opSendMsg, result] { opSendMsg.complete(result, {}); });
             }
-        } else if (numBatches > 1) {
-            std::vector<OpSendMsg> opSendMsgs;
-            std::vector<Result> results = batchMessageContainer_->createOpSendMsgs(opSendMsgs, flushCallback);
-            for (size_t i = 0; i < results.size(); i++) {
-                if (results[i] == ResultOk) {
-                    sendMessage(opSendMsgs[i]);
-                } else {
-                    // A spot has been reserved for this batch, but the batch failed to be pushed to the
-                    // queue, so we need to release the spot manually
-                    LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsgs[" << i
-                                                                                  << "]: " << results[i]);
-                    releaseSemaphoreForSendOp(opSendMsgs[i]);
-                    const auto& opSendMsg = opSendMsgs[i];
-                    const auto result = results[i];
-                    failures.add([opSendMsg, result] { opSendMsg.complete(result, {}); });
-                }
-            }
-        }  // else numBatches is 0, do nothing
-    }
-
-    batchMessageContainer_->clear();
+        },
+        flushCallback);
     return failures;
 }
 
