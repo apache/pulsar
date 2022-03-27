@@ -1114,13 +1114,16 @@ public abstract class PulsarWebResource {
     public <T> T sync(Supplier<CompletableFuture<T>> supplier) {
         try {
             return supplier.get().get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+        } catch (ExecutionException | TimeoutException ex) {
             Throwable realCause = FutureUtil.unwrapCompletionException(ex);
             if (realCause instanceof WebApplicationException) {
                 throw (WebApplicationException) realCause;
             } else {
                 throw new RestException(realCause);
             }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new RestException(ex);
         }
     }
 }
