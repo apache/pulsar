@@ -50,7 +50,9 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -281,6 +283,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 100;
         Set<String> uniqueMessages = new HashSet<>();
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName, numPartitions);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
