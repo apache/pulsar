@@ -51,6 +51,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -386,7 +387,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 notifyListener(msg);
                 readMorePolicies(reader);
             } else {
-                if (ex instanceof PulsarClientException.AlreadyClosedException) {
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                if (cause instanceof PulsarClientException.AlreadyClosedException) {
                     log.error("Read more topic policies exception, close the read now!", ex);
                     cleanCacheAndCloseReader(
                             reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
