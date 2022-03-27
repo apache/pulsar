@@ -225,6 +225,10 @@ public abstract class AbstractReplicator {
     }
 
     public static String getClusterName(String replicatorPrefix, String replicatorName) {
+        if (!replicatorName.startsWith(replicatorPrefix)) {
+            throw new IllegalArgumentException(
+                    String.format("%s is not a legal replicator name.", replicatorName));
+        }
         return replicatorName.replace(replicatorPrefix + ".", "");
     }
 

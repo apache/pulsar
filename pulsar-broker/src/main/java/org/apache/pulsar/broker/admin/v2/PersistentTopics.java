@@ -1537,7 +1537,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             String decodeSubName = decode(encodedSubName);
             MessageIdImpl messageId = new  MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
                     resetCursorData.getPartitionIndex());
-            internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId,
+            internalResetCursorOnPosition(decodeSubName, authoritative, messageId,
                     resetCursorData.isExcluded(), resetCursorData.getBatchIndex())
                     .thenRun(() -> {
                         log.info("[{}][{}] successfully reset cursor on subscription/replicator {} to position {}",
