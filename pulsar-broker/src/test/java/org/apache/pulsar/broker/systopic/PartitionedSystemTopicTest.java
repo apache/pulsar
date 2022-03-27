@@ -74,6 +74,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Assert.assertEquals(admin.topics().getPartitionedTopicList(ns).size(), 1);
         Assert.assertEquals(partitions, PARTITIONS);
         Assert.assertEquals(admin.topics().getList(ns).size(), PARTITIONS);
+        reader.close();
     }
 
     @Test(timeOut = 1000 * 60)
@@ -97,6 +98,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
                     .subscribeAsync());
         }
         FutureUtil.waitForAll(futureList).get();
+        // Close all the consumers after check
+        for (CompletableFuture<Consumer<byte[]>> consumer : futureList) {
+            consumer.join().close();
+        }
     }
 
 }
