@@ -29,6 +29,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -406,6 +408,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int numberOfPartitions = 3;
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "use", "ns-abc"), new Policies());
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
