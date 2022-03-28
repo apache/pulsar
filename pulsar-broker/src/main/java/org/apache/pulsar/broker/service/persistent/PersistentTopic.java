@@ -318,7 +318,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         isEncryptionRequired = false;
                         updatePublishDispatcher();
                         updateResourceGroupLimiter(optPolicies);
-                        initializeRateLimiterIfNeeded(Optional.empty());
+                        initializeRateLimiterIfNeeded();
                         return;
                     }
 
@@ -326,7 +326,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     this.updateTopicPolicyByNamespacePolicy(policies);
 
-                    initializeRateLimiterIfNeeded(Optional.empty());
+                    initializeRateLimiterIfNeeded();
 
                     updatePublishDispatcher();
 
@@ -372,7 +372,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private void initializeRateLimiterIfNeeded(Optional<Policies> policies) {
+    private void initializeRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiter) {
             // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent()
@@ -2391,7 +2391,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
 
-        initializeRateLimiterIfNeeded(Optional.ofNullable(data));
+        initializeRateLimiterIfNeeded();
 
         updatePublishDispatcher();
 
