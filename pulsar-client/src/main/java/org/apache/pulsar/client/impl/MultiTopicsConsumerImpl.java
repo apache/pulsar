@@ -1474,7 +1474,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     public void tryAcknowledgeMessage(Message<T> msg) {
         if (msg != null) {
-            acknowledgeCumulativeAsync(msg);
+            acknowledgeCumulativeAsync(msg)
+                    .exceptionally(ex -> {
+                        log.warn("[{}][{}] acknowledge message {} cumulative fail.", topic, subscription,
+                                msg.getMessageId(), ex);
+                        return null;
+                    });
         }
     }
 
