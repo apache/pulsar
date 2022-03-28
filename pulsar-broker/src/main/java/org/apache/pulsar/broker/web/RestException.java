@@ -80,7 +80,7 @@ public class RestException extends WebApplicationException {
             return e.getResponse();
         } else {
             return Response
-                .status(Status.INTERNAL_SERVER_ERROR)
+                .status(Status.INTERNAL_SERVER_ERROR.getStatusCode(), t.getMessage())
                 .entity(new ErrorData(getExceptionData(t)))
                 .type(MediaType.APPLICATION_JSON)
                 .build();
