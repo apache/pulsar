@@ -575,6 +575,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
 
         doNothing().when(persistentTopics).validateAdminAccessForTenant(anyString());
+        doReturn(new Policies()).when(persistentTopics).getNamespacePolicies(any());
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5, true);

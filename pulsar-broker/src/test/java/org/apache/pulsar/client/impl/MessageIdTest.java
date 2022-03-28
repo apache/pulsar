@@ -34,6 +34,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.EnumValuesDataProvider;
 import org.slf4j.Logger;
@@ -50,6 +52,8 @@ public class MessageIdTest extends BrokerTestBase {
     @Override
     public void setup() throws Exception {
         baseSetup();
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get("prop", "cluster", "namespace"), new Policies());
     }
 
     @AfterMethod(alwaysRun = true)
