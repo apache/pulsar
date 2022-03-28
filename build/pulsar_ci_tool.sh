@@ -88,6 +88,8 @@ function ci_docker_save_image_to_github_actions_artifacts() {
   local artifactname="${2}.zst"
   ci_install_tool pv
   echo "::group::Saving docker image ${image} with name ${artifactname} in GitHub Actions Artifacts"
+  # delete possible previous artifact that might exist when re-running
+  gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
   docker save ${image} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload "${artifactname}"
   echo "::endgroup::"
 }
@@ -116,6 +118,8 @@ function ci_store_tar_to_github_actions_artifacts() {
   shift
   ci_install_tool pv
   echo "::group::Storing $1 tar command output to name ${artifactname} in GitHub Actions Artifacts"
+  # delete possible previous artifact that might exist when re-running
+  gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
   "$@" | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload "${artifactname}"
   echo "::endgroup::"
 }
