@@ -98,3 +98,17 @@ PulsarAdmin admin = PulsarAdmin.builder()
                     .tlsTrustCertsFilePath("/path/to/trust/cert")
                     .build();
 ```
+
+## Authorize an authenticated client with multiple roles
+
+When a client is identified with multiple roles in a token (the type of role claim in the token is an array) during the authentication process, Pulsar supports to check the permissions of all the roles and further authorize the client as long as one of its roles has the required permissions.
+
+> **Note**<br />
+> This authorization method is only compatible with [JWT authentication](security-jwt.md).
+
+To enable this authorization method, configure the authorization provider as `MultiRolesTokenAuthorizationProvider` in the `conf/broker.conf` file.
+
+ ```properties
+ # Authorization provider fully qualified class-name
+ authorizationProvider=org.apache.pulsar.broker.authorization.MultiRolesTokenAuthorizationProvider
+```
