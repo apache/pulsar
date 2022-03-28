@@ -263,7 +263,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Closed // The managed cursor has been closed
     }
 
-    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
     protected volatile State state = null;
 
