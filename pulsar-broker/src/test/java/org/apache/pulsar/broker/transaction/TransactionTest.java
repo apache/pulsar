@@ -540,7 +540,7 @@ public class TransactionTest extends TransactionTestBase {
                 .getTopic("persistent://" + topic, false).get().get();
         persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
 
-        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
         doReturn("transaction-buffer-sub").when(managedCursor).getName();
         doReturn(true).when(managedCursor).hasMoreEntries();
         doAnswer(invocation -> {
@@ -577,6 +577,9 @@ public class TransactionTest extends TransactionTestBase {
         TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer3.getStats().state, "Ready"));
+        persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
+            assertTrue(internalStats.cursors.isEmpty());
+        });
         managedCursors.removeCursor("transaction-buffer-sub");
     }
 
