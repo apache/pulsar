@@ -455,6 +455,29 @@ jobs:
         with:
           action: wait
 
+  delete-integration-test-docker-image-artifact:
+    name: "Delete integration test docker image artifact"
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    needs: [
+      'changed_files_job',
+      'integration-tests'
+    ]
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Install gh-actions-artifact-client.js
+        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+
+      - name: Delete docker image from GitHub Actions Artifacts
+        run: |
+          gh-actions-artifact-client.js delete pulsar-java-test-image.zst
+
   pulsar-test-latest-version-image:
     name: Build Pulsar docker image
     runs-on: ubuntu-20.04
@@ -664,3 +687,51 @@ jobs:
         continue-on-error: true
         with:
           action: wait
+
+  delete-system-test-docker-image-artifact:
+    name: "Delete system test docker image artifact"
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    needs: [
+      'changed_files_job',
+      'system-tests'
+    ]
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Install gh-actions-artifact-client.js
+        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+
+      - name: Delete docker image from GitHub Actions Artifacts
+        run: |
+          gh-actions-artifact-client.js delete pulsar-test-latest-version-image.zst
+
+  delete-pulsar-build-binaries-artifact:
+    name: "Delete pulsar-maven-repository-binaries.tar.zst artifact"
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    needs: [
+      'changed_files_job',
+      'unit-tests',
+      'integration-tests',
+      'system-tests'
+    ]
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Install gh-actions-artifact-client.js
+        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+
+      - name: Delete maven repository binaries from GitHub Actions Artifacts
+        run: |
+          gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst
