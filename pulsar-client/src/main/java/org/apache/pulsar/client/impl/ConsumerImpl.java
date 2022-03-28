@@ -750,6 +750,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {
+        if (duringSeek.get()) {
+            reconnectLater(new PulsarClientException("Breaking reconnect while seeking"));
+            return;
+        }
         previousExceptions.clear();
 
         if (getState() == State.Closing || getState() == State.Closed) {
