@@ -158,7 +158,8 @@ public class TransactionTest extends TransactionTestBase {
             Consumer<byte[]> consumer = getConsumer(topicName, subName);
             fail();
         } catch (PulsarClientException.NotAllowedException e) {
-            assertTrue(e.getMessage().contains("Can not create transaction system topic"));
+            assertTrue(e.getMessage().contains("Only has metadata, used for transactionCoordinator load balance, "
+                    + "never need to be created, for transaction system topic "));
         }
 
         // can't create transaction system topic
@@ -166,7 +167,8 @@ public class TransactionTest extends TransactionTestBase {
             admin.topics().getSubscriptions(topicName);
             fail();
         } catch (PulsarAdminException e) {
-            assertEquals(e.getMessage(), "Can not create transaction system topic " + topicName);
+            assertEquals(e.getMessage(), "Only has metadata, used for transactionCoordinator load balance, "
+                    + "never need to be created, for transaction system topic " + topicName);
         }
 
         // can't create transaction system topic

@@ -1376,7 +1376,8 @@ public class BrokerService implements Closeable {
         }
 
         if (isTransactionSystemTopic(topicName)) {
-            String msg = String.format("Can not create transaction system topic %s", topic);
+            String msg = String.format("Only has metadata, used for transactionCoordinator load balance, "
+                    + "never need to be created, for transaction system topic %s", topic);
             log.warn(msg);
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new NotAllowedException(msg));
