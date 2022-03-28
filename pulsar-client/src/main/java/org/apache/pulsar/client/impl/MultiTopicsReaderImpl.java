@@ -133,8 +133,8 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         return multiTopicsConsumer.receiveAsync().thenApply(msg -> {
             multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
                     .exceptionally(ex -> {
-                        log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
-                                getMultiTopicsConsumer().getSubscription(), ex);
+                        log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                                getMultiTopicsConsumer().getSubscription(), msg.getMessageId(), ex);
                         return null;
                     });
             return msg;

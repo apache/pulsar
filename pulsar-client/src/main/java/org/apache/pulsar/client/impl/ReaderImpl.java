@@ -144,8 +144,8 @@ public class ReaderImpl<T> implements Reader<T> {
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
         // it will specify the subscription position anyway
         consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-            log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
-                    getConsumer().getSubscription(), ex);
+            log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                    getConsumer().getSubscription(), msg.getMessageId(), ex);
             return null;
         });
         return msg;
@@ -157,8 +157,8 @@ public class ReaderImpl<T> implements Reader<T> {
 
         if (msg != null) {
             consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-                log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
-                        getConsumer().getSubscription(), ex);
+                log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                        getConsumer().getSubscription(), msg.getMessageId(), ex);
                 return null;
             });
         }
@@ -171,8 +171,8 @@ public class ReaderImpl<T> implements Reader<T> {
         receiveFuture.whenComplete((msg, t) -> {
            if (msg != null) {
                consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-                   log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
-                           getConsumer().getSubscription(), ex);
+                   log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                           getConsumer().getSubscription(), msg.getMessageId(), ex);
                    return null;
                });
            }
