@@ -61,7 +61,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             // read-position
             recoverCursor(startCursorPosition);
         }
-
+        STATE_UPDATER.set(this, State.Open);
         log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
                 readPosition, markDeletePosition);
     }
@@ -110,7 +110,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     @Override
     public void asyncClose(CloseCallback callback, Object ctx) {
-        // No-Op
+        STATE_UPDATER.set(this, State.Closed);
         callback.closeComplete(ctx);
     }
 
