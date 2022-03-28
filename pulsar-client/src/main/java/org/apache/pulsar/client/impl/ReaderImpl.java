@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -42,6 +43,7 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 
+@Slf4j
 public class ReaderImpl<T> implements Reader<T> {
     private static final BatchReceivePolicy DISABLED_BATCH_RECEIVE_POLICY = BatchReceivePolicy.builder()
             .timeout(0, TimeUnit.MILLISECONDS)
@@ -141,7 +143,11 @@ public class ReaderImpl<T> implements Reader<T> {
 
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
         // it will specify the subscription position anyway
-        consumer.acknowledgeCumulativeAsync(msg);
+        consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+            log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
+                    getConsumer().getSubscription(), ex);
+            return null;
+        });;
         return msg;
     }
 
@@ -150,7 +156,11 @@ public class ReaderImpl<T> implements Reader<T> {
         Message<T> msg = consumer.receive(timeout, unit);
 
         if (msg != null) {
-            consumer.acknowledgeCumulativeAsync(msg);
+            consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
+                        getConsumer().getSubscription(), ex);
+                return null;
+            });
         }
         return msg;
     }
@@ -160,7 +170,11 @@ public class ReaderImpl<T> implements Reader<T> {
         CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
         receiveFuture.whenComplete((msg, t) -> {
            if (msg != null) {
-               consumer.acknowledgeCumulativeAsync(msg);
+               consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                   log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
+                           getConsumer().getSubscription(), ex);
+                   return null;
+               });
            }
         });
         return receiveFuture;
