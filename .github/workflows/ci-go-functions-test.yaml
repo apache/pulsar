@@ -74,4 +74,5 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
+          export GO111MODULE=on
           go test -v $(go list ./... | grep -v examples)

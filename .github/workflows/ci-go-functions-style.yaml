@@ -79,10 +79,12 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
+          export GO111MODULE=on
           go build ./...
 
       - name: CheckStyle
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
+          export GO111MODULE=on
           ./bin/golangci-lint run -c ./golangci.yml ./pf
