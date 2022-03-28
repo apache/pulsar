@@ -110,7 +110,7 @@ public class CompactorTool {
                     brokerConfig.getBrokerClientAuthenticationParameters());
         }
 
-        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig);
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
         if (internalListener.getBrokerServiceUrlTls() != null) {
             log.info("Found a TLS-based advertised listener in configuration file. \n"
                     + "Will connect pulsar use TLS.");
@@ -120,6 +120,7 @@ public class CompactorTool {
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
+            internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
         }
 
