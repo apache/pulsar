@@ -390,7 +390,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                                 // The z-node exist now, let's overwrite it
                                                 internalStorePut(opPut);
                                             } else {
-                                                future.completeExceptionally(MetadataStoreException.wrap(ex.getCause()));
+                                                future.completeExceptionally(
+                                                        MetadataStoreException.wrap(ex.getCause()));
                                             }
                                             return null;
                                         });
