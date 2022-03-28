@@ -135,8 +135,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     }
 
     private boolean checkPermits(OpRequestSend op) {
-        if (PERMITS_UPDATER.decrementAndGet(this) >= 0 && pendingRequests.peek() == null) {
-            return true;
+        int currentPermits = PERMITS_UPDATER.get(this);
+        if (currentPermits > 0 && pendingRequests.peek() == null) {
+            if (PERMITS_UPDATER.compareAndSet(this, currentPermits, currentPermits - 1)) {
+                return true;
+            } else {
+                return checkPermits(op);
+            }
         } else {
             pendingRequests.add(op);
             return false;
