@@ -147,7 +147,7 @@ public class ReaderImpl<T> implements Reader<T> {
             log.error("[{}][{}] acknowledge cumulative fail.", getTopic(),
                     getConsumer().getSubscription(), ex);
             return null;
-        });;
+        });
         return msg;
     }
 
