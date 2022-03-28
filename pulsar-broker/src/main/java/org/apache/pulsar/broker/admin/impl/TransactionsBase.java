@@ -523,7 +523,7 @@ public abstract class TransactionsBase extends AdminResource {
                             return;
                         }
                         if (!optionalTopic.isPresent()) {
-                            asyncResponse.resume(new RestException(NOT_FOUND, "Topic not found!"));
+                            asyncResponse.resume(new RestException(NOT_FOUND, "Topic not found"));
                             return;
                         }
                         Topic topicObject = optionalTopic.get();
