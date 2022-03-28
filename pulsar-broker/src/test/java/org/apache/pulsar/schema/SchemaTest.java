@@ -69,9 +69,11 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -791,7 +793,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 cluster,
                 namespace,
                 topicOne).toString();
-
+        pulsar.getPulsarResources().getNamespaceResources()
+                .createPolicies(NamespaceName.get(tenant, cluster, namespace), new Policies());
         // persistent, partitioned v1/topic
         admin.topics().createPartitionedTopic(topic2, 1);
 
