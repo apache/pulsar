@@ -88,7 +88,7 @@ public class PulsarAdminException extends Exception {
 
         @Override
         protected PulsarAdminException clone() {
-            return new NotAllowedException(getCause(), getHttpError(), getStatusCode());
+            return new NotAuthorizedException(getCause(), getHttpError(), getStatusCode());
         }
     }
 
