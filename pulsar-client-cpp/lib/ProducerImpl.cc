@@ -268,13 +268,14 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
     }
 
     if (batchMessageContainer_) {
-        OpSendMsg opSendMsg;
-        if (batchMessageContainer_->createOpSendMsg(opSendMsg) == ResultOk) {
-            callbacks->opSendMsgs.emplace_back(opSendMsg);
-        }
-
-        releaseSemaphoreForSendOp(opSendMsg);
-        batchMessageContainer_->clear();
+        batchMessageContainer_->processAndClear(
+            [this, &callbacks](Result result, const OpSendMsg& opSendMsg) {
+                if (result == ResultOk) {
+                    callbacks->opSendMsgs.emplace_back(opSendMsg);
+                }
+                releaseSemaphoreForSendOp(opSendMsg);
+            },
+            nullptr);
     }
     pendingMessagesQueue_.clear();
 
@@ -507,15 +508,8 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
     LOG_DEBUG("batchMessageAndSend " << *batchMessageContainer_);
     batchTimer_->cancel();
 
-    if (PULSAR_UNLIKELY(batchMessageContainer_->isEmpty())) {
-        if (flushCallback) {
-            flushCallback(ResultOk);
-        }
-    } else {
-        const size_t numBatches = batchMessageContainer_->getNumBatches();
-        if (numBatches == 1) {
-            OpSendMsg opSendMsg;
-            Result result = batchMessageContainer_->createOpSendMsg(opSendMsg, flushCallback);
+    batchMessageContainer_->processAndClear(
+        [this, &failures](Result result, const OpSendMsg& opSendMsg) {
             if (result == ResultOk) {
                 sendMessage(opSendMsg);
             } else {
@@ -525,25 +519,8 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
                 releaseSemaphoreForSendOp(opSendMsg);
                 failures.add(std::bind(opSendMsg.sendCallback_, result, MessageId{}));
             }
-        } else if (numBatches > 1) {
-            std::vector<OpSendMsg> opSendMsgs;
-            std::vector<Result> results = batchMessageContainer_->createOpSendMsgs(opSendMsgs, flushCallback);
-            for (size_t i = 0; i < results.size(); i++) {
-                if (results[i] == ResultOk) {
-                    sendMessage(opSendMsgs[i]);
-                } else {
-                    // A spot has been reserved for this batch, but the batch failed to be pushed to the
-                    // queue, so we need to release the spot manually
-                    LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsgs[" << i
-                                                                                  << "]: " << results[i]);
-                    releaseSemaphoreForSendOp(opSendMsgs[i]);
-                    failures.add(std::bind(opSendMsgs[i].sendCallback_, results[i], MessageId{}));
-                }
-            }
-        }  // else numBatches is 0, do nothing
-    }
-
-    batchMessageContainer_->clear();
+        },
+        flushCallback);
     return failures;
 }
 
