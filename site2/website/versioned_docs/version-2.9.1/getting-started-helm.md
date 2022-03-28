@@ -111,7 +111,6 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
     pulsar-mini-prometheus-5fcf5dd84c-w8mgz      1/1     Running     0          9m27s
     pulsar-mini-proxy-0                          1/1     Running     0          9m27s
     pulsar-mini-pulsar-init-t7cqt                0/1     Completed   0          9m27s
-    pulsar-mini-pulsar-manager-9bcbb4d9f-htpcs   1/1     Running     0          9m27s
     pulsar-mini-toolset-0                        1/1     Running     0          9m27s
     pulsar-mini-zookeeper-0                      1/1     Running     0          9m27s
     ```
@@ -131,7 +130,6 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
     pulsar-mini-grafana          LoadBalancer   10.106.141.246   <pending>     3000:31905/TCP                11m
     pulsar-mini-prometheus       ClusterIP      None             <none>        9090/TCP                      11m
     pulsar-mini-proxy            LoadBalancer   10.97.240.109    <pending>     80:32305/TCP,6650:31816/TCP   11m
-    pulsar-mini-pulsar-manager   LoadBalancer   10.103.192.175   <pending>     9527:30190/TCP                11m
     pulsar-mini-toolset          ClusterIP      None             <none>        <none>                        11m
     pulsar-mini-zookeeper        ClusterIP      None             <none>        2888/TCP,3888/TCP,2181/TCP    11m
     ```
@@ -330,6 +328,9 @@ Then you can proceed with the following steps:
 ## Step 4: Use Pulsar Manager to manage the cluster
 
 [Pulsar Manager](administration-pulsar-manager.md) is a web-based GUI management tool for managing and monitoring Pulsar.
+
+> **Note**  
+> Pulsar Manager is not installed by default. You need to enable it manually.
 
 1. By default, the `Pulsar Manager` is exposed as a separate `LoadBalancer`. You can open the Pulsar Manager UI using the following command:
 
