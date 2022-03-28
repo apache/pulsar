@@ -4,6 +4,8 @@ title: Pulsar CGo client
 sidebar_label: CGo(deprecated)
 ---
 
+> The CGo client has been deprecated since version 2.7.0. If possible, use the [Go client](client-libraries-go.md) instead.
+
 You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
 All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Go client are thread-safe.

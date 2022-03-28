@@ -26,6 +26,7 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -328,7 +329,7 @@ public class BatchMessageTest extends BrokerTestBase {
         for (int i = 0; i <= numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
-            LOG.info("received msg - {}", Arrays.toString(msg.getData()));
+            LOG.info("received msg size: {}", msg.getData().length);
             consumer.acknowledge(msg);
         }
         Thread.sleep(100);
@@ -421,9 +422,62 @@ public class BatchMessageTest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
         assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
-        // we expect 10 messages in the backlog since we sent 10 messages with the batch size set to 5.
+        // we would expect 2 messages in the backlog since we sent 10 messages with the batch size set to 5.
         // However, we are using synchronous send and so each message will go as an individual message
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), 10);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+
+        for (int i = 0; i < numMsgs; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            String receivedMessage = new String(msg.getData());
+            String expectedMessage = "my-message-" + i;
+            Assert.assertEquals(receivedMessage, expectedMessage,
+                    "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
+        }
+        consumer.close();
+        producer.close();
+    }
+
+    @Test(dataProvider = "containerBuilder")
+    public void testSimpleBatchProducerWithStoppingAndStartingBroker(BatcherBuilder builder) throws Exception {
+        // Send enough messages to trigger one batch by size and then have a remaining message in the batch container
+        int numMsgs = 3;
+        int numMsgsInBatch = 2;
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize-" + UUID.randomUUID();
+        final String subscriptionName = "syncsub-1";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
+        consumer.close();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgsInBatch)
+                .enableBatching(true)
+                .batcherBuilder(builder)
+                .create();
+
+        stopBroker();
+
+        List<CompletableFuture<MessageId>> messages = new ArrayList<>();
+        for (int i = 0; i < numMsgs; i++) {
+            byte[] message = ("my-message-" + i).getBytes();
+            messages.add(producer.sendAsync(message));
+        }
+
+        startBroker();
+
+        // Fail if any one message fails to get acknowledged
+        FutureUtil.waitForAll(messages).get(30, TimeUnit.SECONDS);
+
+        Awaitility.await().timeout(30, TimeUnit.SECONDS)
+                .until(() -> pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        rolloverPerIntervalStats();
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), 2);
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
         for (int i = 0; i < numMsgs; i++) {

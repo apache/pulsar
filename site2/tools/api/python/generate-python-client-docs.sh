@@ -27,4 +27,4 @@ python -m pip install --upgrade pip
 
 pip install pdoc
 pip install pulsar-client==${PULSAR_VERSION}
-pdoc pulsar -o /pulsar/site2/website/static/python-client/${PULSAR_VERSION}
+pdoc pulsar -o /pulsar/site2/website/static/api/python/${PULSAR_VERSION}
