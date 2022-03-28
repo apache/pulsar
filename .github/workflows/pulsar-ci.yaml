@@ -236,7 +236,7 @@ jobs:
 
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v2
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
           path: surefire-reports
@@ -434,14 +434,14 @@ jobs:
 
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v2
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Integration-${{ matrix.group }}-surefire-reports
           path: surefire-reports
 
       - name: Upload container logs
         uses: actions/upload-artifact@v2
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
           name: Integration-${{ matrix.group }}-container-logs
@@ -667,7 +667,7 @@ jobs:
 
       - name: Upload container logs
         uses: actions/upload-artifact@v2
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
           name: System-${{ matrix.group }}-container-logs
@@ -675,7 +675,7 @@ jobs:
 
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v2
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
           path: surefire-reports
