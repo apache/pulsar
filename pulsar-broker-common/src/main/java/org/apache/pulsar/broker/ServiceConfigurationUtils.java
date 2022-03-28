@@ -85,10 +85,20 @@ public class ServiceConfigurationUtils {
      * Gets the internal advertised listener for broker-to-broker communication.
      * @return a non-null advertised listener
      */
-    public static AdvertisedListener getInternalListener(ServiceConfiguration config) {
+    public static AdvertisedListener getInternalListener(ServiceConfiguration config, String protocol) {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
                 .validateAndAnalysisAdvertisedListener(config);
         AdvertisedListener internal = result.get(config.getInternalListenerName());
+        if (internal == null || !internal.hasUriForProtocol(protocol)) {
+            // Search for an advertised listener for same protocol
+            for (AdvertisedListener l : result.values()) {
+                if (l.hasUriForProtocol(protocol)) {
+                    internal = l;
+                    break;
+                }
+            }
+        }
+
         if (internal == null) {
             // synthesize an advertised listener based on legacy configuration properties
             String host = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
