@@ -1451,7 +1451,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * Gets the broker service URL (non-TLS) associated with the internal listener.
      */
     protected String brokerUrl(ServiceConfiguration config) {
-        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config, "pulsar");
         return internalListener.getBrokerServiceUrl() != null
                 ? internalListener.getBrokerServiceUrl().toString() : null;
     }
@@ -1464,7 +1464,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * Gets the broker service URL (TLS) associated with the internal listener.
      */
     public String brokerUrlTls(ServiceConfiguration config) {
-        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config, "pulsar+ssl");
         return internalListener.getBrokerServiceUrlTls() != null
                 ? internalListener.getBrokerServiceUrlTls().toString() : null;
     }
@@ -1475,7 +1475,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return webAddress(ServiceConfigurationUtils.getWebServiceAddress(config), getListenPortHTTP().get());
+            AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config, "http");
+            return internalListener.getBrokerHttpUrl() != null
+                    ? internalListener.getBrokerHttpUrl().toString()
+                    : webAddress(ServiceConfigurationUtils.getWebServiceAddress(config), getListenPortHTTP().get());
         } else {
             return null;
         }
@@ -1487,7 +1490,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
-            return webAddressTls(ServiceConfigurationUtils.getWebServiceAddress(config), getListenPortHTTPS().get());
+            AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config, "https");
+            return internalListener.getBrokerHttpsUrl() != null
+                    ? internalListener.getBrokerHttpsUrl().toString()
+                    : webAddressTls(ServiceConfigurationUtils.getWebServiceAddress(config), getListenPortHTTPS().get());
         } else {
             return null;
         }
