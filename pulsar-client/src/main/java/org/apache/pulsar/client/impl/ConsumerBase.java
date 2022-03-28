@@ -1053,13 +1053,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void resetIncomingMessageSize() {
-        long size = INCOMING_MESSAGES_SIZE_UPDATER.getAndSet(this, 0);
-        client.getMemoryLimitController().releaseMemory(size);
+        INCOMING_MESSAGES_SIZE_UPDATER.getAndSet(this, 0);
     }
 
     protected void decreaseIncomingMessageSize(final Message<?> message) {
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.size());
-        client.getMemoryLimitController().releaseMemory(message.size());
     }
 
     public long getIncomingMessageSize() {
