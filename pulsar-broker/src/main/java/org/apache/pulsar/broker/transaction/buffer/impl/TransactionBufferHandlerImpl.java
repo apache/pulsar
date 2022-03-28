@@ -251,26 +251,36 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             ReferenceCountUtil.safeRelease(op.cmd);
             op.recycle();
         }
+        checkPendingRequests();
+    }
+
+    private void checkPendingRequests() {
         while (true) {
-            if (pendingRequests.peek() != null && PERMITS_UPDATER.decrementAndGet(this) >= 0) {
-                OpRequestSend polled = pendingRequests.poll();
-                if (polled != null) {
-                    try {
-                        if (polled.cnx != lookupCache.get(polled.topic)) {
-                            OpRequestSend invalid = polled;
-                            polled = OpRequestSend.create(invalid.requestId, invalid.topic, invalid.cmd, invalid.cb,
-                                    lookupCache.get(invalid.topic));
-                            invalid.recycle();
+            int permits = PERMITS_UPDATER.get(this);
+            if (permits > 0 && pendingRequests.peek() != null) {
+                if (PERMITS_UPDATER.compareAndSet(this, permits, permits - 1)) {
+                    OpRequestSend polled = pendingRequests.poll();
+                    if (polled != null) {
+                        try {
+                            if (polled.cnx != lookupCache.get(polled.topic)) {
+                                OpRequestSend invalid = polled;
+                                polled = OpRequestSend.create(invalid.requestId, invalid.topic, invalid.cmd, invalid.cb,
+                                        lookupCache.get(invalid.topic));
+                                invalid.recycle();
+                            }
+                            endTxn(polled);
+                        } catch (ExecutionException e) {
+                            log.error("[{}] failed to get client cnx from lookup cache", polled.topic, e);
+                            lookupCache.invalidate(polled.topic);
+                            polled.cb.completeExceptionally(new PulsarClientException.LookupException(
+                                    e.getCause().getMessage()));
+                            PERMITS_UPDATER.incrementAndGet(this);
                         }
-                        endTxn(polled);
-                    } catch (ExecutionException e) {
-                        log.error("[{}] failed to get client cnx from lookup cache", polled.topic, e);
-                        lookupCache.invalidate(polled.topic);
-                        polled.cb.completeExceptionally(new PulsarClientException.LookupException(
-                                e.getCause().getMessage()));
+                    } else {
+                        PERMITS_UPDATER.incrementAndGet(this);
                     }
                 } else {
-                    PERMITS_UPDATER.incrementAndGet(this);
+                    checkPendingRequests();
                 }
             } else {
                 break;
