@@ -301,7 +301,7 @@ public class PulsarStandalone implements AutoCloseable {
         broker.start();
 
         final String cluster = config.getClusterName();
-        final AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
+        final AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config, "pulsar");
         if (!config.isTlsEnabled()) {
             checkArgument(config.getWebServicePort().isPresent(), "webServicePort must be present");
             checkArgument(internalListener.getBrokerServiceUrl() != null,
