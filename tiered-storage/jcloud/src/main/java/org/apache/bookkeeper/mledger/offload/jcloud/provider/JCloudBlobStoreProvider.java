@@ -38,6 +38,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -61,6 +62,7 @@ import org.jclouds.domain.LocationBuilder;
 import org.jclouds.domain.LocationScope;
 import org.jclouds.googlecloud.GoogleCredentialsFromJson;
 import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
+import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
 import org.jclouds.providers.AnonymousProviderMetadata;
 import org.jclouds.providers.ProviderMetadata;
 import org.jclouds.s3.S3ApiMetadata;
@@ -140,6 +142,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
             ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+            contextBuilder.modules(Arrays.asList(new SLF4JLoggingModule()));
             contextBuilder.overrides(config.getOverrides());
 
             if (config.getProviderCredentials() != null) {
@@ -205,6 +208,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
 
             ContextBuilder builder =  ContextBuilder.newBuilder("transient");
+            builder.modules(Arrays.asList(new SLF4JLoggingModule()));
             BlobStoreContext ctx = builder
                     .buildView(BlobStoreContext.class);
 
@@ -287,6 +291,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final BlobStoreBuilder BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        contextBuilder.modules(Arrays.asList(new SLF4JLoggingModule()));
         contextBuilder.overrides(config.getOverrides());
 
         if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
@@ -371,6 +376,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final BlobStoreBuilder ALIYUN_OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        contextBuilder.modules(Arrays.asList(new SLF4JLoggingModule()));
         Properties overrides = config.getOverrides();
         // For security reasons, OSS supports only virtual hosted style access.
         overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
