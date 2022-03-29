@@ -35,6 +35,20 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Kinesis end-point port. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
+    )
+    private Integer awsEndpointPort;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "Tell to Kinesis Client to skip certificate validation. This is useful while performing local tests, it's recommended to always validate certificates in production environments."
+    )
+    private Boolean skipCertificateValidation = false;
+
+    @FieldDoc(
         required = true,
         defaultValue = "ONLY_RAW_PAYLOAD",
         help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
