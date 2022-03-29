@@ -174,13 +174,13 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
             List<String> topics = entry.getValue();
             String topicName = topics.get(0);
 
-            Assert.assertEquals(offloaderStats.getOffloadError(topicName), 6);
-            Assert.assertEquals(offloaderStats.getOffloadBytes(topicName), 600);
-            Assert.assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 6);
-            Assert.assertEquals(offloaderStats.getReadOffloadError(topicName), 6);
-            Assert.assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 6000);
-            Assert.assertEquals(offloaderStats.getReadOffloadBytes(topicName), 600000);
-            Assert.assertEquals(offloaderStats.getWriteStorageError(topicName), 6);
+            Assert.assertTrue(offloaderStats.getOffloadError(topicName) >= 1);
+            Assert.assertTrue(offloaderStats.getOffloadBytes(topicName) >= 100);
+            Assert.assertTrue((long) offloaderStats.getReadLedgerLatency(topicName).sum >= 1);
+            Assert.assertTrue(offloaderStats.getReadOffloadError(topicName) >= 1);
+            Assert.assertTrue((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum >= 1000);
+            Assert.assertTrue(offloaderStats.getReadOffloadBytes(topicName) >= 100000);
+            Assert.assertTrue(offloaderStats.getWriteStorageError(topicName) >= 1);
         }
     }
 
