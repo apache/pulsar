@@ -182,7 +182,13 @@ public final class LedgerOffloaderStats implements Runnable {
         if (StringUtils.isBlank(topic)) {
             return this.exposeTopicLevelMetrics ? new String[]{UNKNOWN, UNKNOWN} : new String[]{UNKNOWN};
         }
-        String namespace = this.topic2Namespace.computeIfAbsent(topic, __ -> TopicName.get(__).getNamespace());
+        String namespace = this.topic2Namespace.computeIfAbsent(topic, t -> {
+            try {
+                return TopicName.get(t).getNamespace();
+            } catch (Throwable th) {
+                return UNKNOWN;
+            }
+        });
         return this.exposeTopicLevelMetrics ? new String[]{namespace, topic} : new String[]{namespace};
     }
 
