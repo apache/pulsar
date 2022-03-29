@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
-import static org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter.isSubscribeRateEnabled;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
@@ -51,7 +50,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
-import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -112,7 +110,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile boolean schemaValidationEnforced = false;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
-    protected Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
+
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
     protected boolean preciseTopicPublishRateLimitingEnable;
@@ -1163,16 +1161,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerReadForPublishRateLimiting();
         }
-    }
-
-    public void updateSubscribeRate() {
-        SubscribeRate subscribeRate = this.getSubscribeRate();
-        if (isSubscribeRateEnabled(subscribeRate)) {
-            subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
-        } else {
-            subscribeRateLimiter = Optional.empty();
-        }
-        subscribeRateLimiter.ifPresent(limiter -> limiter.onSubscribeRateUpdate(subscribeRate));
     }
 
     // subscriptionTypesEnabled is dynamic and can be updated online.

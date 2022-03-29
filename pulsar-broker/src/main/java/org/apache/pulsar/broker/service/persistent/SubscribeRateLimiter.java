@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -44,7 +43,7 @@ public class SubscribeRateLimiter {
     private ScheduledFuture<?> resetTask;
     private SubscribeRate subscribeRate;
 
-    public SubscribeRateLimiter(AbstractTopic topic) {
+    public SubscribeRateLimiter(PersistentTopic topic) {
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         subscribeRateLimiter = new ConcurrentHashMap<>();

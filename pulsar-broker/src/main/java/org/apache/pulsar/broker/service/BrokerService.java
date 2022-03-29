@@ -2340,9 +2340,9 @@ public class BrokerService implements Closeable {
     private void updateSubscribeRate() {
         this.pulsar().getExecutor().submit(() ->
             forEachTopic(topic -> {
-                if (topic instanceof AbstractTopic) {
-                    ((AbstractTopic) topic).updateBrokerSubscribeRate();
-                    ((AbstractTopic) topic).updateSubscribeRate();
+                if (topic instanceof PersistentTopic) {
+                    ((PersistentTopic) topic).updateBrokerSubscribeRate();
+                    ((PersistentTopic) topic).updateSubscribeRateLimiter();
                 }
             }));
     }
