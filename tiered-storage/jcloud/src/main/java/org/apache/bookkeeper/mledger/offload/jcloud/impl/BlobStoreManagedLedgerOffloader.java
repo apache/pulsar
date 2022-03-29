@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -173,6 +174,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
             String dataBlockKey = DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid);
             String indexBlockKey = DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid);
+            log.info("ledger {} dataBlockKey {} indexBlockKey {}", readHandle.getId(), dataBlockKey, indexBlockKey);
 
             MultipartUpload mpu = null;
             List<MultipartPart> parts = Lists.newArrayList();
@@ -180,7 +182,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             // init multi part upload for data block.
             try {
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
-                DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
+                Map<String, String> objectMetadata = new HashMap<>(userMetadata);
+                objectMetadata.put("role", "data");
+                if (extraMetadata != null) {
+                   objectMetadata.putAll(extraMetadata);
+                }
+                DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
                 Blob blob = blobBuilder.build();
                 mpu = writeBlobStore.initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
             } catch (Throwable t) {
@@ -243,7 +250,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                  IndexInputStream indexStream = index.toStream()) {
                 // write the index block
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
-                DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
+                Map<String, String> objectMetadata = new HashMap<>(userMetadata);
+                objectMetadata.put("role", "index");
+                if (extraMetadata != null) {
+                    objectMetadata.putAll(extraMetadata);
+                }
+                DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
                 indexPayload.getContentMetadata().setContentLength((long) indexStream.getStreamSize());
                 indexPayload.getContentMetadata().setContentType("application/octet-stream");
