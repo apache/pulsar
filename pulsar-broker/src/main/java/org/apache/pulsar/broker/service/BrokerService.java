@@ -2606,40 +2606,30 @@ public class BrokerService implements Closeable {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
         return pulsar.getNamespaceService().checkTopicExists(topicName)
-                .thenCompose(topicExists -> {
-                    return fetchPartitionedTopicMetadataAsync(topicName)
-                            .thenCompose(metadata -> {
-                                CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
-
-                                // There are a couple of potentially blocking calls, which we cannot make from the
-                                // MetadataStore callback thread.
-                                pulsar.getExecutor().execute(() -> {
-                                    // If topic is already exist, creating partitioned topic is not allowed.
-
-                                    if (metadata.partitions == 0
-                                            && !topicExists
-                                            && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
-                                            && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
-
-                                        pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName)
-                                                .thenAccept(md -> future.complete(md))
-                                                .exceptionally(ex -> {
-                                                    future.completeExceptionally(ex);
-                                                    return null;
-                                                });
-                                    } else {
-                                        future.complete(metadata);
-                                    }
-                                });
-
-                                return future;
-                            });
-                });
+                .thenCompose(topicExists -> fetchPartitionedTopicMetadataAsync(topicName)
+                        .thenComposeAsync(metadata -> {
+                            // There are a couple of potentially blocking calls, which we cannot make from the
+                            // MetadataStore callback thread.
+                            // If topic is already exist, creating partitioned topic is not allowed.
+                            if (metadata.partitions == 0
+                                    && !topicExists
+                                    && !topicName.isPartitioned()
+                                    && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
+                                    && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
+                                return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
+                            } else {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                        }, pulsar.getExecutor())
+                );
     }
 
     @SuppressWarnings("deprecation")
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
+        if (topicName.toString().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+            return FutureUtil.failedFuture(new PulsarServerException.
+                    InvalidTopicNameException("Invalid topic name: " + topicName));
+        }
         final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         checkArgument(defaultNumPartitions > 0,
