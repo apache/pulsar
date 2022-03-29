@@ -115,17 +115,17 @@ flexible messaging model and an intuitive client API.</description>
     <jetty.version>9.4.44.v20210927</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
-    <athenz.version>1.10.9</athenz.version>
+    <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.10.2</rocksdb.version>
+    <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.17.1</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.12.6</jackson.version>
-    <jackson.databind.version>2.12.6</jackson.databind.version>
+    <jackson.version>2.13.2</jackson.version>
+    <jackson.databind.version>2.13.2.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
@@ -782,6 +782,11 @@ flexible messaging model and an intuitive client API.</description>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.databind.version}</version>
+      </dependency>
 
       <dependency>
         <artifactId>log4j</artifactId>
@@ -827,7 +832,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
-        <artifactId>athenz-zts-java-client</artifactId>
+        <artifactId>athenz-zts-java-client-core</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 

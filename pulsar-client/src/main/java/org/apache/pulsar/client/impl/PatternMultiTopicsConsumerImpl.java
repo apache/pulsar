@@ -25,6 +25,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -85,43 +86,46 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         if (timeout.isCancelled()) {
             return;
         }
+        client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, topicsPattern.pattern(), topicsHash)
+            .thenCompose(getTopicsResult -> {
 
-
-        client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, topicsPattern.pattern(),
-                topicsHash).thenAccept(getTopicsResult -> {
-            List<String> oldTopics = new ArrayList<>();
-            oldTopics.addAll(getPartitionedTopics());
-            getPartitions().forEach(p -> {
-                TopicName t = TopicName.get(p);
-                if (!t.isPartitioned() || !oldTopics.contains(t.getPartitionedTopicName())) {
-                    oldTopics.add(p);
+                if (log.isDebugEnabled()) {
+                    log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
+                            namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
+                            getTopicsResult.isFiltered());
+                    getTopicsResult.getTopics().forEach(topicName ->
+                            log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
                 }
-            });
-            topicsHash = updateSubscriptions(topicsPattern, topicsHash, namespaceName, getTopicsResult,
-                    topicsChangeListener, oldTopics, topic);
-        });
 
-        // schedule the next re-check task
-        this.recheckPatternTimeout = client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
-                Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+                final List<String> oldTopics = new ArrayList<>(getPartitionedTopics());
+                for (String partition : getPartitions()) {
+                    TopicName topicName = TopicName.get(partition);
+                    if (!topicName.isPartitioned() || !oldTopics.contains(topicName.getPartitionedTopicName())) {
+                        oldTopics.add(partition);
+                    }
+                }
+                return updateSubscriptions(topicsPattern, this::setTopicsHash, getTopicsResult,
+                        topicsChangeListener, oldTopics);
+            }).exceptionally(ex -> {
+                log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
+                return null;
+            }).thenAccept(__ -> {
+                // schedule the next re-check task
+                this.recheckPatternTimeout = client.timer()
+                        .newTimeout(PatternMultiTopicsConsumerImpl.this,
+                        Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+            });
     }
 
-    static String updateSubscriptions(Pattern topicsPattern, String topicsHash, NamespaceName namespaceName,
-                               GetTopicsResult getTopicsResult, TopicsChangedListener topicsChangeListener,
-                               List<String> oldTopics, String dummyTopicName) {
-        List<CompletableFuture<Void>> futures = new ArrayList(2);
-        if (log.isDebugEnabled()) {
-            log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
-                    namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
-                    getTopicsResult.isFiltered());
-            getTopicsResult.getTopics().forEach(topicName ->
-                    log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
-        }
-
+    static CompletableFuture<Void> updateSubscriptions(Pattern topicsPattern,
+                                                       java.util.function.Consumer<String> topicsHashSetter,
+                                                       GetTopicsResult getTopicsResult,
+                                                       TopicsChangedListener topicsChangedListener,
+                                                       List<String> oldTopics) {
+        topicsHashSetter.accept(getTopicsResult.getTopicsHash());
         if (!getTopicsResult.isChanged()) {
-            return topicsHash;
+            return CompletableFuture.completedFuture(null);
         }
-        String newTopicsHash = getTopicsResult.getTopicsHash();
 
         List<String> newTopics;
         if (getTopicsResult.isFiltered()) {
@@ -130,19 +134,19 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             newTopics = TopicList.filterTopics(getTopicsResult.getTopics(), topicsPattern);
         }
 
-
-        futures.add(topicsChangeListener.onTopicsAdded(TopicList.minus(newTopics, oldTopics)));
-        futures.add(topicsChangeListener.onTopicsRemoved(TopicList.minus(oldTopics, newTopics)));
-        FutureUtil.waitForAll(futures)
-            .exceptionally(ex -> {
-                log.warn("[{}] Failed to recheck topics change: {}", dummyTopicName, ex.getMessage());
-                return null;
-            });
-        return newTopicsHash;
+        final List<CompletableFuture<?>> listenersCallback = new ArrayList<>(2);
+        listenersCallback.add(topicsChangedListener.onTopicsAdded(TopicList.minus(newTopics, oldTopics)));
+        listenersCallback.add(topicsChangedListener.onTopicsRemoved(TopicList.minus(oldTopics, newTopics)));
+        return FutureUtil.waitForAll(Collections.unmodifiableList(listenersCallback));
     }
 
     public Pattern getPattern() {
         return this.topicsPattern;
+    }
+
+    @VisibleForTesting
+    void setTopicsHash(String topicsHash) {
+        this.topicsHash = topicsHash;
     }
 
     interface TopicsChangedListener {

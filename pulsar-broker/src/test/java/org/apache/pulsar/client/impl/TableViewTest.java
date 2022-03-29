@@ -44,6 +44,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import static org.testng.Assert.fail;
 
 /**
  * Unit test for {@link org.apache.pulsar.client.impl.TableViewImpl}.
@@ -128,6 +129,25 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(tv.size(), count * 2);
         });
         Assert.assertEquals(tv.keySet(), keys2);
+        // Test collection
+        try {
+            tv.keySet().clear();
+            fail("Should fail here");
+        } catch (Exception ex) {
+            Assert.assertTrue(ex instanceof UnsupportedOperationException);
+        }
+        try {
+            tv.entrySet().clear();
+            fail("Should fail here");
+        } catch (Exception ex) {
+            Assert.assertTrue(ex instanceof UnsupportedOperationException);
+        }
+        try {
+            tv.values().clear();
+            fail("Should fail here");
+        } catch (Exception ex) {
+            Assert.assertTrue(ex instanceof UnsupportedOperationException);
+        }
     }
 
     @Test(timeOut = 30 * 1000)

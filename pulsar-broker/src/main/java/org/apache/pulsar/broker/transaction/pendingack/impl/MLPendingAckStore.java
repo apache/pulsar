@@ -398,7 +398,8 @@ public class MLPendingAckStore implements PendingAckStore {
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (managedLedger.getConfig().isAutoSkipNonRecoverableData()
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
-                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
             }
             log.error("MLPendingAckStore of topic [{}] stat reply fail!", managedLedger.getName(), exception);

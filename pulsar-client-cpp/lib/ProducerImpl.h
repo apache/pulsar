@@ -170,6 +170,8 @@ class ProducerImpl : public HandlerBase,
 
     DeadlineTimerPtr sendTimer_;
     void handleSendTimeout(const boost::system::error_code& err);
+    using DurationType = typename boost::asio::deadline_timer::duration_type;
+    void asyncWaitSendTimeout(DurationType expiryTime);
 
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
 

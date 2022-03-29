@@ -1340,6 +1340,35 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testDynamicTopicPublisherThrottlingTickTimeMillis() throws Exception {
+        cleanup();
+        conf.setPreciseTopicPublishRateLimiterEnable(false);
+        conf.setMaxPublishRatePerTopicInMessages(1000);
+        conf.setTopicPublisherThrottlingTickTimeMillis(100);
+        setup();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-abc/test-topic").create();
+
+        int prevTickMills = 100;
+        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().topicPublishRateLimiterMonitor;
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+
+        int newTickMills = prevTickMills * 2;
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(newTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
+
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(0));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
+
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(prevTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+    }
+
+    @Test
     public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
         // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
         for (int i = 0; i < 100; i++) {
