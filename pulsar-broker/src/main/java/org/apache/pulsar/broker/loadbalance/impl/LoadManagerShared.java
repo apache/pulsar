@@ -532,7 +532,7 @@ public class LoadManagerShared {
 
     /**
      * It filters out brokers which owns topic higher than configured threshold at
-     * {@link: ServiceConfiguration#loadBalancerBrokerMaxTopics}. <br/>
+     * ServiceConfiguration.loadBalancerBrokerMaxTopics. <br/>
      * if all the brokers own topic higher than threshold then it resets the list with original broker candidates
      *
      * @param brokerCandidateCache
