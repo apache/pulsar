@@ -18,11 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.time.Duration;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
+import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -59,5 +65,37 @@ public class ServeCnxForSemaphoreReleaseTest {
             }
         }
         Assert.assertEquals(10, lookupSemaphore.availablePermits());
+    }
+
+    @Test
+    public void testCompletableFutureFinallyBlock(){
+        final Semaphore semaphore = new Semaphore(10);
+        // process step controller
+        AtomicInteger stepController = new AtomicInteger(0);
+        // Whether early released semaphore
+        AtomicBoolean releaseEarly = new AtomicBoolean(false);
+        boolean handledResource = semaphore.tryAcquire();
+        try {
+            CompletableFuture.supplyAsync(() -> {
+                Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> stepController.get() == 1);
+                // check semaphore release early.
+                if(Objects.equals(10, semaphore.availablePermits())){
+                    releaseEarly.set(true);
+                }
+                return 1;
+            }).thenApply(i -> {
+                stepController.compareAndSet(1, 2);
+                return i+1;
+            });
+        } finally {
+            if(handledResource){
+                semaphore.release();
+            }
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> stepController.compareAndSet(0, 1));
+        // wait for async thread run finish
+        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> stepController.compareAndSet(2, 3));
+        // assert semaphore not release early
+        Assert.assertTrue(releaseEarly.get());
     }
 }
