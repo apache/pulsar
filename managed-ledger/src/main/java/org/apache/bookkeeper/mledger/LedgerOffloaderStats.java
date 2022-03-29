@@ -199,7 +199,7 @@ public final class LedgerOffloaderStats implements Runnable {
 
     public static LedgerOffloaderStats getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("Ledger offloader stats is not initialized");
+            instance = new LedgerOffloaderStats(false, false, 0);
         }
 
         return instance;
