@@ -187,10 +187,10 @@
 <tr><td>bookieAuthProviderFactoryClass</td><td>The factory class name of the bookie authentication provider. If this is null, then there is no authentication.</td><td>null</td></tr>
 <tr><td>statsProviderClass</td><td></td><td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td></tr>
 <tr><td>prometheusStatsHttpPort</td><td></td><td>8000</td></tr>
-<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>写入缓存的大小。 所使用的内存是 JVM 直接内存。 Write cache is used to buffer entries before flushing into the entry log. For good performance, it should be big enough to hold a substantial amount of entries in the flush interval.</td><td>25% 的直接内存</td></tr>
-<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>读取缓存的大小。 所使用的内存是 JVM 直接内存。 This read cache is pre-filled doing read-ahead whenever a cache miss happens. By default, it is allocated to 25% of the available direct memory.</td><td>N/A</td></tr>
+<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>写入缓存的大小。 所使用的内存是 JVM 直接内存。 写入缓存用于在冲入条目日志之前对条目进行缓冲。 为了获得良好的性能，它应该足够大，以便在冲刷间隔内容纳足够多的条目。</td><td>25% 的直接内存</td></tr>
+<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>读取缓存的大小。 所使用的内存是 JVM 直接内存。 每当发生缓存缺失时，这个读缓存就会被预先填满，进行读预处理。 默认情况下，它被分配到可用直接内存的25%。</td><td>N/A</td></tr>
 <tr><td>dbStorage_readAheadCacheBatchSize</td><td>当读缓存 miss 发生后预装填的条目数量</td><td>1000</td></tr>
-<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>RocksDB 的 block-cache 大小。 For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases. By default, it uses 10% of direct memory.</td><td>N/A</td></tr>
+<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>RocksDB 的 block-cache 大小。 为了获得最佳性能，这个缓存应该大到足以容纳索引数据库的绝大数部分，在某些情况下可以达到~2GB。 默认情况下，它使用10%的直接内存。</td><td>N/A</td></tr>
 <tr><td>dbStorage_rocksDB_writeBufferSizeMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_sstSizeInMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_blockSize</td><td></td><td>65536</td></tr>
