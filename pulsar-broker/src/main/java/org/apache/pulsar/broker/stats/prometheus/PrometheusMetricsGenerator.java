@@ -51,7 +51,7 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
  * in a text format suitable to be consumed by Prometheus.
- * Format specification can be found at @see <a href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition Formats</a>
+ * Format specification can be found at <a href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition Formats</a>
  */
 public class PrometheusMetricsGenerator {
 
