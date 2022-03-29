@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
+import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -34,8 +37,11 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
+import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Path("/transactions")
 @Produces(MediaType.APPLICATION_JSON)
@@ -222,7 +228,24 @@ public class Transactions extends TransactionsBase {
                                            @PathParam("topic") @Encoded String encodedTopic,
                                            @PathParam("subName") String subName,
                                            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
-        internalGetPendingAckInternalStats(asyncResponse, authoritative,
-                TopicName.get(TopicDomain.persistent.value(), tenant, namespace, encodedTopic), subName, metadata);
+
+        internalGetPendingAckInternalStats(authoritative,
+                    TopicName.get(TopicDomain.persistent.value(), tenant, namespace, encodedTopic), subName, metadata)
+                .thenAccept(stats -> asyncResponse.resume(stats))
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof BrokerServiceException.ServiceUnitNotReadyException) {
+                        asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
+                                cause));
+                    } else if (cause instanceof BrokerServiceException.NotAllowedException) {
+                        asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
+                                cause));
+                    } else if (cause instanceof BrokerServiceException.SubscriptionNotFoundException) {
+                        asyncResponse.resume(new RestException(NOT_FOUND, cause));
+                    } else {
+                        asyncResponse.resume(new RestException(cause));
+                    }
+                    return null;
+                });
     }
 }

@@ -38,9 +38,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -508,64 +505,41 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalGetPendingAckInternalStats(AsyncResponse asyncResponse, boolean authoritative,
-                                                      TopicName topicName, String subName, boolean metadata) {
-        try {
-            if (pulsar().getConfig().isTransactionCoordinatorEnabled()) {
-                validateTopicOwnership(topicName, authoritative);
-                CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                        .getTopics().get(topicName.toString());
-                if (topicFuture != null) {
-                    topicFuture.whenComplete((optionalTopic, e) -> {
-
-                        if (e != null) {
-                            resumeAsyncResponseExceptionally(asyncResponse, e);
-                            return;
-                        }
+    protected CompletableFuture<TransactionPendingAckInternalStats> internalGetPendingAckInternalStats(
+            boolean authoritative, TopicName topicName, String subName, boolean metadata) {
+        if (!pulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            return FutureUtil.failedFuture(new RestException(SERVICE_UNAVAILABLE,
+                    "This Broker is not configured with transactionCoordinatorEnabled=true."));
+        }
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> {
+                    CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
+                            .getTopics().get(topicName.toString());
+                    if (topicFuture == null) {
+                        return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                    }
+                    return topicFuture.thenCompose(optionalTopic -> {
                         if (!optionalTopic.isPresent()) {
-                            asyncResponse.resume(new RestException(NOT_FOUND, "Topic not found"));
-                            return;
-                        }
-                        Topic topicObject = optionalTopic.get();
-                        try {
-                            ManagedLedger managedLedger =
-                                    ((PersistentTopic) topicObject).getPendingAckManagedLedger(subName).get();
-                            TransactionPendingAckInternalStats stats =
-                                    new TransactionPendingAckInternalStats();
-                            TransactionLogStats pendingAckLogStats = new TransactionLogStats();
-                            pendingAckLogStats.managedLedgerName = managedLedger.getName();
-                            pendingAckLogStats.managedLedgerInternalStats =
-                                    managedLedger.getManagedLedgerInternalStats(metadata).get();
-                            stats.pendingAckLogStats = pendingAckLogStats;
-                            asyncResponse.resume(stats);
-                        } catch (Exception exception) {
-                            if (exception instanceof ExecutionException) {
-                                if (exception.getCause() instanceof ServiceUnitNotReadyException) {
-                                    asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                                            exception.getCause()));
-                                    return;
-                                } else if (exception.getCause() instanceof NotAllowedException) {
-                                    asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
-                                            exception.getCause()));
-                                    return;
-                                } else if (exception.getCause() instanceof SubscriptionNotFoundException) {
-                                    asyncResponse.resume(new RestException(NOT_FOUND, exception.getCause()));
-                                    return;
-                                }
-                            }
-                            asyncResponse.resume(new RestException(exception));
+                            return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                        } else {
+                            Topic topicObject = optionalTopic.get();
+                            return ((PersistentTopic) topicObject).getPendingAckManagedLedger(subName)
+                                    .thenCompose(managedLedger -> managedLedger.getManagedLedgerInternalStats(metadata)
+                                            .thenApply(internalStats -> {
+                                                TransactionLogStats pendingAckLogStats = new TransactionLogStats();
+                                                pendingAckLogStats.managedLedgerName = managedLedger.getName();
+                                                pendingAckLogStats.managedLedgerInternalStats = internalStats;
+                                                return pendingAckLogStats;
+                                            })
+                                            .thenApply(pendingAckLogStats -> {
+                                                TransactionPendingAckInternalStats stats =
+                                                        new TransactionPendingAckInternalStats();
+                                                stats.pendingAckLogStats = pendingAckLogStats;
+                                                return stats;
+                                            }));
                         }
                     });
-                } else {
-                    asyncResponse.resume(new RestException(NOT_FOUND, "Topic not found"));
-                }
-            } else {
-                asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                        "This Broker is not configured with transactionCoordinatorEnabled=true."));
-            }
-        } catch (Exception e) {
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+                });
     }
 
     protected void validateTopicName(String property, String namespace, String encodedTopic) {
