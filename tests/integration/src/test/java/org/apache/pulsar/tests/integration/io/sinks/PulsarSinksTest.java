@@ -90,4 +90,9 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
     }
 
+    @Test(groups = "sink")
+    public void testKinesis() throws Exception {
+        testSink(new KinesisSinkTester(), true);
+    }
+
 }
