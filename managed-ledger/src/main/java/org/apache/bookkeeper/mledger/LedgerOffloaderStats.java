@@ -46,6 +46,7 @@ import org.apache.pulsar.common.naming.TopicName;
 public final class LedgerOffloaderStats implements Runnable {
     private static final String TOPIC_LABEL = "topic";
     private static final String NAMESPACE_LABEL = "namespace";
+    private static final String UNKNOWN = "unknown";
 
     private final boolean exposeLedgerMetrics;
     private final boolean exposeTopicLevelMetrics;
@@ -114,6 +115,7 @@ public final class LedgerOffloaderStats implements Runnable {
             return;
         }
 
+        topic = StringUtils.isBlank(topic) ? UNKNOWN : topic;
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
                 .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
         pair.getLeft().add(size);
@@ -151,6 +153,7 @@ public final class LedgerOffloaderStats implements Runnable {
             return;
         }
 
+        topic = StringUtils.isBlank(topic) ? UNKNOWN : topic;
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
                 .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
         pair.getRight().add(size);
@@ -177,7 +180,7 @@ public final class LedgerOffloaderStats implements Runnable {
 
     private String[] labelValues(String topic) {
         if (StringUtils.isBlank(topic)) {
-            return this.exposeTopicLevelMetrics ? new String[]{"unknown", "unknown"} : new String[]{"unknown"};
+            return this.exposeTopicLevelMetrics ? new String[]{UNKNOWN, UNKNOWN} : new String[]{UNKNOWN};
         }
         String namespace = this.topic2Namespace.computeIfAbsent(topic, __ -> TopicName.get(__).getNamespace());
         return this.exposeTopicLevelMetrics ? new String[]{namespace, topic} : new String[]{namespace};
