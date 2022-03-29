@@ -2618,7 +2618,7 @@ public class BrokerService implements Closeable {
                                     && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
                                 return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
                             } else {
-                                return CompletableFuture.completedFuture(null);
+                                return CompletableFuture.completedFuture(metadata);
                             }
                         }, pulsar.getExecutor())
                 );
