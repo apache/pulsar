@@ -136,7 +136,7 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 <p>安装组件成功后，文件 <code>libpulsar.so</code> 和 <code>libpulsar.a</code> 位于资源库的 <code>liblib</code> 文件夹中。 工具 <code>famerProducer</code> and <code>familConsumer</code> 在 <code>perf</code> 目录中。</p>
 <h3><a class="anchor" aria-hidden="true" id="安装依赖项"></a><a href="#安装依赖项" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装依赖项</h3>
 <blockquote>
-<p>Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can download and install those packages directly.</p>
+<p>自从2.1.0 发布以来，Pulsar 预先构建了RPM 和 Debian 包。您可以直接下载并安装包。</p>
 </blockquote>
 <p>下载并安装 RPM 或 DEB后， <code>libpulsar.so</code>, <code>libpulsarnosl.so</code>, <code>libpulsar.</code>和 <code>libpulsarwithdeps.a</code> 库位于您的 <code>/usr/lib</code> 目录。</p>
 <p>默认情况下，它们是在代码路径 <code>${PULSAR_HOME}/pulsar-client-cpp</code>中构建的。您可以使用下面的命令构建。</p>
@@ -182,16 +182,16 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 </ol>
 <pre><code class="hljs css language-bash">$ rpm -ivh apache-pulsar-client*.rpm
 </code></pre>
-<p>After you install RPM successfully, Pulsar libraries are in the <code>/usr/lib</code> directory，for example：</p>
+<p>安装RPM成功后，Pulsar 库位于 <code>/usr/lib</code> 目录中。</p>
 <pre><code class="hljs css language-bash">lrwxrwxrwx 1 root root 18 Dec 30 22:21 libpulsar.so -&gt; libpulsar.so.2.9.1
 lrwxrwxrwx 1 root root 23 Dec 30 22:21 libpulsarnossl.so -&gt; libpulsarnossl.so.2.9.1
 </code></pre>
 <blockquote>
-<p><strong>Note</strong>  <br>
-If you get the error that <code>libpulsar.so: cannot open shared object file: No such file or directory</code> when starting Pulsar client, you may need to run <code>ldconfig</code> first.</p>
+<p><strong>注意</strong>  <br>
+当启动 Pulsar 客户端的时候遇到 <code>libpulsar.so: cannot open shared object file: No such file or directory</code>错误时 ，你可能需要先运行<code>ldconfig</code>。</p>
 </blockquote>
 <ol>
-<li>Install the GCC and g++ using the following command, otherwise errors would occur in installing Node.js.</li>
+<li>使用以下命令安装GCC和g++，否则在安装Node.js时会出错。</li>
 </ol>
 <pre><code class="hljs css language-bash">$ sudo yum -y install gcc automake autoconf libtool make
 $ sudo yum -y install gcc-c++
@@ -217,7 +217,7 @@ $ sudo yum -y install gcc-c++
 <p>安装DEB成功后，Pulsar 库位于 <code>/usr/lib</code> 目录中。</p>
 <h3><a class="anchor" aria-hidden="true" id="编译-1"></a><a href="#编译-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>编译</h3>
 <blockquote>
-<p>If you want to build RPM and Debian packages from the latest master, follow the instructions below. You should run all the instructions at the root directory of your cloned Pulsar repository.</p>
+<p>如果需要从最新的master分支上构建RPM和Debian包，可以参考下面的说明。你可以克隆 Pulsar 仓库然后在代码仓库根目录中执行命令。</p>
 </blockquote>
 <p>你可以通过下面的方式来编译包含<code>libpulsar.so</code> / <code>libpulsar.a</code> / <code>libpulsarnossl.so</code> / <code>libpulsarwithdeps.a</code>静态库以及所有必要依赖的二进制包。</p>
 <p>要构建C++库包，您需要先构建Java 包。</p>
