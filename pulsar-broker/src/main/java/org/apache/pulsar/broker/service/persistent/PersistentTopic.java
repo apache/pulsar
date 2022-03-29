@@ -1151,7 +1151,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     deleteTopicAuthenticationFuture.thenCompose(
                                     __ -> deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null))
                             .thenAccept(__ -> deleteTopicPolicies())
-                            .thenCompose(__ -> transactionBuffer.clearSnapshot()).whenComplete((v, ex) -> {
+                            .thenCompose(__ -> transactionBufferCleanupAndClose())
+                            .whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();
@@ -3158,6 +3159,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     + " not found subscription : " + subName)));
         }
         return subscription.getPendingAckManageLedger();
+    }
+
+    private CompletableFuture<Void> transactionBufferCleanupAndClose() {
+        return transactionBuffer.clearSnapshot().thenCompose(__ -> transactionBuffer.closeAsync());
     }
 
     public long getLastDataMessagePublishedTimestamp() {
