@@ -495,7 +495,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         consumer2.seek(msgIds.get(1));
-        for (int i = 2; i < totalMessages; i++) {
+        for (int i = 1; i < totalMessages; i++) {
             Message<byte[]> msgAfterSeek = consumer2.receive(5, TimeUnit.SECONDS);
             assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
         }

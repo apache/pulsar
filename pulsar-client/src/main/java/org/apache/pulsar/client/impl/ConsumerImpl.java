@@ -2085,6 +2085,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             lastDequeuedMessageId = MessageId.earliest;
 
             clearIncomingMessages();
+            duringSeek.set(false);
             seekFuture.complete(null);
         }).exceptionally(e -> {
             // re-set duringSeek and seekMessageId if seek failed
