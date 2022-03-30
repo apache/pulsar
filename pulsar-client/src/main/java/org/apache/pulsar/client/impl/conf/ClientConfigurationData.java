@@ -19,25 +19,35 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.net.ssl.SSLContext;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
+import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 
 /**
  * This is a simple holder of the client configuration values.
@@ -387,5 +397,56 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
+
+    public boolean isTlsAllowInsecureConnection() {
+        return tlsAllowInsecureConnection || !tlsHostnameVerificationEnable;
+    }
+
+    public SSLContext newKeyStoreSslContext() throws IOException, GeneralSecurityException {
+        AuthenticationDataProvider authData = authentication.getAuthData();
+        KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+        return KeyStoreSSLContext.createClientSslContext(
+                sslProvider,
+                params != null ? params.getKeyStoreType() : null,
+                params != null ? params.getKeyStorePath() : null,
+                params != null ? params.getKeyStorePassword() : null,
+                isTlsAllowInsecureConnection(),
+                tlsTrustStoreType,
+                tlsTrustStorePath,
+                tlsTrustStorePassword,
+                tlsCiphers,
+                tlsProtocols);
+    }
+
+    public SslContext newSslContext(int autoCertRefreshTimeSeconds, ScheduledExecutorService delayer)
+            throws IOException, GeneralSecurityException {
+        AuthenticationDataProvider authData = authentication.getAuthData();
+
+        SslProvider sslProvider = this.sslProvider != null ? SslProvider.valueOf(this.sslProvider) : null;
+
+        SslContext sslCtx;
+        if (authData.hasDataForTls()) {
+            sslCtx = authData.getTlsTrustStoreStream() == null
+                    ? SecurityUtility.createAutoRefreshSslContextForClient(
+                    sslProvider,
+                    isTlsAllowInsecureConnection(),
+                    tlsTrustCertsFilePath, authData.getTlsCerificateFilePath(),
+                    authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
+                    : SecurityUtility.createNettySslContextForClient(
+                    sslProvider,
+                    isTlsAllowInsecureConnection(),
+                    authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                    authData.getTlsPrivateKey(), tlsCiphers, tlsProtocols);
+        } else {
+            sslCtx = SecurityUtility.createNettySslContextForClient(
+                    sslProvider,
+                    isTlsAllowInsecureConnection(),
+                    tlsTrustCertsFilePath,
+                    tlsCiphers,
+                    tlsProtocols
+            );
+        }
+        return sslCtx;
     }
 }
