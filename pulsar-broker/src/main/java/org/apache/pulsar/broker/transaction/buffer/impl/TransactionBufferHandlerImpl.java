@@ -55,9 +55,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     private final HashedWheelTimer timer;
     private final PulsarClient pulsarClient;
 
-    private static final AtomicIntegerFieldUpdater<TransactionBufferHandlerImpl> PERMITS_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(TransactionBufferHandlerImpl.class, "permits");
-    private volatile int permits = 1000;
+    private static final AtomicIntegerFieldUpdater<TransactionBufferHandlerImpl> REQUEST_CREDITS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(TransactionBufferHandlerImpl.class, "requestCredits");
+    private volatile int requestCredits;
 
     private final LoadingCache<String, CompletableFuture<ClientCnx>> lookupCache = CacheBuilder.newBuilder()
             .maximumSize(100000)
@@ -76,12 +76,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             });
 
     public TransactionBufferHandlerImpl(PulsarClient pulsarClient,
-                                        HashedWheelTimer timer) {
+                                        HashedWheelTimer timer, int maxConcurrentRequests) {
         this.pulsarClient = pulsarClient;
         this.outstandingRequests = new ConcurrentSkipListMap<>();
         this.pendingRequests = new GrowableArrayBlockingQueue<>();
         this.operationTimeoutInMills = 3000L;
         this.timer = timer;
+        this.requestCredits = Math.max(100, maxConcurrentRequests);
     }
 
     @Override
@@ -98,7 +99,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
         try {
             OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb, lookupCache.get(topic));
-            if (checkPermits(op)) {
+            if (checkRequestCredits(op)) {
                 endTxn(op);
             }
         } catch (ExecutionException e) {
@@ -123,7 +124,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 topic, subscription, action, lowWaterMark);
         try {
             OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb, lookupCache.get(topic));
-            if (checkPermits(op)) {
+            if (checkRequestCredits(op)) {
                 endTxn(op);
             }
         } catch (ExecutionException e) {
@@ -134,13 +135,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         return cb;
     }
 
-    private boolean checkPermits(OpRequestSend op) {
-        int currentPermits = PERMITS_UPDATER.get(this);
+    private boolean checkRequestCredits(OpRequestSend op) {
+        int currentPermits = REQUEST_CREDITS_UPDATER.get(this);
         if (currentPermits > 0 && pendingRequests.peek() == null) {
-            if (PERMITS_UPDATER.compareAndSet(this, currentPermits, currentPermits - 1)) {
+            if (REQUEST_CREDITS_UPDATER.compareAndSet(this, currentPermits, currentPermits - 1)) {
                 return true;
             } else {
-                return checkPermits(op);
+                return checkRequestCredits(op);
             }
         } else {
             pendingRequests.add(op);
@@ -148,7 +149,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         }
     }
 
-    private void endTxn(OpRequestSend op) {
+    public void endTxn(OpRequestSend op) {
         op.cnx.whenComplete((clientCnx, throwable) -> {
             if (throwable == null) {
                 if (clientCnx.ctx().channel().isActive()) {
@@ -245,8 +246,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         }
     }
 
-    void onResponse(OpRequestSend op) {
-        PERMITS_UPDATER.incrementAndGet(this);
+    public void onResponse(OpRequestSend op) {
+        REQUEST_CREDITS_UPDATER.incrementAndGet(this);
         if (op != null) {
             ReferenceCountUtil.safeRelease(op.cmd);
             op.recycle();
@@ -256,9 +257,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     private void checkPendingRequests() {
         while (true) {
-            int permits = PERMITS_UPDATER.get(this);
+            int permits = REQUEST_CREDITS_UPDATER.get(this);
             if (permits > 0 && pendingRequests.peek() != null) {
-                if (PERMITS_UPDATER.compareAndSet(this, permits, permits - 1)) {
+                if (REQUEST_CREDITS_UPDATER.compareAndSet(this, permits, permits - 1)) {
                     OpRequestSend polled = pendingRequests.poll();
                     if (polled != null) {
                         try {
@@ -274,10 +275,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                             lookupCache.invalidate(polled.topic);
                             polled.cb.completeExceptionally(new PulsarClientException.LookupException(
                                     e.getCause().getMessage()));
-                            PERMITS_UPDATER.incrementAndGet(this);
+                            REQUEST_CREDITS_UPDATER.incrementAndGet(this);
                         }
                     } else {
-                        PERMITS_UPDATER.incrementAndGet(this);
+                        REQUEST_CREDITS_UPDATER.incrementAndGet(this);
                     }
                 } else {
                     checkPendingRequests();
@@ -298,7 +299,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         }
     }
 
-    private static final class OpRequestSend {
+    public static final class OpRequestSend {
 
         long requestId;
         String topic;
@@ -337,12 +338,22 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         };
     }
 
-    private CompletableFuture<ClientCnx> getClientCnx(String topic) {
+    public CompletableFuture<ClientCnx> getClientCnx(String topic) {
         return ((PulsarClientImpl) pulsarClient).getConnection(topic);
     }
 
     @Override
     public void close() {
         this.timer.stop();
+    }
+
+    @Override
+    public int getAvailableRequestCredits() {
+        return REQUEST_CREDITS_UPDATER.get(this);
+    }
+
+    @Override
+    public int getPendingRequestsCount() {
+        return pendingRequests.size();
     }
 }

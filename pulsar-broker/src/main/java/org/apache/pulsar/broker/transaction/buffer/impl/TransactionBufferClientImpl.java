@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
@@ -39,8 +40,10 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         this.tbHandler = tbHandler;
     }
 
-    public static TransactionBufferClient create(PulsarClient pulsarClient, HashedWheelTimer timer) {
-        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarClient, timer);
+    public static TransactionBufferClient create(PulsarClient pulsarClient, HashedWheelTimer timer,
+             int maxConcurrentRequests) {
+        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarClient, timer,
+                maxConcurrentRequests);
         return new TransactionBufferClientImpl(handler);
     }
 
@@ -73,5 +76,15 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
     @Override
     public void close() {
         tbHandler.close();
+    }
+
+    @Override
+    public int getAvailableRequestCredits() {
+        return tbHandler.getAvailableRequestCredits();
+    }
+
+    @Override
+    public int getPendingRequestsCount() {
+        return tbHandler.getPendingRequestsCount();
     }
 }
