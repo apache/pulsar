@@ -38,6 +38,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -171,13 +173,13 @@ public class TransactionMetadataStoreService {
                         .thenComposeAsync(__ -> {
                             final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
                                     .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
-                            Deque<CompletableFuture<Void>> deque = pendingConnectRequests
+                            final Deque<CompletableFuture<Void>> deque = pendingConnectRequests
                                     .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
                             if (!tcLoadSemaphore.tryAcquire()) {
                                 // only one command can open transaction metadata store,
                                 // other will be added to the deque, when the op of openTransactionMetadataStore finished
                                 // then handle the requests witch in the queue
-                                CompletableFuture<Void> shouldWaitingConnect = new CompletableFuture<>();
+                                final CompletableFuture<Void> shouldWaitingConnect = new CompletableFuture<>();
                                 deque.add(shouldWaitingConnect);
                                 if (LOG.isDebugEnabled()) {
                                     LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
@@ -193,22 +195,35 @@ public class TransactionMetadataStoreService {
                                 .thenAccept(store -> {
                                     stores.put(tcId, store);
                                     LOG.info("Added new transaction meta store {}", tcId);
-                                    long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                                    // prevent thread in a busy loop.
-                                    while (System.currentTimeMillis() < endTime) {
-                                        CompletableFuture<Void> waitingFuture = deque.poll();
-                                        if (waitingFuture == null) {
-                                            break;
-                                        }
-                                        // complete queue request future
-                                        waitingFuture.complete(null);
-                                    }
-                                    if (!deque.isEmpty()) {
-                                        deque.clear();
-                                    }
+                                    completeAndClearAllWaitingFuture(deque,
+                                            future -> future.complete(null));
                                     tcLoadSemaphore.release();
+                                }).exceptionally(ex -> {
+                                    // release before handle request queue, in order to client reconnect infinite loop
+                                    tcLoadSemaphore.release();
+                                    completeAndClearAllWaitingFuture(deque,
+                                            future -> future.completeExceptionally(ex));
+                                    LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
+                                    throw FutureUtil.wrapToCompletionException(ex);
                                 });
                         }, internalPinnedExecutor);
+    }
+
+    private void completeAndClearAllWaitingFuture(Deque<CompletableFuture<Void>> deque,
+                                                  Consumer<CompletableFuture<Void>> consumer) {
+        final long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+        while (System.currentTimeMillis() < endTime) {
+           // prevent thread in a busy loop.
+            final CompletableFuture<Void> future = deque.poll();
+            if (future == null) {
+                break;
+            }
+            // this means that this tc client connection connect fail
+            consumer.accept(future);
+        }
+        if (!deque.isEmpty()) {
+            deque.clear();
+        }
     }
 
     public CompletableFuture<TransactionMetadataStore> openTransactionMetadataStore(TransactionCoordinatorID tcId) {
