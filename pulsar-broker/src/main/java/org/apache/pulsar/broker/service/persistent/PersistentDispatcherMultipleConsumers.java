@@ -263,8 +263,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     topic.getBrokerService().executor().execute(() -> readMoreEntries());
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
-                rateLogger.rateLimitLog("Dispatcher read is blocked due to unackMessages {} reached to max " +
-                                "unackMessages", Integer.toString(totalUnackedMessages));
+                rateLogger.rateLimitLog("Dispatcher read is blocked due to topic [{}] reached " +
+                        "to max unackMessages", name);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
