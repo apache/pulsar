@@ -63,6 +63,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
@@ -378,6 +379,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         try {
             admin.transactions()
                     .getPendingAckInternalStatsAsync(topic, subName, true).get();
+            fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
@@ -387,6 +389,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             pulsar.getBrokerService().getTopic(topic, false);
             admin.transactions()
                     .getPendingAckInternalStatsAsync(topic, subName, true).get();
+            fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
             PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();

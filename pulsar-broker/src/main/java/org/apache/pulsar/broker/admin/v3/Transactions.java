@@ -36,17 +36,17 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Path("/transactions")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/transactions", description = "Transactions admin apis", tags = "transactions")
+@Slf4j
 public class Transactions extends TransactionsBase {
 
     @GET
@@ -228,24 +228,26 @@ public class Transactions extends TransactionsBase {
                                            @PathParam("topic") @Encoded String encodedTopic,
                                            @PathParam("subName") String subName,
                                            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
-
-        internalGetPendingAckInternalStats(authoritative,
-                    TopicName.get(TopicDomain.persistent.value(), tenant, namespace, encodedTopic), subName, metadata)
-                .thenAccept(stats -> asyncResponse.resume(stats))
-                .exceptionally(ex -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    if (cause instanceof BrokerServiceException.ServiceUnitNotReadyException) {
-                        asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE,
-                                cause));
-                    } else if (cause instanceof BrokerServiceException.NotAllowedException) {
-                        asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED,
-                                cause));
-                    } else if (cause instanceof BrokerServiceException.SubscriptionNotFoundException) {
-                        asyncResponse.resume(new RestException(NOT_FOUND, cause));
-                    } else {
-                        asyncResponse.resume(new RestException(cause));
-                    }
-                    return null;
-                });
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetPendingAckInternalStats(authoritative, topicName, subName, metadata)
+                    .thenAccept(stats -> asyncResponse.resume(stats))
+                    .exceptionally(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        log.error("[{}] Failed to get pending ack internal stats {}", clientAppId(), topicName, cause);
+                        if (cause instanceof BrokerServiceException.ServiceUnitNotReadyException) {
+                            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, cause));
+                        } else if (cause instanceof BrokerServiceException.NotAllowedException) {
+                            asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED, cause));
+                        } else if (cause instanceof BrokerServiceException.SubscriptionNotFoundException) {
+                            asyncResponse.resume(new RestException(NOT_FOUND, cause));
+                        } else {
+                            asyncResponse.resume(new RestException(cause));
+                        }
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 }
