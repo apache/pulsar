@@ -604,9 +604,8 @@ jobs:
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
 
-          # disable Sql integration tests until https://github.com/apache/pulsar/issues/14951 has been resolved
-          #- name: Sql
-          #  group: SQL
+          - name: Sql
+            group: SQL
 
     steps:
       - name: checkout
