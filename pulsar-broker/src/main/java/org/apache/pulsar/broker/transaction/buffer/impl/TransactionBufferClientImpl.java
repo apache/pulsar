@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
