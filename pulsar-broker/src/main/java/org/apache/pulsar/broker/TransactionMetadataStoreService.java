@@ -165,34 +165,29 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<Void> handleTcClientConnect(TransactionCoordinatorID tcId) {
-        if (stores.get(tcId) != null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return pulsarService.getBrokerService().checkTopicNsOwnership(
-                TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString())
-                        .thenComposeAsync(__ -> {
-                            final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
-                                    .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
-                            final Deque<CompletableFuture<Void>> deque = pendingConnectRequests
-                                    .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
-                            if (!tcLoadSemaphore.tryAcquire()) {
-                                // only one command can open transaction metadata store,
-                                // other will be added to the deque, when the op of
-                                // openTransactionMetadataStore finished then handle the requests witch in the queue
-                                final CompletableFuture<Void> shouldWaitingConnect = new CompletableFuture<>();
-                                deque.add(shouldWaitingConnect);
-                                if (LOG.isDebugEnabled()) {
-                                    LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
-                                }
-                                return shouldWaitingConnect;
+        return CompletableFuture.completedFuture(null).thenComposeAsync(__-> {
+            if (stores.get(tcId) != null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return pulsarService.getBrokerService().checkTopicNsOwnership(
+                            TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString())
+                    .thenCompose(unused -> {
+                        final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
+                                .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
+                        final Deque<CompletableFuture<Void>> deque = pendingConnectRequests
+                                .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
+                        if (!tcLoadSemaphore.tryAcquire()) {
+                            // only one command can open transaction metadata store,
+                            // other will be added to the deque, when the op of
+                            // openTransactionMetadataStore finished then handle the requests witch in the queue
+                            final CompletableFuture<Void> shouldWaitingConnect = new CompletableFuture<>();
+                            deque.add(shouldWaitingConnect);
+                            if (LOG.isDebugEnabled()) {
+                                LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
                             }
-                            // when tcLoadSemaphore.release(), this command will acquire semaphore,
-                            // so we should jude the store exist again.
-                            if (stores.get(tcId) != null) {
-                                tcLoadSemaphore.release();
-                                return CompletableFuture.completedFuture(null);
-                            }
-                            return openTransactionMetadataStore(tcId)
+                            return shouldWaitingConnect;
+                        }
+                        return openTransactionMetadataStore(tcId)
                                 .thenAccept(store -> {
                                     stores.put(tcId, store);
                                     LOG.info("Added new transaction meta store {}", tcId);
@@ -207,7 +202,8 @@ public class TransactionMetadataStoreService {
                                     LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
                                     throw FutureUtil.wrapToCompletionException(ex);
                                 });
-                        }, internalPinnedExecutor);
+                    });
+        }, internalPinnedExecutor);
     }
 
     private void completeAndClearAllWaitingFuture(Deque<CompletableFuture<Void>> deque,
