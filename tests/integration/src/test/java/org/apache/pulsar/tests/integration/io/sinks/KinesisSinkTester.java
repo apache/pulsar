@@ -81,6 +81,14 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
     }
 
     @Override
+    public void stopServiceContainer(PulsarCluster cluster) {
+        if (client != null) {
+            client.close();
+        }
+        super.stopServiceContainer(cluster);
+    }
+
+    @Override
     protected LocalStackContainer createSinkService(PulsarCluster cluster) {
         return new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
                 .withServices(LocalStackContainer.Service.KINESIS);
