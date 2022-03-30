@@ -30,14 +30,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -176,8 +169,8 @@ public class TransactionMetadataStoreService {
                                     .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
                             if (!tcLoadSemaphore.tryAcquire()) {
                                 // only one command can open transaction metadata store,
-                                // other will be added to the deque, when the op of openTransactionMetadataStore finished
-                                // then handle the requests witch in the queue
+                                // other will be added to the deque, when the op of
+                                // openTransactionMetadataStore finished then handle the requests witch in the queue
                                 final CompletableFuture<Void> shouldWaitingConnect = new CompletableFuture<>();
                                 deque.add(shouldWaitingConnect);
                                 if (LOG.isDebugEnabled()) {
@@ -211,17 +204,15 @@ public class TransactionMetadataStoreService {
     private void completeAndClearAllWaitingFuture(Deque<CompletableFuture<Void>> deque,
                                                   Consumer<CompletableFuture<Void>> consumer) {
         final long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-        while (System.currentTimeMillis() < endTime) {
-           // prevent thread in a busy loop.
-            final CompletableFuture<Void> future = deque.poll();
-            if (future == null) {
-                break;
-            }
-            // this means that this tc client connection connect fail
+        CompletableFuture<Void> future;
+        while (System.currentTimeMillis() < endTime && (future = deque.poll()) != null) {
             consumer.accept(future);
         }
+        // If time exceeds max timeout
         if (!deque.isEmpty()) {
-            deque.clear();
+            while ((future = deque.poll()) != null) {
+                future.completeExceptionally(new TimeoutException("Connection wait exceeds max timeout."));
+            }
         }
     }
 
