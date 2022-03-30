@@ -347,9 +347,6 @@ jobs:
           - name: Cli
             group: CLI
 
-          - name: Function
-            group: FUNCTION
-
           - name: Messaging
             group: MESSAGING
 
@@ -587,6 +584,9 @@ jobs:
 
           - name: Tiered JCloud
             group: TIERED_JCLOUD
+
+          - name: Function
+            group: FUNCTION
 
           - name: Pulsar Connectors - Thread
             group: PULSAR_CONNECTORS_THREAD
