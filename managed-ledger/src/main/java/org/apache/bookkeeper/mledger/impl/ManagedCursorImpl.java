@@ -37,15 +37,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -914,7 +906,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                             long consumed = metadata.getIndex();
                             AtomicLong backlog = new AtomicLong(published - consumed);
                             List<CompletableFuture<Long>> futures = new ArrayList<>();
-                            individualDeletedMessages.forEach(r -> {
+
+                            Collection<Range<PositionImpl>> ranges = individualDeletedMessages.asRanges();
+                            for (Range<PositionImpl> r : ranges) {
                                 PositionImpl lower = r.lowerEndpoint();
                                 PositionImpl upper = r.upperEndpoint();
                                 CompletableFuture<Long> lowerFuture = new CompletableFuture<>();
@@ -966,8 +960,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                             return 0L;
                                         });
                                 futures.add(result);
-                                return true;
-                            });
+                            }
 
                             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                                     .thenAccept(__ -> {
