@@ -26,9 +26,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.TopicName;
 
+@UtilityClass
 public class TopicList {
+
+    private static final String SCHEME_SEPARATOR = "://";
+
+    private static final Pattern SCHEME_SEPARATOR_PATTERN = Pattern.compile(Pattern.quote(SCHEME_SEPARATOR));
 
     // get topics that match 'topicsPattern' from original topics list
     // return result should contain only topic names, without partition part
@@ -38,13 +45,13 @@ public class TopicList {
     }
     public static List<String> filterTopics(List<String> original, Pattern topicsPattern) {
 
-        final Pattern shortenedTopicsPattern = topicsPattern.toString().contains("://")
-                ? Pattern.compile(topicsPattern.toString().split("\\:\\/\\/")[1]) : topicsPattern;
+        final Pattern shortenedTopicsPattern = topicsPattern.toString().contains(SCHEME_SEPARATOR)
+                ? Pattern.compile(SCHEME_SEPARATOR_PATTERN.split(topicsPattern.toString())[1]) : topicsPattern;
 
         return original.stream()
                 .map(TopicName::get)
                 .map(TopicName::toString)
-                .filter(topic -> shortenedTopicsPattern.matcher(topic.split("\\:\\/\\/")[1]).matches())
+                .filter(topic -> shortenedTopicsPattern.matcher(SCHEME_SEPARATOR_PATTERN.split(topic)[1]).matches())
                 .collect(Collectors.toList());
     }
 
