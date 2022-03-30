@@ -48,6 +48,8 @@ metadataStoreCacheExpirySeconds: 300
 
 numFunctionPackageReplicas: 1
 downloadDirectory: download/pulsar_functions
+#Enable Functions Worker to use packageManagement Service to store package.
+functionsWorkerEnablePackageManagement: false
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
 # jvmGCMetricsLoggerClassName:
 

@@ -337,7 +337,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             try {
                 if (isNotBlank(functionPkgUrl)) {
                     if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
-                        componentPackageFile = downloadPackageFile(functionName);
+                        componentPackageFile = downloadPackageFile(functionPkgUrl);
                     } else {
                         try {
                             componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
@@ -377,12 +377,16 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                 + " Package is not provided");
                     }
                 } else {
-
                     componentPackageFile = FunctionCommon.createPkgTempFile();
                     componentPackageFile.deleteOnExit();
-                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(),
-                            componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
-
+                    if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+                        worker().getBrokerAdmin().packages().download(
+                                existingComponent.getPackageLocation().getPackagePath(),
+                                componentPackageFile.getAbsolutePath());
+                    } else {
+                        WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(),
+                                componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
+                    }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
                             mergedConfig, componentPackageFile);
                 }

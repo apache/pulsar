@@ -202,8 +202,7 @@ public class FunctionActioner {
         File pkgDir = pkgFile.getParentFile();
 
         if (pkgFile.exists()) {
-            log.warn("Function package exists already {} deleting it",
-                    pkgFile);
+            log.warn("Function package exists already {} deleting it", pkgFile);
             pkgFile.delete();
         }
 
@@ -211,7 +210,7 @@ public class FunctionActioner {
         do {
             tempPkgFile = new File(
                     pkgDir,
-                    pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID().toString());
+                    pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID());
         } while (tempPkgFile.exists() || !tempPkgFile.createNewFile());
         String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
@@ -221,6 +220,13 @@ public class FunctionActioner {
 
         if (downloadFromHttp) {
             FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
+        } else if (workerConfig.isFunctionsWorkerEnablePackageManagement()) {
+            try {
+                pulsarAdmin.packages().download(pkgLocationPath, tempPkgFile.getAbsolutePath());
+            } catch (PulsarAdminException e) {
+                log.error("Failed download package {} from packageMangment Service", pkgLocationPath, e);
+
+            }
         } else {
             FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile);
             WorkerUtils.downloadFromBookkeeper(

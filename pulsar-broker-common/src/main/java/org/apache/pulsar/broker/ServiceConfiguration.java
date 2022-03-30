@@ -2357,6 +2357,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String functionsWorkerServiceNarPackage = "";
 
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean functionsWorkerEnablePackageManagement = false;
+
     /**** --- Broker Web Stats. --- ****/
     @FieldContext(
         category = CATEGORY_METRICS,
