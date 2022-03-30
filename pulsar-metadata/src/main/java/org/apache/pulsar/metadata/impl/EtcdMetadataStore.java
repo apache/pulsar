@@ -73,7 +73,7 @@ import org.apache.pulsar.metadata.impl.batching.OpPut;
 @Slf4j
 public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
-    static final String ETCD_SCHEME_IDENTIFIER = "etcd:";
+    public static final String ETCD_SCHEME_IDENTIFIER = "etcd:";
 
     private final int leaseTTLSeconds;
     private final Client client;

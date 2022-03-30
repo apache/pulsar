@@ -22,6 +22,9 @@ import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.Test;
 
+/**
+ * Non-persistent topic messaging test.
+ */
 @Slf4j
 public class NonPersistentTopicMessagingTest extends TopicMessagingBase {
 

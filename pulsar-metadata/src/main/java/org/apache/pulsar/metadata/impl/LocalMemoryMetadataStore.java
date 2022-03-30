@@ -49,7 +49,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 @Slf4j
 public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended {
 
-    static final String MEMORY_SCHEME_IDENTIFIER = "memory:";
+    public static final String MEMORY_SCHEME_IDENTIFIER = "memory:";
 
     @Data
     private static class Value {

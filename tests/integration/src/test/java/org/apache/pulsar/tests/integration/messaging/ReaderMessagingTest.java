@@ -33,6 +33,9 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.Test;
 
+/**
+ * Reader messaging test.
+ */
 @Slf4j
 public class ReaderMessagingTest extends MessagingBase {
 

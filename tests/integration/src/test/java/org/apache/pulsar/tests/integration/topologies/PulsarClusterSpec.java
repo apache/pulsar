@@ -154,6 +154,15 @@ public class PulsarClusterSpec {
      */
     Map<String, String> brokerMountFiles;
 
+    /**
+     * Max message size.
+     */
     @Default
     int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+
+    /**
+     * MetadataStore type.
+     */
+    @Default
+    MetadataStoreType metadataStoreType = MetadataStoreType.ZOOKEEPER;
 }

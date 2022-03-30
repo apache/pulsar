@@ -31,6 +31,9 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.testng.annotations.Test;
 
+/**
+ * Non-durable consumer messaging test.
+ */
 public class NonDurableConsumerMessagingTest extends MessagingBase {
 
     @Test(dataProvider = "ServiceUrls")

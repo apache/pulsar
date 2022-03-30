@@ -37,9 +37,11 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.metadata.impl.EtcdMetadataStore;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
+import org.apache.pulsar.tests.integration.containers.EtcdContainer;
 import org.apache.pulsar.tests.integration.containers.PrestoWorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -92,6 +94,7 @@ public class PulsarCluster {
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
     private PrestoWorkerContainer prestoWorkerContainer;
+    private EtcdContainer etcdContainer;
     @Getter
     private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
@@ -124,6 +127,10 @@ public class PulsarCluster {
             .withEnv("forceSync", "no")
             .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
 
+        if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
+            this.etcdContainer = new EtcdContainer(clusterName, appendClusterName(EtcdContainer.NAME));
+        }
+
         this.csContainer = csContainer;
 
         this.bookieContainers = Maps.newTreeMap();
@@ -133,8 +140,6 @@ public class PulsarCluster {
         this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME)
             .withNetwork(network)
             .withNetworkAliases(appendClusterName("pulsar-proxy"))
-            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
-            .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
         if (spec.proxyEnvs != null) {
@@ -143,13 +148,19 @@ public class PulsarCluster {
         if (spec.proxyMountFiles != null) {
             spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
         }
+        if (MetadataStoreType.ZOOKEEPER.equals(spec.metadataStoreType)) {
+            proxyContainer.withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME));
+            proxyContainer.withEnv("zkServers", appendClusterName(ZKContainer.NAME));
+        } else if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
+            proxyContainer.withEnv("metadataStoreUrl", EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER +
+                    appendClusterName(EtcdContainer.NAME));
+        }
 
         // create bookies
         bookieContainers.putAll(
                 runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
                         .withNetwork(network)
                         .withNetworkAliases(appendClusterName(name))
-                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("useHostNameAsBookieID", "true")
                         // Disable fsyncs for tests since they're slow within the containers
                         .withEnv("journalSyncData", "false")
@@ -166,8 +177,6 @@ public class PulsarCluster {
                     BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name))
                         .withNetwork(network)
                         .withNetworkAliases(appendClusterName(name))
-                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
-                        .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
@@ -184,6 +193,13 @@ public class PulsarCluster {
                     }
                     if (spec.brokerMountFiles != null) {
                         spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
+                    }
+                    if (MetadataStoreType.ZOOKEEPER.equals(spec.metadataStoreType)) {
+                        brokerContainer.withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME));
+                        brokerContainer.withEnv("zkServers", appendClusterName(ZKContainer.NAME));
+                    } else if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
+                        brokerContainer.withEnv("metadataStoreUrl", EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER +
+                                appendClusterName(EtcdContainer.NAME));
                     }
                     return brokerContainer;
                 }
@@ -225,6 +241,13 @@ public class PulsarCluster {
         return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
+    public String getEtcdConnString() {
+        if (etcdContainer == null) {
+            return null;
+        }
+        return etcdContainer.getContainerIpAddress() + ":" + etcdContainer.getMappedPort(EtcdContainer.PORT);
+    }
+
     public String getCSConnString() {
         return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
     }
@@ -241,6 +264,12 @@ public class PulsarCluster {
         // start the local zookeeper
         zkContainer.start();
         log.info("Successfully started local zookeeper container.");
+
+        // start the etcd
+        if (etcdContainer != null) {
+            etcdContainer.start();
+            log.info("Successfully started etcd container.");
+        }
 
         // start the configuration store
         if (!sharedCsContainer) {
@@ -627,6 +656,10 @@ public class PulsarCluster {
         return zkContainer;
     }
 
+    public EtcdContainer getEtcd() {
+        return etcdContainer;
+    }
+
     public ContainerExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(ADMIN_SCRIPT, commands);
     }
@@ -665,6 +698,18 @@ public class PulsarCluster {
 
     public void startZooKeeper() {
         zkContainer.start();
+    }
+
+    public void stopEtcd() {
+        if (etcdContainer != null) {
+            etcdContainer.stop();
+        }
+    }
+
+    public void startEtcd() {
+        if (etcdContainer != null) {
+            etcdContainer.start();
+        }
     }
 
     public ContainerExecResult createNamespace(String nsName) throws Exception {

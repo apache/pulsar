@@ -29,6 +29,14 @@
             <class name="org.apache.pulsar.tests.integration.messaging.ReaderMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.NonDurableConsumerMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.admin.AdminTest" />
+
+            <class name="org.apache.pulsar.tests.integration.messaging.etcd.EtcdPersistentTopicMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.etcd.EtcdNonPersistentTopicMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.etcd.EtcdGeoReplicationTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.etcd.EtcdDelayMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.etcd.EtcdReaderMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.etcd.EtcdNonDurableConsumerMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.admin.EtcdAdminTest" />
         </classes>
     </test>
 </suite>

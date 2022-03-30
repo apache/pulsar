@@ -73,7 +73,7 @@ import org.rocksdb.WriteOptions;
 @Slf4j
 public class RocksdbMetadataStore extends AbstractMetadataStore {
 
-    static final String ROCKSDB_SCHEME_IDENTIFIER = "rocksdb:";
+    public static final String ROCKSDB_SCHEME_IDENTIFIER = "rocksdb:";
 
     private static final byte[] SEQUENTIAL_ID_KEY = toBytes("__metadata_sequentialId_key");
     private static final byte[] INSTANCE_ID_KEY = toBytes("__metadata_instanceId_key");
