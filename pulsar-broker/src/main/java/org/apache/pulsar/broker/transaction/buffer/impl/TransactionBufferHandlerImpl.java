@@ -280,8 +280,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     } else {
                         REQUEST_CREDITS_UPDATER.incrementAndGet(this);
                     }
-                } else {
-                    checkPendingRequests();
                 }
             } else {
                 break;
