@@ -424,6 +424,10 @@ jobs:
         run: |
           ./build/run_integration_group.sh ${{ matrix.group }}
 
+      - name: print JVM thread dumps when cancelled
+        if: cancelled()
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
+
       - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: ./.github/actions/copy-test-reports
@@ -668,6 +672,10 @@ jobs:
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           ./build/run_integration_group.sh ${{ matrix.group }}
+
+      - name: print JVM thread dumps when cancelled
+        if: cancelled()
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
 
       - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
