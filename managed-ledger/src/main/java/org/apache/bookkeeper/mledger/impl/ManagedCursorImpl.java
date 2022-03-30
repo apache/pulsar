@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -92,6 +93,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -885,6 +888,110 @@ public class ManagedCursorImpl implements ManagedCursor {
         } else {
             return getNumberOfEntries(Range.closedOpen(readPosition, ledger.getLastPosition().getNext()));
         }
+    }
+
+    @Override
+    public CompletableFuture<Long> getBacklogMessages() {
+        CompletableFuture<Long> result = new CompletableFuture<>();
+
+        CompletableFuture<Long> publishedMessages = this.ledger.getPublishedMessages();
+        publishedMessages
+                .thenAccept(published -> {
+                    if (published <= 0) {
+                        result.complete(0L);
+                        return;
+                    }
+
+                    this.ledger.asyncReadEntry(this.markDeletePosition, new ReadEntryCallback() {
+                        @Override
+                        public void readEntryComplete(Entry entry, Object ctx) {
+                            BrokerEntryMetadata metadata =
+                                    Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                            if (null == metadata) {
+                                result.complete(0L);
+                                return;
+                            }
+                            long consumed = metadata.getIndex();
+                            AtomicLong backlog = new AtomicLong(published - consumed);
+                            List<CompletableFuture<Long>> futures = new ArrayList<>();
+                            individualDeletedMessages.forEach(r -> {
+                                PositionImpl lower = r.lowerEndpoint();
+                                PositionImpl upper = r.upperEndpoint();
+                                CompletableFuture<Long> lowerFuture = new CompletableFuture<>();
+                                CompletableFuture<Long> upperFuture = new CompletableFuture<>();
+
+                                ledger.asyncReadEntry(lower, new ReadEntryCallback() {
+                                    @Override
+                                    public void readEntryComplete(Entry entry, Object ctx) {
+                                        long index = 0;
+                                        BrokerEntryMetadata lowerMeta =
+                                                Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                                        if (lowerMeta != null) {
+                                            index = lowerMeta.getIndex();
+                                        }
+                                        lowerFuture.complete(index);
+                                    }
+
+                                    @Override
+                                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                        lowerFuture.complete(0L);
+                                    }
+                                }, null);
+                                ledger.asyncReadEntry(upper, new ReadEntryCallback() {
+                                    @Override
+                                    public void readEntryComplete(Entry entry, Object ctx) {
+                                        long index = 0;
+                                        BrokerEntryMetadata upperMeta =
+                                                Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                                        if (upperMeta != null) {
+                                            index = upperMeta.getIndex();
+                                        }
+                                        upperFuture.complete(index);
+                                    }
+
+                                    @Override
+                                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                        upperFuture.complete(0L);
+                                    }
+                                }, null);
+
+
+                                CompletableFuture<Long> result = CompletableFuture.allOf(lowerFuture, upperFuture)
+                                        .thenApply(__ -> {
+                                            long lowerIndex = lowerFuture.join();
+                                            long upperIndex = upperFuture.join();
+                                            if (lowerIndex > 0 && upperIndex > 0 && upperIndex > lowerIndex) {
+                                                return upperIndex - lowerIndex;
+                                            }
+                                            return 0L;
+                                        });
+                                futures.add(result);
+                                return true;
+                            });
+
+                            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                                    .thenAccept(__ -> {
+                                        long individualConsumed =
+                                                futures.stream().mapToLong(CompletableFuture::join).sum();
+                                        if (individualConsumed > 0) {
+                                            backlog.addAndGet(-individualConsumed);
+                                        }
+                                        result.complete(backlog.get());
+                                    });
+                        }
+
+                        @Override
+                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                            result.complete(0L);
+                        }
+                    }, null);
+                })
+                .exceptionally(t -> {
+                    result.complete(0L);
+                    return null;
+                });
+
+        return result;
     }
 
     @Override

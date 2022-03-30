@@ -126,6 +126,7 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -1167,6 +1168,34 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return size;
             }
         }
+    }
+
+    @Override
+    public CompletableFuture<Long> getPublishedMessages() {
+        CompletableFuture<Long> result = new CompletableFuture<>();
+        if (this.managedLedgerInterceptor == null) {
+            result.complete(0L);
+            return result;
+        }
+
+        this.asyncReadEntry(this.getLastPosition(), new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                BrokerEntryMetadata metadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                long index = 0;
+                if (null != metadata) {
+                    index = metadata.getIndex();
+                }
+                result.complete(index);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null);
+
+        return result;
     }
 
     @Override

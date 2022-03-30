@@ -23,6 +23,8 @@ import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -250,6 +252,9 @@ public interface ManagedCursor {
      * @return the number of entries
      */
     long getNumberOfEntries();
+
+
+    CompletableFuture<Long> getBacklogMessages();
 
     /**
      * Return the number of non-deleted messages on this cursor.

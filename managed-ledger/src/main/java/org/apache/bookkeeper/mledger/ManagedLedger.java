@@ -401,6 +401,9 @@ public interface ManagedLedger {
      */
     long getEstimatedBacklogSize();
 
+
+    CompletableFuture<Long> getPublishedMessages();
+
     /**
      * Get the publishing time of the oldest message in the backlog.
      *
