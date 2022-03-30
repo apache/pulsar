@@ -71,7 +71,7 @@ mvn_run_integration_test() {
   fi
   echo "::group::Run tests for " "$@"
   # use "verify" instead of "test"
-  $RETRY mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false verify "$@"
+  $RETRY mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true verify "$@"
   echo "::endgroup::"
   set +x
   "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
