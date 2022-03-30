@@ -350,9 +350,6 @@ jobs:
           - name: Messaging
             group: MESSAGING
 
-          - name: Schema
-            group: SCHEMA
-
           - name: Shade
             group: SHADE
 
@@ -587,6 +584,9 @@ jobs:
 
           - name: Function
             group: FUNCTION
+
+          - name: Schema
+            group: SCHEMA
 
           - name: Pulsar Connectors - Thread
             group: PULSAR_CONNECTORS_THREAD
