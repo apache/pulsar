@@ -20,6 +20,8 @@
 
 # shell function library for Pulsar CI builds
 
+ARTIFACT_RETENTION_DAYS="${ARTIFACT_RETENTION_DAYS:-3}"
+
 # lists all available functions in this tool
 function ci_list_functions() {
   declare -F | awk '{print $NF}' | sort | grep -E '^ci_' | sed 's/^ci_//'
@@ -90,7 +92,7 @@ function ci_docker_save_image_to_github_actions_artifacts() {
   echo "::group::Saving docker image ${image} with name ${artifactname} in GitHub Actions Artifacts"
   # delete possible previous artifact that might exist when re-running
   gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
-  docker save ${image} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload "${artifactname}"
+  docker save ${image} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
   echo "::endgroup::"
 }
 
@@ -120,7 +122,7 @@ function ci_store_tar_to_github_actions_artifacts() {
   echo "::group::Storing $1 tar command output to name ${artifactname} in GitHub Actions Artifacts"
   # delete possible previous artifact that might exist when re-running
   gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
-  "$@" | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload "${artifactname}"
+  "$@" | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
   echo "::endgroup::"
 }
 
