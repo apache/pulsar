@@ -189,6 +189,7 @@ public class TransactionMetadataStoreService {
                             // when tcLoadSemaphore.release(), this command will acquire semaphore,
                             // so we should jude the store exist again.
                             if (stores.get(tcId) != null) {
+                                tcLoadSemaphore.release();
                                 return CompletableFuture.completedFuture(null);
                             }
                             return openTransactionMetadataStore(tcId)
