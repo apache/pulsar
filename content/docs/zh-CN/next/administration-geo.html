@@ -206,7 +206,7 @@ producer.newMessage()
 <h3><a class="anchor" aria-hidden="true" id="局限性"></a><a href="#局限性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>局限性</h3>
 <ul>
 <li>当您启用复制订阅时，您正在创建一致的分布式快照，以建立来自不同集群的消息id之间的关联。 快照是定期备份的， 默认是<code>1秒</code>。 这意味着因为故障而转移到其他集群的使用者可能会收到1秒的重复数据。 你也可以在<code>broker.conf</code>文件中配置快照的频率。</li>
-<li>在复制订阅中只有基准游标位置是同步的，而个别的确认是不同步地。 这意味着在集群故障转移的情况，确认无序的消息最终可能会再次被传递。</li>
+<li>在复制订阅中只有基准游标位置是同步的，而个别的确认是不同步的。 这意味着在集群故障转移的情况，确认无序的消息最终可能会再次被传递。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="在集群之间使用跨地域复制迁移数据"></a><a href="#在集群之间使用跨地域复制迁移数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在集群之间使用跨地域复制迁移数据</h2>
 <p>当您没有大量的数据时，在集群间使用跨地域复制是<a href="/docs/zh-CN/next/concepts-replication/#active-active-replication">主动复制模式</a>的一个特殊用例。</p>
@@ -222,21 +222,21 @@ producer.newMessage()
 <pre><code class="hljs css language-shell">  bin/pulsar-admin tenants update my-tenant --cluster old-cluster,new-cluster
 </code></pre>
 <ol>
-<li>Set the clusters on your namespace.</li>
+<li>在您的命名空间上设置集群。</li>
 </ol>
 <pre><code class="hljs css language-shell">  bin/pulsar-admin namespaces set-clusters my-tenant/my-ns --cluster old-cluster,new-cluster
 </code></pre>
 <ol>
-<li>Update your applications using <a href="#replicated-subscriptions">replicated subscriptions</a>.</li>
-<li>Validate subscription replication is active.</li>
+<li>使用<a href="#replicated-subscriptions">复制订阅</a>更新您的应用程序。</li>
+<li>验证订阅复制是否处于活动状态。</li>
 </ol>
 <pre><code class="hljs css language-shell">  bin/pulsar-admin topics stats-internal public/default/t1
 </code></pre>
 <ol>
-<li>Move your consumers and producers to the new cluster by modifying the values of <code>serviceURL</code>.</li>
+<li>通过修改<code>serviceURL</code>的值，将你的消费者和生产者转移到新的集群。</li>
 </ol>
 <blockquote>
-<p>Note * The replication starts from step 4, which means existing messages in your old cluster are not replicated. * If you have some older messages to migrate, you can pre-create the replication subscriptions for each topic and set it at the earliest position by using <code>pulsar-admin topics create-subscription -s pulsar.repl.new-cluster -m earliest &lt;topic&gt;</code>.</p>
+<p>注意 * 复制始于第4步，这意味着您旧集群中的现有消息不会被复制。 * 如果您有一些较早的消息要迁移，您可以为每个主题预先创建复制订阅，并使用 <code>pulsar-admin topics create-subscription -s pulsar.repl.new-cluster - m earliest &lt;topic&gt;</code>将其设置在最早的位置。</p>
 </blockquote>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/administration-zk-bk"><span class="arrow-prev">← </span><span class="function-name-prevnext">ZooKeeper 和 BookKeeper</span></a><a class="docs-next button" href="/docs/zh-CN/next/administration-pulsar-manager"><span>Pulsar Manager</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#在命名空间级别启用跨地域复制">在命名空间级别启用跨地域复制</a></li><li><a href="#本地持久化与转发">本地持久化与转发</a></li><li><a href="#配置复制">配置复制</a><ul class="toc-headings"><li><a href="#连接复制集群">连接复制集群</a></li><li><a href="#授予属性权限">授予属性权限</a></li><li><a href="#启用跨地域复制">启用跨地域复制</a></li><li><a href="#主题跨域复制">主题跨域复制</a></li></ul></li><li><a href="#复制订阅">复制订阅</a><ul class="toc-headings"><li><a href="#启用复制订阅">启用复制订阅</a></li><li><a href="#优势">优势</a></li><li><a href="#局限性">局限性</a></li></ul></li><li><a href="#在集群之间使用跨地域复制迁移数据">在集群之间使用跨地域复制迁移数据</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
