@@ -112,7 +112,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     }
 
     @Test
-    public void testProduceAndConsumeUnderSystemTopic() throws Exception {
+    public void testProduceAndConsumeUnderSystemNamespace() throws Exception {
         TenantInfo tenantInfo = TenantInfo
                 .builder()
                 .adminRoles(Sets.newHashSet("admin"))
