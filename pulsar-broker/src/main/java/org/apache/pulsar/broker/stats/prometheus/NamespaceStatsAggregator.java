@@ -162,6 +162,13 @@ public class NamespaceStatsAggregator {
             stats.backlogQuotaLimitTime = topic
                     .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime();
 
+            stats.managedLedgerStats.offloadLedgerOffloadOp = mlStats.getOffloadLedgerOffloadOp();
+            stats.managedLedgerStats.offloadLedgerOffloadErrors = mlStats.getOffloadLedgerOffloadErrors();
+            stats.managedLedgerStats.offloadLedgerOpenOp = mlStats.getOffloadLedgerOpenOp();
+            stats.managedLedgerStats.offloadLedgerOpenErrors = mlStats.getOffloadLedgerOpenErrors();
+            stats.managedLedgerStats.offloadLedgerDeleteOp = mlStats.getOffloadLedgerDeleteOp();
+            stats.managedLedgerStats.offloadLedgerDeleteErrors = mlStats.getOffloadLedgerDeleteErrors();
+
             stats.managedLedgerStats.storageWriteLatencyBuckets
                     .addAll(mlStats.getInternalAddEntryLatencyBuckets());
             stats.managedLedgerStats.storageWriteLatencyBuckets.refresh();
@@ -335,6 +342,18 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize);
         metric(stream, cluster, namespace, "pulsar_storage_offloaded_size",
                 stats.managedLedgerStats.offloadedStorageUsed);
+        metric(stream, cluster, namespace, "pulsar_offloader_offload_ops",
+                stats.managedLedgerStats.offloadLedgerOffloadOp);
+        metric(stream, cluster, namespace, "pulsar_offloader_offload_errors",
+                stats.managedLedgerStats.offloadLedgerOffloadErrors);
+        metric(stream, cluster, namespace, "pulsar_offloader_open_ops",
+                stats.managedLedgerStats.offloadLedgerOpenOp);
+        metric(stream, cluster, namespace, "pulsar_offloader_open_errors",
+                stats.managedLedgerStats.offloadLedgerOpenErrors);
+        metric(stream, cluster, namespace, "pulsar_offloader_delete_ops",
+                stats.managedLedgerStats.offloadLedgerDeleteOp);
+        metric(stream, cluster, namespace, "pulsar_offloader_delete_errors",
+                stats.managedLedgerStats.offloadLedgerDeleteErrors);
 
         metric(stream, cluster, namespace, "pulsar_storage_write_rate", stats.managedLedgerStats.storageWriteRate);
         metric(stream, cluster, namespace, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate);

@@ -127,4 +127,16 @@ public interface ManagedLedgerMXBean {
     long[] getLedgerAddEntryLatencyBuckets();
 
     StatsBuckets getInternalLedgerAddEntryLatencyBuckets();
+
+    long getOffloadLedgerOffloadOp();
+
+    long getOffloadLedgerOffloadErrors();
+
+    long getOffloadLedgerOpenOp();
+
+    long getOffloadLedgerOpenErrors();
+
+    long getOffloadLedgerDeleteOp();
+
+    long getOffloadLedgerDeleteErrors();
 }

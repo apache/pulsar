@@ -50,6 +50,13 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final LongAdder cursorLedgerCreateOp = new LongAdder();
     private final LongAdder cursorLedgerDeleteOp = new LongAdder();
 
+    private final LongAdder offloadLedgerOffloadOp = new LongAdder();
+    private final LongAdder offloadLedgerOffloadErrors = new LongAdder();
+    private final LongAdder offloadLedgerOpenOp = new LongAdder();
+    private final LongAdder offloadLedgerOpenErrors = new LongAdder();
+    private final LongAdder offloadLedgerDeleteOp = new LongAdder();
+    private final LongAdder offloadLedgerDeleteErrors = new LongAdder();
+
     // addEntryLatencyStatsUsec measure total latency including time entry spent while waiting in queue
     private final StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
     // ledgerAddEntryLatencyStatsUsec measure latency to persist entry into ledger
@@ -317,6 +324,55 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         result.cursorLedgerCreateOp = cursorLedgerCreateOp.longValue();
         result.cursorLedgerDeleteOp = cursorLedgerDeleteOp.longValue();
         return result;
+    }
+
+    @Override
+    public long getOffloadLedgerOffloadOp() {
+        return offloadLedgerOffloadOp.longValue();
+    }
+
+    @Override
+    public long getOffloadLedgerOffloadErrors() {
+        return offloadLedgerOffloadErrors.longValue();
+    }
+
+    @Override
+    public long getOffloadLedgerOpenOp() {
+        return offloadLedgerOpenOp.longValue();
+    }
+
+    @Override
+    public long getOffloadLedgerOpenErrors() {
+        return offloadLedgerOpenErrors.longValue();
+    }
+
+    @Override
+    public long getOffloadLedgerDeleteOp() {
+        return offloadLedgerDeleteOp.longValue();
+    }
+
+    @Override
+    public long getOffloadLedgerDeleteErrors() {
+        return offloadLedgerDeleteErrors.longValue();
+    }
+
+    public void recordOffloadLedgerOffloadOp() {
+        offloadLedgerOffloadOp.increment();
+    }
+    public void recordOffloadLedgerOffloadError() {
+        offloadLedgerOffloadErrors.increment();
+    }
+    public void recordOffloadLedgerOpenOp() {
+        offloadLedgerOpenOp.increment();
+    }
+    public void recordOffloadLedgerOpenError() {
+        offloadLedgerOpenErrors.increment();
+    }
+    public void recordOffloadLedgerDeleteOp() {
+        offloadLedgerDeleteOp.increment();
+    }
+    public void recordOffloadLedgerDeleteError() {
+        offloadLedgerDeleteErrors.increment();
     }
 
 }

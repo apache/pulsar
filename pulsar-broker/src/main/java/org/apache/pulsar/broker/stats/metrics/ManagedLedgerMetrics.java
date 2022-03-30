@@ -23,12 +23,14 @@ import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
 
+@Slf4j
 public class ManagedLedgerMetrics extends AbstractMetrics {
 
     private List<Metrics> metricsCollection;
@@ -86,6 +88,9 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
 
             for (ManagedLedgerImpl ledger : ledgers) {
                 ManagedLedgerMXBean lStats = ledger.getStats();
+                log.info("aggregate metrics for ledger {} getOffloadLedgerOffloadOp {}", ledger.getName(),
+                        lStats.getOffloadLedgerOffloadOp());
+
 
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate",
                         lStats.getAddEntryBytesRate());

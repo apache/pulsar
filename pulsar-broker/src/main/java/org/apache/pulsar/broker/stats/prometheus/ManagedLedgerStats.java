@@ -28,6 +28,13 @@ public class ManagedLedgerStats {
     long offloadedStorageUsed;
     long storageLogicalSize;
 
+    long offloadLedgerOffloadOp;
+    long offloadLedgerOffloadErrors;
+    long offloadLedgerOpenOp;
+    long offloadLedgerOpenErrors;
+    long offloadLedgerDeleteOp;
+    long offloadLedgerDeleteErrors;
+
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);

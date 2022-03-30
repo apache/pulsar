@@ -139,6 +139,18 @@ class TopicStats {
                 splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.managedLedgerStats
                 .offloadedStorageUsed, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_offloader_offload_ops",
+                stats.managedLedgerStats.offloadLedgerOffloadOp, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_offloader_offload_errors",
+                stats.managedLedgerStats.offloadLedgerOffloadErrors, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_offloader_open_ops",
+                stats.managedLedgerStats.offloadLedgerOpenOp, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_offloader_open_errors",
+                stats.managedLedgerStats.offloadLedgerOpenErrors, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_offloader_delete_ops",
+                stats.managedLedgerStats.offloadLedgerDeleteOp, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_offloader_delete_errors",
+                stats.managedLedgerStats.offloadLedgerDeleteErrors, splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit,
                 splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit_time",

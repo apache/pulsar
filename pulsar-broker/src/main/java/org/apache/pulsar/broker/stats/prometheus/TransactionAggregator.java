@@ -144,6 +144,12 @@ public class TransactionAggregator {
         managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
         managedLedgerStats.backlogSize = managedLedger.getEstimatedBacklogSize();
         managedLedgerStats.offloadedStorageUsed = managedLedger.getOffloadedSize();
+        managedLedgerStats.offloadLedgerOffloadOp = mlStats.getOffloadLedgerOffloadOp();
+        managedLedgerStats.offloadLedgerOffloadErrors = mlStats.getOffloadLedgerOffloadErrors();
+        managedLedgerStats.offloadLedgerOpenOp = mlStats.getOffloadLedgerOpenOp();
+        managedLedgerStats.offloadLedgerOpenErrors = mlStats.getOffloadLedgerOpenErrors();
+        managedLedgerStats.offloadLedgerDeleteOp = mlStats.getOffloadLedgerDeleteOp();
+        managedLedgerStats.offloadLedgerDeleteErrors = mlStats.getOffloadLedgerDeleteErrors();
 
         managedLedgerStats.storageWriteLatencyBuckets
                 .addAll(mlStats.getInternalAddEntryLatencyBuckets());
