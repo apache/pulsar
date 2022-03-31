@@ -264,7 +264,7 @@ jobs:
     timeout-minutes: 60
     needs: ['changed_files_job', 'build-and-license-check']
     env:
-      UBUNTU_MIRROR: mirror://mirrors.ubuntu.com/mirrors.txt
+      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -497,7 +497,7 @@ jobs:
     timeout-minutes: 60
     needs: ['changed_files_job', 'build-and-license-check']
     env:
-      UBUNTU_MIRROR: mirror://mirrors.ubuntu.com/mirrors.txt
+      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
