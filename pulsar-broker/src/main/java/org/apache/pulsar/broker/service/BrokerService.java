@@ -2835,7 +2835,8 @@ public class BrokerService implements Closeable {
 
     public boolean isAllowAutoTopicCreation(final TopicName topicName) {
         //System topic can always be created automatically
-        if (isSystemTopic(topicName)) {
+        if ((pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName))
+            || NamespaceName.SYSTEM_NAMESPACE.equals(topicName.getNamespaceObject())) {
             return true;
         }
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
