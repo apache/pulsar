@@ -335,7 +335,7 @@ public class UtilsTest {
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"value\":{\"c\":\"1\","
+        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":{\"c\":\"1\","
                 + "\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}},"
                 + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
     }
@@ -433,7 +433,7 @@ public class UtilsTest {
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord);
 
         assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
-                + "\"value\":{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,"
+                + "\"payload\":{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,"
                 + "\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}},\"properties\":{\"prop-key\":\"prop-value\"},"
                 + "\"eventTime\":1648502845803}");
     }
@@ -490,7 +490,7 @@ public class UtilsTest {
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"value\":\"message-value\","
+        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":\"message-value\","
                 + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
     }
 }

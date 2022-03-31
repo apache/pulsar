@@ -71,7 +71,7 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
             + "  #\n"
             + "  # - FULL_MESSAGE_IN_JSON_EXPAND_VALUE \n"
             + "  #\n"
-            + "  #   Kinesis sink sends a JSON structure containing the record topic name, key, value, properties and event time.\n"
+            + "  #   Kinesis sink sends a JSON structure containing the record topic name, key, payload, properties and event time.\n"
             + "  #   The record schema is used to convert the value to JSON."
     )
     private MessageFormat messageFormat = MessageFormat.ONLY_RAW_PAYLOAD; // default : ONLY_RAW_PAYLOAD
@@ -125,17 +125,17 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
          */
         FULL_MESSAGE_IN_FB,
         /**
-         * Kinesis sink sends a JSON structure containing the record topic name, key, value, properties and event time.
+         * Kinesis sink sends a JSON structure containing the record topic name, key, payload, properties and event time.
          * The record schema is used to convert the value to JSON.
          *
          * Example for primitive schema:
-         * {"topicName":"my-topic","key":"message-key","value":"message-value","properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
+         * {"topicName":"my-topic","key":"message-key","payload":"message-value","properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
          *
          * Example for AVRO or JSON schema:
-         * {"topicName":"my-topic","key":"message-key","value":{"c":"1","d":1,"e":{"a":"a"}},"properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
+         * {"topicName":"my-topic","key":"message-key","payload":{"c":"1","d":1,"e":{"a":"a"}},"properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
          *
          * Example for KeyValue schema:
-         * {"topicName":"my-topic","key":"message-key","value":{"value":{"c":"1","d":1,"e":{"a":"a"}},"key":{"a":"1","b":1}},"properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
+         * {"topicName":"my-topic","key":"message-key","payload":{"value":{"c":"1","d":1,"e":{"a":"a"}},"key":{"a":"1","b":1}},"properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
          */
         FULL_MESSAGE_IN_JSON_EXPAND_VALUE
     }

@@ -26,7 +26,7 @@ import lombok.Data;
 public class JsonRecord {
     String topicName;
     String key;
-    Object value;
+    Object payload;
     Map<String, String> properties;
     Long eventTime;
 

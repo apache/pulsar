@@ -219,7 +219,7 @@ public class Utils {
         JsonRecord jsonRecord = new JsonRecord();
         GenericObject value = record.getValue();
         if (value != null) {
-            jsonRecord.setValue(toJsonSerializable(record.getSchema(), value.getNativeObject()));
+            jsonRecord.setPayload(toJsonSerializable(record.getSchema(), value.getNativeObject()));
         }
         record.getKey().ifPresent(jsonRecord::setKey);
         record.getTopicName().ifPresent(jsonRecord::setTopicName);
