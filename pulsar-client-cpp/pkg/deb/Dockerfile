@@ -49,12 +49,12 @@ RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/prot
     rm -rf /protobuf-cpp-3.3.0.tar.gz /protobuf-3.3.0
 
 # ZLib
-RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.11.tar.gz && \
-    tar xvfz v1.2.11.tar.gz && \
-    cd zlib-1.2.11 && \
+RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.12.tar.gz && \
+    tar xvfz v1.2.12.tar.gz && \
+    cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
-    rm -rf /v1.2.11.tar.gz /zlib-1.2.11
+    rm -rf /v1.2.12.tar.gz /zlib-1.2.12
 
 # Zstandard
 RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
