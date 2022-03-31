@@ -23,12 +23,15 @@ import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Interface which serves as a component for ModularLoadManagerImpl, flexibly allowing the injection of potentially
  * complex strategies.
  */
 public interface ModularLoadManagerStrategy {
+    Logger log = LoggerFactory.getLogger(ModularLoadManagerStrategy.class);
 
     /**
      * Find a suitable broker to assign the given bundle to.
@@ -55,11 +58,17 @@ public interface ModularLoadManagerStrategy {
      */
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            // Only one strategy at the moment.
-            return new LeastLongTermMessageRate(conf);
+            Class<?> loadManagerStrategyClass = Class.forName(conf.getLoadBalancerLoadManagerStrategy());
+            Object loadManagerStrategyInstance = loadManagerStrategyClass.newInstance();
+            if (loadManagerStrategyInstance instanceof ModularLoadManagerStrategy) {
+                return (ModularLoadManagerStrategy) loadManagerStrategyInstance;
+            } else {
+                log.error("create load manager strategy failed. using LeastLongTermMessageRate instead.");
+                return new LeastLongTermMessageRate();
+            }
         } catch (Exception e) {
-            // Ignore
+            log.error("Error when trying to create load manager strategy: ", e);
         }
-        return new LeastLongTermMessageRate(conf);
+        return new LeastLongTermMessageRate();
     }
 }

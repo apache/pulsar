@@ -19,13 +19,16 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
+import org.apache.pulsar.broker.loadbalance.impl.ThresholdLoadManagerStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -51,12 +54,58 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         ServiceConfiguration conf = new ServiceConfiguration();
-        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate(conf);
+        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate();
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
         brokerData1.getTimeAverageData().setLongTermMsgRateIn(400);
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+    }
+
+    @Test
+    public void testThresholdLoadManagerStrategy() {
+        BundleData bundleData = new BundleData();
+        BrokerData brokerData1 = initBrokerData(40, 100);
+        BrokerData brokerData2 = initBrokerData(50, 100);
+        BrokerData brokerData3 = initBrokerData(60, 100);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        ModularLoadManagerStrategy strategy = new ThresholdLoadManagerStrategy();
+
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertTrue(
+                Arrays.asList(Optional.of("1"), Optional.of("2"))
+                        .contains(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf)));
+
+        brokerDataMap.clear();
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
+
+        brokerDataMap.clear();
+        brokerDataMap.put("1", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+
+        brokerDataMap.clear();
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+    }
+
+    private BrokerData initBrokerData(double usage, double limit) {
+        LocalBrokerData localBrokerData = new LocalBrokerData();
+        localBrokerData.setCpu(new ResourceUsage(usage, limit));
+        localBrokerData.setMemory(new ResourceUsage(usage, limit));
+        localBrokerData.setBandwidthIn(new ResourceUsage(usage, limit));
+        localBrokerData.setBandwidthOut(new ResourceUsage(usage, limit));
+        BrokerData brokerData = new BrokerData(localBrokerData);
+        TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
+        brokerData.setTimeAverageData(timeAverageBrokerData);
+        return brokerData;
     }
 
     private BrokerData initBrokerData() {

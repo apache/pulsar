@@ -18,38 +18,39 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.ArrayList;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
+import org.apache.pulsar.broker.BrokerData;
+import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
-import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
- * Placement strategy which selects a broker based on which one has the least long term message rate.
+ * Placement strategy which selects a broker based on which one has resource usage below average load.
  */
-public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
-    private static Logger log = LoggerFactory.getLogger(LeastLongTermMessageRate.class);
+public class ThresholdLoadManagerStrategy implements ModularLoadManagerStrategy {
+    private static final Logger log = LoggerFactory.getLogger(ThresholdLoadManagerStrategy.class);
 
     // Maintain this list to reduce object creation.
-    private ArrayList<String> bestBrokers;
+    private final ArrayList<String> bestBrokers;
 
-    public LeastLongTermMessageRate() {
+    // candidate broker -> broker usage.
+    private final Map<String, Double> brokerUsages;
+
+    public ThresholdLoadManagerStrategy() {
         bestBrokers = new ArrayList<>();
+        brokerUsages = new HashMap<>();
     }
 
-    // Form a score for a broker using its preallocated bundle data and time average data.
-    // This is done by summing all preallocated long-term message rates and adding them to the broker's overall
-    // long-term message rate, which is itself the sum of the long-term message rate of every allocated bundle.
-    // Any broker at (or above) the overload threshold will have a score of POSITIVE_INFINITY.
     private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final double maxUsage = brokerData.getLocalData().getMaxResourceUsage();
@@ -58,23 +59,15 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
             return Double.POSITIVE_INFINITY;
         }
 
-        double totalMessageRate = 0;
-        for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
-            final TimeAverageMessageData longTermData = bundleData.getLongTermData();
-            totalMessageRate += longTermData.getMsgRateIn() + longTermData.getMsgRateOut();
-        }
-
-        // calculate estimated score
-        final TimeAverageBrokerData timeAverageData = brokerData.getTimeAverageData();
-        final double timeAverageLongTermMessageRate = timeAverageData.getLongTermMsgRateIn()
-                + timeAverageData.getLongTermMsgRateOut();
-        final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
+        double brokerResourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwithInResourceWeight(), conf.getLoadBalancerBandwithOutResourceWeight());
 
         if (log.isDebugEnabled()) {
-            log.debug("Broker {} has long term message rate {}",
-                    brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
+            log.debug("Broker {} resource usage {}",
+                    brokerData.getLocalData().getWebServiceUrl(), brokerResourceUsage);
         }
-        return totalMessageRateEstimate;
+        return brokerResourceUsage;
     }
 
     /**
@@ -91,13 +84,14 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign,
-                                         final LoadData loadData,
-                                         final ServiceConfiguration conf) {
+    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign, final LoadData loadData,
+            final ServiceConfiguration conf) {
         bestBrokers.clear();
-        double minScore = Double.POSITIVE_INFINITY;
-        // Maintain of list of all the best scoring brokers and then randomly
+        brokerUsages.clear();
+
+        // Maintain of list of all the brokers below average load, and then randomly
         // select one of them at the end.
+        double sumScore = 0.0;
         for (String broker : candidates) {
             final BrokerData brokerData = loadData.getBrokerData().get(broker);
             final double score = getScore(brokerData, conf);
@@ -109,22 +103,23 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
                         broker, localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
                         localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
                         localData.getBandwidthOut().percentUsage());
-
+                continue;
             }
-            if (score < minScore) {
-                // Clear best brokers since this score beats the other brokers.
-                bestBrokers.clear();
-                bestBrokers.add(broker);
-                minScore = score;
-            } else if (score == minScore) {
-                // Add this broker to best brokers since it ties with the best score.
-                bestBrokers.add(broker);
-            }
+            sumScore += score;
+            brokerUsages.put(broker, score);
         }
-        if (bestBrokers.isEmpty()) {
+
+        if (brokerUsages.isEmpty()) {
             // All brokers are overloaded.
             // Assign randomly in this case.
             bestBrokers.addAll(candidates);
+        } else {
+            double avgUsage = sumScore / brokerUsages.size();
+            for (Map.Entry<String, Double> entry : brokerUsages.entrySet()) {
+                if (entry.getValue() <= avgUsage) {
+                    bestBrokers.add(entry.getKey());
+                }
+            }
         }
 
         if (bestBrokers.isEmpty()) {
