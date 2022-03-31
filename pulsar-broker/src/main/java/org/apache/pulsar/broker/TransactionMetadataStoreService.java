@@ -263,17 +263,18 @@ public class TransactionMetadataStoreService {
                 .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
         if (tcLoadSemaphore.tryAcquire()) {
             TransactionMetadataStore metadataStore = stores.remove(tcId);
-            if (metadataStore != null) {
-                metadataStore.closeAsync().whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        LOG.error("Close transaction metadata store with id " + tcId, ex);
-                    } else {
-                        LOG.info("Removed and closed transaction meta store {}", tcId);
-                    }
-                });
+            if (metadataStore == null) {
+                tcLoadSemaphore.release();
+                return CompletableFuture.completedFuture(null);
             }
-            tcLoadSemaphore.release();
-            return CompletableFuture.completedFuture(null);
+            return metadataStore.closeAsync().whenComplete((v, ex) -> {
+                if (ex != null) {
+                    LOG.error("Close transaction metadata store with id " + tcId, ex);
+                } else {
+                    LOG.info("Removed and closed transaction meta store {}", tcId);
+                }
+                tcLoadSemaphore.release();
+            });
         } else {
             return FutureUtil.failedFuture(
                     new ServiceUnitNotReadyException("Could not remove "
