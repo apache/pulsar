@@ -436,10 +436,10 @@ public class PersistentReplicator extends AbstractReplicator
                 // cursor should be rewinded since it was incremented when readMoreEntries
                 replicator.cursor.rewind();
             } else {
-//                if (log.isDebugEnabled()) {
+                if (log.isDebugEnabled()) {
                     log.info("[{}][{} -> {}] Message persisted on remote broker", replicator.topicName,
                             replicator.localCluster, replicator.remoteCluster);
-//                }
+                }
                 replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
             entry.release();
