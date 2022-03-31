@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.offload.filesystem;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -30,6 +32,7 @@ import org.testng.annotations.BeforeMethod;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.Properties;
+import java.util.concurrent.Executors;
 
 public abstract class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
@@ -37,6 +40,7 @@ public abstract class FileStoreTestBase {
     protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
+    protected LedgerOffloaderStats offloaderStats;
 
     @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
@@ -48,9 +52,10 @@ public abstract class FileStoreTestBase {
 
         hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
+        this.offloaderStats = new LedgerOffloaderStatsImpl(true, Executors.newScheduledThreadPool(1), 60);
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
                 OffloadPoliciesImpl.create(properties),
-                scheduler, hdfsURI, basePath);
+                scheduler, hdfsURI, basePath, offloaderStats);
     }
 
     @AfterMethod(alwaysRun = true)

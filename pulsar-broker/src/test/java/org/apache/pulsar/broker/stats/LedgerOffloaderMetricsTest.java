@@ -31,9 +31,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
@@ -65,7 +65,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
         admin.namespaces().createNamespace(ns1);
         String []topics = new String[3];
 
-        LedgerOffloaderStats offloaderStats = LedgerOffloaderStats.getInstance();
+        LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
 
         LedgerOffloader offloader = Mockito.mock(LedgerOffloader.class);
         Topic topic = Mockito.mock(PersistentTopic.class);
@@ -121,7 +121,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";
 
-        LedgerOffloaderStats offloaderStats = LedgerOffloaderStats.getInstance();
+        LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
 
         LedgerOffloader offloader = Mockito.mock(LedgerOffloader.class);
         Topic topic = Mockito.mock(PersistentTopic.class);

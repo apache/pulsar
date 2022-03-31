@@ -27,7 +27,7 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileStoreTestBase;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -80,7 +80,6 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     public void start() throws Exception {
-        LedgerOffloaderStats.initialize(true, true, null, 60);
         super.start();
     }
 
@@ -125,7 +124,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, map).get();
 
-        LedgerOffloaderStats offloaderStats = LedgerOffloaderStats.getInstance();
+        LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) this.offloaderStats;
         assertTrue(offloaderStats.getOffloadError(topic) == 0);
         assertTrue(offloaderStats.getOffloadBytes(topic) > 0);
         assertTrue(offloaderStats.getReadLedgerLatency(topic).count > 0);

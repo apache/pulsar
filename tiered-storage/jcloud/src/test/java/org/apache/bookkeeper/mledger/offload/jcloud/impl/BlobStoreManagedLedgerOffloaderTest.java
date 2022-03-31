@@ -35,12 +35,14 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.jclouds.blobstore.BlobStore;
@@ -56,6 +58,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
     private TieredStorageConfiguration mockedConfig;
+    private final LedgerOffloaderStats offloaderStats;
 
     BlobStoreManagedLedgerOffloaderTest() throws Exception {
         super();
@@ -64,6 +67,8 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         assertNotNull(provider);
         provider.validate(config);
         blobStore = provider.getBlobStore(config);
+        this.offloaderStats =
+                new LedgerOffloaderStatsImpl(true, Executors.newScheduledThreadPool(1), 60);
     }
 
     private BlobStoreManagedLedgerOffloader getOffloader() throws IOException {
@@ -77,14 +82,14 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
     private BlobStoreManagedLedgerOffloader getOffloader(String bucket) throws IOException {
         mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket)));
         Mockito.doReturn(blobStore).when(mockedConfig).getBlobStore(); // Use the REAL blobStore
-        BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig, new HashMap<String,String>(), scheduler);
+        BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig, new HashMap<String,String>(), scheduler, this.offloaderStats);
         return offloader;
     }
     
     private BlobStoreManagedLedgerOffloader getOffloader(String bucket, BlobStore mockedBlobStore) throws IOException {
         mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket)));
         Mockito.doReturn(mockedBlobStore).when(mockedConfig).getBlobStore(); 
-        BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig, new HashMap<String,String>(), scheduler);
+        BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig, new HashMap<String,String>(), scheduler, this.offloaderStats);
         return offloader;
     }
 
@@ -160,7 +165,6 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
     @Test(timeOut = 600000)  // 10 minutes.
     public void testOffloadAndReadMetrics() throws Exception {
-        LedgerOffloaderStats.initialize(true, true, null, 60);
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = getOffloader();
 
@@ -171,7 +175,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         extraMap.put("ManagedLedgerName", topic);
         offloader.offload(toWrite, uuid, extraMap).get();
 
-        LedgerOffloaderStats offloaderStats = LedgerOffloaderStats.getInstance();
+        LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) this.offloaderStats;
 
         assertEquals(offloaderStats.getOffloadError(topic), 0);
         assertTrue(offloaderStats.getOffloadBytes(topic) > 0 );

@@ -53,6 +53,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderStreamingTest.class);
     private TieredStorageConfiguration mockedConfig;
     private static final Random random = new Random();
+    private final LedgerOffloaderStats offloaderStats;
 
     BlobStoreManagedLedgerOffloaderStreamingTest() throws Exception {
         super();
@@ -61,7 +62,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         assertNotNull(provider);
         provider.validate(config);
         blobStore = provider.getBlobStore(config);
-        LedgerOffloaderStats.initialize(true, false, null, 60);
+        this.offloaderStats = LedgerOffloaderStats.NOOP;
     }
 
     private BlobStoreManagedLedgerOffloader getOffloader(Map<String, String> additionalConfig) throws IOException {
@@ -78,7 +79,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket, additionalConfig)));
         Mockito.doReturn(blobStore).when(mockedConfig).getBlobStore(); // Use the REAL blobStore
         BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader
-                .create(mockedConfig, new HashMap<String, String>(), scheduler);
+                .create(mockedConfig, new HashMap<String, String>(), scheduler, this.offloaderStats);
         return offloader;
     }
 
@@ -87,7 +88,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket, additionalConfig)));
         Mockito.doReturn(mockedBlobStore).when(mockedConfig).getBlobStore();
         BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader
-                .create(mockedConfig, new HashMap<String, String>(), scheduler);
+                .create(mockedConfig, new HashMap<String, String>(), scheduler, this.offloaderStats);
         return offloader;
     }
 

@@ -110,13 +110,14 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
-                                                         OrderedScheduler scheduler) throws IOException {
+                                                         OrderedScheduler scheduler,
+                                                         LedgerOffloaderStats offloaderStats) throws IOException {
 
-        return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata);
+        return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata, offloaderStats);
     }
 
     BlobStoreManagedLedgerOffloader(TieredStorageConfiguration config, OrderedScheduler scheduler,
-                                    Map<String, String> userMetadata) {
+                                    Map<String, String> userMetadata, LedgerOffloaderStats offloaderStats) {
 
         this.scheduler = scheduler;
         this.userMetadata = userMetadata;
@@ -144,7 +145,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 config.getBucket(), config.getRegion());
 
         blobStores.putIfAbsent(config.getBlobStoreLocation(), config.getBlobStore());
-        this.offloaderStats = LedgerOffloaderStats.getInstance();
+        this.offloaderStats = offloaderStats;
         log.info("The ledger offloader was created.");
     }
 

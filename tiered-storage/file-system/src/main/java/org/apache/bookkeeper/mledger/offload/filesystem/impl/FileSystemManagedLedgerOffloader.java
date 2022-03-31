@@ -76,11 +76,13 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     }
 
     public static FileSystemManagedLedgerOffloader create(OffloadPoliciesImpl conf,
-                                                          OrderedScheduler scheduler) throws IOException {
-        return new FileSystemManagedLedgerOffloader(conf, scheduler);
+                                                          OrderedScheduler scheduler,
+                                                          LedgerOffloaderStats offloaderStats) throws IOException {
+        return new FileSystemManagedLedgerOffloader(conf, scheduler, offloaderStats);
     }
 
-    private FileSystemManagedLedgerOffloader(OffloadPoliciesImpl conf, OrderedScheduler scheduler) throws IOException {
+    private FileSystemManagedLedgerOffloader(OffloadPoliciesImpl conf, OrderedScheduler scheduler,
+                                             LedgerOffloaderStats offloaderStats) throws IOException {
         this.offloadPolicies = conf;
         this.configuration = new Configuration();
         if (conf.getFileSystemProfilePath() != null) {
@@ -108,14 +110,15 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(conf.getManagedLedgerOffloadMaxThreads())
                 .name("offload-assignment").build();
-        this.offloaderStats = LedgerOffloaderStats.getInstance();
+        this.offloaderStats = offloaderStats;
     }
 
     @VisibleForTesting
     public FileSystemManagedLedgerOffloader(OffloadPoliciesImpl conf,
                                             OrderedScheduler scheduler,
                                             String testHDFSPath,
-                                            String baseDir) throws IOException {
+                                            String baseDir,
+                                            LedgerOffloaderStats offloaderStats) throws IOException {
         this.offloadPolicies = conf;
         this.configuration = new Configuration();
         this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
@@ -129,7 +132,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(conf.getManagedLedgerOffloadMaxThreads())
                 .name("offload-assignment").build();
-        this.offloaderStats = LedgerOffloaderStats.getInstance();
+        this.offloaderStats = offloaderStats;
     }
 
     @Override
