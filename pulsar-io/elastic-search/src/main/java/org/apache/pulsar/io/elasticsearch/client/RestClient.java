@@ -49,6 +49,7 @@ import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
@@ -182,6 +183,9 @@ public abstract class RestClient implements Closeable {
                     && !Strings.isNullOrEmpty(sslConfig.getTruststorePassword())) {
                 sslContextBuilder.loadTrustMaterial(new File(sslConfig.getTruststorePath()),
                         sslConfig.getTruststorePassword().toCharArray());
+            }
+            if (sslConfig.isDisableCertificateValidation()) {
+                sslContextBuilder.loadTrustMaterial(null, TrustAllStrategy.INSTANCE);
             }
             if (!Strings.isNullOrEmpty(sslConfig.getKeystorePath())
                     && !Strings.isNullOrEmpty(sslConfig.getKeystorePassword())) {
