@@ -22,11 +22,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
-
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -39,7 +37,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -125,7 +122,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -171,7 +168,7 @@ public class BatchMessageTest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topicName)
             .compressionType(compressionType)
-            .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
+            .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
             .batchingMaxMessages(0)
             .batchingMaxBytes(numBytesInBatch)
             .enableBatching(true)
@@ -217,7 +214,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
-                .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -253,7 +251,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS).batchingMaxMessages(5)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(5)
                 .batcherBuilder(builder)
                 .compressionType(compressionType).enableBatching(true).create();
 
@@ -293,7 +292,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -353,7 +353,7 @@ public class BatchMessageTest extends BrokerTestBase {
             .compressionType(compressionType)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             // disabled time based batch by setting delay to a large enough value
-            .batchingMaxPublishDelay(60, TimeUnit.HOURS)
+            .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
             // disabled size based batch
             .batchingMaxMessages(2 * numMsgs)
             .enableBatching(true)
@@ -409,7 +409,9 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgsInBatch)
+                .enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -452,7 +454,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(numMsgsInBatch)
                 .enableBatching(true)
                 .batcherBuilder(builder)
@@ -504,7 +506,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).maxPendingMessages(numMsgs + 1)
-                .batchingMaxPublishDelay(30, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -567,7 +570,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
@@ -632,7 +636,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -684,12 +689,12 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-            .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-            .batchingMaxMessages(numMsgsInBatch)
-            .enableBatching(true)
-            .batcherBuilder(builder)
-            .messageRoutingMode(MessageRoutingMode.SinglePartition)
-            .create();
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgsInBatch)
+                .enableBatching(true)
+                .batcherBuilder(builder)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
         // create producer to publish non batch messages
         Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -755,7 +760,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgs).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -804,7 +810,7 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/testKeyBased";
         final String subscriptionName = "sub-1";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(30)
                 .enableBatching(true)
                 .batcherBuilder(BatcherBuilder.KEY_BASED)
@@ -876,7 +882,8 @@ public class BatchMessageTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(numMsgs).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -908,7 +915,8 @@ public class BatchMessageTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS).batchingMaxMessages(numMsgs)
+                .enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
 
@@ -936,7 +944,7 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/testSendOverSizeMessage-" + UUID.randomUUID();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(2)
                 .enableBatching(true)
                 .compressionType(compressionType)
@@ -974,7 +982,7 @@ public class BatchMessageTest extends BrokerTestBase {
                 .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).batchingMaxMessages(batchMessages)
-                .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS).enableBatching(true).create();
+                .batchingMaxPublishDelay(Integer.MAX_VALUE, TimeUnit.MILLISECONDS).enableBatching(true).create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
