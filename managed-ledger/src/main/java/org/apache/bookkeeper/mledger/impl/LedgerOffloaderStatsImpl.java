@@ -5,6 +5,8 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,12 +24,16 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private static final String TOPIC_LABEL = "topic";
     private static final String NAMESPACE_LABEL = "namespace";
     private static final String UNKNOWN = "unknown";
+    private static final String STATUS = "status";
+    private static final String SUCCEED = "succeed";
+    private static final String FAILED = "failed";
 
     private final boolean exposeTopicLevelMetrics;
     private final int interval;
 
     private final Counter offloadError;
     private final Gauge offloadRate;
+    private final Counter deleteOffloadOps;
     private final Summary readLedgerLatency;
     private final Counter writeStorageError;
     private final Counter readOffloadError;
@@ -70,13 +76,20 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 .labelNames(labels).create().register();
         this.readLedgerLatency = Summary.build("brk_ledgeroffloader_read_ledger_latency", "-")
                 .labelNames(labels).create().register();
+
+        String[] deleteOpsLabels = exposeTopicLevelMetrics
+                ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
+        this.deleteOffloadOps = Counter.build("brk_ledgeroffloader_delete_offload_ops", "-")
+                .labelNames(deleteOpsLabels).create().register();
     }
 
+    @Override
     public void recordOffloadError(String topic) {
         String[] labelValues = this.labelValues(topic);
         this.offloadError.labels(labelValues).inc();
     }
 
+    @Override
     public void recordOffloadBytes(String topic, long size) {
         topic = StringUtils.isBlank(topic) ? UNKNOWN : topic;
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
@@ -84,21 +97,25 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         pair.getLeft().add(size);
     }
 
+    @Override
     public void recordReadLedgerLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
         this.readLedgerLatency.labels(labelValues).observe(unit.toMicros(latency));
     }
 
+    @Override
     public void recordWriteToStorageError(String topic) {
         String[] labelValues = this.labelValues(topic);
         this.writeStorageError.labels(labelValues).inc();
     }
 
+    @Override
     public void recordReadOffloadError(String topic) {
         String[] labelValues = this.labelValues(topic);
         this.readOffloadError.labels(labelValues).inc();
     }
 
+    @Override
     public void recordReadOffloadBytes(String topic, long size) {
         topic = StringUtils.isBlank(topic) ? UNKNOWN : topic;
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
@@ -106,29 +123,50 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         pair.getRight().add(size);
     }
 
+    @Override
     public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
         this.readOffloadIndexLatency.labels(labelValues).observe(unit.toMicros(latency));
     }
 
+    @Override
     public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
         this.readOffloadDataLatency.labels(labelValues).observe(unit.toMicros(latency));
     }
 
+    @Override
+    public void recordDeleteOffloadOps(String topic, boolean succeed) {
+        String status = succeed ? SUCCEED : FAILED;
+        String[] labelValues = this.labelValues(topic, status);
+        this.deleteOffloadOps.labels(labelValues).inc();
+    }
+
+
+    private String[] labelValues(String topic, String status) {
+        if (StringUtils.isBlank(topic)) {
+            return exposeTopicLevelMetrics ? new String[]{UNKNOWN, UNKNOWN, status} : new String[]{UNKNOWN, status};
+        }
+        String namespace = this.getNamespace(topic);
+        return this.exposeTopicLevelMetrics ? new String[]{namespace, topic, status} : new String[]{namespace, status};
+    }
 
     private String[] labelValues(String topic) {
         if (StringUtils.isBlank(topic)) {
             return this.exposeTopicLevelMetrics ? new String[]{UNKNOWN, UNKNOWN} : new String[]{UNKNOWN};
         }
-        String namespace = this.topic2Namespace.computeIfAbsent(topic, t -> {
+        String namespace = this.getNamespace(topic);
+        return this.exposeTopicLevelMetrics ? new String[]{namespace, topic} : new String[]{namespace};
+    }
+
+    private String getNamespace(String topic) {
+        return this.topic2Namespace.computeIfAbsent(topic, t -> {
             try {
                 return TopicName.get(t).getNamespace();
             } catch (Throwable th) {
                 return UNKNOWN;
             }
         });
-        return this.exposeTopicLevelMetrics ? new String[]{namespace, topic} : new String[]{namespace};
     }
 
     @Override

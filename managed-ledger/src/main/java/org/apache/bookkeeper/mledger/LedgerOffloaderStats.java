@@ -46,6 +46,8 @@ public interface LedgerOffloaderStats extends AutoCloseable {
 
     void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit);
 
+    void recordDeleteOffloadOps(String topic, boolean succeed);
+
 
     LedgerOffloaderStats NOOP = new LedgerOffloaderStats() {
         @Override
@@ -85,6 +87,11 @@ public interface LedgerOffloaderStats extends AutoCloseable {
 
         @Override
         public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {
+
+        }
+
+        @Override
+        public void recordDeleteOffloadOps(String topic, boolean succeed) {
 
         }
 
