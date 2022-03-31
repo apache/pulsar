@@ -1978,13 +1978,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (isAuthorized) {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
                         .thenAccept(topics -> {
-                            boolean filterTopics = enableSubscriptionPatternEvaluation && topicsPattern.isPresent()
-                                    && topicsPattern.get().length() <= maxSubscriptionPatternLength;
-                            List<String> filteredTopics;
-                            if (filterTopics) {
-                                filteredTopics = TopicList.filterTopics(topics, topicsPattern.get());
-                            } else {
-                                filteredTopics = topics;
+                            boolean filterTopics = false;
+                            List<String> filteredTopics = topics;
+
+                            if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
+                                if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
+                                    filterTopics = true;
+                                    filteredTopics = TopicList.filterTopics(topics, topicsPattern.get());
+                                } else {
+                                    log.info("[{}] Subscription pattern provided was longer than maximum {}.",
+                                            remoteAddress, maxSubscriptionPatternLength);
+                                }
                             }
                             String hash = TopicList.calculateHash(filteredTopics);
                             boolean hashUnchanged = topicsHash.isPresent() && topicsHash.get().equals(hash);
