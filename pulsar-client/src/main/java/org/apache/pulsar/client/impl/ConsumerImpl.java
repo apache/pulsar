@@ -1085,7 +1085,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             uncompressedPayload.release();
         }
-        tryTriggerListener();
+        internalPinnedExecutor.execute(()
+                -> tryTriggerListener());
 
     }
 
