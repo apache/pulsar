@@ -24,10 +24,12 @@ import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
  * Etcd container.
  */
 public class EtcdContainer extends ChaosContainer<EtcdContainer> {
-    public static final String NAME = "ETCD";
-    public static final int PORT = 2380;
-    public static final Integer[] PORTS = { 2379, 2380 };
-    private static final String IMAGE_NAME = "etcd:3.5.2";
+
+    public static final String NAME = "etcd";
+    public static final int PORT = 2379;
+    public static final int INTERNAL_PORT = 2380;
+    public static final Integer[] PORTS = {PORT, INTERNAL_PORT};
+    private static final String IMAGE_NAME = "quay.io/coreos/etcd:v3.5.2";
 
     private String networkAlias;
 
@@ -39,12 +41,24 @@ public class EtcdContainer extends ChaosContainer<EtcdContainer> {
     @Override
     protected void configure() {
         super.configure();
+
+        String[] command = new String[]{
+                "/usr/local/bin/etcd",
+                "--name", String.format("%s0", clusterName),
+                "--initial-advertise-peer-urls", String.format("http://%s:%d", clusterName, INTERNAL_PORT),
+                "--listen-peer-urls", String.format("http://0.0.0.0:%d", INTERNAL_PORT),
+                "--advertise-client-urls", String.format("http://%s:%d", clusterName, PORT),
+                "--listen-client-urls", String.format("http://0.0.0.0:%d", PORT),
+                "--initial-cluster", String.format("%s0=http://%s:%d", clusterName, clusterName, INTERNAL_PORT),
+        };
+
         this.withNetworkAliases(networkAlias)
-            .withExposedPorts(PORTS)
-            .withCreateContainerCmdModifier(createContainerCmd -> {
-                createContainerCmd.withHostName(NAME);
-                createContainerCmd.withName(clusterName + "-" + NAME);
-            })
-            .waitingFor(new HostPortWaitStrategy());
+                .withExposedPorts(PORTS)
+                .withCommand(command)
+                .withCreateContainerCmdModifier(createContainerCmd -> {
+                    createContainerCmd.withHostName(clusterName);
+                    createContainerCmd.withName(clusterName + "-" + NAME);
+                })
+                .waitingFor(new HostPortWaitStrategy());
     }
 }

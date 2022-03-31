@@ -18,11 +18,20 @@
  */
 package org.apache.pulsar.tests.integration.admin;
 
-import org.apache.pulsar.tests.integration.messaging.etcd.EtcdMessagingBase;
+import org.apache.pulsar.tests.integration.topologies.BookieMetadataStoreType;
+import org.apache.pulsar.tests.integration.topologies.MetadataStoreType;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 
 /**
  * Etcd integration tests for Pulsar Admin.
  */
-public class EtcdAdminTest extends EtcdMessagingBase {
+public class EtcdAdminTest extends AdminTest {
 
+    @Override
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
+                                                                            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        return super.beforeSetupCluster(clusterName, specBuilder)
+                .metadataStoreType(MetadataStoreType.ETCD)
+                .bookieMetadataStoreType(BookieMetadataStoreType.ETCD);
+    }
 }

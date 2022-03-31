@@ -16,26 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.topologies;
+package org.apache.pulsar.tests.integration.containers;
 
 /**
- * Metadata store type.
+ * Metadata store driver.
  */
-public enum MetadataStoreType {
+public interface MetadataStoreContainer {
 
-    ZOOKEEPER("zookeeper"),
+    String getConnString(String host);
 
-    ETCD("etcd"),
+    void start();
 
-    ;
-
-    private String name;
-
-    MetadataStoreType(String name) {
-        this.name = name;
-    }
-
-    public String getName() {
-        return name;
-    }
+    void close();
 }

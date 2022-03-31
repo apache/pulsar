@@ -161,8 +161,14 @@ public class PulsarClusterSpec {
     int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     /**
-     * MetadataStore type.
+     * Metadata store type.
      */
     @Default
     MetadataStoreType metadataStoreType = MetadataStoreType.ZOOKEEPER;
+
+    /**
+     * Bookie metadata store type.
+     */
+    @Default
+    BookieMetadataStoreType bookieMetadataStoreType = BookieMetadataStoreType.ZOOKEEPER;
 }

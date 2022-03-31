@@ -162,6 +162,10 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     @Override
     public void start() {
+        if (isCreated()) {
+            return;
+        }
+
         if (httpPort > 0 && servicePort < 0) {
             this.waitStrategy = new HttpWaitStrategy()
                 .forPort(httpPort)

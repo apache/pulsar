@@ -37,16 +37,18 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.metadata.impl.EtcdMetadataStore;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
+import org.apache.pulsar.tests.integration.containers.BookieMetadataStoreContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
-import org.apache.pulsar.tests.integration.containers.EtcdContainer;
+import org.apache.pulsar.tests.integration.containers.EtcdMetadataStoreContainer;
+import org.apache.pulsar.tests.integration.containers.MetadataStoreContainer;
 import org.apache.pulsar.tests.integration.containers.PrestoWorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
+import org.apache.pulsar.tests.integration.containers.ZKMetadataStoreContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -93,8 +95,9 @@ public class PulsarCluster {
     private final Map<String, BrokerContainer> brokerContainers;
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
+    private final MetadataStoreContainer metadataStoreContainer;
+    private final BookieMetadataStoreContainer bookieMetadataStoreContainer;
     private PrestoWorkerContainer prestoWorkerContainer;
-    private EtcdContainer etcdContainer;
     @Getter
     private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
@@ -116,7 +119,6 @@ public class PulsarCluster {
             prestoWorkerContainer = null;
         }
 
-
         this.zkContainer = new ZKContainer(clusterName);
         this.zkContainer
             .withNetwork(network)
@@ -127,10 +129,8 @@ public class PulsarCluster {
             .withEnv("forceSync", "no")
             .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
 
-        if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
-            this.etcdContainer = new EtcdContainer(clusterName, appendClusterName(EtcdContainer.NAME));
-        }
-
+        this.metadataStoreContainer = createMetadataStoreContainer();
+        this.bookieMetadataStoreContainer = createBookieMetadataStoreContainer();
         this.csContainer = csContainer;
 
         this.bookieContainers = Maps.newTreeMap();
@@ -141,34 +141,33 @@ public class PulsarCluster {
             .withNetwork(network)
             .withNetworkAliases(appendClusterName("pulsar-proxy"))
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
-            .withEnv("clusterName", clusterName);
+            .withEnv("clusterName", clusterName)
+            .withEnv("metadataStoreUrl", getMetadataStoreConnString());
         if (spec.proxyEnvs != null) {
             spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
         }
         if (spec.proxyMountFiles != null) {
             spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
         }
-        if (MetadataStoreType.ZOOKEEPER.equals(spec.metadataStoreType)) {
-            proxyContainer.withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME));
-            proxyContainer.withEnv("zkServers", appendClusterName(ZKContainer.NAME));
-        } else if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
-            proxyContainer.withEnv("metadataStoreUrl", EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER +
-                    appendClusterName(EtcdContainer.NAME));
-        }
 
         // create bookies
         bookieContainers.putAll(
-                runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
-                        .withNetwork(network)
-                        .withNetworkAliases(appendClusterName(name))
-                        .withEnv("useHostNameAsBookieID", "true")
-                        // Disable fsyncs for tests since they're slow within the containers
-                        .withEnv("journalSyncData", "false")
-                        .withEnv("journalMaxGroupWaitMSec", "0")
-                        .withEnv("clusterName", clusterName)
-                        .withEnv("diskUsageThreshold", "0.99")
-                        .withEnv("nettyMaxFrameSizeBytes", "" + spec.maxMessageSize)
-                )
+                runNumContainers("bookie", spec.numBookies(), (name) -> {
+                    BKContainer bkContainer = new BKContainer(clusterName, name)
+                            .withNetwork(network)
+                            .withNetworkAliases(appendClusterName(name))
+                            .withEnv("useHostNameAsBookieID", "true")
+                            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+                            // Disable fsyncs for tests since they're slow within the containers
+                            .withEnv("journalSyncData", "false")
+                            .withEnv("journalMaxGroupWaitMSec", "0")
+                            .withEnv("clusterName", clusterName)
+                            .withEnv("diskUsageThreshold", "0.99")
+                            .withEnv("nettyMaxFrameSizeBytes", "" + spec.maxMessageSize)
+                            .withEnv("metadataServiceUri", getBookieMetadataStoreConnString());
+                    return bkContainer;
+                }
+            )
         );
 
         // create brokers
@@ -183,7 +182,9 @@ public class PulsarCluster {
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
                         .withEnv("AWS_SECRET_KEY", "secretkey")
-                        .withEnv("maxMessageSize", "" + spec.maxMessageSize);
+                        .withEnv("maxMessageSize", "" + spec.maxMessageSize)
+                        .withEnv("metadataStoreUrl", getMetadataStoreConnString());
+
                     if (spec.queryLastMessage) {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
                         brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
@@ -193,13 +194,6 @@ public class PulsarCluster {
                     }
                     if (spec.brokerMountFiles != null) {
                         spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
-                    }
-                    if (MetadataStoreType.ZOOKEEPER.equals(spec.metadataStoreType)) {
-                        brokerContainer.withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME));
-                        brokerContainer.withEnv("zkServers", appendClusterName(ZKContainer.NAME));
-                    } else if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
-                        brokerContainer.withEnv("metadataStoreUrl", EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER +
-                                appendClusterName(EtcdContainer.NAME));
                     }
                     return brokerContainer;
                 }
@@ -241,11 +235,20 @@ public class PulsarCluster {
         return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
-    public String getEtcdConnString() {
-        if (etcdContainer == null) {
-            return null;
-        }
-        return etcdContainer.getContainerIpAddress() + ":" + etcdContainer.getMappedPort(EtcdContainer.PORT);
+    public String getMetadataStoreConnString() {
+        return getMetadataStoreConnString(appendClusterName(spec.metadataStoreType.getName()));
+    }
+
+    public String getMetadataStoreConnString(String host) {
+        return metadataStoreContainer.getConnString(host);
+    }
+
+    public String getBookieMetadataStoreConnString() {
+        return bookieMetadataStoreContainer.getBookieConnString(appendClusterName(spec.bookieMetadataStoreType.getName()));
+    }
+
+    public String getBookieMetadataStoreConnString(String host) {
+        return bookieMetadataStoreContainer.getBookieConnString(host);
     }
 
     public String getCSConnString() {
@@ -265,11 +268,13 @@ public class PulsarCluster {
         zkContainer.start();
         log.info("Successfully started local zookeeper container.");
 
-        // start the etcd
-        if (etcdContainer != null) {
-            etcdContainer.start();
-            log.info("Successfully started etcd container.");
-        }
+        // start the metadata store
+        metadataStoreContainer.start();
+        log.info("Successfully started metadata store container.");
+
+        // start the bookie metadata store
+        bookieMetadataStoreContainer.start();
+        log.info("Successfully started bookie metadata store container.");
 
         // start the configuration store
         if (!sharedCsContainer) {
@@ -656,8 +661,12 @@ public class PulsarCluster {
         return zkContainer;
     }
 
-    public EtcdContainer getEtcd() {
-        return etcdContainer;
+    public MetadataStoreContainer getMetadataStoreContainer() {
+        return metadataStoreContainer;
+    }
+
+    public BookieMetadataStoreContainer getBookieMetadataStoreContainer() {
+        return bookieMetadataStoreContainer;
     }
 
     public ContainerExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
@@ -700,16 +709,20 @@ public class PulsarCluster {
         zkContainer.start();
     }
 
-    public void stopEtcd() {
-        if (etcdContainer != null) {
-            etcdContainer.stop();
-        }
+    public void stopMetadataStore() {
+        metadataStoreContainer.close();
     }
 
-    public void startEtcd() {
-        if (etcdContainer != null) {
-            etcdContainer.start();
-        }
+    public void startMetadataStore() {
+        metadataStoreContainer.start();
+    }
+
+    public void stopBookieMetadataStore() {
+        bookieMetadataStoreContainer.close();
+    }
+
+    public void startBookieMetadataStore() {
+        bookieMetadataStoreContainer.start();
     }
 
     public ContainerExecResult createNamespace(String nsName) throws Exception {
@@ -749,5 +762,23 @@ public class PulsarCluster {
 
     private String appendClusterName(String name) {
         return sharedCsContainer ? clusterName + "-" + name : name;
+    }
+
+    private MetadataStoreContainer createMetadataStoreContainer() {
+        if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
+            return new EtcdMetadataStoreContainer(clusterName, appendClusterName(spec.metadataStoreType.getName()));
+        }
+        return new ZKMetadataStoreContainer(zkContainer);
+    }
+
+    private BookieMetadataStoreContainer createBookieMetadataStoreContainer() {
+        if (BookieMetadataStoreType.ETCD.equals(spec.bookieMetadataStoreType)) {
+            if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
+                return (BookieMetadataStoreContainer) metadataStoreContainer;
+            } else {
+                return new EtcdMetadataStoreContainer(clusterName, appendClusterName(spec.metadataStoreType.getName()));
+            }
+        }
+        return new ZKMetadataStoreContainer(zkContainer);
     }
 }

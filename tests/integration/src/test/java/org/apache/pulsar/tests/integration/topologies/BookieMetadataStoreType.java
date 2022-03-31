@@ -19,9 +19,9 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 /**
- * Metadata store type.
+ * Bookie metadata store type.
  */
-public enum MetadataStoreType {
+public enum BookieMetadataStoreType {
 
     ZOOKEEPER("zookeeper"),
 
@@ -31,7 +31,7 @@ public enum MetadataStoreType {
 
     private String name;
 
-    MetadataStoreType(String name) {
+    BookieMetadataStoreType(String name) {
         this.name = name;
     }
 
