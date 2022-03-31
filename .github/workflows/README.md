@@ -50,3 +50,11 @@ done
 ```
 
 Duplicate names are allowed, and all checks with the same name will be treated the same (required or not required).
+
+When working on workflow changes, one way to find out the names of the status checks is to retrieve the names
+from the PR build run. The "check-runs" can be found by commit id. Here's an example:
+
+```shell
+curl -s "https://api.github.com/repos/apache/pulsar/commits/$(git rev-parse HEAD)/check-runs" | \
+  jq -r '.check_runs | .[] | .name' |sort
+```
