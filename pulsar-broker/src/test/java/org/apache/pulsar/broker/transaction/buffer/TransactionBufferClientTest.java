@@ -164,15 +164,15 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         CompletableFuture<TxnID> endFuture =
                 transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1);
 
-        Field field = TransactionBufferHandlerImpl.class.getDeclaredField("pendingRequests");
+        Field field = TransactionBufferHandlerImpl.class.getDeclaredField("outstandingRequests");
         field.setAccessible(true);
-        ConcurrentSkipListMap<Long, Object> pendingRequests =
+        ConcurrentSkipListMap<Long, Object> outstandingRequests =
                 (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
 
-        assertEquals(pendingRequests.size(), 1);
+        assertEquals(outstandingRequests.size(), 1);
 
         Awaitility.await().atLeast(2, TimeUnit.SECONDS).until(() -> {
-            if (pendingRequests.size() == 0) {
+            if (outstandingRequests.size() == 0) {
                 return true;
             }
             return false;
