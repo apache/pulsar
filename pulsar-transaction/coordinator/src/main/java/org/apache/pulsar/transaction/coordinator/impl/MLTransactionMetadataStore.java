@@ -257,7 +257,7 @@ public class MLTransactionMetadataStore
                         State.Ready, getState(), "add produced partition"));
                 return;
             }
-            getTxnPositionPair(txnID).thenAccept(txnMetaListPair -> {
+            getTxnPositionPair(txnID).thenCompose(txnMetaListPair -> {
                 TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                         .setTxnidMostBits(txnID.getMostSigBits())
                         .setTxnidLeastBits(txnID.getLeastSigBits())
@@ -266,12 +266,7 @@ public class MLTransactionMetadataStore
                         .setLastModificationTime(System.currentTimeMillis())
                         .setMaxLocalTxnId(sequenceIdGenerator.getCurrentSequenceId());
 
-                transactionLog.append(transactionMetadataEntry)
-                        .whenComplete((position, exception) -> {
-                            if (exception != null) {
-                                completableFuture.completeExceptionally(exception);
-                                return;
-                            }
+                return transactionLog.append(transactionMetadataEntry).thenAccept(position -> {
                             appendLogCount.increment();
                             try {
                                 synchronized (txnMetaListPair.getLeft()) {
@@ -287,6 +282,9 @@ public class MLTransactionMetadataStore
                                 completableFuture.completeExceptionally(e);
                             }
                         });
+            }).exceptionally(ex -> {
+                completableFuture.completeExceptionally(ex);
+                return null;
             });
         });
         return completableFuture;
