@@ -113,7 +113,7 @@ public class BrokerProxyValidator {
     }
 
     public CompletableFuture<InetSocketAddress> resolveAndCheckTargetAddress(String hostAndPort) {
-        int pos = hostAndPort.indexOf(':');
+        int pos = hostAndPort.lastIndexOf(':');
         String host = hostAndPort.substring(0, pos);
         int port = Integer.parseInt(hostAndPort.substring(pos + 1));
         if (!isPortAllowed(port)) {

@@ -38,10 +38,10 @@
     <airlift.version>0.170</airlift.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
-    <jackson.version>2.12.6</jackson.version>
+    <jackson.version>2.13.2</jackson.version>
     <!--fix Security Vulnerabilities-->
     <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
-    <jackson.databind.version>2.12.6</jackson.databind.version>
+    <jackson.databind.version>2.13.2.1</jackson.databind.version>
     <maven.version>3.0.5</maven.version>
     <guava.version>31.0.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>

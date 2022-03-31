@@ -64,8 +64,7 @@
       "version-2.6.3-deploy-aws",
       "version-2.6.3-deploy-kubernetes",
       "version-2.6.3-deploy-bare-metal",
-      "version-2.6.3-deploy-bare-metal-multi-cluster",
-      "version-2.6.3-deploy-dcos",
+      "version-2.6.3-deploy-bare-metal-multi-cluster", 
       "version-2.6.3-deploy-monitoring"
     ],
     "Administration": [

@@ -28,15 +28,13 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.structuredeventlog.Event;
 import org.apache.pulsar.structuredeventlog.EventGroup;
 import org.apache.pulsar.structuredeventlog.EventResources;
 import org.apache.pulsar.structuredeventlog.EventResourcesImpl;
-
-import org.slf4j.MDC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 class Slf4jEvent implements Event {
     private static final ThreadLocal<Map<Object, Logger>> loggersTLS = ThreadLocal.withInitial(() -> new HashMap<>());
@@ -89,7 +87,7 @@ class Slf4jEvent implements Event {
     @Override
     public Event resources(EventResources other) {
         if (other instanceof EventResourcesImpl) {
-            this.resources.copyFrom((EventResourcesImpl)other);
+            this.resources.copyFrom((EventResourcesImpl) other);
         }
         return this;
     }
@@ -115,7 +113,7 @@ class Slf4jEvent implements Event {
 
     @Override
     public Event attr(String key, Supplier<String> value) {
-        this.attr(key, (Object)value);
+        this.attr(key, (Object) value);
         return this;
     }
 

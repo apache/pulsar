@@ -28,6 +28,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +58,6 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -95,8 +95,11 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
@@ -238,7 +241,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
             boolean hasNonSystemTopic = false;
             for (String topic : topics) {
-                if (!SystemTopicClient.isSystemTopic(TopicName.get(topic))) {
+                if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                     hasNonSystemTopic = true;
                     break;
                 }
@@ -830,9 +833,11 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (autoTopicCreationOverride != null) {
-            if (!AutoTopicCreationOverrideImpl.isValidOverride(autoTopicCreationOverride)) {
+            ValidateResult validateResult = AutoTopicCreationOverrideImpl.validateOverride(autoTopicCreationOverride);
+            if (!validateResult.isSuccess()) {
                 throw new RestException(Status.PRECONDITION_FAILED,
-                        "Invalid configuration for autoTopicCreationOverride");
+                        "Invalid configuration for autoTopicCreationOverride. the detail is "
+                                + validateResult.getErrorInfo());
             }
             if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
                 throw new RestException(Status.NOT_ACCEPTABLE,
@@ -1104,8 +1109,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName,
-                                                boolean authoritative, boolean unload, String splitAlgorithmName) {
+    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName, boolean authoritative,
+                                                boolean unload, String splitAlgorithmName, List<Long> splitBoundaries) {
         validateSuperUserAccess();
         checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
@@ -1126,25 +1131,30 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> supportedNamespaceBundleSplitAlgorithms =
                 pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
-        if (StringUtils.isNotBlank(splitAlgorithmName)
-                && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
-            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                    "Unsupported namespace bundle split algorithm, supported algorithms are "
-                            + supportedNamespaceBundleSplitAlgorithms));
+        if (StringUtils.isNotBlank(splitAlgorithmName)) {
+            if (!supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Unsupported namespace bundle split algorithm, supported algorithms are "
+                                + supportedNamespaceBundleSplitAlgorithms));
+            }
+            if (splitAlgorithmName.equalsIgnoreCase(NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE)
+                    && (splitBoundaries == null || splitBoundaries.size() == 0)) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "With specified_positions_divide split algorithm, splitBoundaries must not be emtpy"));
+            }
         }
 
         NamespaceBundle nsBundle;
-
         try {
             nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                    authoritative, true);
+                    authoritative, false);
         } catch (Exception e) {
             asyncResponse.resume(e);
             return;
         }
 
         pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName))
+                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries)
                 .thenRun(() -> {
                     log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
                     asyncResponse.resume(Response.noContent().build());
@@ -1160,6 +1170,56 @@ public abstract class NamespacesBase extends AdminResource {
             }
             return null;
         });
+    }
+
+    protected void internalGetTopicHashPositions(AsyncResponse asyncResponse, String bundleRange, List<String> topics) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Getting hash position for topic list {}, bundle {}", clientAppId(), topics, bundleRange);
+        }
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                false, true);
+        pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle).whenComplete(
+                (allTopicsInThisBundle, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] {} Failed to get topic list for bundle {}.", clientAppId(),
+                                namespaceName, bundle);
+                        asyncResponse.resume(new RestException(throwable));
+                    }
+                    // if topics is empty, return all topics' hash position in this bundle
+                    Map<String, Long> topicHashPositions = new HashMap<>();
+                    if (topics == null || topics.size() == 0) {
+                        allTopicsInThisBundle.forEach(t -> {
+                            topicHashPositions.put(t,
+                                    pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                            .getLongHashCode(t));
+                        });
+                    } else {
+                        for (String topic : topics.stream().map(Codec::decode).collect(Collectors.toList())) {
+                            TopicName topicName = TopicName.get(topic);
+                            // partitioned topic
+                            if (topicName.getPartitionIndex() == -1) {
+                                allTopicsInThisBundle.stream()
+                                        .filter(t -> TopicName.get(t).getPartitionedTopicName()
+                                                .equals(TopicName.get(topic).getPartitionedTopicName()))
+                                        .forEach(partition -> {
+                                            topicHashPositions.put(partition,
+                                                    pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                                            .getLongHashCode(partition));
+                                        });
+                            } else { // topic partition
+                                if (allTopicsInThisBundle.contains(topicName.toString())) {
+                                    topicHashPositions.put(topic,
+                                            pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                                    .getLongHashCode(topic));
+                                }
+                            }
+                        }
+                    }
+                    asyncResponse.resume(
+                            new TopicHashPositions(namespaceName.toString(), bundleRange, topicHashPositions));
+                });
     }
 
     private String getBundleRange(String bundleName) {
@@ -1927,14 +1987,14 @@ public abstract class NamespacesBase extends AdminResource {
                 }
                 for (Topic topic : topicList) {
                     if (topic instanceof PersistentTopic
-                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                            && !pulsar().getBrokerService().isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
                     if (topic instanceof PersistentTopic
-                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                            && !pulsar().getBrokerService().isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog());
                     }
                 }

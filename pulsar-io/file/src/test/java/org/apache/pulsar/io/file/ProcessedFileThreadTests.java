@@ -49,7 +49,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
 
@@ -88,7 +88,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
 
@@ -128,7 +128,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.TRUE);
         map.put("pollingInterval", 1000L);
@@ -163,7 +163,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
         map.put("pollingInterval", 100);
@@ -211,7 +211,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         consumer = Mockito.mock(PushSource.class);
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
         map.put("pollingInterval", 100);
@@ -264,7 +264,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         Mockito.doNothing().when(consumer).consume((Record<byte[]>) any(Record.class));
 
         String processedFileSuffix = ".file_process_done";
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put("inputDirectory", directory.toString());
         map.put("keepFile", Boolean.FALSE);
         map.put("pollingInterval", 100);

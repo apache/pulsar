@@ -38,7 +38,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
@@ -80,7 +79,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                final String sourcePkgUrl,
                                final SourceConfig sourceConfig,
                                final String clientRole,
-                               AuthenticationDataHttps clientAuthenticationDataHttps) {
+                               AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -256,15 +255,15 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
 
     @Override
     public void updateSource(final String tenant,
-                             final String namespace,
-                             final String sourceName,
-                             final InputStream uploadedInputStream,
-                             final FormDataContentDisposition fileDetail,
-                             final String sourcePkgUrl,
-                             final SourceConfig sourceConfig,
-                             final String clientRole,
-                             AuthenticationDataHttps clientAuthenticationDataHttps,
-                             UpdateOptionsImpl updateOptions) {
+                               final String namespace,
+                               final String sourceName,
+                               final InputStream uploadedInputStream,
+                               final FormDataContentDisposition fileDetail,
+                               final String sourcePkgUrl,
+                               final SourceConfig sourceConfig,
+                               final String clientRole,
+                               AuthenticationDataSource clientAuthenticationDataHttps,
+                               UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();

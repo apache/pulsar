@@ -98,18 +98,16 @@ public class ZooKeeperUtil {
         Thread.enumerate(allthreads);
         for (final Thread t : allthreads) {
             if (t.getName().contains("SyncThread:0")) {
-                Thread sleeper = new Thread() {
-                    public void run() {
-                        try {
-                            t.suspend();
-                            l.countDown();
-                            Thread.sleep(seconds * 1000);
-                            t.resume();
-                        } catch (Exception e) {
-                            LOG.error("Error suspending thread", e);
-                        }
+                Thread sleeper = new Thread(() -> {
+                    try {
+                        t.suspend();
+                        l.countDown();
+                        Thread.sleep(seconds * 1000);
+                        t.resume();
+                    } catch (Exception e) {
+                        LOG.error("Error suspending thread", e);
                     }
-                };
+                });
                 sleeper.start();
                 return;
             }

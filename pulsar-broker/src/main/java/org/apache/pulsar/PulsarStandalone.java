@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
 import com.google.common.collect.Sets;
 import java.io.File;
-import java.net.URL;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
@@ -32,9 +30,7 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -43,7 +39,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -301,56 +296,16 @@ public class PulsarStandalone implements AutoCloseable {
         broker.start();
 
         final String cluster = config.getClusterName();
-        final AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
-        if (!config.isTlsEnabled()) {
-            checkArgument(config.getWebServicePort().isPresent(), "webServicePort must be present");
-            checkArgument(internalListener.getBrokerServiceUrl() != null,
-                    "plaintext must be configured on internal listener");
-            URL webServiceUrl = new URL(String.format("http://%s:%d",
-                    ServiceConfigurationUtils.getWebServiceAddress(config),
-                    config.getWebServicePort().get()));
-            admin = PulsarAdmin.builder().serviceHttpUrl(
-                    webServiceUrl.toString()).authentication(
-                    config.getBrokerClientAuthenticationPlugin(),
-                    config.getBrokerClientAuthenticationParameters()).build();
-            ClusterData clusterData = ClusterData.builder()
-                    .serviceUrl(webServiceUrl.toString())
-                    .brokerServiceUrl(internalListener.getBrokerServiceUrl().toString())
-                    .build();
-            createSampleNameSpace(clusterData, cluster);
-        } else {
-            checkArgument(config.getWebServicePortTls().isPresent(), "webServicePortTls must be present");
-            checkArgument(internalListener.getBrokerServiceUrlTls() != null,
-                    "TLS must be configured on internal listener");
-            URL webServiceUrlTls = new URL(String.format("https://%s:%d",
-                    ServiceConfigurationUtils.getWebServiceAddress(config),
-                    config.getWebServicePortTls().get()));
-            PulsarAdminBuilder builder = PulsarAdmin.builder()
-                    .serviceHttpUrl(webServiceUrlTls.toString())
-                    .authentication(
-                            config.getBrokerClientAuthenticationPlugin(),
-                            config.getBrokerClientAuthenticationParameters());
 
-            // set trust store if needed.
-            if (config.isBrokerClientTlsEnabled()) {
-                if (config.isBrokerClientTlsEnabledWithKeyStore()) {
-                    builder.useKeyStoreTls(true)
-                            .tlsTrustStoreType(config.getBrokerClientTlsTrustStoreType())
-                            .tlsTrustStorePath(config.getBrokerClientTlsTrustStore())
-                            .tlsTrustStorePassword(config.getBrokerClientTlsTrustStorePassword());
-                } else {
-                    builder.tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath());
-                }
-                builder.allowTlsInsecureConnection(config.isTlsAllowInsecureConnection());
-            }
+        admin = broker.getAdminClient();
 
-            admin = builder.build();
-            ClusterData clusterData = ClusterData.builder()
-                    .serviceUrlTls(webServiceUrlTls.toString())
-                    .brokerServiceUrlTls(internalListener.getBrokerServiceUrlTls().toString())
-                    .build();
-            createSampleNameSpace(clusterData, cluster);
-        }
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(broker.getWebServiceAddress())
+                .serviceUrlTls(broker.getWebServiceAddressTls())
+                .brokerServiceUrl(broker.getBrokerServiceUrl())
+                .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
+                .build();
+        createSampleNameSpace(clusterData, cluster);
 
         //create default namespace
         createNameSpace(cluster, TopicName.PUBLIC_TENANT, TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE);

@@ -46,6 +46,8 @@ import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -64,7 +66,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -75,6 +79,19 @@ import static org.testng.Assert.fail;
 @SuppressWarnings({"unchecked", "rawtypes"})
 @Slf4j
 public class KafkaConnectSinkTest extends ProducerConsumerBase  {
+
+    public class ResultCaptor<T> implements Answer {
+        private T result = null;
+        public T getResult() {
+            return result;
+        }
+
+        @Override
+        public T answer(InvocationOnMock invocationOnMock) throws Throwable {
+            result = (T) invocationOnMock.callRealMethod();
+            return result;
+        }
+    }
 
     private String offsetTopicName =  "persistent://my-property/my-ns/kafka-connect-sink-offset";
 
@@ -145,6 +162,43 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.flush();
 
         assertEquals(status.get(), 1);
+
+        sink.close();
+
+        List<String> lines = Files.readAllLines(file, StandardCharsets.US_ASCII);
+        assertEquals(lines.get(0), "value");
+    }
+
+    @Test
+    public void sanitizeTest() throws Exception {
+        props.put("sanitizeTopicName", "true");
+        KafkaConnectSink originalSink = new KafkaConnectSink();
+        KafkaConnectSink sink = spy(originalSink);
+
+        final ResultCaptor<SinkRecord> resultCaptor = new ResultCaptor<>();
+        doAnswer(resultCaptor).when(sink).toSinkRecord(any());
+
+        sink.open(props, context);
+
+        final GenericRecord rec = getGenericRecord("value", Schema.STRING);
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(rec);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName("persistent://a-b/c-d/fake-topic.a")
+                .message(msg)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .schema(Schema.STRING)
+                .build();
+
+        sink.write(record);
+        sink.flush();
+
+        assertEquals(status.get(), 1);
+        assertEquals(resultCaptor.getResult().topic(), "persistent___a_b_c_d_fake_topic_a");
 
         sink.close();
 

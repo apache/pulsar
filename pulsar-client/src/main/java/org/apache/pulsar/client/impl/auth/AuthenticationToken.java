@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
  * Token based authentication provider.
  */
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
+    static final String AUTH_METHOD_NAME = "token";
 
     private static final long serialVersionUID = 1L;
     private Supplier<String> tokenSupplier = null;
@@ -61,7 +62,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
 
     @Override
     public String getAuthMethodName() {
-        return "token";
+        return AUTH_METHOD_NAME;
     }
 
     @Override

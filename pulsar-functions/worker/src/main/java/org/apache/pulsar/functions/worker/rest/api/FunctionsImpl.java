@@ -41,7 +41,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -80,7 +79,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                  final String functionPkgUrl,
                                  final FunctionConfig functionConfig,
                                  final String clientRole,
-                                 AuthenticationDataHttps clientAuthenticationDataHttps) {
+                                 AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -263,7 +262,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                final String functionPkgUrl,
                                final FunctionConfig functionConfig,
                                final String clientRole,
-                               AuthenticationDataHttps clientAuthenticationDataHttps,
+                               AuthenticationDataSource clientAuthenticationDataHttps,
                                UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
@@ -816,6 +815,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // use the Nar extraction directory as a temporary directory for downloaded files
             tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
         }
+        Files.createDirectories(tempDirectory);
         File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
         worker.getBrokerAdmin().packages().download(packageName, file.toString());
         return file;

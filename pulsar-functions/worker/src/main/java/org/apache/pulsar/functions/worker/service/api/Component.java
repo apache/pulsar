@@ -44,7 +44,21 @@ public interface Component<W extends WorkerService> {
                             String namespace,
                             String componentName,
                             String clientRole,
-                            AuthenticationDataHttps clientAuthenticationDataHttps);
+                            AuthenticationDataSource clientAuthenticationDataHttps);
+
+    @Deprecated
+    default void deregisterFunction(String tenant,
+                            String namespace,
+                            String componentName,
+                            String clientRole,
+                            AuthenticationDataHttps clientAuthenticationDataHttps) {
+        deregisterFunction(
+                tenant,
+                namespace,
+                componentName,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
 
     FunctionConfig getFunctionInfo(String tenant,
                                    String namespace,
@@ -145,13 +159,34 @@ public interface Component<W extends WorkerService> {
 
     StreamingOutput downloadFunction(String path,
                                      String clientRole,
-                                     AuthenticationDataHttps clientAuthenticationDataHttps);
+                                     AuthenticationDataSource clientAuthenticationDataHttps);
+
+    @Deprecated
+    default StreamingOutput downloadFunction(String path,
+                                     String clientRole,
+                                     AuthenticationDataHttps clientAuthenticationDataHttps) {
+        return downloadFunction(path, clientRole, (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
 
     StreamingOutput downloadFunction(String tenant,
                                      String namespace,
                                      String componentName,
                                      String clientRole,
-                                     AuthenticationDataHttps clientAuthenticationDataHttps);
+                                     AuthenticationDataSource clientAuthenticationDataHttps);
+
+    @Deprecated
+    default StreamingOutput downloadFunction(String tenant,
+                                     String namespace,
+                                     String componentName,
+                                     String clientRole,
+                                     AuthenticationDataHttps clientAuthenticationDataHttps) {
+        return downloadFunction(
+                tenant,
+                namespace,
+                componentName,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
 
     List<ConnectorDefinition> getListOfConnectors();
 

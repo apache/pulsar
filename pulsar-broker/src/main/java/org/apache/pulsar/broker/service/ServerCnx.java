@@ -243,8 +243,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ServiceConfiguration conf = pulsar.getConfiguration();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
-        this.producers = new ConcurrentLongHashMap<>(8, 1);
-        this.consumers = new ConcurrentLongHashMap<>(8, 1);
+        this.producers = ConcurrentLongHashMap.<CompletableFuture<Producer>>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
+        this.consumers = ConcurrentLongHashMap.<CompletableFuture<Consumer>>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
@@ -2021,6 +2027,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         long requestId = commandGetSchema.getRequestId();
         SchemaVersion schemaVersion = SchemaVersion.Latest;
         if (commandGetSchema.hasSchemaVersion()) {
+            if (commandGetSchema.getSchemaVersion().length == 0) {
+                commandSender.sendGetSchemaErrorResponse(requestId, ServerError.IncompatibleSchema,
+                        "Empty schema version");
+                return;
+            }
             schemaVersion = schemaService.versionFromBytes(commandGetSchema.getSchemaVersion());
         }
 
@@ -2164,13 +2175,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response {} for new txn request {}", tcId.getId(), requestId);
                     }
-                    ctx.writeAndFlush(Commands.newTxnResponse(requestId, txnID.getLeastSigBits(),
-                            txnID.getMostSigBits()));
+                    commandSender.sendNewTxnResponse(requestId, txnID, command.getTcId());
                 } else {
                     ex = handleTxnException(ex, BaseCommand.Type.NEW_TXN.name(), requestId);
 
-                    ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                    commandSender.sendNewTxnErrorResponse(requestId, tcId.getId(),
+                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
                     transactionMetadataStoreService.handleOpFail(ex, tcId);
                 }
             }));
@@ -2231,12 +2241,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .endTransaction(txnID, txnAction, false)
                 .whenComplete((v, ex) -> {
                     if (ex == null) {
-                        ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                                txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                        commandSender.sendEndTxnResponse(requestId,
+                                txnID, txnAction);
                     } else {
                         ex = handleTxnException(ex, BaseCommand.Type.END_TXN.name(), requestId);
-                        ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
-                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                        commandSender.sendEndTxnErrorResponse(requestId, txnID,
+                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
 
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }

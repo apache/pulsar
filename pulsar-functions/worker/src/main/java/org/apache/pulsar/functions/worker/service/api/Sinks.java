@@ -37,6 +37,18 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Sinks<W extends WorkerService> extends Component<W> {
 
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Sink
+     * @param namespace The namespace of a Pulsar Sink
+     * @param sinkName The name of a Pulsar Sink
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sinkPkgUrl URL path of the Pulsar Sink package
+     * @param sinkConfig Configuration of Pulsar Sink
+     * @param clientRole Client role for running the Pulsar Sink
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     */
     void registerSink(String tenant,
                       String namespace,
                       String sinkName,
@@ -45,8 +57,48 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                       String sinkPkgUrl,
                       SinkConfig sinkConfig,
                       String clientRole,
-                      AuthenticationDataHttps clientAuthenticationDataHttps);
+                      AuthenticationDataSource clientAuthenticationDataHttps);
 
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
+    @Deprecated
+    default void registerSink(String tenant,
+                      String namespace,
+                      String sinkName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sinkPkgUrl,
+                      SinkConfig sinkConfig,
+                      String clientRole,
+                      AuthenticationDataHttps clientAuthenticationDataHttps) {
+        registerSink(
+                tenant,
+                namespace,
+                sinkName,
+                uploadedInputStream,
+                fileDetail,
+                sinkPkgUrl,
+                sinkConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps);
+    }
+
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Sink
+     * @param namespace The namespace of a Pulsar Sink
+     * @param sinkName The name of a Pulsar Sink
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sinkPkgUrl URL path of the Pulsar Sink package
+     * @param sinkConfig Configuration of Pulsar Sink
+     * @param clientRole Client role for running the Pulsar Sink
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param updateOptions Options while updating the sink
+     */
     void updateSink(String tenant,
                     String namespace,
                     String sinkName,
@@ -55,8 +107,37 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                     String sinkPkgUrl,
                     SinkConfig sinkConfig,
                     String clientRole,
-                    AuthenticationDataHttps clientAuthenticationDataHttps,
+                    AuthenticationDataSource clientAuthenticationDataHttps,
                     UpdateOptionsImpl updateOptions);
+
+    /**
+     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
+     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
+     * the signature of the AuthenticationDataSource.
+     */
+    @Deprecated
+    default void updateSink(String tenant,
+                    String namespace,
+                    String sinkName,
+                    InputStream uploadedInputStream,
+                    FormDataContentDisposition fileDetail,
+                    String sinkPkgUrl,
+                    SinkConfig sinkConfig,
+                    String clientRole,
+                    AuthenticationDataHttps clientAuthenticationDataHttps,
+                    UpdateOptionsImpl updateOptions) {
+        updateSink(
+                tenant,
+                namespace,
+                sinkName,
+                uploadedInputStream,
+                fileDetail,
+                sinkPkgUrl,
+                sinkConfig,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps,
+                updateOptions);
+    }
 
     SinkInstanceStatusData getSinkInstanceStatus(String tenant,
                                                  String namespace,

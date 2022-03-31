@@ -38,7 +38,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
@@ -80,7 +79,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                              final String sinkPkgUrl,
                              final SinkConfig sinkConfig,
                              final String clientRole,
-                             AuthenticationDataHttps clientAuthenticationDataHttps) {
+                             AuthenticationDataSource clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -263,7 +262,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                            final String sinkPkgUrl,
                            final SinkConfig sinkConfig,
                            final String clientRole,
-                           AuthenticationDataHttps clientAuthenticationDataHttps,
+                           AuthenticationDataSource clientAuthenticationDataHttps,
                            UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
