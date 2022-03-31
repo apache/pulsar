@@ -29,15 +29,11 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.transaction.exception.coordinator.TransactionCoordinatorException;
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
@@ -85,9 +81,8 @@ public class TransactionMetadataStoreService {
     private final ConcurrentLongHashMap<Semaphore> tcLoadSemaphores;
     // one connect request open the transactionMetaStore the other request will add to the queue, when the open op
     // finished the request will be poll and complete the future
-    private final ConcurrentLongHashMap<ConcurrentLinkedDeque<CompletableFuture<Void>>> pendingConnectRequests;
+    private final ConcurrentLongHashMap<ArrayBlockingQueue<CompletableFuture<Void>>> pendingConnectRequests;
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
-
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
@@ -100,7 +95,7 @@ public class TransactionMetadataStoreService {
         this.transactionOpRetryTimer = timer;
         this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
         this.pendingConnectRequests =
-                ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
+                ConcurrentLongHashMap.<ArrayBlockingQueue<CompletableFuture<Void>>>newBuilder().build();
     }
 
     @Deprecated
@@ -163,14 +158,19 @@ public class TransactionMetadataStoreService {
                 .thenCompose(unused -> {
                     final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
                             .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
-                    final Deque<CompletableFuture<Void>> deque = pendingConnectRequests
-                            .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
+                    final ArrayBlockingQueue<CompletableFuture<Void>> queue = pendingConnectRequests
+                            .computeIfAbsent(tcId.getId(), (id) ->
+                                    new ArrayBlockingQueue<>(pulsarService.getConfig().getMaxConcurrentLookupRequest()));
                     if (!tcLoadSemaphore.tryAcquire()) {
                         // only one command can open transaction metadata store,
                         // other will be added to the deque, when the op of
                         // openTransactionMetadataStore finished then handle the requests witch in the queue
                         final CompletableFuture<Void> shouldWaitingConnect = new CompletableFuture<>();
-                        deque.add(shouldWaitingConnect);
+                        if (queue.offer(shouldWaitingConnect)) {
+                            shouldWaitingConnect.completeExceptionally(
+                                    new BrokerServiceException.
+                                            TooManyRequestsException("Request exceeds max waiting queue size"));
+                        }
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
                         }
@@ -187,23 +187,22 @@ public class TransactionMetadataStoreService {
                                 // Release before processing the request queue to avoid concurrent
                                 // operations causing some futures to exist in the deque and never be removed
                                 tcLoadSemaphore.release();
-                                completeAndClearAllWaitingFuture(deque,
+                                completeAndClearAllWaitingFuture(queue,
                                         future -> future.complete(null));
                             }).exceptionally(ex -> {
-                                // We should get all futures that need to fail and then complete exception after
-                                // releasing the semaphore to avoid endless connections reconnecting and dequeuing
-                                final List<CompletableFuture<Void>> failedFutures = new ArrayList<>(deque.size());
-                                completeAndClearAllWaitingFuture(deque, failedFutures::add);
                                 tcLoadSemaphore.release();
-                                // failed previous connect request
-                                failedFutures.forEach(future -> future.completeExceptionally(ex));
+                                List<CompletableFuture<Void>> failedFutures = new ArrayList<>(queue.size());
+                                queue.drainTo(failedFutures);
+                                for (CompletableFuture<Void> future : failedFutures) {
+                                    future.completeExceptionally(ex);
+                                }
                                 LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
                                 throw FutureUtil.wrapToCompletionException(ex);
                             });
                 });
     }
 
-    private void completeAndClearAllWaitingFuture(Deque<CompletableFuture<Void>> deque,
+    private void completeAndClearAllWaitingFuture(ArrayBlockingQueue<CompletableFuture<Void>> deque,
                                                   Consumer<CompletableFuture<Void>> consumer) {
         final long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
         CompletableFuture<Void> future;
