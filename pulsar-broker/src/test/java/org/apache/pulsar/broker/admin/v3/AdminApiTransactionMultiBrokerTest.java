@@ -19,16 +19,21 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
     private static final int NUM_BROKERS = 16;
@@ -46,6 +51,18 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
     @Test
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
+        Map<String, String> map = admin.lookups()
+                .lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        while (map.values().contains(getPulsarServiceList().get(0).getBrokerServiceUrl())) {
+            admin.topics().deletePartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+            admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
+        }
+        //init tc stores
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(true)
+                .build();
         for (int i = 0; i < NUM_PARTITIONS; i++) {
             admin.transactions().getCoordinatorInternalStats(i, false);
         }
@@ -54,19 +71,17 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
     @Test
     public void testRedirectOfGetPendingAckInternalStats() throws Exception {
         String topic1 = NAMESPACE1 + "/test1";
-        String topic2 = NAMESPACE1 + "/test2";
-        String topic3 = NAMESPACE1 + "/test3";
 
+        admin.topics().createNonPartitionedTopic(topic1);
+        //check they are different broker
+        while (admin.lookups().lookupTopic(topic1)
+                .equals(getPulsarServiceList().get(0).getBrokerServiceUrl())) {
+         admin.topics().delete(topic1);
+         admin.topics().createNonPartitionedTopic(topic1);
+        }
+        //init pendingAck
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
                 .topic(topic1)
-                .subscriptionName("sub1")
-                .subscribe();
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
-                .topic(topic2)
-                .subscriptionName("sub1")
-                .subscribe();
-        Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
-                .topic(topic3)
                 .subscriptionName("sub1")
                 .subscribe();
 
@@ -76,14 +91,6 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
                 .create()
                 .newMessage()
                 .value("test".getBytes(StandardCharsets.UTF_8)).send();
-        pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic2)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create().newMessage().value("test".getBytes(StandardCharsets.UTF_8)).send();
-        pulsarClient.newProducer(Schema.BYTES)
-                .topic(topic3)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create().newMessage().value("test".getBytes(StandardCharsets.UTF_8)).send();
 
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -93,16 +100,8 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         Message<byte[]> message1 = consumer1.receive();
         consumer1.acknowledgeAsync(message1.getMessageId(), transaction);
 
-        Message<byte[]> message2 = consumer2.receive();
-        consumer2.acknowledgeAsync(message2.getMessageId(), transaction);
-
-        Message<byte[]> message3 = consumer3.receive();
-        consumer3.acknowledgeAsync(message3.getMessageId(), transaction);
-
         transaction.commit().get();
-
+        //check pendingAck stats
         admin.transactions().getPendingAckInternalStats(topic1, "sub1", false);
-        admin.transactions().getPendingAckInternalStats(topic2, "sub1", false);
-        admin.transactions().getPendingAckInternalStats(topic3, "sub1", false);
     }
 }
