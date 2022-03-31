@@ -27,7 +27,6 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,12 +36,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -52,9 +49,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -2802,7 +2796,8 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("resource_group_name", rgName);
     }
 
-    protected Map<String, Object> internalScanOffloadedLedgers() throws Exception {
+    protected void internalScanOffloadedLedgers(OffloaderObjectsScannerUtils.ScannerResultSink sink)
+            throws Exception {
         log.info("internalScanOffloadedLedgers {}", namespaceName);
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
 
@@ -2811,101 +2806,10 @@ public abstract class NamespacesBase extends AdminResource {
                 .getManagedLedgerOffloader(namespaceName, (OffloadPoliciesImpl) policies.offload_policies);
 
         String localClusterName = pulsar().getConfiguration().getClusterName();
-        Map<String, Object> topLevelResult = new HashMap<>();
-        List<Map<String, Object>> objects = new ArrayList<>();
-        topLevelResult.put("objects", objects);
-        AtomicInteger totalCount = new AtomicInteger();
-        AtomicInteger totalErrors = new AtomicInteger();
-        AtomicInteger totalUnknown = new AtomicInteger();
-        managedLedgerOffloader.scanLedgers((md -> {
-            log.info("Found ledger {}", md);
-            Map<String, Object> objectInfo = new HashMap<>();
-            objectInfo.put("ledger", md.getLedgerId());
-            objectInfo.put("name", md.getName());
-            objectInfo.put("uri", md.getUri());
-            objectInfo.put("uuid", md.getUuid());
-            objectInfo.put("size", md.getSize());
-            objectInfo.put("lastModified", md.getLastModified());
-            objectInfo.put("userMetadata", md.getUserMetadata());
 
-            String status = "UNKNOWN";
+        OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
+                localClusterName, pulsar().getManagedLedgerFactory(), sink);
 
-            if (md.getUserMetadata() != null) {
-                // non case sensistive
-                TreeMap<String, String> userMetadata = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-                userMetadata.putAll(md.getUserMetadata());
-                String clusterName = userMetadata.get(LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME);
-                if (localClusterName.equals(clusterName)) {
-                    String managedLedgerName = userMetadata.get("managedledgername");
-                    if (managedLedgerName != null) {
-                        objectInfo.put("managedLedgerName", managedLedgerName);
-                        try {
-                            status = checkLedgerShouldBeOnTieredStorage(md.getLedgerId(), md.getUuid(),
-                                    managedLedgerName, objectInfo, pulsar().getManagedLedgerFactory());
-                        } catch (InterruptedException err) {
-                            Thread.currentThread().interrupt();
-                            throw new RuntimeException(err);
-                        } catch (ManagedLedgerException err) {
-                            log.error("Error while checking managed ledger {}", managedLedgerName);
-                            throw new RuntimeException(err);
-                        }
-                    }
-                }
-            }
-            totalCount.incrementAndGet();
-            objectInfo.put("status", status);
-            switch (status) {
-                case "OK":
-                    break;
-                case "UNKNOWN":
-                    totalUnknown.incrementAndGet();
-                    break;
-                default:
-                    totalErrors.incrementAndGet();
-                    break;
-            }
-
-            objects.add(objectInfo);
-            return true;
-        }), managedLedgerOffloader.getOffloadDriverMetadata());
-        topLevelResult.put("errors", totalErrors.intValue());
-        topLevelResult.put("total", totalCount.intValue());
-        topLevelResult.put("unknownObjects", totalUnknown.intValue());
-        log.info("internalScanOffloadedLedgers {} scan finished");
-
-        return topLevelResult;
-    }
-
-    private static String checkLedgerShouldBeOnTieredStorage(long ledgerId, String uuid,
-                                                      String managedLedgerName,
-                                                      Map<String, Object> data,
-                                                      ManagedLedgerFactory managedLedgerFactory)
-            throws InterruptedException, ManagedLedgerException  {
-        try {
-            ManagedLedgerInfo managedLedgerInfo = managedLedgerFactory.getManagedLedgerInfo(managedLedgerName);
-            ManagedLedgerInfo.LedgerInfo ledgerInfo = managedLedgerInfo
-                    .ledgers.stream().filter(l -> l.ledgerId == ledgerId).findAny().orElse(null);
-            if (ledgerInfo == null) {
-                log.info("Managed ledger {} does not contain ledger {}", managedLedgerName, ledgerId);
-                return "NOT-FOUND";
-            }
-            data.put("numEntries", ledgerInfo.entries);
-            data.put("offloaded", ledgerInfo.isOffloaded);
-            if (!ledgerInfo.isOffloaded) {
-                log.info("Ledger {} is not marked as OFFLOADED in {}", ledgerId, managedLedgerName);
-                return "NOT-OFFLOADED";
-            }
-            String uuidOnMetadata = ledgerInfo.offloadedContextUuid;
-            if (!Objects.equals(uuidOnMetadata, uuid)) {
-                log.info("Ledger {} uuid {} does not match name uuid {}", ledgerId, uuidOnMetadata, uuid);
-                return "BAD-UUID";
-            }
-            return "OK";
-        }  catch (ManagedLedgerException.ManagedLedgerNotFoundException
-                | ManagedLedgerException.MetadataNotFoundException notFound) {
-            log.info("Managed ledger {} does not exist (maybe the topic has been deleted)", managedLedgerName);
-            return "NOT-FOUND";
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);

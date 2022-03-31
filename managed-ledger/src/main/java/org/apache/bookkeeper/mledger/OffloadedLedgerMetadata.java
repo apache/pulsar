@@ -18,11 +18,10 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
-
-import java.util.Map;
 
 @Builder
 @Getter
