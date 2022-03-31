@@ -405,6 +405,7 @@ public class PulsarWorkerService implements WorkerService {
         workerStatsManager.startupTimeStart();
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
         log.info("Worker Configs: {}", workerConfig);
+        log.info("Worker dlogUri config: {}", dlogUri);
 
         try {
             DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
@@ -414,6 +415,7 @@ public class PulsarWorkerService implements WorkerService {
                         .clientId("function-worker-" + workerConfig.getWorkerId())
                         .uri(dlogUri)
                         .build();
+                log.info("Worker dlogNamespace {}", this.dlogNamespace);
             } catch (Exception e) {
                 log.error("Failed to initialize dlog namespace {} for storing function packages",
                         dlogUri, e);

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
@@ -56,7 +57,8 @@ public final class Resources {
                         SourceApiV3Resource.class,
                         SinksApiV3Resource.class,
                         SinkApiV3Resource.class,
-                        FunctionsApiV3Resource.class
+                        FunctionsApiV3Resource.class,
+                        JsonMapperProvider.class
                 ));
     }
 

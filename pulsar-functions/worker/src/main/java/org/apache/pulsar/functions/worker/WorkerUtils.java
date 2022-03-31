@@ -105,6 +105,7 @@ public final class WorkerUtils {
                 }
             }
         }
+        log.info("Uploading function package to '{}' done", destPkgPath);
     }
 
     public static void downloadFromBookkeeper(Namespace namespace,

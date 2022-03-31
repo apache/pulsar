@@ -148,6 +148,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         Function.FunctionDetails functionDetails = null;
         boolean isPkgUrlProvided = isNotBlank(sinkPkgUrl);
         File componentPackageFile = null;
+
         try {
 
             // validate parameters
@@ -194,6 +195,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                     .setFunctionDetails(functionDetails)
                     .setCreateTime(System.currentTimeMillis())
                     .setVersion(0);
+
 
             // cache auth if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
@@ -724,6 +726,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             String archive = sinkConfig.getArchive();
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
+
                 classLoader = this.worker().getConnectorsManager().getConnector(archive).getClassLoader();
             }
         }
