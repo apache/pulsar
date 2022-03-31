@@ -241,8 +241,8 @@ public class MLPendingAckStore implements PendingAckStore {
                 completableFuture.complete(null);
 
                 if (!metadataPositions.isEmpty()) {
-                    PositionImpl firstPosition = metadataPositions.firstEntry().getKey();
-                    PositionImpl deletePosition = metadataPositions.firstEntry().getKey();
+                    PositionImpl firstPosition = PositionImpl.EARLIEST;
+                    PositionImpl deletePosition = PositionImpl.EARLIEST;
                     while (!metadataPositions.isEmpty()
                             && metadataPositions.firstKey() != null
                             && subManagedCursor.getPersistentMarkDeletedPosition() != null
