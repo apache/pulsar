@@ -142,6 +142,8 @@ public class PulsarCluster {
             .withNetworkAliases(appendClusterName("pulsar-proxy"))
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName)
+            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+            .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
             .withEnv("metadataStoreUrl", getMetadataStoreConnString());
         if (spec.proxyEnvs != null) {
             spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
@@ -156,14 +158,14 @@ public class PulsarCluster {
                     BKContainer bkContainer = new BKContainer(clusterName, name)
                             .withNetwork(network)
                             .withNetworkAliases(appendClusterName(name))
-                            .withEnv("useHostNameAsBookieID", "true")
                             .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+                            .withEnv("useHostNameAsBookieID", "true")
                             // Disable fsyncs for tests since they're slow within the containers
                             .withEnv("journalSyncData", "false")
                             .withEnv("journalMaxGroupWaitMSec", "0")
                             .withEnv("clusterName", clusterName)
                             .withEnv("diskUsageThreshold", "0.99")
-                            .withEnv("nettyMaxFrameSizeBytes", "" + spec.maxMessageSize)
+                            .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize))
                             .withEnv("metadataServiceUri", getBookieMetadataStoreConnString());
                     return bkContainer;
                 }
@@ -176,13 +178,15 @@ public class PulsarCluster {
                     BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name))
                         .withNetwork(network)
                         .withNetworkAliases(appendClusterName(name))
+                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+                        .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
                         .withEnv("AWS_SECRET_KEY", "secretkey")
-                        .withEnv("maxMessageSize", "" + spec.maxMessageSize)
+                        .withEnv("maxMessageSize", String.valueOf(spec.maxMessageSize))
                         .withEnv("metadataStoreUrl", getMetadataStoreConnString());
 
                     if (spec.queryLastMessage) {
