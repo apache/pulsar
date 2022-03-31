@@ -19,12 +19,13 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
+import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class SubscribeRateTest extends BrokerTestBase{
+public class SubscribeRateTest extends BrokerTestBase {
 
     @Override
     protected void setup() throws Exception {
@@ -43,7 +44,7 @@ public class SubscribeRateTest extends BrokerTestBase{
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testBrokerLevelSubscribeRateDynamicUpdate";
-        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
             .producerName("producer-name")
             .create();
@@ -54,6 +55,13 @@ public class SubscribeRateTest extends BrokerTestBase{
 
         final int ratePerConsumer = 10;
         final int ratePeriod = 60;
+
+        String defaultRatePerConsumer = admin.brokers().getRuntimeConfigurations().get("subscribeThrottlingRatePerConsumer");
+        String defaultRatePeriod = admin.brokers().getRuntimeConfigurations().get("subscribeRatePeriodPerConsumerInSecond");
+        Assert.assertNotNull(defaultRatePerConsumer);
+        Assert.assertNotNull(defaultRatePeriod);
+        Assert.assertNotEquals(ratePerConsumer, Integer.parseInt(defaultRatePerConsumer));
+        Assert.assertNotEquals(ratePeriod, Integer.parseInt(defaultRatePeriod));
 
         // subscribeThrottlingRatePerConsumer
         admin.brokers().updateDynamicConfiguration("subscribeThrottlingRatePerConsumer", ratePerConsumer + "");
