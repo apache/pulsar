@@ -163,12 +163,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return isConsumersExceededOnSubscription(topic, consumerList.size());
     }
 
+    private void removeAllConsumer(Consumer consumer){
+        while(consumerList.remove(consumer)){
+        }
+    }
+    
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // decrement unack-message count for removed consumer
         addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+            removeAllConsumer(consumer);
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 cancelPendingRead();
