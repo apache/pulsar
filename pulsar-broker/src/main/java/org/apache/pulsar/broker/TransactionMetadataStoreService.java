@@ -169,16 +169,17 @@ public class TransactionMetadataStoreService {
                         // only one command can open transaction metadata store,
                         // other will be added to the deque, when the op of
                         // openTransactionMetadataStore finished then handle the requests witch in the queue
-                        final CompletableFuture<Void> shouldWaitingConnect = new CompletableFuture<>();
-                        if (queue.offer(shouldWaitingConnect)) {
-                            shouldWaitingConnect.completeExceptionally(
+                        final CompletableFuture<Void> pendingConnectFuture = new CompletableFuture<>();
+                        if (queue.offer(pendingConnectFuture)) {
+                            pendingConnectFuture.completeExceptionally(
                                     new BrokerServiceException.
-                                            TooManyRequestsException("Request exceeds max waiting queue size"));
+                                            TooManyRequestsException("The request exceeds the maximum" +
+                                            " pending connection queue size"));
                         }
                         if (LOG.isDebugEnabled()) {
-                            LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
+                            LOG.debug("Handle TC client connect added into pending queue! tcId : {}", tcId);
                         }
-                        return shouldWaitingConnect;
+                        return pendingConnectFuture;
                     }
                     // After thread get semaphore we need check twice.
                     if (stores.get(tcId) != null) {
