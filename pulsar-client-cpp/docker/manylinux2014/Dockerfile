@@ -52,7 +52,7 @@ RUN curl -O -L https://zlib.net/zlib-1.2.12.tar.gz && \
     tar xvfz zlib-1.2.12.tar.gz && \
     cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
-    make -j8 && make install && \
+    make && make install && \
     rm -rf /zlib-1.2.12.tar.gz /zlib-1.2.12
 
 # Compile OpenSSL

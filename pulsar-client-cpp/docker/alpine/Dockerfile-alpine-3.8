@@ -43,12 +43,12 @@ RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.72.0/source/
     rm -rf /boost_1_72_0.tar.gz /boost_1_72_0
 
 # ZLib
-RUN curl -O -L https://zlib.net/zlib-1.2.11.tar.gz  && \
-    tar xfz zlib-1.2.11.tar.gz && \
-    cd zlib-1.2.11 && \
+RUN curl -O -L https://zlib.net/zlib-1.2.12.tar.gz  && \
+    tar xfz zlib-1.2.12.tar.gz && \
+    cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make -j4 && make install && \
-    rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
+    rm -rf /zlib-1.2.12.tar.gz /zlib-1.2.12
 
 # Compile OpenSSL
 RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
