@@ -25,6 +25,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
@@ -32,7 +35,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -42,6 +48,8 @@ import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
@@ -53,7 +61,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     private final AtomicLong requestIdGenerator = new AtomicLong();
     private final long operationTimeoutInMills;
     private final HashedWheelTimer timer;
-    private final PulsarClient pulsarClient;
+    private final PulsarService pulsarService;
+    private final PulsarClientImpl pulsarClient;
 
     private static final AtomicIntegerFieldUpdater<TransactionBufferHandlerImpl> REQUEST_CREDITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(TransactionBufferHandlerImpl.class, "requestCredits");
@@ -65,7 +74,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             .build(new CacheLoader<String, CompletableFuture<ClientCnx>>() {
                 @Override
                 public CompletableFuture<ClientCnx> load(String topic) {
-                    CompletableFuture<ClientCnx> siFuture = getClientCnx(topic);
+                    CompletableFuture<ClientCnx> siFuture = getClientCnxViaBundle(topic);
                     siFuture.whenComplete((si, cause) -> {
                         if (null != cause) {
                             lookupCache.invalidate(topic);
@@ -75,9 +84,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 }
             });
 
-    public TransactionBufferHandlerImpl(PulsarClient pulsarClient, HashedWheelTimer timer,
-                                        int maxConcurrentRequests, long operationTimeoutInMills) {
-        this.pulsarClient = pulsarClient;
+    public TransactionBufferHandlerImpl(PulsarService pulsarService, HashedWheelTimer timer,
+        int maxConcurrentRequests, long operationTimeoutInMills) throws PulsarServerException {
+        this.pulsarService = pulsarService;
+        this.pulsarClient = (PulsarClientImpl) pulsarService.getClient();
         this.outstandingRequests = new ConcurrentSkipListMap<>();
         this.pendingRequests = new GrowableArrayBlockingQueue<>();
         this.operationTimeoutInMills = operationTimeoutInMills;
@@ -337,7 +347,38 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     }
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {
-        return ((PulsarClientImpl) pulsarClient).getConnection(topic);
+        return pulsarClient.getConnection(topic);
+    }
+
+    public CompletableFuture<ClientCnx> getClientCnxViaBundle(String topic) {
+        NamespaceService namespaceService = pulsarService.getNamespaceService();
+        CompletableFuture<NamespaceBundle> nsBundle = namespaceService.getBundleAsync(TopicName.get(topic));
+        return nsBundle
+                .thenCompose(bundle -> namespaceService.getOwnerAsync(bundle))
+                .thenCompose(data -> {
+                    if (data.isPresent()) {
+                        NamespaceEphemeralData ephemeralData = data.get();
+                        try {
+                            if (!ephemeralData.isDisabled()) {
+                                URI uri;
+                                if (pulsarClient.getConfiguration().isUseTls()) {
+                                    uri = new URI(ephemeralData.getNativeUrlTls());
+                                } else {
+                                    uri = new URI(ephemeralData.getNativeUrl());
+                                }
+                                InetSocketAddress brokerAddress =
+                                        InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+                                return pulsarClient.getConnection(brokerAddress, brokerAddress);
+                            } else {
+                                return getClientCnx(topic);
+                            }
+                        } catch (URISyntaxException e) {
+                            return getClientCnx(topic);
+                        }
+                    } else {
+                        return getClientCnx(topic);
+                    }
+                });
     }
 
     @Override
