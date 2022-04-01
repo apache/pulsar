@@ -1598,6 +1598,8 @@ public class BrokerService implements Closeable {
                     managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
                     managedLedgerConfig.setInactiveLedgerRollOverTime(
                             serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
+                    managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
+                            serviceConfig.isCacheEvictionByMarkDeletedPosition());
 
                     OffloadPoliciesImpl nsLevelOffloadPolicies =
                             (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
