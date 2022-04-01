@@ -220,7 +220,7 @@ public abstract class BaseResource {
                 ServerErrorException see = (ServerErrorException) e;
                 int statusCode = see.getResponse().getStatus();
                 String httpError = getReasonFromServer(see);
-                return new ServerSideErrorException(see, e.getMessage(), httpError, statusCode);
+                return new ServerSideErrorException(see, httpError, httpError, statusCode);
             } else if (e instanceof ClientErrorException) {
                 // Handle 4xx exceptions
                 ClientErrorException cee = (ClientErrorException) e;
