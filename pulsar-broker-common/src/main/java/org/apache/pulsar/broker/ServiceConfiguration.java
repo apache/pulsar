@@ -2329,6 +2329,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int webSocketMaxTextFrameSize = 1048576;
 
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "The maximum number of data frames allowed to be waiting to be sent at any one time."
+    )
+    private int webSocketMaxOutgoingFrames = -1;
+
     /**** --- Metrics. --- ****/
     @FieldContext(
             category = CATEGORY_METRICS,

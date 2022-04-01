@@ -172,6 +172,9 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     @Override
     public void onWebSocketConnect(Session session) {
         super.onWebSocketConnect(session);
+        if (service.getConfig().getWebSocketMaxOutgoingFrames() > 0) {
+            getRemote().setMaxOutgoingFrames(service.getConfig().getWebSocketMaxOutgoingFrames());
+        }
         log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }
 
