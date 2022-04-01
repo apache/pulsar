@@ -170,7 +170,7 @@ public class TransactionMetadataStoreService {
                         // other will be added to the deque, when the op of
                         // openTransactionMetadataStore finished then handle the requests witch in the queue
                         final CompletableFuture<Void> pendingConnectFuture = new CompletableFuture<>();
-                        if (queue.offer(pendingConnectFuture)) {
+                        if (!queue.offer(pendingConnectFuture)) {
                             pendingConnectFuture.completeExceptionally(
                                     new BrokerServiceException.
                                             TooManyRequestsException("The request exceeds the maximum" +
