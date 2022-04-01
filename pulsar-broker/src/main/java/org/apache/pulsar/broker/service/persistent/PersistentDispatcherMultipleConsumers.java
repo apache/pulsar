@@ -153,6 +153,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
 
+        if (consumerList.contains(consumer)) {
+            log.warn("[{}] Consumer with the same id is already created:"
+                            + " consumerId={}, consumer={}",
+                    consumer.cnx().clientAddress(), consumer.consumerId(), consumer);
+            throw new BrokerServiceException("Consumer with the same id is already created!");
+
+        }
+
         consumerList.add(consumer);
         consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         consumerSet.add(consumer);
@@ -162,18 +170,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected boolean isConsumersExceededOnSubscription() {
         return isConsumersExceededOnSubscription(topic, consumerList.size());
     }
-
-    private void removeAllConsumer(Consumer consumer){
-        while(consumerList.remove(consumer)){
-        }
-    }
     
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // decrement unack-message count for removed consumer
         addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
-            removeAllConsumer(consumer);
+            consumerList.removeIf(consumer::equals);
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 cancelPendingRead();
