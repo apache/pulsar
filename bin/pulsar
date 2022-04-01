@@ -274,10 +274,14 @@ OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+# Start --add-opens options
+# '--add-opens' option is not supported in jdk8
 if [[ -z "$IS_JAVA_8" ]]; then
-  # enable posix_fadvise usage on BookKeeper
-  # '--add-opens' option is not supported in jdk8
+  # BookKeeper: enable posix_fadvise usage
   OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED"
+  # Netty: enable java.nio.ByteBuffer and java.nio.Bits optimizations
+  # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
+  OPTS="$OPTS --add-opens java.base/sun.nio=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
