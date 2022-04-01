@@ -53,7 +53,7 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
 
     Future<Result, ReaderImplWeakPtr> getReaderCreatedFuture();
 
-    ConsumerImplPtr getConsumer();
+    ConsumerImplBaseWeakPtr getConsumer() const noexcept { return consumer_; }
 
     void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
 
@@ -61,8 +61,6 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
     void seekAsync(uint64_t timestamp, ResultCallback callback);
 
     void getLastMessageIdAsync(GetLastMessageIdCallback callback);
-
-    ReaderImplWeakPtr getReaderImplWeakPtr();
 
     bool isConnected() const;
 
@@ -79,7 +77,6 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
     ConsumerImplPtr consumer_;
     ReaderCallback readerCreatedCallback_;
     ReaderListener readerListener_;
-    ReaderImplWeakPtr readerImplWeakPtr_;
 };
 }  // namespace pulsar
 
