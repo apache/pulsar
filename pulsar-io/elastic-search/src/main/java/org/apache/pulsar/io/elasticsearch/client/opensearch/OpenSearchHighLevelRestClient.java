@@ -282,7 +282,13 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         }
     }
 
+    @VisibleForTesting
     public RestHighLevelClient getClient() {
         return client;
+    }
+
+    @VisibleForTesting
+    public org.opensearch.action.bulk.BulkProcessor getInternalBulkProcessor() {
+        return internalBulkProcessor;
     }
 }

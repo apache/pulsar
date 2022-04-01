@@ -53,6 +53,7 @@ import org.elasticsearch.client.RestClientBuilder;
 public class ElasticSearchJavaRestClient extends RestClient {
 
     private final ElasticsearchClient client;
+    private final ElasticsearchTransport transport;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final BulkProcessor bulkProcessor;
 
@@ -75,7 +76,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
                         log.warn("Node host={} failed", node.getHost());
                     }
                 });
-        ElasticsearchTransport transport = new RestClientTransport(builder.build(),
+        transport = new RestClientTransport(builder.build(),
                 new JacksonJsonpMapper());
         this.client = new ElasticsearchClient(transport);
         if (elasticSearchConfig.isBulkEnabled()) {
@@ -186,10 +187,21 @@ public class ElasticSearchJavaRestClient extends RestClient {
         if (bulkProcessor != null) {
             bulkProcessor.close();
         }
-        client.shutdown();
+        // client doesn't need to be closed, only the transport instance
+        try {
+            transport.close();
+        } catch (IOException e) {
+            log.warn("error while closing the client: {}", e);
+        }
     }
 
+    @VisibleForTesting
     public ElasticsearchClient getClient() {
         return client;
+    }
+
+    @VisibleForTesting
+    public ElasticsearchTransport getTransport() {
+        return transport;
     }
 }
