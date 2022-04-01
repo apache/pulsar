@@ -92,7 +92,7 @@ OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 # Start --add-opens options
 # '--add-opens' option is not supported in jdk8
 if [[ -z "$IS_JAVA_8" ]]; then
-  # Netty: enable java.nio.ByteBuffer and java.nio.Bits optimizations
+  # Netty: enable java.nio.DirectByteBuffer
   # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
   OPTS="$OPTS --add-opens java.base/sun.nio=ALL-UNNAMED"
 fi
