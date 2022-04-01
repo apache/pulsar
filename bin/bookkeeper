@@ -174,7 +174,7 @@ if [[ -z "$IS_JAVA_8" ]]; then
   OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED"
   # Netty: enable java.nio.DirectByteBuffer
   # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
-  OPTS="$OPTS --add-opens java.base/sun.nio=ALL-UNNAMED"
+  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED"
 fi
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
