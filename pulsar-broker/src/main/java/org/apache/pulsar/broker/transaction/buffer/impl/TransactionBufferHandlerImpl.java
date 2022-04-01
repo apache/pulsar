@@ -153,7 +153,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         }).exceptionally(ex -> {
             Throwable rootCause = FutureUtil.unwrapCompletionException(ex);
             log.error("endTxn error topic: [{}]", op.topic, rootCause);
-            safeInvalidateCache(op.topic);
+            invalidateLookupCache(op);
             op.cb.completeExceptionally(
                     new PulsarClientException.LookupException(rootCause.getMessage()));
             onResponse(op);
@@ -182,7 +182,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 log.error("[{}] Got end txn on topic response for request {} error {}", op.topic,
                         response.getRequestId(),
                         response.getError());
-                safeInvalidateCache(op.topic);
+                invalidateLookupCache(op);
                 op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
                         response.getMessage()));
             }
@@ -215,7 +215,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             } else {
                 log.error("[{}] Got end txn on subscription response for request {} error {}",
                         op.topic, response.getRequestId(), response.getError());
-                safeInvalidateCache(op.topic);
+                invalidateLookupCache(op);
                 op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
                         response.getMessage()));
             }
@@ -256,6 +256,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             } else {
                 break;
             }
+        }
+    }
+
+    private void invalidateLookupCache(OpRequestSend op) {
+        if (lookupCache.get(op.topic) == op.cnx) {
+            safeInvalidateCache(op.topic);
         }
     }
 
