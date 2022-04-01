@@ -165,6 +165,12 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
 
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
+IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+if [[ -z "$IS_JAVA_8" ]]; then
+  # enable posix_fadvise usage on BookKeeper
+  # '--add-opens' option is not supported in jdk8
+  OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED"
+fi
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
