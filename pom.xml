@@ -156,6 +156,7 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
+    <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
@@ -1178,6 +1179,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.opensearch.client</groupId>
         <artifactId>opensearch-rest-high-level-client</artifactId>
         <version>${opensearch.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>co.elastic.clients</groupId>
+        <artifactId>elasticsearch-java</artifactId>
+        <version>${elasticsearch-java.version}</version>
       </dependency>
 
       <dependency>
