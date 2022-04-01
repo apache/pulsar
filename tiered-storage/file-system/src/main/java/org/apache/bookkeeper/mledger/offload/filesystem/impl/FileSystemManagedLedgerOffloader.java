@@ -364,7 +364,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid, Map<String, String> offloadDriverMetadata) {
-        String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get(MANAGED_LEDGER_NAME));
+        String ledgerName = offloadDriverMetadata.get(MANAGED_LEDGER_NAME);
+        String storagePath = getStoragePath(storageBasePath, ledgerName);
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
         CompletableFuture<Void> promise = new CompletableFuture<>();
         try {
@@ -374,7 +375,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             log.error("Failed to delete Offloaded: ", e);
             promise.completeExceptionally(e);
         }
-        return promise;
+        return promise.whenComplete((__, t) ->
+                this.offloaderStats.recordDeleteOffloadOps(ledgerName, t == null));
     }
 
     @Override
