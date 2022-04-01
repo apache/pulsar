@@ -331,11 +331,10 @@ public class ElasticSearchConfig implements Serializable {
         boolean basicAuthSet = StringUtils.isNotEmpty(username) && StringUtils.isNotEmpty(password);
         boolean tokenAuthSet = StringUtils.isNotEmpty(token);
         boolean apiKeySet = StringUtils.isNotEmpty(apiKey);
-        if ((basicAuthSet && tokenAuthSet && apiKeySet) ||
-                (basicAuthSet && tokenAuthSet) ||
-                (basicAuthSet && apiKeySet) ||
-                (tokenAuthSet && apiKeySet)
-        ) {
+        if ((basicAuthSet && tokenAuthSet && apiKeySet)
+                || (basicAuthSet && tokenAuthSet)
+                || (basicAuthSet && apiKeySet)
+                || (tokenAuthSet && apiKeySet)) {
             throw new IllegalArgumentException("Only one between basic/token/apiKey authentication mode must be configured.");
         }
 
