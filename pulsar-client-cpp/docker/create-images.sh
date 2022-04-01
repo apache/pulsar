@@ -31,7 +31,7 @@ PYTHON_VERSIONS=(
    '3.7 cp37-cp37m manylinux2014'
    '3.8 cp38-cp38 manylinux2014'
    '3.9 cp39-cp39 manylinux2014'
-   '3.10 cp310-cp310 manylinux2014'
+   '3.10 cp310-cp310 manylinux_x_y'
 )
 
 for line in "${PYTHON_VERSIONS[@]}"; do
