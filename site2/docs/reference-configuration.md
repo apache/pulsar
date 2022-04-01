@@ -157,6 +157,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |webSocketConnectionsPerBroker|The number of connections per Broker in Pulsar Client used in WebSocket proxy.|Runtime.getRuntime().availableProcessors()|
 |webSocketSessionIdleTimeoutMillis|Time in milliseconds that idle WebSocket session times out.|300000|
 |webSocketMaxTextFrameSize|The maximum size of a text message during parsing in WebSocket proxy.|1048576|
+|webSocketMaxOutgoingFrames|The maximum number of data frames per websocket remote endpoint allowed to be waiting to be sent at any one time.|-1|
 |exposeTopicLevelMetricsInPrometheus|Whether to enable topic level metrics.|true|
 |exposeConsumerLevelMetricsInPrometheus|Whether to enable consumer level metrics.|false|
 |jvmGCMetricsLoggerClassName|Classname of Pluggable JVM GC metrics logger that can log GC specific metrics.|N/A|
