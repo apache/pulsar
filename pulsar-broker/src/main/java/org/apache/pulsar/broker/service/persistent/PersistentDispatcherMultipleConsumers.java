@@ -157,8 +157,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.warn("[{}] Consumer with the same id is already created:"
                             + " consumerId={}, consumer={}",
                     consumer.cnx().clientAddress(), consumer.consumerId(), consumer);
-            throw new BrokerServiceException("Consumer with the same id is already created!");
-
+            throw new ConsumerBusyException("Consumer with the same id is already created!");
         }
 
         consumerList.add(consumer);
