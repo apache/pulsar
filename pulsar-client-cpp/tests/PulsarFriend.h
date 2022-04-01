@@ -25,6 +25,7 @@
 #include "lib/ConsumerImpl.h"
 #include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
+#include "lib/ReaderImpl.h"
 
 using std::string;
 
@@ -78,6 +79,12 @@ class PulsarFriend {
     static std::shared_ptr<ConsumerImpl> getConsumerImplPtr(Consumer consumer) {
         return std::static_pointer_cast<ConsumerImpl>(consumer.impl_);
     }
+
+    static ConsumerImplPtr getConsumer(Reader reader) {
+        return std::static_pointer_cast<ConsumerImpl>(reader.impl_->getConsumer().lock());
+    }
+
+    static ReaderImplWeakPtr getReaderImplWeakPtr(Reader reader) { return reader.impl_; }
 
     static std::shared_ptr<PartitionedConsumerImpl> getPartitionedConsumerImplPtr(Consumer consumer) {
         return std::static_pointer_cast<PartitionedConsumerImpl>(consumer.impl_);
