@@ -2,8 +2,8 @@
   "version-2.8.2-docs": {
     "Get Started": [
       "version-2.8.2-standalone",
-      "version-2.8.2-standalone-docker",
-      "version-2.8.2-kubernetes-helm"
+      "version-2.8.2-getting-started-docker",
+      "version-2.8.2-getting-started-helm"
     ],
     "Concepts and Architecture": [
       "version-2.8.2-concepts-overview",
@@ -145,7 +145,7 @@
     ],
     "Development": [
       "version-2.8.2-develop-tools",
-      "version-2.8.2-develop-binary-protocol",
+      "version-2.8.2-developing-binary-protocol",
       "version-2.8.2-develop-schema",
       "version-2.8.2-develop-load-manager"
     ],

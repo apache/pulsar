@@ -264,7 +264,7 @@ jobs:
     timeout-minutes: 60
     needs: ['changed_files_job', 'build-and-license-check']
     env:
-      UBUNTU_MIRROR: mirror://mirrors.ubuntu.com/mirrors.txt
+      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -497,7 +497,7 @@ jobs:
     timeout-minutes: 60
     needs: ['changed_files_job', 'build-and-license-check']
     env:
-      UBUNTU_MIRROR: mirror://mirrors.ubuntu.com/mirrors.txt
+      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -765,19 +765,3 @@ jobs:
       - name: Delete maven repository binaries from GitHub Actions Artifacts
         run: |
           gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst
-
-  # temporary workaround to make the required checks defined in .asf.yaml to pass
-  # these will be removed in later PRs once .asf.yaml has been edited
-  required-checks-workaround:
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        name:
-          - CI - Integration - Function
-          - CI - Integration - Schema
-          - CI - System - Sql
-    steps:
-      - name: No-op step
-        run: |
-          echo "This is just to make the required checks to pass and will be removed in later PR to change .asf.yaml"
