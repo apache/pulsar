@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * complex strategies.
  */
 public interface ModularLoadManagerStrategy {
-    Logger log = LoggerFactory.getLogger(ModularLoadManagerStrategy.class);
+    Logger LOG = LoggerFactory.getLogger(ModularLoadManagerStrategy.class);
 
     /**
      * Find a suitable broker to assign the given bundle to.
@@ -63,11 +63,11 @@ public interface ModularLoadManagerStrategy {
             if (loadManagerStrategyInstance instanceof ModularLoadManagerStrategy) {
                 return (ModularLoadManagerStrategy) loadManagerStrategyInstance;
             } else {
-                log.error("create load manager strategy failed. using LeastLongTermMessageRate instead.");
+                LOG.error("create load manager strategy failed. using LeastLongTermMessageRate instead.");
                 return new LeastLongTermMessageRate();
             }
         } catch (Exception e) {
-            log.error("Error when trying to create load manager strategy: ", e);
+            LOG.error("Error when trying to create load manager strategy: ", e);
         }
         return new LeastLongTermMessageRate();
     }

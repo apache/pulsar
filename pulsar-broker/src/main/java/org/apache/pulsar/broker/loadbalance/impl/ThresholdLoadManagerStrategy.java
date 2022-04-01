@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -26,13 +32,6 @@ import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Placement strategy which selects a broker based on which one has resource usage below average load.
@@ -59,9 +58,10 @@ public class ThresholdLoadManagerStrategy implements ModularLoadManagerStrategy 
             return Double.POSITIVE_INFINITY;
         }
 
-        double brokerResourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(), conf.getLoadBalancerBandwithOutResourceWeight());
+        double brokerResourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
+                conf.getLoadBalancerCPUResourceWeight(), conf.getLoadBalancerMemoryResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(), conf.getLoadBalancerBandwithInResourceWeight(),
+                conf.getLoadBalancerBandwithOutResourceWeight());
 
         if (log.isDebugEnabled()) {
             log.debug("Broker {} resource usage {}",
@@ -84,8 +84,9 @@ public class ThresholdLoadManagerStrategy implements ModularLoadManagerStrategy 
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign, final LoadData loadData,
-            final ServiceConfiguration conf) {
+    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign,
+                                         final LoadData loadData,
+                                         final ServiceConfiguration conf) {
         bestBrokers.clear();
         brokerUsages.clear();
 
