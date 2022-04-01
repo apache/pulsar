@@ -99,6 +99,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
     @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
+        container = null;
     }
 
     @SuppressWarnings("unchecked")

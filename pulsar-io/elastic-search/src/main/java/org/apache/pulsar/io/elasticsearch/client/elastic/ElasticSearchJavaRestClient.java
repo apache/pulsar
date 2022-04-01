@@ -182,17 +182,11 @@ public class ElasticSearchJavaRestClient extends RestClient {
     }
 
     @Override
-    public void close() {
-        super.close();
-        try {
-            if (bulkProcessor != null) {
-                bulkProcessor.awaitClose(5000L, TimeUnit.MILLISECONDS);
-            }
-        } catch (InterruptedException e) {
-            log.warn("Elasticsearch bulk processor close error:", e);
+    public void closeClient() {
+        if (bulkProcessor != null) {
+            bulkProcessor.close();
         }
         client.shutdown();
-
     }
 
     public ElasticsearchClient getClient() {

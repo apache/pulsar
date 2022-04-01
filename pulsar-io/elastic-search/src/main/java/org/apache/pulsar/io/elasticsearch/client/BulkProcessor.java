@@ -79,6 +79,6 @@ public interface BulkProcessor extends Closeable {
 
     void flush();
 
-    void awaitClose(long timeout, TimeUnit unit) throws InterruptedException;
-
+    @Override
+    void close();
 }

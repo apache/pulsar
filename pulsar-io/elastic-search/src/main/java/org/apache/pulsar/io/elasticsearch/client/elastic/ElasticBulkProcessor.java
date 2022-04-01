@@ -183,27 +183,22 @@ public class ElasticBulkProcessor implements BulkProcessor {
     @Override
     public void close() {
         try {
-            awaitClose(0L, TimeUnit.NANOSECONDS);
+            lock.lock();
+            try {
+                if (this.closed) {
+                    return;
+                }
+                if (futureFlushTask != null) {
+                    futureFlushTask.cancel(false);
+                }
+                flush();
+                bulkRequestHandler.awaitClose(5000, TimeUnit.MILLISECONDS);
+                closed = true;
+            } finally {
+                lock.unlock();
+            }
         } catch (InterruptedException var2) {
             Thread.currentThread().interrupt();
-        }
-    }
-
-    @Override
-    public void awaitClose(long timeout, TimeUnit unit) throws InterruptedException {
-        lock.lock();
-        try {
-            if (this.closed) {
-                return;
-            }
-            if (futureFlushTask != null) {
-                futureFlushTask.cancel(false);
-            }
-            flush();
-            bulkRequestHandler.awaitClose(timeout, unit);
-            closed = true;
-        } finally {
-            lock.unlock();
         }
     }
 

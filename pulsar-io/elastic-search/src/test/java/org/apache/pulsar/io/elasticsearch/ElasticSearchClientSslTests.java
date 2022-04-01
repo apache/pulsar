@@ -71,8 +71,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
@@ -109,8 +108,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
@@ -147,11 +145,15 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
                             .setTruststorePassword("changeit")
                             .setKeystorePath(sslResourceDir + "/keystore.jks")
                             .setKeystorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
+    private void testClientWithConfig(ElasticSearchConfig config) throws IOException {
+        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+            testIndexExists(client);
+        }
+    }
 
     private void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));
