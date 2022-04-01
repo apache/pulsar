@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import lombok.SneakyThrows;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
