@@ -46,16 +46,16 @@ public class ElasticSearchSslConfig implements Serializable {
     @FieldDoc(
             required = false,
             defaultValue = "true",
-            help = "Whether or not to validate node hostnames when using SSL. " +
-                    "Changing this value is high insecure and you should not use it in production environment."
+            help = "Whether or not to validate node hostnames when using SSL. "
+                    + "Changing this value is high insecure and you should not use it in production environment."
     )
     private boolean hostnameVerification = true;
 
     @FieldDoc(
             required = false,
             defaultValue = "false",
-            help = "Whether or not to disable the node certificate validation. " +
-                    "Changing this value is high insecure and you should not use it in production environment."
+            help = "Whether or not to disable the node certificate validation. "
+                    + "Changing this value is high insecure and you should not use it in production environment."
     )
     private boolean disableCertificateValidation;
 
