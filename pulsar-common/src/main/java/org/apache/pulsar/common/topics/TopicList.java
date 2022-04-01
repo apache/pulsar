@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.naming.TopicName;
 
