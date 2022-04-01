@@ -114,7 +114,7 @@ public class ElasticSearchConfig implements Serializable {
             required = false,
             defaultValue = "",
             sensitive = true,
-            help = "The token used by the connector to connect to the elastic search cluster. Only one between basic/token/apiKey authentication mode must be configured."
+            help = "The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
     )
     private String token;
 
@@ -122,7 +122,7 @@ public class ElasticSearchConfig implements Serializable {
             required = false,
             defaultValue = "",
             sensitive = true,
-            help = "The apiKey used by the connector to connect to the elastic search cluster. Only one between basic/token/apiKey authentication mode must be configured."
+            help = "The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
     )
     private String apiKey;
 
