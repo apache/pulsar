@@ -2,8 +2,8 @@
   "version-2.7.3-docs": {
     "Get Started": [
       "version-2.7.3-standalone",
-      "version-2.7.3-standalone-docker",
-      "version-2.7.3-kubernetes-helm"
+      "version-2.7.3-getting-started-docker",
+      "version-2.7.3-getting-started-helm"
     ],
     "Concepts and Architecture": [
       "version-2.7.3-concepts-overview",
@@ -141,7 +141,7 @@
     ],
     "Development": [
       "version-2.7.3-develop-tools",
-      "version-2.7.3-develop-binary-protocol",
+      "version-2.7.3-developing-binary-protocol",
       "version-2.7.3-develop-schema",
       "version-2.7.3-develop-load-manager",
       "version-2.7.3-develop-cpp"
