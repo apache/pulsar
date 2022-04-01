@@ -55,13 +55,33 @@ public class PulsarSinksTest extends PulsarIOTestBase {
     }
 
     @Test(groups = "sink")
-    public void testElasticSearchSinkRawData() throws Exception {
-        testSink(new ElasticSearchSinkTester(false), true);
+    public void testElasticSearch7SinkRawData() throws Exception {
+        testSink(new ElasticSearch7SinkTester(false), true);
     }
 
     @Test(groups = "sink")
-    public void testElasticSearchSinkSchemaEnabled() throws Exception {
-        testSink(new ElasticSearchSinkTester(true), true);
+    public void testElasticSearchSink7SchemaEnabled() throws Exception {
+        testSink(new ElasticSearch7SinkTester(true), true);
+    }
+
+    @Test(groups = "sink")
+    public void testElasticSearch8SinkRawData() throws Exception {
+        testSink(new ElasticSearch8SinkTester(false), true);
+    }
+
+    @Test(groups = "sink")
+    public void testElasticSearch8SinkSchemaEnabled() throws Exception {
+        testSink(new ElasticSearch8SinkTester(true), true);
+    }
+
+    @Test(groups = "sink")
+    public void testOpenSearchSinkRawData() throws Exception {
+        testSink(new OpenSearchSinkTester(false), true);
+    }
+
+    @Test(groups = "sink")
+    public void testOpenSearchSinkSchemaEnabled() throws Exception {
+        testSink(new OpenSearchSinkTester(true), true);
     }
 
     @Test(groups = "sink")

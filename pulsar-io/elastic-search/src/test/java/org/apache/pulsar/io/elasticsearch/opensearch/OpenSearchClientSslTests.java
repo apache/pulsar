@@ -16,8 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.elasticsearch;
+package org.apache.pulsar.io.elasticsearch.opensearch;
 
+import org.apache.pulsar.io.elasticsearch.ElasticSearchClient;
+import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
+import org.apache.pulsar.io.elasticsearch.ElasticSearchSslConfig;
+import org.apache.pulsar.io.elasticsearch.ElasticSearchTestBase;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.utility.MountableFile;
@@ -25,48 +29,54 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-// see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
-public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase {
+/*https://opensearch.org/docs/latest/opensearch/install/docker-security/*/
+public class OpenSearchClientSslTests extends ElasticSearchTestBase {
 
     final static String INDEX = "myindex";
 
     final static String sslResourceDir = MountableFile.forClasspathResource("ssl").getFilesystemPath();
-    final static  String configDir = "/usr/share/elasticsearch/config";
+    final static  String configDir = "/usr/share/opensearch/config";
 
-    public ElasticSearchClientSslTests(String elasticImageName) {
-        super(elasticImageName);
+    public OpenSearchClientSslTests() {
+        super(OPENSEARCH);
+    }
+
+    private static Map<String, String> sslEnv() {
+        Map<String, String> map = new HashMap<>();
+        map.put("plugins.security.disabled", "false");
+        map.put("plugins.security.ssl.http.enabled", "true");
+
+        map.put("plugins.security.ssl.http.enabled", "true");
+        map.put("plugins.security.ssl.http.pemkey_filepath", configDir + "/ssl/elasticsearch.pem");
+        map.put("plugins.security.ssl.http.pemcert_filepath", configDir + "/ssl/elasticsearch.crt");
+        map.put("plugins.security.ssl.http.pemtrustedcas_filepath", configDir + "/ssl/cacert.pem");
+        map.put("plugins.security.ssl.transport.enabled", "true");
+        map.put("plugins.security.ssl.transport.pemkey_filepath", configDir + "/ssl/elasticsearch.pem");
+        map.put("plugins.security.ssl.transport.pemcert_filepath", configDir + "/ssl/elasticsearch.crt");
+        map.put("plugins.security.ssl.transport.pemtrustedcas_filepath", configDir + "/ssl/cacert.pem");
+        return map;
     }
 
     @Test
     public void testSslBasic() throws IOException {
         try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withPassword("elastic")
-                .withEnv("xpack.license.self_generated.type", "trial")
-                .withEnv("xpack.security.enabled", "true")
-                .withEnv("xpack.security.http.ssl.enabled", "true")
-                .withEnv("xpack.security.http.ssl.client_authentication", "optional")
-                .withEnv("xpack.security.http.ssl.key", configDir + "/ssl/elasticsearch.key")
-                .withEnv("xpack.security.http.ssl.certificate", configDir + "/ssl/elasticsearch.crt")
-                .withEnv("xpack.security.http.ssl.certificate_authorities", configDir + "/ssl/cacert.crt")
-                .withEnv("xpack.security.transport.ssl.enabled", "true")
-                .withEnv("xpack.security.transport.ssl.verification_mode", "certificate")
-                .withEnv("xpack.security.transport.ssl.key", configDir + "/ssl/elasticsearch.key")
-                .withEnv("xpack.security.transport.ssl.certificate", configDir + "/ssl/elasticsearch.crt")
-                .withEnv("xpack.security.transport.ssl.certificate_authorities", configDir + "/ssl/cacert.crt")
-                .waitingFor(Wait.forLogMessage(".*(Security is enabled|Active license).*", 1)
+                .withEnv(sslEnv())
+                .waitingFor(Wait.forLogMessage(".*Node started.*", 1)
                         .withStartupTimeout(Duration.ofMinutes(2)))) {
             container.start();
 
             ElasticSearchConfig config = new ElasticSearchConfig()
                     .setElasticSearchUrl("https://" + container.getHttpHostAddress())
                     .setIndexName(INDEX)
-                    .setUsername("elastic")
-                    .setPassword("elastic")
+                    .setUsername("admin")
+                    .setPassword("admin")
                     .setSsl(new ElasticSearchSslConfig()
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
@@ -80,29 +90,17 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
     public void testSslWithHostnameVerification() throws IOException {
         try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withPassword("elastic")
-                .withEnv("xpack.license.self_generated.type", "trial")
-                .withEnv("xpack.security.enabled", "true")
-                .withEnv("xpack.security.http.ssl.enabled", "true")
-                .withEnv("xpack.security.http.ssl.supported_protocols", "TLSv1.2,TLSv1.1")
-                .withEnv("xpack.security.http.ssl.client_authentication", "optional")
-                .withEnv("xpack.security.http.ssl.key", configDir + "/ssl/elasticsearch.key")
-                .withEnv("xpack.security.http.ssl.certificate", configDir + "/ssl/elasticsearch.crt")
-                .withEnv("xpack.security.http.ssl.certificate_authorities", configDir + "/ssl/cacert.crt")
-                .withEnv("xpack.security.transport.ssl.enabled", "true")
-                .withEnv("xpack.security.transport.ssl.verification_mode", "full")
-                .withEnv("xpack.security.transport.ssl.key", configDir + "/ssl/elasticsearch.key")
-                .withEnv("xpack.security.transport.ssl.certificate", configDir + "/ssl/elasticsearch.crt")
-                .withEnv("xpack.security.transport.ssl.certificate_authorities", configDir + "/ssl/cacert.crt")
-                .waitingFor(Wait.forLogMessage(".*(Security is enabled|Active license).*", 1)
+                .withEnv(sslEnv())
+                .withEnv("plugins.security.ssl.transport.enforce_hostname_verification", "true")
+                .waitingFor(Wait.forLogMessage(".*Node started.*", 1)
                         .withStartupTimeout(Duration.ofMinutes(2)))) {
             container.start();
 
             ElasticSearchConfig config = new ElasticSearchConfig()
                     .setElasticSearchUrl("https://" + container.getHttpHostAddress())
                     .setIndexName(INDEX)
-                    .setUsername("elastic")
-                    .setPassword("elastic")
+                    .setUsername("admin")
+                    .setPassword("admin")
                     .setSsl(new ElasticSearchSslConfig()
                             .setEnabled(true)
                             .setProtocols("TLSv1.2")
@@ -118,28 +116,16 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
     public void testSslWithClientAuth() throws IOException {
         try(ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
-                .withPassword("elastic")
-                .withEnv("xpack.license.self_generated.type", "trial")
-                .withEnv("xpack.security.enabled", "true")
-                .withEnv("xpack.security.http.ssl.enabled", "true")
-                .withEnv("xpack.security.http.ssl.client_authentication", "required")
-                .withEnv("xpack.security.http.ssl.key", configDir + "/ssl/elasticsearch.key")
-                .withEnv("xpack.security.http.ssl.certificate", configDir + "/ssl/elasticsearch.crt")
-                .withEnv("xpack.security.http.ssl.certificate_authorities", configDir + "/ssl/cacert.crt")
-                .withEnv("xpack.security.transport.ssl.enabled", "true")
-                .withEnv("xpack.security.transport.ssl.verification_mode", "full")
-                .withEnv("xpack.security.transport.ssl.key", configDir + "/ssl/elasticsearch.key")
-                .withEnv("xpack.security.transport.ssl.certificate", configDir + "/ssl/elasticsearch.crt")
-                .withEnv("xpack.security.transport.ssl.certificate_authorities", configDir + "/ssl/cacert.crt")
-                .waitingFor(Wait.forLogMessage(".*(Security is enabled|Active license).*", 1)
+                .withEnv(sslEnv())
+                .waitingFor(Wait.forLogMessage(".*Node started.*", 1)
                         .withStartupTimeout(Duration.ofMinutes(3)))) {
             container.start();
 
             ElasticSearchConfig config = new ElasticSearchConfig()
                     .setElasticSearchUrl("https://" + container.getHttpHostAddress())
                     .setIndexName(INDEX)
-                    .setUsername("elastic")
-                    .setPassword("elastic")
+                    .setUsername("admin")
+                    .setPassword("admin")
                     .setSsl(new ElasticSearchSslConfig()
                             .setEnabled(true)
                             .setHostnameVerification(true)
@@ -153,7 +139,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
     }
 
 
-    private void testIndexExists(ElasticSearchClient client) throws IOException {
+    public void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));
         assertTrue(client.createIndexIfNeeded("mynewindex"));
         assertTrue(client.indexExists("mynewindex"));
