@@ -24,10 +24,14 @@ import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -75,8 +79,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private Consumer<byte[]> consumer;
 
     private int maxPendingMessages = 0;
-    private final AtomicInteger pendingMessages = new AtomicInteger();
+    // for not pull mode
+    private final Optional<Set<String>> pendingMessages;
+    // for pull mode
+    private final AtomicInteger permits = new AtomicInteger(0);
     private final boolean pullMode;
+    private final AtomicBoolean blocked = new AtomicBoolean(false);
 
     private final LongAdder numMsgsDelivered;
     private final LongAdder numBytesDelivered;
@@ -87,7 +95,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
     // of the BatchMessageIdImpl will not complete.
-    private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
+    private final Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
 
@@ -100,6 +108,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
         this.pullMode = Boolean.parseBoolean(queryParams.get("pullMode"));
+        // don't store any messageId on pullMode for the size of set
+        this.pendingMessages = this.pullMode ? Optional.empty() : Optional.of(Sets.newConcurrentHashSet());
 
         try {
             // checkAuth() and getConsumerConfiguration() should be called after assigning a value to this.subscription
@@ -148,7 +158,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             }
 
             ConsumerMessage dm = new ConsumerMessage();
-            dm.messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
+            final String messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
+            dm.messageId = messageId;
             dm.payload = Base64.getEncoder().encodeToString(msg.getData());
             dm.properties = msg.getProperties();
             dm.publishTime = DateFormatter.format(msg.getPublishTime());
@@ -162,7 +173,18 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             }
             final long msgSize = msg.getData().length;
 
+            pendingMessages.ifPresent(p -> p.add(messageId));
             messageIdCache.put(dm.messageId, msg.getMessageId());
+            // should lock before schedule sending
+            final boolean methodLocalBlocked;
+            if (pullMode) {
+                methodLocalBlocked = permits.decrementAndGet() <= 0;
+            } else {
+                methodLocalBlocked = pendingMessages.get().size() >= maxPendingMessages;
+            }
+            if (methodLocalBlocked) {
+                blocked.set(true);
+            }
 
             try {
                 getSession().getRemote()
@@ -171,9 +193,21 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                             public void writeFailed(Throwable th) {
                                 log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(), subscription,
                                         getRemote().getInetSocketAddress().toString(), th.getMessage());
-                                pendingMessages.decrementAndGet();
-                                // schedule receive as one of the delivery failed
-                                service.getExecutor().execute(() -> receiveMessage());
+                                final boolean callbackLocalBlocked = blocked.get();
+                                if (pullMode) {
+                                    permits.incrementAndGet();
+                                } else {
+                                    pendingMessages.ifPresent(p -> p.remove(messageId));
+                                }
+
+                                // Schedule receive even if the current blocked state is false
+                                // to avoid stopping dispatch.
+                                // This approach possibly cause concurrent scheduling.
+                                if (callbackLocalBlocked) {
+                                    blocked.set(false);
+                                    // Schedule receive as one of the delivery failed.
+                                    service.getExecutor().execute(() -> receiveMessage());
+                                }
                             }
 
                             @Override
@@ -189,8 +223,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 close(WebSocketError.FailedToSerializeToJSON);
             }
 
-            int pending = pendingMessages.incrementAndGet();
-            if (pending < maxPendingMessages) {
+            // Schedule receive even if the current blocked state is false
+            // to reduce the possibility of concurrent scheduling between here and checkResumeReceive.
+            if (!methodLocalBlocked) {
                 // Start next read in a separate thread to avoid recursion
                 service.getExecutor().execute(this::receiveMessage);
             }
@@ -279,9 +314,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     private void checkResumeReceive() {
-        if (!this.pullMode) {
-            int pending = pendingMessages.getAndDecrement();
-            if (pending >= maxPendingMessages) {
+        if (!pullMode) {
+            if (blocked.compareAndSet(true, false)) {
                 // Resume delivery
                 receiveMessage();
             }
@@ -297,6 +331,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
 
+        pendingMessages.ifPresent(p -> p.remove(command.messageId));
         MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
         if (originalMsgId != null) {
             consumer.acknowledgeAsync(originalMsgId).thenAccept(consumer -> numMsgsAcked.increment());
@@ -315,6 +350,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
 
+        pendingMessages.ifPresent(p -> p.remove(command.messageId));
         MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
         if (originalMsgId != null) {
             consumer.negativeAcknowledge(originalMsgId);
@@ -332,9 +368,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         if (command.permitMessages == null) {
             throw new IOException("Missing required permitMessages field for 'permit' command");
         }
-        if (this.pullMode) {
-            int pending = pendingMessages.getAndAdd(-command.permitMessages);
-            if (pending >= 0) {
+        if (pullMode) {
+            blocked.set(false);
+            int currentPermits = permits.getAndAdd(command.permitMessages);
+            if (currentPermits <= 0) {
                 // Resume delivery
                 receiveMessage();
             }
