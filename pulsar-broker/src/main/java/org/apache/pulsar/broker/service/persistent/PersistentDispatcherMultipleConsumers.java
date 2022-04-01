@@ -170,7 +170,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected boolean isConsumersExceededOnSubscription() {
         return isConsumersExceededOnSubscription(topic, consumerList.size());
     }
-    
+
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // decrement unack-message count for removed consumer
