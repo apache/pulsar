@@ -231,6 +231,26 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test
+    public void testTrimAuthSecretKeyFilePath() throws Exception {
+        String space = " ";
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        File secretKeyFile = File.createTempFile("pulsar-test-secret-key-", ".key");
+        secretKeyFile.deleteOnExit();
+        Files.write(Paths.get(secretKeyFile.toString()), secretKey.getEncoded());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        String secretKeyFileUri = secretKeyFile.toURI().toString() + space;
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFileUri);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+    }
+
+    @Test
     public void testAuthSecretKeyFromFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 

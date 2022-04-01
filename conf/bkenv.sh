@@ -40,7 +40,13 @@ BOOKIE_MEM=${BOOKIE_MEM:-${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
 # Garbage collection options
 BOOKIE_GC=${BOOKIE_GC:-${PULSAR_GC:-"-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC"}}
 
-IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+if [ -z "$JAVA_HOME" ]
+then
+  IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+else
+  IS_JAVA_8=`$JAVA_HOME/bin/java -version 2>&1 |grep version|grep '"1\.8'`
+fi
+
 # java version has space, use [[ -n $PARAM ]] to judge if variable exists
 if [[ -n $IS_JAVA_8 ]]; then
   BOOKIE_GC_LOG=${BOOKIE_GC_LOG:-${PULSAR_GC_LOG:-"-Xloggc:logs/pulsar_bookie_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}}

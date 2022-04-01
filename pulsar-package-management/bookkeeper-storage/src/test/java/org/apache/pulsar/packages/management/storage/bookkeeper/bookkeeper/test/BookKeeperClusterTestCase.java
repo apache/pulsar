@@ -296,19 +296,16 @@ public abstract class BookKeeperClusterTestCase {
         for (final BookieServer bookie : bs) {
             if (bookie.getLocalAddress().equals(addr)) {
                 final CountDownLatch l = new CountDownLatch(1);
-                Thread sleeper = new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            bookie.suspendProcessing();
-                            l.countDown();
-                            Thread.sleep(seconds * 1000);
-                            bookie.resumeProcessing();
-                        } catch (Exception e) {
-                            LOG.error("Error suspending bookie", e);
-                        }
+                Thread sleeper = new Thread(() -> {
+                    try {
+                        bookie.suspendProcessing();
+                        l.countDown();
+                        Thread.sleep(seconds * 1000);
+                        bookie.resumeProcessing();
+                    } catch (Exception e) {
+                        LOG.error("Error suspending bookie", e);
                     }
-                };
+                });
                 sleeper.start();
                 return l;
             }
@@ -329,18 +326,15 @@ public abstract class BookKeeperClusterTestCase {
     public void sleepBookie(InetSocketAddress addr, final CountDownLatch l) throws Exception {
         for (final BookieServer bookie : bs) {
             if (bookie.getLocalAddress().equals(addr)) {
-                Thread sleeper = new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            bookie.suspendProcessing();
-                            l.await();
-                            bookie.resumeProcessing();
-                        } catch (Exception e) {
-                            LOG.error("Error suspending bookie", e);
-                        }
+                Thread sleeper = new Thread(() -> {
+                    try {
+                        bookie.suspendProcessing();
+                        l.await();
+                        bookie.resumeProcessing();
+                    } catch (Exception e) {
+                        LOG.error("Error suspending bookie", e);
                     }
-                };
+                });
                 sleeper.start();
                 return;
             }

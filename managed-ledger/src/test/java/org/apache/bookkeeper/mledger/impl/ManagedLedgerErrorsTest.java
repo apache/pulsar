@@ -434,7 +434,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
         assertEquals(new String(entries.get(0).getData()), "entry-1");
         assertEquals(new String(entries.get(1).getData()), "entry-4");
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
     }
 
     @Test
@@ -483,7 +483,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         assertEquals(new String(entries.get(0).getData()), "entry-1");
         assertEquals(new String(entries.get(1).getData()), "entry-2");
         assertEquals(new String(entries.get(2).getData()), "entry-3");
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
     }
 
     @Test

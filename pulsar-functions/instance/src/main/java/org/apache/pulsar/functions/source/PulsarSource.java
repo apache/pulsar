@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
@@ -116,6 +117,16 @@ public abstract class PulsarSource<T> implements Source<T> {
         } else if (message instanceof TopicMessageImpl) {
             TopicMessageImpl impl = (TopicMessageImpl) message;
             schema = impl.getSchemaInternal();
+        }
+
+        // we don't want the Function/Sink to see AutoConsumeSchema
+        if (schema instanceof AutoConsumeSchema) {
+            AutoConsumeSchema autoConsumeSchema = (AutoConsumeSchema) schema;
+            // we cannot use atSchemaVersion, because atSchemaVersion is only
+            // able to decode data, here we want a Schema that
+            // is able to re-encode the payload when needed.
+            schema = (Schema<T>) autoConsumeSchema
+                    .unwrapInternalSchema(message.getSchemaVersion());
         }
         return PulsarRecord.<T>builder()
                 .message(message)

@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -60,9 +61,12 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
@@ -88,12 +92,14 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -534,7 +540,7 @@ public class TransactionTest extends TransactionTestBase {
                 .getTopic("persistent://" + topic, false).get().get();
         persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
 
-        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
         doReturn("transaction-buffer-sub").when(managedCursor).getName();
         doReturn(true).when(managedCursor).hasMoreEntries();
         doAnswer(invocation -> {
@@ -559,6 +565,21 @@ public class TransactionTest extends TransactionTestBase {
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer2.getStats().state, "Ready"));
+        managedCursors.removeCursor("transaction-buffer-sub");
+
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("test"), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+
+        managedCursors.add(managedCursor);
+        TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(buffer3.getStats().state, "Ready"));
+        persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
+            assertTrue(internalStats.cursors.isEmpty());
+        });
         managedCursors.removeCursor("transaction-buffer-sub");
     }
 
@@ -617,6 +638,17 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle2 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
                 assertEquals(pendingAckHandle2.getStats().state, "Ready"));
+
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("test"), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+
+        PendingAckHandleImpl pendingAckHandle3 = new PendingAckHandleImpl(persistentSubscription);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(pendingAckHandle3.getStats().state, "Ready"));
     }
 
     @Test
@@ -677,6 +709,19 @@ public class TransactionTest extends TransactionTestBase {
                         mlTransactionSequenceIdGenerator);
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore2.getCoordinatorStats().state, "Ready"));
+
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("test"), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), any(), any());
+
+        MLTransactionMetadataStore metadataStore3 =
+                new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
+                        mlTransactionLog, timeoutTracker, transactionRecoverTracker,
+                        mlTransactionSequenceIdGenerator);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(metadataStore3.getCoordinatorStats().state, "Ready"));
     }
 
     @Test
@@ -699,8 +744,12 @@ public class TransactionTest extends TransactionTestBase {
         field.set(commitTxn, TransactionImpl.State.COMMITTING);
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
-        abortTxn.abort();
-        commitTxn.commit();
+        BrokerInterceptor listener = getPulsarServiceList().get(0).getBrokerInterceptor();
+        assertEquals(((CounterBrokerInterceptor)listener).getTxnCount(),2);
+        abortTxn.abort().get();
+        assertEquals(((CounterBrokerInterceptor)listener).getAbortedTxnCount(),1);
+        commitTxn.commit().get();
+        assertEquals(((CounterBrokerInterceptor)listener).getCommittedTxnCount(),1);
     }
 
     @Test
@@ -802,7 +851,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testNotChangeMaxReadPositionAndAddAbortTimesWhenCheckIfNoSnapshot() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
-                .getTopic(NAMESPACE1 + "/test", true)
+                .getTopic(NAMESPACE1 + "/changeMaxReadPositionAndAddAbortTimes" + UUID.randomUUID(), true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Field field = TopicTransactionBuffer.class.getDeclaredField("changeMaxReadPositionAndAddAbortTimes");
@@ -820,5 +869,33 @@ public class TransactionTest extends TransactionTestBase {
         buffer.syncMaxReadPositionForNormalPublish(new PositionImpl(1, 1));
         Assert.assertEquals(changeMaxReadPositionAndAddAbortTimes.get(), 0L);
 
+    }
+
+    @Test
+    public void testAutoCreateSchemaForTransactionSnapshot() throws Exception {
+        String namespace = TENANT + "/ns2";
+        String topic = namespace + "/test";
+        pulsarServiceList.forEach((pulsarService ->
+                pulsarService.getConfiguration().setAllowAutoUpdateSchemaEnabled(false)));
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+        TopicName transactionBufferTopicName =
+                NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                        TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
+        TopicName transactionBufferTopicName1 =
+                NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                        TopicName.get(topic).getNamespaceObject(), EventType.TOPIC_POLICY);
+        Awaitility.await().untilAsserted(() -> {
+            SchemaInfo schemaInfo = admin
+                    .schemas()
+                    .getSchemaInfo(transactionBufferTopicName.toString());
+            Assert.assertNotNull(schemaInfo);
+            SchemaInfo schemaInfo1 = admin
+                    .schemas()
+                    .getSchemaInfo(transactionBufferTopicName1.toString());
+            Assert.assertNotNull(schemaInfo1);
+        });
+        pulsarServiceList.forEach((pulsarService ->
+                pulsarService.getConfiguration().setAllowAutoUpdateSchemaEnabled(true)));
     }
 }

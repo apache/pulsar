@@ -104,8 +104,7 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
         }
         BKDLConfig bkdlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
-        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages",
-            configuration.getZookeeperServers()));
+        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages", ledgersStoreServers));
         try {
             dlMetadata.create(dlogURI);
         } catch (ZKException e) {

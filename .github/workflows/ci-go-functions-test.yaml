@@ -32,6 +32,10 @@ on:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
@@ -58,6 +62,7 @@ jobs:
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
           filters: .github/changes-filter.yaml
+          list-files: csv
 
       - name: Check changed files
         id: check_changes

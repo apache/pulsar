@@ -36,7 +36,6 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
@@ -586,36 +585,5 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(res.getValue().a, 1);
         assertEquals(res.getValue().b, 2);
         assertEquals(res.getValue().path, key1);
-    }
-
-    public static void assertEqualsAndRetry(Supplier<Object> actual,
-                                            Object expected,
-                                            Object expectedAndRetry) throws Exception {
-        assertEqualsAndRetry(actual, expected, expectedAndRetry, 5, 100);
-    }
-
-    public static void assertEqualsAndRetry(Supplier<Object> actual,
-                                            Object expected,
-                                            Object expectedAndRetry,
-                                            int retryCount,
-                                            long intSleepTimeInMillis) throws Exception {
-        assertTrue(retryStrategically((__) -> {
-            if (actual.get().equals(expectedAndRetry)) {
-                return false;
-            }
-            assertEquals(actual.get(), expected);
-            return true;
-        }, retryCount, intSleepTimeInMillis));
-    }
-
-    public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
-            throws Exception {
-        for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
-                return true;
-            }
-            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
-        }
-        return false;
     }
 }

@@ -378,6 +378,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
+| strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
 
 
 #### Deprecated parameters of Broker
@@ -638,7 +639,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|
 | managedLedgerDigestType | Default type of checksum to use when writing to BookKeeper. | CRC32C |
-| managedLedgerNumWorkerThreads | Number of threads to be used for managed ledger tasks dispatching. | Runtime.getRuntime().availableProcessors() |
 | managedLedgerNumSchedulerThreads | Number of threads to be used for managed ledger scheduled tasks. | Runtime.getRuntime().availableProcessors() |
 |managedLedgerCacheSizeMB|    |N/A|
 |managedLedgerCacheCopyEntries| Whether to copy the entry payloads when inserting in cache.| false|
@@ -716,6 +716,8 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 
 |Name|Description|Default|
 |---|---|---|
+|zookeeperServers|  The quorum connection string for local metadata store. Use `metadataStoreUrl` instead.  |N/A|
+|configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
 |zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds. Use `metadataStoreOperationTimeoutSeconds` instead. |30|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead. |300|
 |zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
@@ -724,7 +726,7 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 
 |Name|Description|Default|
 |---|---|---|
-|configurationMetadataStoreUrl    |||
+|configurationMetadataStoreUrl |Configuration store connection string. |N/A|
 |metadataStoreSessionTimeoutMillis|Metadata store session timeout in milliseconds.  |30000|
 |metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |serviceUrl|||
@@ -754,6 +756,7 @@ The following parameters have been deprecated in the `conf/websocket.conf` file.
 |---|---|---|
 |zooKeeperSessionTimeoutMillis|The ZooKeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
+|configurationStoreServers| Configuration Store connection string. Use `configurationMetadataStoreUrl` instead.|N/A|
 
 ## Pulsar proxy
 
@@ -765,8 +768,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |forwardAuthorizationCredentials| Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect. |false|
 |metadataStoreUrl| Metadata store quorum connection string (as a comma-separated list)  ||
 |configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
-| brokerServiceURL | The service URL pointing to the broker cluster. | |
-| brokerServiceURLTLS | The TLS service URL pointing to the broker cluster | |
+| brokerServiceURL | The service URL pointing to the broker cluster. Must begin with `pulsar://`. | |
+| brokerServiceURLTLS | The TLS service URL pointing to the broker cluster. Must begin with `pulsar+ssl://`. | |
 | brokerWebServiceURL | The Web service URL pointing to the broker cluster | |
 | brokerWebServiceURLTLS | The TLS Web service URL pointing to the broker cluster | |
 | functionWorkerWebServiceURL | The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
