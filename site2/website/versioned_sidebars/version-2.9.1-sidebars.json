@@ -2,8 +2,8 @@
   "version-2.9.1-docs": {
     "Get Started": [
       "version-2.9.1-standalone",
-      "version-2.9.1-standalone-docker",
-      "version-2.9.1-kubernetes-helm"
+      "version-2.9.1-getting-started-docker",
+      "version-2.9.1-getting-started-helm"
     ],
     "Concepts and Architecture": [
       "version-2.9.1-concepts-overview",
@@ -145,7 +145,7 @@
     ],
     "Development": [
       "version-2.9.1-develop-tools",
-      "version-2.9.1-develop-binary-protocol",
+      "version-2.9.1-developing-binary-protocol",
       "version-2.9.1-develop-schema",
       "version-2.9.1-develop-load-manager"
     ],
