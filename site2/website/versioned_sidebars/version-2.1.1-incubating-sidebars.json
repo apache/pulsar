@@ -3,7 +3,7 @@
     "Getting Started": [
       "version-2.1.1-incubating-pulsar-2.0",
       "version-2.1.1-incubating-standalone",
-      "version-2.1.1-incubating-standalone-docker",
+      "version-2.1.1-incubating-getting-started-docker",
       "version-2.1.1-incubating-client-libraries"
     ],
     "Concepts and Architecture": [
@@ -94,7 +94,7 @@
     ],
     "Development": [
       "version-2.1.1-incubating-develop-tools",
-      "version-2.1.1-incubating-develop-binary-protocol",
+      "version-2.1.1-incubating-developing-binary-protocol",
       "version-2.1.1-incubating-develop-schema",
       "version-2.1.1-incubating-develop-load-manager",
       "version-2.1.1-incubating-develop-cpp"
