@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.awaitility.Awaitility;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.annotations.AfterClass;
@@ -74,27 +74,41 @@ public class KinesisSinkTest {
 
     @Test
     public void testWrite() throws Exception {
-        final Record mockRecord = mock(Record.class);
         AtomicBoolean ackCalled = new AtomicBoolean();
-        Mockito.doAnswer((Answer<Void>) invocation -> {
-            ackCalled.set(true);
-            return null;
-        }).when(mockRecord).ack();
-        when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
-            long sequenceCounter = 0;
-            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
-                return Optional.of( "key-" + sequenceCounter++);
-            }});
+        AtomicLong sequenceCounter = new AtomicLong(0);
+        Message<GenericObject> message = mock(Message.class);
+        when(message.getData()).thenReturn("hello".getBytes(StandardCharsets.UTF_8));
+        final Record<GenericObject> pulsarRecord = new Record<GenericObject>() {
 
-        when(mockRecord.getValue()).thenReturn("hello".getBytes(StandardCharsets.UTF_8));
+            @Override
+            public Optional<String> getKey() {
+                return Optional.of( "key-" + sequenceCounter.incrementAndGet());
+            }
 
-        try (final KinesisSink sink = new KinesisSink();) {
+            @Override
+            public GenericObject getValue() {
+                // Value comes from the message raw data, not the GenericObject
+                return null;
+            }
+
+            @Override
+            public void ack() {
+                ackCalled.set(true);
+            }
+
+            @Override
+            public Optional<Message<GenericObject>> getMessage() {
+                return Optional.of(message);
+            }
+        };
+
+        try (final KinesisSink sink = new KinesisSink()) {
             Map<String, Object> map = createConfig();
             SinkContext mockSinkContext = mock(SinkContext.class);
 
             sink.open(map, mockSinkContext);
             for (int i = 0; i < 10; i++) {
-                sink.write(mockRecord);
+                sink.write(pulsarRecord);
             }
             Awaitility.await().untilAsserted(() -> {
                 assertTrue(ackCalled.get());
