@@ -1048,6 +1048,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 resetCursorCallback.resetFailed(
                         new ManagedLedgerException.ConcurrentFindCursorPositionException("reset already in progress"),
                         position);
+                return;
             }
         }
 
