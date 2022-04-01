@@ -1944,7 +1944,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_LOAD_BALANCER,
             doc = "load balance load manager strategy"
     )
-    private String loadBalancerLoadManagerStrategy = "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
+    private String loadBalancerLoadManagerStrategy =
+            "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
 
     @FieldContext(
         dynamic = true,
