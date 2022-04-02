@@ -903,12 +903,15 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testPendingAckMarkDeletePosition() throws Exception {
         String topic = NAMESPACE1 + "/test1";
+
+        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer(Schema.BYTES)
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient
                 .newConsumer()
                 .topic(topic)
