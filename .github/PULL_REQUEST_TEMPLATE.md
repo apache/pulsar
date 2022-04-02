@@ -1,9 +1,7 @@
 <!--
 ### Contribution Checklist
   
-  - Name the pull request in the form "[Issue XYZ][component] Title of the pull request", where *XYZ* should be replaced by the actual issue number.
-    Skip *Issue XYZ* if there is no associated github issue for this pull request.
-    Skip *component* if you are unsure about which is the best component. E.g. `[docs] Fix typo in produce method`.
+  - Follow the *[Guideline - Pulsar PR Naming Convention](https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#heading=h.trs9rsex3xom)* to name the pull request. 
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
   
