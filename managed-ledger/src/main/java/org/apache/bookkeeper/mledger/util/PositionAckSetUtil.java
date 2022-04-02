@@ -48,7 +48,7 @@ public class PositionAckSetUtil {
         currentPosition.setAckSet(andAckSet(currentPosition.getAckSet(), otherPosition.getAckSet()));
     }
 
-    //This method is do `or` operation for ack set
+    //This method is do `and` operation for ack set
     public static long[] andAckSet(long[] firstAckSet, long[] secondAckSet) {
         BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(firstAckSet);
         BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(secondAckSet);
