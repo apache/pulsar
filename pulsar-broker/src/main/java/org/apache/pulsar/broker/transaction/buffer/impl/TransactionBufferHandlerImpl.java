@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
@@ -30,7 +27,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
@@ -68,22 +64,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             AtomicIntegerFieldUpdater.newUpdater(TransactionBufferHandlerImpl.class, "requestCredits");
     private volatile int requestCredits;
 
-    private final LoadingCache<String, CompletableFuture<ClientCnx>> lookupCache = CacheBuilder.newBuilder()
-            .maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES)
-            .build(new CacheLoader<String, CompletableFuture<ClientCnx>>() {
-                @Override
-                public CompletableFuture<ClientCnx> load(String topic) {
-                    CompletableFuture<ClientCnx> siFuture = getClientCnxViaBundle(topic);
-                    siFuture.whenComplete((si, cause) -> {
-                        if (null != cause) {
-                            lookupCache.invalidate(topic);
-                        }
-                    });
-                    return siFuture;
-                }
-            });
-
     public TransactionBufferHandlerImpl(PulsarService pulsarService, HashedWheelTimer timer,
         int maxConcurrentRequests, long operationTimeoutInMills) throws PulsarServerException {
         this.pulsarService = pulsarService;
@@ -107,15 +87,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, lowWaterMark);
 
-        try {
-            OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb, lookupCache.get(topic));
-            if (checkRequestCredits(op)) {
-                endTxn(op);
-            }
-        } catch (ExecutionException e) {
-            log.error("[{}] failed to get client cnx from lookup cache", topic, e);
-            lookupCache.invalidate(topic);
-            cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
+        OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb, getClientCnx(topic));
+        if (checkRequestCredits(op)) {
+            endTxn(op);
         }
         return cb;
     }
@@ -132,15 +106,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, subscription, action, lowWaterMark);
-        try {
-            OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb, lookupCache.get(topic));
-            if (checkRequestCredits(op)) {
-                endTxn(op);
-            }
-        } catch (ExecutionException e) {
-            log.error("[{}] failed to get client cnx from lookup cache", topic, e);
-            lookupCache.invalidate(topic);
-            cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
+        OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb, getClientCnx(topic));
+        if (checkRequestCredits(op)) {
+            endTxn(op);
         }
         return cb;
     }
@@ -176,14 +144,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     op.cmd.retain();
                     clientCnx.ctx().writeAndFlush(op.cmd, clientCnx.ctx().voidPromise());
                 } else {
-                    invalidateLookupCache(op);
                     op.cb.completeExceptionally(
                             new PulsarClientException.LookupException(op.topic + " endTxn channel is not active"));
                     onResponse(op);
                 }
             } else {
                 log.error("endTxn error topic: [{}]", op.topic, throwable);
-                invalidateLookupCache(op);
                 op.cb.completeExceptionally(
                         new PulsarClientException.LookupException(throwable.getMessage()));
                 onResponse(op);
@@ -212,7 +178,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 log.error("[{}] Got end txn on topic response for request {} error {}", op.topic,
                         response.getRequestId(),
                         response.getError());
-                invalidateLookupCache(op);
                 op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
                         response.getMessage()));
             }
@@ -245,12 +210,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             } else {
                 log.error("[{}] Got end txn on subscription response for request {} error {}",
                         op.topic, response.getRequestId(), response.getError());
-                invalidateLookupCache(op);
                 op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
                         response.getMessage()));
             }
-        } catch (Exception e) {
-            log.error("[{}] Got exception when complete EndTxnOnSub op for request {}", op.topic, e);
         } finally {
             onResponse(op);
         }
@@ -272,21 +234,14 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 if (REQUEST_CREDITS_UPDATER.compareAndSet(this, permits, permits - 1)) {
                     OpRequestSend polled = pendingRequests.poll();
                     if (polled != null) {
-                        try {
-                            if (polled.cnx != lookupCache.get(polled.topic)) {
-                                OpRequestSend invalid = polled;
-                                polled = OpRequestSend.create(invalid.requestId, invalid.topic, invalid.cmd, invalid.cb,
-                                        lookupCache.get(invalid.topic));
-                                invalid.recycle();
-                            }
-                            endTxn(polled);
-                        } catch (ExecutionException e) {
-                            log.error("[{}] failed to get client cnx from lookup cache", polled.topic, e);
-                            lookupCache.invalidate(polled.topic);
-                            polled.cb.completeExceptionally(new PulsarClientException.LookupException(
-                                    e.getCause().getMessage()));
-                            REQUEST_CREDITS_UPDATER.incrementAndGet(this);
+                        CompletableFuture<ClientCnx> clientCnx = getClientCnx(polled.topic);
+                        if (polled.cnx != clientCnx) {
+                            OpRequestSend invalid = polled;
+                            polled = OpRequestSend.create(invalid.requestId, invalid.topic, invalid.cmd, invalid.cb,
+                                    clientCnx);
+                            invalid.recycle();
                         }
+                        endTxn(polled);
                     } else {
                         REQUEST_CREDITS_UPDATER.incrementAndGet(this);
                     }
@@ -294,16 +249,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             } else {
                 break;
             }
-        }
-    }
-
-    private void invalidateLookupCache(OpRequestSend op) {
-        try {
-            if (lookupCache.get(op.topic) == op.cnx) {
-                lookupCache.invalidate(op.topic);
-            }
-        } catch (ExecutionException e) {
-            lookupCache.invalidate(op.topic);
         }
     }
 
@@ -346,11 +291,11 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         };
     }
 
-    public CompletableFuture<ClientCnx> getClientCnx(String topic) {
+    public CompletableFuture<ClientCnx> getClientCnxWithLookup(String topic) {
         return pulsarClient.getConnection(topic);
     }
 
-    public CompletableFuture<ClientCnx> getClientCnxViaBundle(String topic) {
+    public CompletableFuture<ClientCnx> getClientCnx(String topic) {
         NamespaceService namespaceService = pulsarService.getNamespaceService();
         CompletableFuture<NamespaceBundle> nsBundle = namespaceService.getBundleAsync(TopicName.get(topic));
         return nsBundle
@@ -370,13 +315,16 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                                         InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
                                 return pulsarClient.getConnection(brokerAddress, brokerAddress);
                             } else {
-                                return getClientCnx(topic);
+                                // Bundle is unloading, lookup topic
+                                return getClientCnxWithLookup(topic);
                             }
                         } catch (URISyntaxException e) {
-                            return getClientCnx(topic);
+                            // Should never go here
+                            return getClientCnxWithLookup(topic);
                         }
                     } else {
-                        return getClientCnx(topic);
+                        // Bundle is not loaded yet, lookup topic
+                        return getClientCnxWithLookup(topic);
                     }
                 });
     }
