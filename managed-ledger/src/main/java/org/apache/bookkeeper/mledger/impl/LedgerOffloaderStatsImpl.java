@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
@@ -59,6 +60,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
 
     private final Map<String, String> topic2Namespace;
     private final Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
+
+    final AtomicBoolean closed = new AtomicBoolean(false);
 
      private LedgerOffloaderStatsImpl(boolean exposeTopicLevelMetrics,
                                      ScheduledExecutorService scheduler, int interval) {
@@ -102,7 +105,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
 
     private static LedgerOffloaderStats instance;
     public static synchronized LedgerOffloaderStats getInstance(boolean exposeTopicLevelMetrics,
-                                                    ScheduledExecutorService scheduler, int interval) {
+                                                                ScheduledExecutorService scheduler, int interval) {
         if (null == instance) {
             instance = new LedgerOffloaderStatsImpl(exposeTopicLevelMetrics, scheduler, interval);
         }
@@ -212,16 +215,18 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
 
     @Override
     public void close() throws Exception {
-        CollectorRegistry.defaultRegistry.unregister(this.offloadError);
-        CollectorRegistry.defaultRegistry.unregister(this.offloadRate);
-        CollectorRegistry.defaultRegistry.unregister(this.readLedgerLatency);
-        CollectorRegistry.defaultRegistry.unregister(this.writeStorageError);
-        CollectorRegistry.defaultRegistry.unregister(this.readOffloadError);
-        CollectorRegistry.defaultRegistry.unregister(this.readOffloadRate);
-        CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
-        CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
-        this.topic2Namespace.clear();
-        this.offloadAndReadOffloadBytesMap.clear();
+        if (instance == this && this.closed.compareAndSet(false, true)) {
+            CollectorRegistry.defaultRegistry.unregister(this.offloadError);
+            CollectorRegistry.defaultRegistry.unregister(this.offloadRate);
+            CollectorRegistry.defaultRegistry.unregister(this.readLedgerLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.writeStorageError);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadError);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadRate);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
+            this.topic2Namespace.clear();
+            this.offloadAndReadOffloadBytesMap.clear();
+        }
     }
 
     @VisibleForTesting
