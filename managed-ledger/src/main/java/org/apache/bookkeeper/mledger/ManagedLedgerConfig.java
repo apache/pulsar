@@ -79,7 +79,7 @@ public class ManagedLedgerConfig {
     private int inactiveLedgerRollOverTimeMs = 0;
     @Getter
     @Setter
-    private boolean cacheEvictionByMarkDeletedPosition = false;
+    private boolean cacheEvictionByMarkDeletedPosition = true;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;

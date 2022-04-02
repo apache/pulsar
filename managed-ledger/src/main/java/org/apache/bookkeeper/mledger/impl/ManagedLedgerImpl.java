@@ -2168,7 +2168,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         PositionImpl evictionPos;
         if (config.isCacheEvictionByMarkDeletedPosition()) {
-            evictionPos = getEarlierMarkDeletedPositionForActiveCursors();
+            evictionPos = getEarlierMarkDeletedPositionForActiveCursors().getNext();
         } else {
             // Always remove all entries already read by active cursors
             evictionPos = getEarlierReadPositionForActiveCursors();
