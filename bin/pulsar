@@ -126,6 +126,15 @@ check_presto_libraries() {
     fi
 }
 
+presto_java11_workaround() {
+  local prefix="${1:-"-D"}"
+  # workaround https://github.com/apache/pulsar/issues/14951
+  local java_version_trimmed=$({ $JAVA -version 2>&1| head -1 | awk -F\" '{ print $2 }' | awk -F. '{ print $1 "." $2 "." $3 }' | grep -v -F ..; } 2>/dev/null)
+  if [ -n "$java_version_trimmed" ]; then
+    echo "${prefix}java.version=${java_version_trimmed}"
+  fi
+}
+
 pulsar_help() {
     cat <<EOF
 Usage: pulsar <command>
@@ -371,10 +380,10 @@ elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "sql" ]; then
     check_presto_libraries
-    exec $JAVA -cp "${PRESTO_HOME}/lib/*" io.prestosql.cli.Presto --server localhost:8081 "${@}"
+    exec $JAVA -cp "${PRESTO_HOME}/lib/*" $(presto_java11_workaround) io.prestosql.cli.Presto --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
     check_presto_libraries
-    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
+    exec ${PRESTO_HOME}/bin/launcher $(presto_java11_workaround "-D ") --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
     exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
 elif [ $COMMAND == "version" ]; then

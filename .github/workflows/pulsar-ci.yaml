@@ -556,6 +556,11 @@ jobs:
           -Pmain,docker -Dmaven.test.skip=true -Ddockerfile.build.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
+      # Checks also Presto license files
+      - name: Check binary licenses
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
@@ -604,9 +609,8 @@ jobs:
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
 
-          # disable Sql integration tests until https://github.com/apache/pulsar/issues/14951 has been resolved
-          #- name: Sql
-          #  group: SQL
+          - name: Sql
+            group: SQL
 
     steps:
       - name: checkout
