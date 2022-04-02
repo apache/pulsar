@@ -209,7 +209,7 @@ public abstract class AbstractReplicator {
 
     public CompletableFuture<Void> remove() {
         // No-op
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     protected boolean isWritable() {
