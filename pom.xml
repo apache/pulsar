@@ -118,7 +118,7 @@ flexible messaging model and an intuitive client API.</description>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.29.4.1</rocksdb.version>
+    <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.17.1</log4j2.version>
@@ -156,6 +156,7 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
+    <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
@@ -203,7 +204,7 @@ flexible messaging model and an intuitive client API.</description>
     <kotlin-stdlib.version>1.4.32</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring-context.version>5.3.15</spring-context.version>
+    <spring-context.version>5.3.18</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <jetcd.version>0.5.11</jetcd.version>
     <snakeyaml.version>1.30</snakeyaml.version>
@@ -1178,6 +1179,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.opensearch.client</groupId>
         <artifactId>opensearch-rest-high-level-client</artifactId>
         <version>${opensearch.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>co.elastic.clients</groupId>
+        <artifactId>elasticsearch-java</artifactId>
+        <version>${elasticsearch-java.version}</version>
       </dependency>
 
       <dependency>

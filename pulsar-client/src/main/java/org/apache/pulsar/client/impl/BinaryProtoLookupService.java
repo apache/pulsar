@@ -119,7 +119,7 @@ public class BinaryProtoLookupService implements LookupService {
                     // lookup failed
                     log.warn("[{}] failed to send lookup request : {}", topicName.toString(), t.getMessage());
                     if (log.isDebugEnabled()) {
-                        log.warn("[{}] Lookup response exception: {}", topicName.toString(), t);
+                        log.debug("[{}] Lookup response exception: {}", topicName.toString(), t);
                     }
 
                     addressFuture.completeExceptionally(t);
