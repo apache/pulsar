@@ -66,20 +66,18 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
-Check the box below or label this PR directly (if you have committer privilege).
+Check the box below or label this PR directly.
 
 Need to update docs? 
 
 - [ ] `doc-required` 
-  
-  (If you need help on updating docs, create a doc issue)
+(Your PR needs to update docs and you will update later)
   
 - [ ] `no-need-doc` 
-  
-  (Please explain why)
+(Please explain why)
   
 - [ ] `doc` 
-  
-  (If this PR contains doc changes)
+(Your PR contains doc changes)
 
-
+- [ ] `doc-added`
+(Docs have been already added)
