@@ -595,8 +595,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
         });
 
-        return promise.whenComplete((__, t) ->
-                this.offloaderStats.recordDeleteOffloadOps(this.ml.getName(), t == null));
+        return promise.whenComplete((__, t) -> {
+            if (null != this.ml) {
+                this.offloaderStats.recordDeleteOffloadOps(this.ml.getName(), t == null);
+            }
+        });
     }
 
     @Override
