@@ -16,17 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "lib/ReaderImpl.h"
-#include <string>
+package org.apache.pulsar.io.kinesis.json;
 
-using std::string;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.Data;
 
-namespace pulsar {
-class ReaderTest {
-   public:
-    static ConsumerImplPtr getConsumer(const Reader& reader) { return reader.impl_->getConsumer(); }
-    static ReaderImplWeakPtr getReaderImplWeakPtr(const Reader& reader) {
-        return reader.impl_->getReaderImplWeakPtr();
+@Data
+public class JsonRecord {
+    String topicName;
+    String key;
+    Object payload;
+    Map<String, String> properties;
+    Long eventTime;
+
+    public JsonRecord addProperty(String key, String value) {
+        if (properties == null) {
+            properties = new HashMap<>();
+        }
+        properties.put(key, value);
+        return this;
     }
-};
-}  // namespace pulsar
+
+}
