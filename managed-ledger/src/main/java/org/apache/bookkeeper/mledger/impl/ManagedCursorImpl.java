@@ -1095,6 +1095,18 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 ledger.getName(), newPosition, oldReadPosition, name);
                     }
                     readPosition = newPosition;
+                } catch (Throwable throwable) {
+                    synchronized (pendingMarkDeleteOps) {
+                        pendingMarkDeleteOps.clear();
+                        if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
+                            log.error("[{}] expected reset position [{}], but another reset in progress on cursor {}",
+                                ledger.getName(), newPosition, name);
+                        }
+                    }
+                    log.error("[{}] reset position [{}] error when complete async MarkDelete operation on cursor {}",
+                        ledger.getName(), newPosition, name);
+                    callback.resetFailed(ManagedLedgerException.getManagedLedgerException(throwable), newPosition);
+                    return;
                 } finally {
                     lock.writeLock().unlock();
                 }
