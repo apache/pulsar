@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.netty.buffer.ByteBuf;
@@ -26,6 +27,7 @@ import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
@@ -43,6 +45,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 @Slf4j
 public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
@@ -71,13 +74,17 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         this.lookupCache = Caffeine.newBuilder()
                 .maximumSize(100000)
                 .expireAfterAccess(30, TimeUnit.MINUTES)
-                .buildAsync((topic, executor) ->{
-                    CompletableFuture<ClientCnx> clientCnx = getClientCnx(topic);
-                    clientCnx.exceptionally(ex -> {
-                        safeInvalidateCache(topic);
-                        return null;
-                    });
-                    return clientCnx;
+                .buildAsync(new AsyncCacheLoader<String, ClientCnx>() {
+                    @Override
+                    public @NonNull CompletableFuture<ClientCnx> asyncLoad(@NonNull String topic,
+                                                                           @NonNull Executor executor) {
+                        CompletableFuture<ClientCnx> clientCnx = TransactionBufferHandlerImpl.this.getClientCnx(topic);
+                        clientCnx.exceptionally(ex -> {
+                            lookupCache.synchronous().invalidate(topic);
+                            return null;
+                        });
+                        return clientCnx;
+                    }
                 });
     }
 
@@ -261,15 +268,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     private void invalidateLookupCache(OpRequestSend op) {
         if (lookupCache.get(op.topic) == op.cnx) {
-            safeInvalidateCache(op.topic);
-        }
-    }
-
-    private void safeInvalidateCache(String topicName) {
-        try {
-            lookupCache.synchronous().invalidate(topicName);
-        } catch (NullPointerException ignore) {
-            // no-op
+            lookupCache.synchronous().invalidate(op.topic);
         }
     }
 
