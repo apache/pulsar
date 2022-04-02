@@ -2129,24 +2129,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
     private Throwable handleTxnException(Throwable ex, String op, long requestId) {
-        if (ex instanceof CoordinatorException.CoordinatorNotFoundException || ex != null
-                && ex.getCause() instanceof CoordinatorException.CoordinatorNotFoundException) {
+        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+        if (cause instanceof CoordinatorException.CoordinatorNotFoundException) {
             if (log.isDebugEnabled()) {
                 log.debug("The Coordinator was not found for the request {}", op);
             }
-            return ex;
+            return cause;
         }
-        if (ex instanceof ManagedLedgerException.ManagedLedgerFencedException || ex != null
-                && ex.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+        if (cause instanceof ManagedLedgerException.ManagedLedgerFencedException) {
             if (log.isDebugEnabled()) {
                 log.debug("Throw a CoordinatorNotFoundException to client "
                         + "with the message got from a ManagedLedgerFencedException for the request {}", op);
             }
-            return new CoordinatorException.CoordinatorNotFoundException(ex.getMessage());
+            return new CoordinatorException.CoordinatorNotFoundException(cause.getMessage());
 
         }
-        log.error("Send response error for {} request {}.", op, requestId, ex);
-        return ex;
+        log.error("Send response error for {} request {}.", op, requestId, cause);
+        return cause;
     }
     @Override
     protected void handleNewTxn(CommandNewTxn command) {
