@@ -203,9 +203,7 @@ public class ProxyServiceStarter {
         // create a web-service
         server = new WebServer(config, authenticationService);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            close();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
 
         proxyService.start();
 

@@ -202,7 +202,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         entries = cursor.readEntries(100);
         assertEquals(entries.size(), 0);
@@ -237,7 +237,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         ledger.close();
     }
@@ -263,7 +263,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getNumberOfEntries(), 2);
         assertEquals(ledger.getNumberOfActiveEntries(), 2);
         cursor.markDelete(entries.get(0).getPosition());
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
@@ -286,7 +286,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         ledger.close();
     }
@@ -395,7 +395,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         PositionImpl first = (PositionImpl) entries.get(0).getPosition();
         PositionImpl last = (PositionImpl) entries.get(entries.size() - 1).getPosition();
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         log.info("First={} Last={}", first, last);
         assertTrue(first.getLedgerId() < last.getLedgerId());
@@ -435,13 +435,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         PositionImpl first = (PositionImpl) entries.get(0).getPosition();
         PositionImpl last = (PositionImpl) entries.get(entries.size() - 1).getPosition();
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         // Read again, from next ledger id
         entries = cursor.readEntries(100);
         assertEquals(entries.size(), 0);
         assertFalse(cursor.hasMoreEntries());
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         log.info("First={} Last={}", first, last);
         assertTrue(first.getLedgerId() < last.getLedgerId());
@@ -751,12 +751,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry-3".getBytes(Encoding));
 
         assertTrue(cursor.hasMoreEntries());
-        cursor.readEntries(1).forEach(e -> e.release());
+        cursor.readEntries(1).forEach(Entry::release);
 
         assertTrue(cursor.hasMoreEntries());
-        cursor.readEntries(1).forEach(e -> e.release());
+        cursor.readEntries(1).forEach(Entry::release);
         assertTrue(cursor.hasMoreEntries());
-        cursor.readEntries(1).forEach(e -> e.release());
+        cursor.readEntries(1).forEach(Entry::release);
         assertFalse(cursor.hasMoreEntries());
     }
 
@@ -774,14 +774,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(1);
         assertEquals(entries.size(), 1);
         assertEquals(ledger.getNumberOfEntries(), 3);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         assertTrue(cursor.hasMoreEntries());
         entries = cursor.readEntries(1);
         assertTrue(cursor.hasMoreEntries());
 
         cursor.markDelete(entries.get(0).getPosition());
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
     }
 
     @Test(timeOut = 20000)
@@ -834,11 +834,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry-4".getBytes(Encoding));
         assertEquals(ledger.getNumberOfEntries(), 4);
 
-        cursor.readEntries(1).forEach(e -> e.release());
-        cursor.readEntries(1).forEach(e -> e.release());
+        cursor.readEntries(1).forEach(Entry::release);
+        cursor.readEntries(1).forEach(Entry::release);
         List<Entry> entries = cursor.readEntries(1);
         Position lastPosition = entries.get(0).getPosition();
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         assertEquals(ledger.getNumberOfEntries(), 4);
 
@@ -891,7 +891,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(1);
         log.debug("read message ok");
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         ledger.addEntry("entry-2".getBytes(Encoding));
         log.debug("Added 2nd message");
@@ -903,7 +903,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         entries = cursor.readEntries(2);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         entries = cursor.readEntries(2);
         assertEquals(entries.size(), 0);
@@ -1008,9 +1008,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger1.addEntry("entry-2".getBytes(Encoding));
         ledger1.addEntry("entry-3".getBytes(Encoding));
 
-        c2.readEntries(1).forEach(e -> e.release());
-        c2.readEntries(1).forEach(e -> e.release());
-        c2.readEntries(1).forEach(e -> e.release());
+        c2.readEntries(1).forEach(Entry::release);
+        c2.readEntries(1).forEach(Entry::release);
+        c2.readEntries(1).forEach(Entry::release);
 
         ledger1.close();
 
@@ -1177,7 +1177,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedCursor c2 = result.instance1.openCursor("c1");
         List<Entry> entries = c2.readEntries(1);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
     }
 
@@ -1621,7 +1621,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = c1.readEntries(1);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         assertFalse(c1.hasMoreEntries());
         assertEquals(c1.readEntries(1).size(), 0);
@@ -1632,7 +1632,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         entries = c1.readEntries(1);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
         assertEquals(c1.readEntries(1).size(), 0);
     }
 
@@ -1731,12 +1731,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 1);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         assertFalse(c1.hasMoreEntries());
         entries = c1.readEntries(1);
         assertEquals(entries.size(), 0);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
     }
 
     @Test
@@ -3120,7 +3120,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (Entry entry : entries) {
             cursor.markDelete(entry.getPosition());
         }
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger

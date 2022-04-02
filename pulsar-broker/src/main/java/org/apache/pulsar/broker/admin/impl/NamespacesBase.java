@@ -96,6 +96,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
@@ -832,9 +833,11 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (autoTopicCreationOverride != null) {
-            if (!AutoTopicCreationOverrideImpl.isValidOverride(autoTopicCreationOverride)) {
+            ValidateResult validateResult = AutoTopicCreationOverrideImpl.validateOverride(autoTopicCreationOverride);
+            if (!validateResult.isSuccess()) {
                 throw new RestException(Status.PRECONDITION_FAILED,
-                        "Invalid configuration for autoTopicCreationOverride");
+                        "Invalid configuration for autoTopicCreationOverride. the detail is "
+                                + validateResult.getErrorInfo());
             }
             if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
                 throw new RestException(Status.NOT_ACCEPTABLE,

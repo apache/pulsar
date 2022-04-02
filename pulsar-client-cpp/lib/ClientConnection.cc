@@ -1553,7 +1553,6 @@ void ClientConnection::close(Result result) {
 
     if (connectTimeoutTask_) {
         connectTimeoutTask_->stop();
-        connectTimeoutTask_.reset();
     }
 
     lock.unlock();

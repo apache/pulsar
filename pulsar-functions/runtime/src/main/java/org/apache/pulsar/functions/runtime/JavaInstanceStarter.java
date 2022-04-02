@@ -228,17 +228,14 @@ public class JavaInstanceStarter implements AutoCloseable {
                 .build()
                 .start();
         log.info("JavaInstance Server started, listening on " + port);
-        java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                // Use stderr here since the logger may have been reset by its JVM shutdown hook.
-                try {
-                    close();
-                } catch (Exception ex) {
-                    System.err.println(ex);
-                }
+        java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            // Use stderr here since the logger may have been reset by its JVM shutdown hook.
+            try {
+                close();
+            } catch (Exception ex) {
+                System.err.println(ex);
             }
-        });
+        }));
 
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();

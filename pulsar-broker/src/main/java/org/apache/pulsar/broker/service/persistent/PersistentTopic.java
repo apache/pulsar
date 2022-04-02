@@ -319,7 +319,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         isEncryptionRequired = false;
                         updatePublishDispatcher();
                         updateResourceGroupLimiter(optPolicies);
-                        initializeRateLimiterIfNeeded(Optional.empty());
+                        initializeRateLimiterIfNeeded();
                         return;
                     }
 
@@ -327,7 +327,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     this.updateTopicPolicyByNamespacePolicy(policies);
 
-                    initializeRateLimiterIfNeeded(Optional.empty());
+                    initializeRateLimiterIfNeeded();
 
                     updatePublishDispatcher();
 
@@ -373,7 +373,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private void initializeRateLimiterIfNeeded(Optional<Policies> policies) {
+    private void initializeRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiter) {
             // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent()
@@ -773,7 +773,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, initialPosition, keySharedMeta, startMessageId, consumerEpoch);
+                        readCompacted, keySharedMeta, startMessageId, consumerEpoch);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
@@ -1064,10 +1064,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     void removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
-        // preserve accumulative stats form removed subscription
-        SubscriptionStatsImpl stats = sub.getStats(false, false, false);
-        bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-        msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        if (sub != null) {
+            // preserve accumulative stats form removed subscription
+            SubscriptionStatsImpl stats = sub.getStats(false, false, false);
+            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        }
     }
 
     /**
@@ -1163,7 +1165,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     deleteTopicAuthenticationFuture.thenCompose(
                                     __ -> deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null))
                             .thenAccept(__ -> deleteTopicPolicies())
-                            .thenCompose(__ -> transactionBuffer.clearSnapshot()).whenComplete((v, ex) -> {
+                            .thenCompose(__ -> transactionBufferCleanupAndClose())
+                            .whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();
@@ -2364,6 +2367,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
     }
 
+    public CompletableFuture<Void> onLocalPoliciesUpdate() {
+        return checkPersistencePolicies();
+    }
+
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
         if (log.isDebugEnabled()) {
@@ -2386,7 +2393,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
 
-        initializeRateLimiterIfNeeded(Optional.ofNullable(data));
+        initializeRateLimiterIfNeeded();
 
         updatePublishDispatcher();
 
@@ -2430,6 +2437,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
                         preCreateSubscriptionForCompactionIfNeeded());
             });
+        }).exceptionally(ex -> {
+            log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
+            throw FutureUtil.wrapToCompletionException(ex);
         });
     }
 
@@ -2950,6 +2960,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             // Message has been successfully persisted
                             messageDeduplication.recordMessagePersisted(publishContext,
                                     (PositionImpl) position);
+                            publishContext.setProperty("txn_id", txnID.toString());
                             publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
                                     ((PositionImpl) position).getEntryId());
 
@@ -3039,6 +3050,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
             replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                     .ifPresent(DispatchRateLimiter::updateDispatchRate));
+
+            if (policies.getReplicationClusters() != null) {
+                checkReplicationAndRetryOnFailure();
+            }
 
             checkDeduplicationStatus();
 
@@ -3153,6 +3168,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     + " not found subscription : " + subName)));
         }
         return subscription.getPendingAckManageLedger();
+    }
+
+    private CompletableFuture<Void> transactionBufferCleanupAndClose() {
+        return transactionBuffer.clearSnapshot().thenCompose(__ -> transactionBuffer.closeAsync());
     }
 
     public long getLastDataMessagePublishedTimestamp() {

@@ -1250,6 +1250,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable or disable strict bookie affinity.")
+    private boolean strictBookieAffinityEnabled = false;
+
     /***** --- TLS. --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -2466,6 +2469,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int transactionBufferSnapshotMinTimeInMillis = 5000;
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The max concurrent requests for transaction buffer client."
+    )
+    private int transactionBufferClientMaxConcurrentRequests = 1000;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -2475,7 +2484,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for KeyStore type"
+            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )
     private String tlsProvider = null;
 

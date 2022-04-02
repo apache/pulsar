@@ -247,7 +247,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
                 option.isDurable(), option.getStartMessageId(), option.getMetadata(),
-                option.isReadCompacted(), option.getInitialPosition(),
+                option.isReadCompacted(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
                 option.getKeySharedMeta());
     }
@@ -261,7 +261,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
-                isDurable, startMessageId, metadata, readCompacted, initialPosition, resetStartMessageBackInSec,
+                isDurable, startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
                 replicateSubscriptionState, keySharedMeta);
     }
 
@@ -269,7 +269,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           long consumerId, SubType subType, int priorityLevel,
                                                           String consumerName, boolean isDurable,
                                                           MessageId startMessageId, Map<String, String> metadata,
-                                                          boolean readCompacted, InitialPosition initialPosition,
+                                                          boolean readCompacted,
                                                           long resetStartMessageBackInSec,
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta) {
@@ -315,7 +315,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     name -> new NonPersistentSubscription(this, subscriptionName, isDurable));
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta,
+                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta,
                     MessageId.latest, DEFAULT_CONSUMER_EPOCH);
 
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
@@ -1030,6 +1030,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             return FutureUtil.waitForAll(consumerCheckFutures)
                     .thenCompose((___) -> checkReplicationAndRetryOnFailure());
+        }).exceptionally(ex -> {
+            log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
+            throw FutureUtil.wrapToCompletionException(ex);
         });
     }
 
@@ -1072,10 +1075,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         // That creates deadlock. so, execute remove it in different thread.
         return CompletableFuture.runAsync(() -> {
             NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
-            // preserve accumulative stats form removed subscription
-            SubscriptionStatsImpl stats = sub.getStats();
-            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+            if (sub != null) {
+                // preserve accumulative stats form removed subscription
+                SubscriptionStatsImpl stats = sub.getStats();
+                bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+                msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+            }
         }, brokerService.executor());
     }
 

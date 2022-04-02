@@ -31,8 +31,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -162,9 +160,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Transaction log write transaction operation error", exception);
-                if (exception instanceof ManagedLedgerAlreadyClosedException
-                        && managedLedger instanceof ManagedLedgerImpl
-                        && State.WriteFailed == ((ManagedLedgerImpl) managedLedger).getState()) {
+                if (exception instanceof ManagedLedgerAlreadyClosedException) {
                     managedLedger.readyToCreateNewLedger();
                 }
                 buf.release();
@@ -274,11 +270,13 @@ public class MLTransactionLogImpl implements TransactionLog {
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (managedLedgerConfig.isAutoSkipNonRecoverableData()
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
-                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
+            } else {
+                outstandingReadsRequests.decrementAndGet();
             }
             log.error("Transaction log init fail error!", exception);
-            outstandingReadsRequests.decrementAndGet();
         }
 
     }

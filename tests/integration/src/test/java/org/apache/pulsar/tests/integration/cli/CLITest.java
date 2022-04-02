@@ -88,12 +88,12 @@ public class CLITest extends PulsarTestSuite {
         final String persistentTopicName = TopicName.get(
                 "persistent",
                 NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+                "get_topics_mode_" + UUID.randomUUID()).toString();
 
         final String nonPersistentTopicName = TopicName.get(
                 "non-persistent",
                 NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+                "get_topics_mode_" + UUID.randomUUID()).toString();
 
         Producer<byte[]> producer1 = client.newProducer()
                 .topic(persistentTopicName)
