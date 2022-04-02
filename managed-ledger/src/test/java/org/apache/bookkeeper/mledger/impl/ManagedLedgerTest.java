@@ -295,6 +295,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testCacheEvictionByMarkDeletedPosition() throws Throwable {
         final CountDownLatch counter = new CountDownLatch(1);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setCacheEvictionByMarkDeletedPosition(true);
         factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
                 .toNanos(30000));
         factory.asyncOpen("my_test_ledger", config, new OpenLedgerCallback() {
@@ -386,7 +387,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testCacheEvictionByReadPosition() throws Throwable {
         final CountDownLatch counter = new CountDownLatch(1);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setCacheEvictionByMarkDeletedPosition(false);
         factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
                 .toNanos(30000));
         factory.asyncOpen("my_test_ledger", config, new OpenLedgerCallback() {

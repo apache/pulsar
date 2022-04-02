@@ -2427,7 +2427,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
                     + "The default is to evict through readPosition."
     )
-    private boolean cacheEvictionByMarkDeletedPosition = true;
+    private boolean cacheEvictionByMarkDeletedPosition = false;
 
     /**** --- Transaction config variables. --- ****/
     @FieldContext(
