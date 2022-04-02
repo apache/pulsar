@@ -207,26 +207,25 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.12.6.jar
-    - jackson-core-2.12.6.jar
-    - jackson-databind-2.12.6.jar
-    - jackson-dataformat-smile-2.12.6.jar
-    - jackson-datatype-guava-2.12.6.jar
-    - jackson-datatype-jdk8-2.12.6.jar
-    - jackson-datatype-joda-2.12.6.jar
-    - jackson-datatype-jsr310-2.12.6.jar
-    - jackson-dataformat-yaml-2.12.6.jar
-    - jackson-jaxrs-base-2.12.6.jar
-    - jackson-jaxrs-json-provider-2.12.6.jar
-    - jackson-module-jaxb-annotations-2.12.6.jar
-    - jackson-module-jsonSchema-2.12.6.jar
+    - jackson-annotations-2.13.2.jar
+    - jackson-core-2.13.2.jar
+    - jackson-databind-2.13.2.1.jar
+    - jackson-dataformat-smile-2.13.2.jar
+    - jackson-datatype-guava-2.13.2.jar
+    - jackson-datatype-jdk8-2.13.2.jar
+    - jackson-datatype-joda-2.13.2.jar
+    - jackson-datatype-jsr310-2.13.2.jar
+    - jackson-dataformat-yaml-2.13.2.jar
+    - jackson-jaxrs-base-2.13.2.jar
+    - jackson-jaxrs-json-provider-2.13.2.jar
+    - jackson-module-jaxb-annotations-2.13.2.jar
+    - jackson-module-jsonSchema-2.13.2.jar
  * Guava
     - guava-31.0.1-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
     - failureaccess-1.0.1.jar
  * Google Guice
-    - guice-4.2.3.jar
-    - guice-multibindings-4.2.0.jar
+    - guice-5.1.0.jar
  * Apache Commons
     - commons-math3-3.6.1.jar
     - commons-compress-1.21.jar
@@ -455,7 +454,7 @@ The Apache Software License, Version 2.0
   * Snappy
     - snappy-java-1.1.7.jar
   * Jackson
-    - jackson-module-parameter-names-2.12.6.jar
+    - jackson-module-parameter-names-2.13.2.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Java Native Access
@@ -466,10 +465,10 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
   * Apache Zookeeper
-    - zookeeper-3.6.3.jar
-    - zookeeper-jute-3.6.3.jar
+    - zookeeper-3.8.0.jar
+    - zookeeper-jute-3.8.0.jar
   * Apache Yetus Audience Annotations
-    - audience-annotations-0.5.0.jar
+    - audience-annotations-0.12.0.jar
   * Swagger
     - swagger-annotations-1.6.2.jar
   * Perfmark

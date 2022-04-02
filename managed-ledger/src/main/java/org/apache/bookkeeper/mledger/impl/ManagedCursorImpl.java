@@ -30,18 +30,17 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +102,17 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedCursorImpl implements ManagedCursor {
+    private static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
+        if (e1.getLedgerId() != e2.getLedgerId()) {
+            return e1.getLedgerId() < e2.getLedgerId() ? -1 : 1;
+        }
 
+        if (e1.getEntryId() != e2.getEntryId()) {
+            return e1.getEntryId() < e2.getEntryId() ? -1 : 1;
+        }
+
+        return 0;
+    };
     protected final BookKeeper bookkeeper;
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
@@ -180,12 +189,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private boolean alwaysInactive = false;
 
-    /** used temporary variables to {@link #getNumIndividualDeletedEntriesToSkip(long)}. **/
-    private static final FastThreadLocal<Long> tempTotalEntriesToSkip = new FastThreadLocal<>();
-    private static final FastThreadLocal<Long> tempDeletedMessages = new FastThreadLocal<>();
-    private static final FastThreadLocal<PositionImpl> tempStartPosition = new FastThreadLocal<>();
-    private static final FastThreadLocal<PositionImpl> tempEndPosition = new FastThreadLocal<>();
-
     private static final long NO_MAX_SIZE_LIMIT = -1L;
 
     private long entriesReadCount;
@@ -224,7 +227,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // The last active time (Unix time, milliseconds) of the cursor
     private long lastActive;
 
-    enum State {
+    public enum State {
         Uninitialized, // Cursor is being initialized
         NoLedger, // There is no metadata ledger open for writing
         Open, // Metadata ledger is ready
@@ -233,7 +236,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Closed // The managed cursor has been closed
     }
 
-    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
     protected volatile State state = null;
 
@@ -1134,7 +1137,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void asyncResetCursor(Position newPos, AsyncCallbacks.ResetCursorCallback callback) {
+    public void asyncResetCursor(Position newPos, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback) {
         checkArgument(newPos instanceof PositionImpl);
         final PositionImpl newPosition = (PositionImpl) newPos;
 
@@ -1144,7 +1147,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (!ledger.isValidPosition(actualPosition)
                     && !actualPosition.equals(PositionImpl.EARLIEST)
-                    && !actualPosition.equals(PositionImpl.LATEST)) {
+                    && !actualPosition.equals(PositionImpl.LATEST)
+                    && !forceReset) {
                 actualPosition = ledger.getNextValidPosition(actualPosition);
 
                 if (actualPosition == null) {
@@ -1167,7 +1171,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         final Result result = new Result();
         final CountDownLatch counter = new CountDownLatch(1);
 
-        asyncResetCursor(newPos, new AsyncCallbacks.ResetCursorCallback() {
+        asyncResetCursor(newPos, false, new AsyncCallbacks.ResetCursorCallback() {
             @Override
             public void resetComplete(Object ctx) {
                 counter.countDown();
@@ -1281,9 +1285,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     entries.add(entry);
                     if (--pendingCallbacks == 0) {
                         if (sortEntries) {
-                            entries.sort((e1, e2) -> ComparisonChain.start()
-                                    .compare(e1.getLedgerId(), e2.getLedgerId())
-                                    .compare(e1.getEntryId(), e2.getEntryId()).result());
+                            entries.sort(ENTRY_COMPARATOR);
                         }
                         callback.readEntriesComplete(entries, ctx);
                     }
@@ -1514,26 +1516,37 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }, ctx);
     }
 
+    // required in getNumIndividualDeletedEntriesToSkip method
+    // since individualDeletedMessages.forEach accepts a lambda and ordinary local variables
+    // defined before the lambda cannot be mutated
+    private static class InvidualDeletedMessagesHandlingState {
+        long totalEntriesToSkip = 0L;
+        long deletedMessages = 0L;
+        PositionImpl startPosition;
+        PositionImpl endPosition;
+
+        InvidualDeletedMessagesHandlingState(PositionImpl startPosition) {
+            this.startPosition = startPosition;
+        }
+    }
+
     long getNumIndividualDeletedEntriesToSkip(long numEntries) {
-        tempTotalEntriesToSkip.set(0L);
-        tempDeletedMessages.set(0L);
         lock.readLock().lock();
         try {
-            tempStartPosition.set(markDeletePosition);
-            tempEndPosition.set(null);
+            InvidualDeletedMessagesHandlingState state = new InvidualDeletedMessagesHandlingState(markDeletePosition);
             individualDeletedMessages.forEach((r) -> {
                 try {
-                    tempEndPosition.set(r.lowerEndpoint());
-                    if (tempStartPosition.get().compareTo(tempEndPosition.get()) <= 0) {
-                        Range<PositionImpl> range = Range.openClosed(tempStartPosition.get(), tempEndPosition.get());
+                    state.endPosition = r.lowerEndpoint();
+                    if (state.startPosition.compareTo(state.endPosition) <= 0) {
+                        Range<PositionImpl> range = Range.openClosed(state.startPosition, state.endPosition);
                         long entries = ledger.getNumberOfEntries(range);
-                        if (tempTotalEntriesToSkip.get() + entries >= numEntries) {
+                        if (state.totalEntriesToSkip + entries >= numEntries) {
                             // do not process further
                             return false;
                         }
-                        tempTotalEntriesToSkip.set(tempTotalEntriesToSkip.get() + entries);
-                        tempDeletedMessages.set(tempDeletedMessages.get() + ledger.getNumberOfEntries(r));
-                        tempStartPosition.set(r.upperEndpoint());
+                        state.totalEntriesToSkip += entries;
+                        state.deletedMessages += ledger.getNumberOfEntries(r);
+                        state.startPosition = r.upperEndpoint();
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
@@ -1548,10 +1561,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 }
             }, recyclePositionRangeConverter);
+            return state.deletedMessages;
         } finally {
             lock.readLock().unlock();
         }
-        return tempDeletedMessages.get();
     }
 
     boolean hasMoreEntries(PositionImpl position) {
@@ -3094,6 +3107,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private boolean isCompactionCursor() {
         return COMPACTION_CURSOR_NAME.equals(name);
+    }
+
+    @VisibleForTesting
+    public void setState(State state) {
+        this.state = state;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

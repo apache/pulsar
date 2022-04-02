@@ -463,8 +463,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setManagedLedgerCacheSizeMB(8);
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultNumberOfNamespaceBundles(1);
-        configuration.setZookeeperServers("localhost:2181");
-        configuration.setConfigurationStoreServers("localhost:3181");
+        configuration.setMetadataStoreUrl("zk:localhost:2181");
+        configuration.setConfigurationMetadataStoreUrl("zk:localhost:3181");
         configuration.setAllowAutoTopicCreationType("non-partitioned");
         configuration.setBrokerShutdownTimeoutMs(0L);
         configuration.setBrokerServicePort(Optional.of(0));

@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -42,6 +43,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -78,7 +80,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
-    protected int maxReceiverQueueSize;
+    protected final int maxReceiverQueueSize;
+    private volatile int currentReceiverQueueSize;
+    protected static final AtomicIntegerFieldUpdater<ConsumerBase> CURRENT_RECEIVER_QUEUE_SIZE_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "currentReceiverQueueSize");
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
     protected final BatchReceivePolicy batchReceivePolicy;
@@ -111,7 +116,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.consumerEventListener = conf.getConsumerEventListener();
         // Always use growable queue since items can exceed the advertised size
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
-        this.unAckedChunkedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
+        this.unAckedChunkedMessageIdSequenceMap =
+                ConcurrentOpenHashMap.<MessageIdImpl, MessageIdImpl[]>newBuilder().build();
         this.executorProvider = executorProvider;
         this.externalPinnedExecutor = (ScheduledExecutorService) executorProvider.getExecutor();
         this.internalPinnedExecutor = (ScheduledExecutorService) client.getInternalExecutorService();
@@ -119,6 +125,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
+        CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, receiverQueueSize);
         if (conf.getBatchReceivePolicy() != null) {
             BatchReceivePolicy userBatchReceivePolicy = conf.getBatchReceivePolicy();
             if (userBatchReceivePolicy.getMaxNumMessages() > this.maxReceiverQueueSize) {
@@ -185,7 +192,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
-        if (conf.getReceiverQueueSize() == 0) {
+        if (getCurrentReceiverQueueSize() == 0) {
             throw new PulsarClientException.InvalidConfigurationException(
                     "Can't use receive with timeout, if the queue size is 0");
         }
@@ -721,10 +728,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 + '}';
     }
 
-    protected void setMaxReceiverQueueSize(int newSize) {
-        this.maxReceiverQueueSize = newSize;
-    }
-
     protected Message<T> beforeConsume(Message<T> message) {
         if (interceptors != null) {
             return interceptors.beforeConsume(this, message);
@@ -811,7 +814,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             throw new PulsarClientException.InvalidConfigurationException(
                 "Cannot use receive() when a listener has been set");
         }
-        if (conf.getReceiverQueueSize() == 0) {
+        if (getCurrentReceiverQueueSize() == 0) {
             throw new PulsarClientException.InvalidConfigurationException(
                 "Can't use batch receive, if the queue size is 0");
         }
@@ -1045,6 +1048,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         resetIncomingMessageSize();
     }
 
+    /**
+     * Update the size of the consumer receive queue.
+     * See {@link ConsumerBuilder#receiverQueueSize(int)}.
+     * @param newSize new size of the receiver queue.
+     */
+    protected abstract void setCurrentReceiverQueueSize(int newSize);
+
+    public int getCurrentReceiverQueueSize() {
+        return CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.get(this);
+    }
+
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
 
     private ExecutorService getExternalExecutor(Message<T> msg) {
@@ -1073,8 +1087,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 || getSubType() == CommandSubscribe.SubType.Exclusive)
                 && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
                 && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
-            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], consumerEpoch : [{}]",
-                    topic, message.getMessageId(), consumerEpoch);
+            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
+                    + "consumerEpoch : [{}]", topic, message.getMessageId(), message.getConsumerEpoch(), consumerEpoch);
             message.release();
             message.recycle();
             return false;

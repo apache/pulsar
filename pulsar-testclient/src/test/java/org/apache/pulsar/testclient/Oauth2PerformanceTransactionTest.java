@@ -132,7 +132,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     // setup both admin and pulsar client
     protected final void clientSetup() throws Exception {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
-        log.info("Credentials File path: {}", path.toString());
+        log.info("Credentials File path: {}", path);
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(authenticationPlugin, authenticationParameters)

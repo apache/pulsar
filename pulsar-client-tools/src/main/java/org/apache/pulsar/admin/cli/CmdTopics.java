@@ -399,10 +399,10 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks,"
+        @Parameter(names = {"-a", "--actions"}, description = "Actions to be granted (produce,consume,sources,sinks,"
                 + "functions,packages)", required = true)
         private List<String> actions;
 
@@ -421,7 +421,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which revoke permissions", required = true)
         private String role;
 
         @Override
@@ -925,10 +925,12 @@ public class CmdTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to reset position on", required = true)
         private String subscriptionName;
 
-        @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId where to create the subscription. "
+        @Parameter(names = { "-m" , "--messageId" }, description = "messageId where to create the subscription. "
                 + "It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
         private String messageIdStr = "latest";
+
+        @Parameter(names = { "-r", "--replicated" }, description = "replicated subscriptions", required = false)
+        private boolean replicated = false;
 
         @Override
         void run() throws PulsarAdminException {
@@ -942,7 +944,7 @@ public class CmdTopics extends CmdBase {
                 messageId = validateMessageIdString(messageIdStr);
             }
 
-            getTopics().createSubscription(topic, subscriptionName, messageId);
+            getTopics().createSubscription(topic, subscriptionName, messageId, replicated);
         }
     }
 

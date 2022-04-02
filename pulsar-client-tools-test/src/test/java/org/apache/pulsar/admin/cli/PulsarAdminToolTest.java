@@ -1409,7 +1409,11 @@ public class PulsarAdminToolTest {
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
-        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false);
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -r"));
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, true);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, null);
@@ -2074,7 +2078,11 @@ public class PulsarAdminToolTest {
 
         cmdSchemas = new CmdSchemas(() -> admin);
         cmdSchemas.run(split("delete persistent://tn1/ns1/tp1"));
-        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1");
+        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1", false);
+
+        cmdSchemas = new CmdSchemas(() -> admin);
+        cmdSchemas.run(split("delete persistent://tn1/ns1/tp1 -f"));
+        verify(schemas).deleteSchema("persistent://tn1/ns1/tp1", true);
 
         cmdSchemas = new CmdSchemas(() -> admin);
         String schemaFile = PulsarAdminToolTest.class.getClassLoader()

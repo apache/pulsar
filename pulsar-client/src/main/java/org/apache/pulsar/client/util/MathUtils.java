@@ -38,4 +38,15 @@ public class MathUtils {
 
         return mod;
     }
+
+    /**
+     * Ceil version of Math.floorDiv().
+     * @param x the dividend
+     * @param y the divisor
+     * @return the smallest value that is larger than or equal to the algebraic quotient.
+     *
+     */
+    public static int ceilDiv(int x, int y) {
+        return -Math.floorDiv(-x, y);
+    }
 }

@@ -242,6 +242,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
             subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
                     Collections.emptyMap());
+
+            int filtered = entriesToFiltered.size();
+            Topic topic = subscription.getTopic();
+            if (topic instanceof AbstractTopic) {
+                ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
+            }
         }
 
         sendMessageInfo.setTotalMessages(totalMessages);

@@ -16,17 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.source;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
-import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
+import lombok.Data;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Data
 public class MultiConsumerPulsarSourceConfig extends PulsarSourceConfig {

@@ -334,7 +334,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 pendingAckStore.appendCumulativeAck(txnID, position).thenAccept(v -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] cumulativeAcknowledgeMessage position: [{}], "
-                                + "txnID:[{}], subName: [{}].", topicName, txnID.toString(), position, subName);
+                                + "txnID:[{}], subName: [{}].", topicName, txnID, position, subName);
                     }
 
                     if (position.compareTo((PositionImpl) persistentSubscription.getCursor()
