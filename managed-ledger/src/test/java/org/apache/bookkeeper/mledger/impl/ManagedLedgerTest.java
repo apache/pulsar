@@ -323,6 +323,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                         Entry entry = entries.get(0);
                                         final Position position = entry.getPosition();
                                         assertEquals(new String(entry.getDataAndRelease(), Encoding), message1);
+                                        ((ManagedLedgerImpl) ledger).doCacheEviction(
+                                                System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(30000));
                                         assertEquals(((ManagedLedgerImpl) ledger).getCacheSize(), message1.getBytes(Encoding).length);
 
                                         log.debug("Mark-Deleting to position {}", position);
@@ -332,11 +334,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                                 log.debug("Mark delete complete");
                                                 ManagedCursor cursor = (ManagedCursor) ctx;
                                                 assertFalse(cursor.hasMoreEntries());
-                                                // wait eviction  finish.
-                                                try {
-                                                    Thread.sleep(100);
-                                                } catch (InterruptedException e) {
-                                                }
+                                                ((ManagedLedgerImpl) ledger).doCacheEviction(
+                                                        System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(30000));
                                                 assertEquals(((ManagedLedgerImpl) ledger).getCacheSize(), 0);
 
                                                 counter.countDown();
@@ -414,11 +413,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                         Entry entry = entries.get(0);
                                         final Position position = entry.getPosition();
                                         assertEquals(new String(entry.getDataAndRelease(), Encoding), message1);
-                                        // wait eviction  finish.
-                                        try {
-                                            Thread.sleep(100);
-                                        } catch (InterruptedException e) {
-                                        }
+                                        ((ManagedLedgerImpl) ledger).doCacheEviction(
+                                                System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(30000));
                                         assertEquals(((ManagedLedgerImpl) ledger).getCacheSize(), 0);
 
                                         log.debug("Mark-Deleting to position {}", position);
