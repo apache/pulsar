@@ -145,6 +145,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
+            delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::clear);
         }
 
         if (isConsumersExceededOnSubscription()) {
@@ -294,8 +295,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         Consumer c = getRandomConsumer();
         // if turn on precise dispatcher flow control, adjust the record to read
         if (c != null && c.isPreciseDispatcherFlowControl()) {
+            int avgMessagesPerEntry = Math.max(1, c.getAvgMessagesPerEntry());
             messagesToRead = Math.min(
-                    (int) Math.ceil(currentTotalAvailablePermits * 1.0 / c.getAvgMessagesPerEntry()),
+                    (int) Math.ceil(currentTotalAvailablePermits * 1.0 / avgMessagesPerEntry),
                     readBatchSize);
         }
 

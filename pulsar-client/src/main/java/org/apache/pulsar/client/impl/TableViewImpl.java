@@ -22,6 +22,7 @@ package org.apache.pulsar.client.impl;
 import io.netty.util.Timeout;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, T> data;
+    private final Map<String, T> immutableData;
 
     private final ConcurrentMap<String, Reader<T>> readers;
 
@@ -62,6 +64,7 @@ public class TableViewImpl<T> implements TableView<T> {
         this.schema = schema;
         this.conf = conf;
         this.data = new ConcurrentHashMap<>();
+        this.immutableData = Collections.unmodifiableMap(data);
         this.readers = new ConcurrentHashMap<>();
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
@@ -105,7 +108,8 @@ public class TableViewImpl<T> implements TableView<T> {
 
         start().whenComplete((tw, ex) -> {
            if (ex != null) {
-               log.warn("Failed to check for changes in number of partitions");
+               log.warn("Failed to check for changes in number of partitions:", ex);
+               schedulePartitionsCheck();
            }
         });
     }
@@ -132,17 +136,17 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public Set<Map.Entry<String, T>> entrySet() {
-       return data.entrySet();
+       return immutableData.entrySet();
     }
 
     @Override
     public Set<String> keySet() {
-        return data.keySet();
+        return immutableData.keySet();
     }
 
     @Override
     public Collection<T> values() {
-        return data.values();
+        return immutableData.values();
     }
 
     @Override

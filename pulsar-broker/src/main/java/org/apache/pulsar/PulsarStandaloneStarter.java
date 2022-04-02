@@ -28,6 +28,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,32 +101,34 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 }
             }
         }
-        config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-        config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
+        final String metadataStoreUrl =
+                ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zkServers + ":" + this.getZkPort();
+        config.setMetadataStoreUrl(metadataStoreUrl);
+        config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
 
         config.setRunningStandalone(true);
+        config.getProperties().setProperty("metadataStoreUrl", metadataStoreUrl);
+        config.getProperties().setProperty("configurationMetadataStoreUrl", metadataStoreUrl);
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                try {
-                    if (fnWorkerService != null) {
-                        fnWorkerService.stop();
-                    }
-
-                    if (broker != null) {
-                        broker.close();
-                    }
-
-                    if (bkEnsemble != null) {
-                        bkEnsemble.stop();
-                    }
-
-                    LogManager.shutdown();
-                } catch (Exception e) {
-                    log.error("Shutdown failed: {}", e.getMessage(), e);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                if (fnWorkerService != null) {
+                    fnWorkerService.stop();
                 }
+
+                if (broker != null) {
+                    broker.close();
+                }
+
+                if (bkEnsemble != null) {
+                    bkEnsemble.stop();
+                }
+
+                LogManager.shutdown();
+            } catch (Exception e) {
+                log.error("Shutdown failed: {}", e.getMessage(), e);
             }
-        });
+        }));
     }
 
     private static boolean argsContains(String[] args, String arg) {

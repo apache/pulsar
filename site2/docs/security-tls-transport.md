@@ -57,12 +57,25 @@ chmod 700 private/
 touch index.txt
 echo 1000 > serial
 openssl genrsa -aes256 -out private/ca.key.pem 4096
+# You need enter a password in the command above
 chmod 400 private/ca.key.pem
 openssl req -config openssl.cnf -key private/ca.key.pem \
     -new -x509 -days 7300 -sha256 -extensions v3_ca \
     -out certs/ca.cert.pem
+# You must enter the same password in the previous openssl command
 chmod 444 certs/ca.cert.pem
 ```
+
+> **Tips**
+>
+> The default `openssl` on macOS doesn't work for the commands above. You must upgrade the `openssl` via Homebrew:
+>
+> ```bash
+> brew install openssl
+> export PATH="/usr/local/Cellar/openssl@3/3.0.1/bin:$PATH"
+> ```
+>
+> The version `3.0.1` might change in the future. Use the actual path from the output of `brew install` command.
 
 4. After you answer the question prompts, CA-related files are stored in the `./my-ca` directory. Within that directory:
 
@@ -178,7 +191,7 @@ Moreover, as the administrator has full control of the certificate authority, a 
 
 One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the "CommonName," and then enable hostname verification on the client.
 
-The examples below show hostname verification being disabled for the Java client, though you can omit this as the client disables the hostname verification by default. C++/python/Node.js clients do now allow configuring this at the moment.
+The examples below show that hostname verification is disabled for the CLI tools/Java/Python/C++/Node.js/C# clients by default. 
 
 ### CLI tools
 
@@ -215,7 +228,7 @@ PulsarClient client = PulsarClient.builder()
 from pulsar import Client
 
 client = Client("pulsar+ssl://broker.example.com:6651/",
-                tls_hostname_verification=True,
+                tls_hostname_verification=False,
                 tls_trust_certs_file_path="/path/to/ca.cert.pem",
                 tls_allow_insecure_connection=False) // defaults to false from v2.2.0 onwards
 ```
@@ -230,7 +243,7 @@ config.setUseTls(true);  // shouldn't be needed soon
 config.setTlsTrustCertsFilePath(caPath);
 config.setTlsAllowInsecureConnection(false);
 config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
-config.setValidateHostName(true);
+config.setValidateHostName(false);
 ```
 
 #### Node.js client
@@ -242,6 +255,9 @@ const Pulsar = require('pulsar-client');
   const client = new Pulsar.Client({
     serviceUrl: 'pulsar+ssl://broker.example.com:6651/',
     tlsTrustCertsFilePath: '/path/to/ca.cert.pem',
+    useTls: true,
+    tlsValidateHostname: false,
+    tlsAllowInsecureConnection: false,
   });
 })();
 ```
@@ -256,3 +272,4 @@ var client = PulsarClient.Builder()
                          .VerifyCertificateName(false)     //Default is 'false'
                          .Build();
 ```
+> Note that `VerifyCertificateName` refers to the configuration of hostname verification in the C# client.

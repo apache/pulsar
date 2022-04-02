@@ -85,7 +85,7 @@ public interface StructuredEventLog {
     /**
      * Create a new logger object, from which root events can be created.
      */
-    public static StructuredEventLog newLogger() {
+    static StructuredEventLog newLogger() {
         return Slf4jStructuredEventLog.INSTANCE;
     }
 }

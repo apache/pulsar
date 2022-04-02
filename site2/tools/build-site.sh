@@ -53,6 +53,8 @@ function workaround_crowdin_problem_by_copying_files() {
   cp versioned_docs/version-2.5.0/io-overview.md translated_docs/ko/version-2.5.0/io-overview.md
   cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/ko/version-2.5.1/functions-develop.md
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/ko/version-2.5.2/functions-develop.md
+
+  cp ../docs/client-libraries-java.md translated_docs/zh-CN/client-libraries-java.md
 }
 
 
@@ -64,13 +66,14 @@ cd ${ROOT_DIR}/site2/website
 yarn
 yarn write-translations
 
-if [ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" ]; then
+# The crowdin upload and download take a long time to run, and have resulted in timeouts. In order to ensure that the
+# website is still able to get published, we only run the download and upload if current hour is 0-5.
+# This leads to executing crowdin-upload and crowdin-download once per day when website build is scheduled
+# to run with cron expression '0 */6 * * *'
+CURRENT_HOUR=$(date +%H)
+if [[ "$CROWDIN_DOCUSAURUS_API_KEY" != "UNSET" || $CURRENT_HOUR -lt 6 ]]; then
   # upload only if environment variable CROWDIN_UPLOAD=1 is set
-  # or current hour is 0-5
-  # this leads to executing crowdin-upload once per day when website build is scheduled
-  # to run with cron expression '0 */6 * * *'
-  CURRENT_HOUR=$(date +%H)
-  if [[ "$CROWDIN_UPLOAD" == "1" || $CURRENT_HOUR -lt 6 ]]; then
+  if [[ "$CROWDIN_UPLOAD" == "1" ]]; then
     yarn run crowdin-upload
   fi
   yarn run crowdin-download

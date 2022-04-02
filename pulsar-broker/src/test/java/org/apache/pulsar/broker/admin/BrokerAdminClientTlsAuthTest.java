@@ -120,8 +120,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setWebServicePortTls(Optional.of(0));
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(this.conf.getClusterName());
-        conf.setZookeeperServers("localhost:2181");
-        conf.setConfigurationStoreServers("localhost:3181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
+        conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
         buildConf(conf);
 
         @Cleanup

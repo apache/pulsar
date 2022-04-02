@@ -78,10 +78,16 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "whether to delete schema completely. If true, delete "
+                + "all resources (including metastore and ledger), otherwise only do a mark deletion"
+                + " and not remove any resources indeed")
+        private boolean force = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getAdmin().schemas().deleteSchema(topic);
+            getAdmin().schemas().deleteSchema(topic, force);
         }
     }
 
@@ -144,7 +150,7 @@ public class CmdSchemas extends CmdBase {
                 input.setType("JSON");
                 input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
             } else {
-                throw new Exception("Unknown schema type specified as type");
+                throw new ParameterException("Invalid schema type " + type + ". Valid options are: avro, json");
             }
             input.setProperties(schemaDefinition.getProperties());
             if (dryRun) {

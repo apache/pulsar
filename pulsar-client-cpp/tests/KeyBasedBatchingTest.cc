@@ -41,7 +41,6 @@ class KeyBasedBatchingTest : public ::testing::Test {
 
     void TearDown() override { client_.close(); }
 
-    void setTopicName(const std::string& topicName) { topicName_ = topicName; }
     void initTopicName(const std::string& testName) {
         topicName_ = "KeyBasedBatchingTest-" + testName + "-" + std::to_string(time(nullptr));
     }
@@ -178,4 +177,35 @@ TEST_F(KeyBasedBatchingTest, testSingleBatch) {
     }
     ASSERT_EQ(ResultTimeout, consumer_.receive(msg, 3000));
     ASSERT_EQ(numMessageSent.load(), numMessages);
+}
+
+TEST_F(KeyBasedBatchingTest, testCloseBeforeSend) {
+    initTopicName("CloseBeforeSend");
+    // Any asynchronous send won't be completed unless `close()` or `flush()` is triggered
+    initProducer(createDefaultProducerConfig().setBatchingMaxMessages(static_cast<unsigned>(-1)));
+
+    std::mutex mtx;
+    std::vector<Result> results;
+    auto saveResult = [&mtx, &results](Result result) {
+        std::lock_guard<std::mutex> lock(mtx);
+        results.emplace_back(result);
+    };
+    auto sendAsync = [saveResult, this](const std::string& key, const std::string& value) {
+        producer_.sendAsync(MessageBuilder().setOrderingKey(key).setContent(value).build(),
+                            [saveResult](Result result, const MessageId& id) { saveResult(result); });
+    };
+
+    constexpr int numKeys = 10;
+    for (int i = 0; i < numKeys; i++) {
+        sendAsync("key-" + std::to_string(i), "value");
+    }
+
+    ASSERT_EQ(ResultOk, producer_.close());
+
+    // After close() completed, all callbacks should have failed with ResultAlreadyClosed
+    std::lock_guard<std::mutex> lock(mtx);
+    ASSERT_EQ(results.size(), numKeys);
+    for (int i = 0; i < numKeys; i++) {
+        ASSERT_EQ(results[i], ResultAlreadyClosed) << " results[" << i << "] is " << results[i];
+    }
 }

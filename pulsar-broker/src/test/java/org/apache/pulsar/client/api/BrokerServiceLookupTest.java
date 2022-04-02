@@ -144,8 +144,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
-        conf2.setConfigurationStoreServers("localhost:3181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -260,8 +260,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(newCluster); // Broker2 serves newCluster
-        conf2.setZookeeperServers("localhost:2181");
-        conf2.setConfigurationStoreServers("localhost:3181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
         String broker2ServiceUrl = "pulsar://localhost:" + conf2.getBrokerServicePort().get();
 
         admin.clusters().createCluster(newCluster,
@@ -353,8 +353,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(pulsar.getConfiguration().getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
-        conf2.setConfigurationStoreServers("localhost:3181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -436,8 +436,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
-        conf2.setConfigurationStoreServers("localhost:3181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -531,7 +531,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test(timeOut = 20000)
     public void testSplitUnloadLookupTest() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -545,8 +545,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePort(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
         conf2.setClusterName(conf.getClusterName());
-        conf2.setZookeeperServers("localhost:2181");
-        conf2.setConfigurationStoreServers("localhost:3181");
+        conf2.setMetadataStoreUrl("zk:localhost:2181");
+        conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
         PulsarService pulsar2 = startBroker(conf2);
@@ -652,8 +652,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             conf2.setAdvertisedAddress("localhost");
             conf2.setClusterName(conf.getClusterName());
             conf2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            conf2.setZookeeperServers("localhost:2181");
-            conf2.setConfigurationStoreServers("localhost:3181");
+            conf2.setMetadataStoreUrl("zk:localhost:2181");
+            conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
             conf2.setLoadBalancerAutoBundleSplitEnabled(true);
             conf2.setLoadBalancerAutoUnloadSplitBundlesEnabled(true);
             conf2.setLoadBalancerNamespaceBundleMaxTopics(1);

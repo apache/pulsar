@@ -44,7 +44,7 @@
 
     <dependency>
       <groupId>com.yahoo.athenz</groupId>
-      <artifactId>athenz-zts-java-client</artifactId>
+      <artifactId>athenz-zts-java-client-core</artifactId>
     </dependency>
 
     <dependency>

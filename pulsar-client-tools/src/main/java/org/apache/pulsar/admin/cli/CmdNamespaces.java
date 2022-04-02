@@ -878,9 +878,14 @@ public class CmdNamespaces extends CmdBase {
         private boolean unload;
 
         @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split "
-                + "namespace bundle. Valid options are: [range_equally_divide, topic_count_equally_divide]."
-                + " Use broker side config if absent", required = false)
+                + "namespace bundle. Valid options are: [range_equally_divide, topic_count_equally_divide, "
+                + "specified_positions_divide]. Use broker side config if absent", required = false)
         private String splitAlgorithmName;
+
+        @Parameter(names = { "--split-boundaries",
+                "-sb" }, description = "Specified split boundary for bundle split, will split one bundle "
+                + "to multi bundles only works with specified_positions_divide algorithm", required = false)
+        private List<Long> splitBoundaries;
 
         @Override
         void run() throws PulsarAdminException {
@@ -892,7 +897,41 @@ public class CmdNamespaces extends CmdBase {
                 throw new ParameterException("--bundle and --bundle-type are mutually exclusive");
             }
             bundle = bundleType != null ? bundleType.toString() : bundle;
-            getAdmin().namespaces().splitNamespaceBundle(namespace, bundle, unload, splitAlgorithmName);
+            if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                getAdmin().namespaces().splitNamespaceBundle(
+                        namespace, bundle, unload, splitAlgorithmName);
+            } else {
+                getAdmin().namespaces().splitNamespaceBundle(
+                        namespace, bundle, unload, splitAlgorithmName, splitBoundaries);
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Get the positions for one or more topic(s) in a namespace bundle")
+    private class GetTopicHashPositions extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(
+                names = { "--bundle", "-b" },
+                description = "{start-boundary}_{end-boundary} format namespace bundle",
+                required = false)
+        private String bundle;
+
+        @Parameter(
+                names = { "--topic-list",  "-tl" },
+                description = "The list of topics(both non-partitioned topic and partitioned topic) to get positions "
+                        + "in this bundle, if none topic provided, will get the positions of all topics in this bundle",
+                required = false)
+        private List<String> topics;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            if (StringUtils.isBlank(bundle)) {
+                throw new ParameterException("Must pass one of the params: --bundle ");
+            }
+            print(getAdmin().namespaces().getTopicHashPositions(namespace, bundle, topics));
         }
     }
 
@@ -1985,7 +2024,7 @@ public class CmdNamespaces extends CmdBase {
             } else if (strategyStr.equals("NONE")) {
                 strategy = SchemaAutoUpdateCompatibilityStrategy.AlwaysCompatible;
             } else {
-                throw new PulsarAdminException("Either --compatibility or --disabled must be specified");
+                throw new ParameterException("Either --compatibility or --disabled must be specified");
             }
             getAdmin().namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, strategy);
         }
@@ -2597,6 +2636,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("unload", new Unload());
 
         jcommander.addCommand("split-bundle", new SplitBundle());
+        jcommander.addCommand("get-topic-positions", new GetTopicHashPositions());
 
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
