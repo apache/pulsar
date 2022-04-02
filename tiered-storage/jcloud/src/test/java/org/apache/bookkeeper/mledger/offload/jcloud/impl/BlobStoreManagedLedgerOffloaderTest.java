@@ -67,8 +67,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         assertNotNull(provider);
         provider.validate(config);
         blobStore = provider.getBlobStore(config);
-        this.offloaderStats =
-                new LedgerOffloaderStatsImpl(true, Executors.newScheduledThreadPool(1), 60);
+        this.offloaderStats = LedgerOffloaderStats.create(true, true, Executors.newScheduledThreadPool(1), 60);
     }
 
     private BlobStoreManagedLedgerOffloader getOffloader() throws IOException {

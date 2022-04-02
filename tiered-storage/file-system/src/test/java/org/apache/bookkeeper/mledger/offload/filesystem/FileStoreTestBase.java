@@ -52,7 +52,7 @@ public abstract class FileStoreTestBase {
 
         hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
-        this.offloaderStats = new LedgerOffloaderStatsImpl(true, Executors.newScheduledThreadPool(1), 60);
+        this.offloaderStats = LedgerOffloaderStats.create(true, true, Executors.newScheduledThreadPool(1), 60);
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
                 OffloadPoliciesImpl.create(properties),
                 scheduler, hdfsURI, basePath, offloaderStats);

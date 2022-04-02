@@ -75,7 +75,6 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
@@ -341,9 +340,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         int interval = config.getManagedLedgerStatsPeriodSeconds();
         boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
-        this.offloaderStats = config.isExposeManagedLedgerMetricsInPrometheus()
-                ? new LedgerOffloaderStatsImpl(exposeTopicMetrics, this.getOffloaderScheduler(), interval)
-                : LedgerOffloaderStats.NOOP;
+        this.offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
+                exposeTopicMetrics, this.getOffloaderScheduler(), interval);
     }
 
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {

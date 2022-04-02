@@ -91,9 +91,9 @@ public class PulsarConnectorCache {
 
         int period = pulsarConnectorConfig.getManagedLedgerStatsPeriodSeconds();
         boolean exposeTopicLevelMetrics = pulsarConnectorConfig.isExposeTopicLevelMetricsInPrometheus();
-        this.offloaderStats = pulsarConnectorConfig.isExposeManagedLedgerMetricsInPrometheus()
-                ? new LedgerOffloaderStatsImpl(exposeTopicLevelMetrics, offloaderScheduler, period)
-                : LedgerOffloaderStats.NOOP;
+        this.offloaderStats =
+                LedgerOffloaderStats.create(pulsarConnectorConfig.isExposeManagedLedgerMetricsInPrometheus(),
+                        exposeTopicLevelMetrics, offloaderScheduler, period);
 
         this.defaultOffloader = initManagedLedgerOffloader(
                 pulsarConnectorConfig.getOffloadPolices(), pulsarConnectorConfig);

@@ -60,8 +60,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private final Map<String, String> topic2Namespace;
     private final Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
 
-    public LedgerOffloaderStatsImpl(boolean exposeTopicLevelMetrics,
-                                    ScheduledExecutorService scheduler, int interval) {
+     private LedgerOffloaderStatsImpl(boolean exposeTopicLevelMetrics,
+                                     ScheduledExecutorService scheduler, int interval) {
         this.interval = interval;
         this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
         if (null != scheduler) {
@@ -97,6 +97,17 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
         this.deleteOffloadOps = Counter.build("brk_ledgeroffloader_delete_offload_ops", "-")
                 .labelNames(deleteOpsLabels).create().register();
+    }
+
+
+    private static LedgerOffloaderStats instance;
+    public static synchronized LedgerOffloaderStats getInstance(boolean exposeTopicLevelMetrics,
+                                                    ScheduledExecutorService scheduler, int interval) {
+        if (null == instance) {
+            instance = new LedgerOffloaderStatsImpl(exposeTopicLevelMetrics, scheduler, interval);
+        }
+
+        return instance;
     }
 
     @Override

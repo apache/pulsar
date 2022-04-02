@@ -18,9 +18,11 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 
 
 /**
@@ -47,6 +49,16 @@ public interface LedgerOffloaderStats extends AutoCloseable {
     void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit);
 
     void recordDeleteOffloadOps(String topic, boolean succeed);
+
+
+    static LedgerOffloaderStats create(boolean exposeManagedLedgerStats, boolean exposeTopicLevelMetrics,
+                                       ScheduledExecutorService scheduler, int interval) {
+        if (!exposeManagedLedgerStats) {
+            return NOOP;
+        }
+
+        return LedgerOffloaderStatsImpl.getInstance(exposeTopicLevelMetrics, scheduler, interval);
+    }
 
 
     LedgerOffloaderStats NOOP = new LedgerOffloaderStats() {
