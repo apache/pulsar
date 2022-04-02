@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -56,12 +57,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
@@ -374,6 +377,25 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         TransactionImpl transaction = (TransactionImpl) getTransaction();
         final String topic = "persistent://public/default/testGetPendingAckInternalStats";
         final String subName = "test";
+        try {
+            admin.transactions()
+                    .getPendingAckInternalStatsAsync(topic, subName, true).get();
+            fail("Should failed here");
+        } catch (ExecutionException ex) {
+            assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            assertEquals(cause.getMessage(), "Topic not found");
+        }
+        try {
+            pulsar.getBrokerService().getTopic(topic, false);
+            admin.transactions()
+                    .getPendingAckInternalStatsAsync(topic, subName, true).get();
+            fail("Should failed here");
+        } catch (ExecutionException ex) {
+            assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            assertEquals(cause.getMessage(), "Topic not found");
+        }
         admin.topics().createNonPartitionedTopic(topic);
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
