@@ -64,19 +64,20 @@ github:
           - Build Pulsar java-test-image docker image
           - CI - Integration - Backwards Compatibility
           - CI - Integration - Cli
-          - CI - Integration - Function
           - CI - Integration - Messaging
-          - CI - Integration - Schema
           - CI - Integration - Shade
           - CI - Integration - Standalone
           - CI - Integration - Transaction
           - Build Pulsar docker image
+          - CI - System - Function
           - CI - System - Pulsar Connectors - Process
           - CI - System - Pulsar Connectors - Thread
           - CI - System - Pulsar IO
-          - CI - System - Sql
+          - CI - System - Schema
           - CI - System - Tiered FileSystem
           - CI - System - Tiered JCloud
+# Sql integration tests are disabled until https://github.com/apache/pulsar/issues/14951 has been resolved
+#          - CI - System - Sql
 
       required_pull_request_reviews:
         dismiss_stale_reviews: false
