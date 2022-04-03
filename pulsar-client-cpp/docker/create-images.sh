@@ -23,20 +23,7 @@
 
 set -e
 
-PYTHON_VERSIONS=(
-   '2.7  cp27-cp27mu manylinux1    x86_64'
-   '2.7  cp27-cp27m  manylinux1    x86_64'
-   '3.5  cp35-cp35m  manylinux2014 x86_64'
-   '3.6  cp36-cp36m  manylinux2014 x86_64'
-   '3.7  cp37-cp37m  manylinux2014 x86_64'
-   '3.8  cp38-cp38   manylinux2014 x86_64'
-   '3.9  cp39-cp39   manylinux2014 x86_64'
-   '3.10 cp310-cp310 manylinux2014 x86_64'
-   '3.7  cp37-cp37m  manylinux2014 aarch64'
-   '3.8  cp38-cp38   manylinux2014 aarch64'
-   '3.9  cp39-cp39   manylinux2014 aarch64'
-   '3.10 cp310-cp310 manylinux2014 aarch64'
-)
+source python-versions.sh
 
 for line in "${PYTHON_VERSIONS[@]}"; do
     read -r -a PY <<< "$line"
@@ -46,7 +33,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     ARCH=${PY[3]}
     echo "--------- Build Docker image for $PYTHON_VERSION -- $PYTHON_SPEC -- $ARCH"
 
-    IMAGE_NAME=pulsar-build:manylinux-$PYTHON_SPEC-$ARCH
+    IMAGE_NAME=pulsar-build:$BASE_IMAGE-$PYTHON_SPEC-$ARCH
 
     docker build -t $IMAGE_NAME $BASE_IMAGE \
             --build-arg PYTHON_VERSION=$PYTHON_VERSION \
