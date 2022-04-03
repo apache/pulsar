@@ -89,6 +89,6 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     COMMAND="/pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh"
     DOCKER_CMD="docker run -i ${VOLUME_OPTION} -e USE_FULL_POM_NAME -e NAME_POSTFIX ${IMAGE}"
 
-    $DOCKER_CMD bash -c "${COMMAND}"
+    $DOCKER_CMD bash -c "ARCH=$ARCH ${COMMAND}"
 
 done
