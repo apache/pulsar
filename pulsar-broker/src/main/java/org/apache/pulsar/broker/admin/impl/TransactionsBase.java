@@ -502,9 +502,9 @@ public abstract class TransactionsBase extends AdminResource {
             }
         } catch (Exception e) {
             if (e instanceof ExecutionException) {
-                asyncResponse.resume(new RestException(e.getCause()));
+                resumeAsyncResponseExceptionally(asyncResponse, new RestException(e.getCause()));
             } else {
-                asyncResponse.resume(new RestException(e));
+                resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
             }
         }
     }
