@@ -43,7 +43,6 @@ PYTHON_VERSIONS=(
 )
 
 function contains_build_version {
-    echo "build_version_2: $build_version"
     for line in "${PYTHON_VERSIONS[@]}"; do
         read -r -a v <<< "$line"
         value="${v[0]} ${v[1]} ${v[2]}"
