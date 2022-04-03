@@ -39,6 +39,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -72,49 +73,76 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
 
     @Test(timeOut = 10_000, dataProvider = "isPartition")
     public void deleteTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
-        int expectedCount = isPartition ? 30 : 1;
-        TopicName topicName = createAndLoadTopic(isPartition, expectedCount);
-        checkSnapshotPublisherCount(topicName.getNamespace(), expectedCount);
+        int partitionCount = isPartition ? 30 : 1;
+        List<TopicName> topicNames = createAndLoadTopics(isPartition, partitionCount);
+        String namespaceName = topicNames.get(0).getNamespace();
+        checkSnapshotPublisherCount(namespaceName, 1);
+
+        // The snapshot writer reference by two topics, one topic delete, it shouldn't be removed.
+        deleteTopic(isPartition, topicNames.get(0));
+        checkSnapshotPublisherCount(namespaceName, 1);
+
+        // Currently, the snapshot writer reference by one topic, after the topic is deleted, it should be removed.
+        deleteTopic(isPartition, topicNames.get(1));
+        checkSnapshotPublisherCount(namespaceName, 0);
+    }
+
+    private void deleteTopic(boolean isPartition, TopicName topicName) throws PulsarAdminException {
         if (isPartition) {
             admin.topics().deletePartitionedTopic(topicName.getPartitionedTopicName(), true);
         } else {
             admin.topics().delete(topicName.getPartitionedTopicName(), true);
         }
-        checkSnapshotPublisherCount(topicName.getNamespace(), 0);
     }
 
     @Test(timeOut = 10_000, dataProvider = "isPartition")
     public void unloadTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
-        int expectedCount = isPartition ? 30 : 1;
-        TopicName topicName = createAndLoadTopic(isPartition, expectedCount);
-        checkSnapshotPublisherCount(topicName.getNamespace(), expectedCount);
-        admin.topics().unload(topicName.getPartitionedTopicName());
-        checkSnapshotPublisherCount(topicName.getNamespace(), 0);
+        int partitionCount = isPartition ? 30 : 1;
+        List<TopicName> topicNames = createAndLoadTopics(isPartition, partitionCount);
+        checkSnapshotPublisherCount(topicNames.get(0).getNamespace(), 1);
+
+        // The snapshot writer reference by two topics, one topic unload, it shouldn't be removed.
+        admin.topics().unload(topicNames.get(0).getPartitionedTopicName());
+        checkSnapshotPublisherCount(topicNames.get(0).getNamespace(), 1);
+
+        // Currently, the snapshot writer reference by one topic, after the topic is unloaded, it should be removed.
+        admin.topics().unload(topicNames.get(1).getPartitionedTopicName());
+        checkSnapshotPublisherCount(topicNames.get(1).getNamespace(), 0);
     }
 
-    private TopicName createAndLoadTopic(boolean isPartition, int partitionCount)
+    private List<TopicName> createAndLoadTopics(boolean isPartition, int partitionCount)
             throws PulsarAdminException, PulsarClientException {
         String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
         admin.namespaces().createNamespace(namespace, 3);
-        String topic = namespace + "/tb-close-test-";
-        if (isPartition) {
-            admin.topics().createPartitionedTopic(topic, partitionCount);
+        String topic = namespace + "/tb-close-test";
+        List<TopicName> topics = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            String t = topic + "-" + i;
+            if (isPartition) {
+                admin.topics().createPartitionedTopic(t, partitionCount);
+            }
+            pulsarClient.newProducer()
+                    .topic(t)
+                    .sendTimeout(0, TimeUnit.SECONDS)
+                    .create()
+                    .close();
+            topics.add(TopicName.get(t));
         }
-        pulsarClient.newProducer()
-                .topic(topic)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create()
-                .close();
-        return TopicName.get(topic);
+        return topics;
     }
 
     private void checkSnapshotPublisherCount(String namespace, int expectCount) throws PulsarAdminException {
         TopicName snTopicName = TopicName.get(TopicDomain.persistent.value(), NamespaceName.get(namespace),
                 EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        List<PublisherStats> publisherStatsList =
-                (List<PublisherStats>) admin.topics()
-                        .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
-        Assert.assertEquals(publisherStatsList.size(), expectCount);
+        Awaitility.await()
+                .atMost(2, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    List<PublisherStats> publisherStatsList =
+                            (List<PublisherStats>) admin.topics()
+                                    .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
+                    Assert.assertEquals(publisherStatsList.size(), expectCount);
+                });
     }
 
 }

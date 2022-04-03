@@ -23,6 +23,7 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Writer;
 import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 
 public interface TransactionBufferSnapshotService {
@@ -34,7 +35,17 @@ public interface TransactionBufferSnapshotService {
      *
      * @return {@link CompletableFuture<Writer>} return the future of writer
      */
+    @Deprecated
     CompletableFuture<Writer<TransactionBufferSnapshot>> createWriter(TopicName topicName);
+
+    /**
+     * Create a reference counted transaction buffer snapshot writer.
+     *
+     * @param namespaceName Namespace name
+     *
+     * @return {@link SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter} return reference counted writer
+     */
+    SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter createReferenceWriter(NamespaceName namespaceName);
 
     /**
      * Create a transaction buffer snapshot reader.

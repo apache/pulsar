@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -39,6 +40,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
@@ -80,7 +82,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
      */
     private final LinkedMap<TxnID, PositionImpl> aborts = new LinkedMap<>();
 
-    private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> takeSnapshotWriter;
+    private final ReferenceCountedWriter takeSnapshotWriter;
 
     // when add abort or change max read position, the count will +1. Take snapshot will set 0 into it.
     private final AtomicLong changeMaxReadPositionAndAddAbortTimes = new AtomicLong();
@@ -99,7 +101,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         super(State.None);
         this.topic = topic;
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
-                .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
+                .getTransactionBufferSnapshotService().createReferenceWriter(
+                        TopicName.get(topic.getName()).getNamespaceObject());
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
@@ -197,7 +200,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         }
                         topic.close(true);
                     }
-                }, this.topic, this, takeSnapshotWriter));
+                }, this.topic, this, takeSnapshotWriter.getFuture()));
     }
 
     @Override
@@ -403,7 +406,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private CompletableFuture<Void> takeSnapshot() {
         changeMaxReadPositionAndAddAbortTimes.set(0);
-        return takeSnapshotWriter.thenCompose(writer -> {
+        return takeSnapshotWriter.getFuture().thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             synchronized (TopicTransactionBuffer.this) {
                 snapshot.setTopicName(topic.getName());
@@ -465,7 +468,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> clearSnapshot() {
-        return this.takeSnapshotWriter.thenCompose(writer -> {
+        return this.takeSnapshotWriter.getFuture().thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
             return writer.deleteAsync(snapshot);
@@ -475,7 +478,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Void> closeAsync() {
         changeToCloseState();
-        return this.takeSnapshotWriter.thenCompose(SystemTopicClient.Writer::closeAsync);
+        ReferenceCountUtil.safeRelease(this.takeSnapshotWriter);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
