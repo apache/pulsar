@@ -38,7 +38,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
-import org.apache.pulsar.tests.integration.containers.BookieMetadataStoreContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.apache.pulsar.tests.integration.containers.EtcdMetadataStoreContainer;
@@ -96,7 +95,6 @@ public class PulsarCluster {
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
     private final MetadataStoreContainer metadataStoreContainer;
-    private final BookieMetadataStoreContainer bookieMetadataStoreContainer;
     private PrestoWorkerContainer prestoWorkerContainer;
     @Getter
     private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
@@ -120,6 +118,8 @@ public class PulsarCluster {
         }
 
         this.zkContainer = new ZKContainer(clusterName);
+        this.metadataStoreContainer = createMetadataStoreContainer();
+
         this.zkContainer
             .withNetwork(network)
             .withNetworkAliases(appendClusterName(ZKContainer.NAME))
@@ -127,10 +127,9 @@ public class PulsarCluster {
             .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
             .withEnv("configurationStore", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("forceSync", "no")
-            .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
+            .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"))
+            .withEnv("metadataStoreUrl", getMetadataStoreConnString());
 
-        this.metadataStoreContainer = createMetadataStoreContainer();
-        this.bookieMetadataStoreContainer = createBookieMetadataStoreContainer();
         this.csContainer = csContainer;
 
         this.bookieContainers = Maps.newTreeMap();
@@ -166,7 +165,7 @@ public class PulsarCluster {
                             .withEnv("clusterName", clusterName)
                             .withEnv("diskUsageThreshold", "0.99")
                             .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize))
-                            .withEnv("metadataServiceUri", getBookieMetadataStoreConnString());
+                            .withEnv("metadataServiceUri", "metadata-store:" + getMetadataStoreConnString());
                     return bkContainer;
                 }
             )
@@ -187,7 +186,8 @@ public class PulsarCluster {
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
                         .withEnv("AWS_SECRET_KEY", "secretkey")
                         .withEnv("maxMessageSize", String.valueOf(spec.maxMessageSize))
-                        .withEnv("metadataStoreUrl", getMetadataStoreConnString());
+                        .withEnv("metadataStoreUrl", getMetadataStoreConnString())
+                        .withEnv("bookkeeperMetadataStoreUrl", "metadata-store:" + getMetadataStoreConnString());
 
                     if (spec.queryLastMessage) {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
@@ -247,14 +247,6 @@ public class PulsarCluster {
         return metadataStoreContainer.getConnString(host);
     }
 
-    public String getBookieMetadataStoreConnString() {
-        return bookieMetadataStoreContainer.getBookieConnString(appendClusterName(spec.bookieMetadataStoreType.getName()));
-    }
-
-    public String getBookieMetadataStoreConnString(String host) {
-        return bookieMetadataStoreContainer.getBookieConnString(host);
-    }
-
     public String getCSConnString() {
         return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
     }
@@ -268,17 +260,13 @@ public class PulsarCluster {
     }
 
     public void start() throws Exception {
-        // start the local zookeeper
-        zkContainer.start();
-        log.info("Successfully started local zookeeper container.");
-
         // start the metadata store
         metadataStoreContainer.start();
         log.info("Successfully started metadata store container.");
 
-        // start the bookie metadata store
-        bookieMetadataStoreContainer.start();
-        log.info("Successfully started bookie metadata store container.");
+        // start the local zookeeper
+        zkContainer.start();
+        log.info("Successfully started local zookeeper container.");
 
         // start the configuration store
         if (!sharedCsContainer) {
@@ -669,10 +657,6 @@ public class PulsarCluster {
         return metadataStoreContainer;
     }
 
-    public BookieMetadataStoreContainer getBookieMetadataStoreContainer() {
-        return bookieMetadataStoreContainer;
-    }
-
     public ContainerExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
         return runCommandOnAnyBrokerWithScript(ADMIN_SCRIPT, commands);
     }
@@ -721,14 +705,6 @@ public class PulsarCluster {
         metadataStoreContainer.start();
     }
 
-    public void stopBookieMetadataStore() {
-        bookieMetadataStoreContainer.close();
-    }
-
-    public void startBookieMetadataStore() {
-        bookieMetadataStoreContainer.start();
-    }
-
     public ContainerExecResult createNamespace(String nsName) throws Exception {
         return runAdminCommandOnAnyBroker(
             "namespaces", "create", "public/" + nsName,
@@ -770,19 +746,9 @@ public class PulsarCluster {
 
     private MetadataStoreContainer createMetadataStoreContainer() {
         if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
-            return new EtcdMetadataStoreContainer(clusterName, appendClusterName(spec.metadataStoreType.getName()));
+            return new EtcdMetadataStoreContainer(clusterName, appendClusterName(spec.metadataStoreType.getName()), network);
+        } else {
+            return new ZKMetadataStoreContainer(zkContainer);
         }
-        return new ZKMetadataStoreContainer(zkContainer);
-    }
-
-    private BookieMetadataStoreContainer createBookieMetadataStoreContainer() {
-        if (BookieMetadataStoreType.ETCD.equals(spec.bookieMetadataStoreType)) {
-            if (MetadataStoreType.ETCD.equals(spec.metadataStoreType)) {
-                return (BookieMetadataStoreContainer) metadataStoreContainer;
-            } else {
-                return new EtcdMetadataStoreContainer(clusterName, appendClusterName(spec.metadataStoreType.getName()));
-            }
-        }
-        return new ZKMetadataStoreContainer(zkContainer);
     }
 }

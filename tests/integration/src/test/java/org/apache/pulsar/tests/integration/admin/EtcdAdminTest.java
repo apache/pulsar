@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.admin;
 
-import org.apache.pulsar.tests.integration.topologies.BookieMetadataStoreType;
 import org.apache.pulsar.tests.integration.topologies.MetadataStoreType;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 
@@ -31,7 +30,6 @@ public class EtcdAdminTest extends AdminTest {
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
                                                                             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         return super.beforeSetupCluster(clusterName, specBuilder)
-                .metadataStoreType(MetadataStoreType.ETCD)
-                .bookieMetadataStoreType(BookieMetadataStoreType.ETCD);
+                .metadataStoreType(MetadataStoreType.ETCD);
     }
 }

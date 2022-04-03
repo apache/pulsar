@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 /**
@@ -32,10 +33,12 @@ public class EtcdContainer extends ChaosContainer<EtcdContainer> {
     private static final String IMAGE_NAME = "quay.io/coreos/etcd:v3.5.2";
 
     private String networkAlias;
+    private Network network;
 
-    public EtcdContainer(String clusterName, String networkAlias) {
+    public EtcdContainer(String clusterName, String networkAlias, Network network) {
         super(clusterName, IMAGE_NAME);
         this.networkAlias = networkAlias;
+        this.network = network;
     }
 
     @Override
@@ -44,19 +47,20 @@ public class EtcdContainer extends ChaosContainer<EtcdContainer> {
 
         String[] command = new String[]{
                 "/usr/local/bin/etcd",
-                "--name", String.format("%s0", clusterName),
-                "--initial-advertise-peer-urls", String.format("http://%s:%d", clusterName, INTERNAL_PORT),
+                "--name", String.format("%s0", NAME),
+                "--initial-advertise-peer-urls", String.format("http://%s:%d", NAME, INTERNAL_PORT),
                 "--listen-peer-urls", String.format("http://0.0.0.0:%d", INTERNAL_PORT),
-                "--advertise-client-urls", String.format("http://%s:%d", clusterName, PORT),
+                "--advertise-client-urls", String.format("http://%s:%d", NAME, PORT),
                 "--listen-client-urls", String.format("http://0.0.0.0:%d", PORT),
-                "--initial-cluster", String.format("%s0=http://%s:%d", clusterName, clusterName, INTERNAL_PORT),
+                "--initial-cluster", String.format("%s0=http://%s:%d", NAME, NAME, INTERNAL_PORT),
         };
 
         this.withNetworkAliases(networkAlias)
+                .withNetwork(network)
                 .withExposedPorts(PORTS)
                 .withCommand(command)
                 .withCreateContainerCmdModifier(createContainerCmd -> {
-                    createContainerCmd.withHostName(clusterName);
+                    createContainerCmd.withHostName(NAME);
                     createContainerCmd.withName(clusterName + "-" + NAME);
                 })
                 .waitingFor(new HostPortWaitStrategy());

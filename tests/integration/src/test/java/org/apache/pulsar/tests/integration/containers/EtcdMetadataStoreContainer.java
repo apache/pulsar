@@ -19,11 +19,12 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import org.apache.pulsar.metadata.impl.EtcdMetadataStore;
+import org.testcontainers.containers.Network;
 
 /**
  * Etcd metadata store container.
  */
-public class EtcdMetadataStoreContainer implements MetadataStoreContainer, BookieMetadataStoreContainer {
+public class EtcdMetadataStoreContainer implements MetadataStoreContainer {
 
     private EtcdContainer etcdContainer;
 
@@ -31,18 +32,13 @@ public class EtcdMetadataStoreContainer implements MetadataStoreContainer, Booki
         this.etcdContainer = etcdContainer;
     }
 
-    public EtcdMetadataStoreContainer(String clusterName, String networkAlias) {
-        this(new EtcdContainer(clusterName, networkAlias));
+    public EtcdMetadataStoreContainer(String clusterName, String networkAlias, Network network) {
+        this(new EtcdContainer(clusterName, networkAlias, network));
     }
 
     @Override
     public String getConnString(String host) {
-        return EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER + "http://" + host + ":" + etcdContainer.getMappedPort(EtcdContainer.PORT);
-    }
-
-    @Override
-    public String getBookieConnString(String host) {
-        return "etcd://" + host + ":" + etcdContainer.getMappedPort(EtcdContainer.PORT) + "/clusters/" + etcdContainer.clusterName;
+        return EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER + "http://" + host + ":" + EtcdContainer.PORT;
     }
 
     @Override

@@ -56,7 +56,7 @@ public class MetadataStoreCacheLoader implements Closeable {
     }
 
     /**
-     * Initialize ZooKeeper session and creates broker cache list.
+     * Initialize metadata store session and creates broker cache list.
      *
      * @throws Exception
      */
@@ -88,7 +88,7 @@ public class MetadataStoreCacheLoader implements Closeable {
             try {
                 updateBrokerList(loadReportResources.getChildren(LOADBALANCE_BROKERS_ROOT));
             } catch (Exception e) {
-                log.warn("Error updating broker from zookeeper.", e);
+                log.warn("Error updating broker from metadata store.", e);
             }
         }
         return availableBrokers;

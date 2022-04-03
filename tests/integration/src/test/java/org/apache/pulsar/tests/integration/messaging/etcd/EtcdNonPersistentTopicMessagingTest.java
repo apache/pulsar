@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.messaging.etcd;
 
 import org.apache.pulsar.tests.integration.messaging.NonPersistentTopicMessagingTest;
-import org.apache.pulsar.tests.integration.topologies.BookieMetadataStoreType;
 import org.apache.pulsar.tests.integration.topologies.MetadataStoreType;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 
@@ -32,7 +31,6 @@ public class EtcdNonPersistentTopicMessagingTest extends NonPersistentTopicMessa
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
                                                                             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         return super.beforeSetupCluster(clusterName, specBuilder)
-                .metadataStoreType(MetadataStoreType.ETCD)
-                .bookieMetadataStoreType(BookieMetadataStoreType.ETCD);
+                .metadataStoreType(MetadataStoreType.ETCD);
     }
 }

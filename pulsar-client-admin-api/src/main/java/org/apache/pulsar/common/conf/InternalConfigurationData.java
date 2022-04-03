@@ -37,12 +37,12 @@ public class InternalConfigurationData {
     public InternalConfigurationData() {
     }
 
-    public InternalConfigurationData(String zookeeperServers,
+    public InternalConfigurationData(String metadataStoreUrl,
                                      String configurationMetadataStoreUrl,
                                      String ledgersRootPath,
                                      String bookkeeperMetadataServiceUri,
                                      String stateStorageServiceUrl) {
-        this.metadataStoreUrl = zookeeperServers;
+        this.metadataStoreUrl = metadataStoreUrl;
         this.configurationMetadataStoreUrl = configurationMetadataStoreUrl;
         this.ledgersRootPath = ledgersRootPath;
         this.bookkeeperMetadataServiceUri = bookkeeperMetadataServiceUri;

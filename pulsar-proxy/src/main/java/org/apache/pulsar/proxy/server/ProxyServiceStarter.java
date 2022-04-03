@@ -143,11 +143,7 @@ public class ProxyServiceStarter {
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
-            if (isBlank(metadataStoreUrl)) {
-                // Use zookeeperServers from command line if metadataStoreUrl is empty;
-                config.setMetadataStoreUrl(zookeeperServers);
-            } else {
-                // Use metadataStoreUrl from command line
+            if (!isBlank(metadataStoreUrl)) {
                 config.setMetadataStoreUrl(metadataStoreUrl);
             }
 

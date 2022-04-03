@@ -50,6 +50,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.bookkeeper.metadata.drivers</groupId>
+      <artifactId>metadata-stores-etcd</artifactId>
+      <version>${bookkeeper.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
     </dependency>

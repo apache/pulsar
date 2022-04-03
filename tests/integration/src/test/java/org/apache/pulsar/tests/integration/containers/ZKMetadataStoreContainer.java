@@ -23,7 +23,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 /**
  * Zookeeper metadata store container.
  */
-public class ZKMetadataStoreContainer implements MetadataStoreContainer, BookieMetadataStoreContainer {
+public class ZKMetadataStoreContainer implements MetadataStoreContainer {
 
     private ZKContainer zkContainer;
 
@@ -37,12 +37,7 @@ public class ZKMetadataStoreContainer implements MetadataStoreContainer, BookieM
 
     @Override
     public String getConnString(String host) {
-        return ZKMetadataStore.ZK_SCHEME_IDENTIFIER + host + ":" + zkContainer.getMappedPort(ZKContainer.ZK_PORT);
-    }
-
-    @Override
-    public String getBookieConnString(String host) {
-        return "zk://" + host + ":" + zkContainer.getMappedPort(ZKContainer.ZK_PORT) + "/ledgers";
+        return ZKMetadataStore.ZK_SCHEME_IDENTIFIER + host + ":" + ZKContainer.ZK_PORT;
     }
 
     @Override

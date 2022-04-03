@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.messaging.etcd;
 
 import org.apache.pulsar.tests.integration.messaging.GeoReplicationTest;
-import org.apache.pulsar.tests.integration.topologies.BookieMetadataStoreType;
 import org.apache.pulsar.tests.integration.topologies.MetadataStoreType;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 
@@ -34,8 +33,7 @@ public class EtcdGeoReplicationTest extends GeoReplicationTest {
 
         specBuilder = super.beforeSetupCluster(specBuilder);
         for (PulsarClusterSpec.PulsarClusterSpecBuilder pulsarClusterSpecBuilder : specBuilder) {
-            pulsarClusterSpecBuilder.metadataStoreType(MetadataStoreType.ETCD)
-                    .bookieMetadataStoreType(BookieMetadataStoreType.ETCD);
+            pulsarClusterSpecBuilder.metadataStoreType(MetadataStoreType.ETCD);
         }
         return specBuilder;
     }
