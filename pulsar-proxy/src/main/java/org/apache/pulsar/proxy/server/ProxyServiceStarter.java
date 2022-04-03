@@ -143,6 +143,10 @@ public class ProxyServiceStarter {
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
+            if (!isBlank(zookeeperServers)) {
+                config.setZookeeperServers(zookeeperServers);
+            }
+
             if (!isBlank(metadataStoreUrl)) {
                 config.setMetadataStoreUrl(metadataStoreUrl);
             }
