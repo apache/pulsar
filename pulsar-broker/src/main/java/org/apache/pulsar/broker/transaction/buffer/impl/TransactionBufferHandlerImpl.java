@@ -76,11 +76,11 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             });
 
     public TransactionBufferHandlerImpl(PulsarClient pulsarClient,
-                                        HashedWheelTimer timer, int maxConcurrentRequests) {
+                                        HashedWheelTimer timer, int maxConcurrentRequests, long operationTimeoutInMills) {
         this.pulsarClient = pulsarClient;
         this.outstandingRequests = new ConcurrentSkipListMap<>();
         this.pendingRequests = new GrowableArrayBlockingQueue<>();
-        this.operationTimeoutInMills = 3000L;
+        this.operationTimeoutInMills = operationTimeoutInMills;
         this.timer = timer;
         this.requestCredits = Math.max(100, maxConcurrentRequests);
     }
