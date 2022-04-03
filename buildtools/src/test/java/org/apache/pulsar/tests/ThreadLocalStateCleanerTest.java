@@ -91,9 +91,8 @@ public class ThreadLocalStateCleanerTest {
         thread.start();
         numberHasBeenSet.await();
         Set<ThreadValueEntry> replacedValues = new HashSet<>();
-        ThreadLocalStateCleaner.INSTANCE.cleanupThreadLocal(magicNumberThreadLocal, (t, currentValue) -> {
-            replacedValues.add(new ThreadValueEntry(t, currentValue));
-        });
+        ThreadLocalStateCleaner.INSTANCE.cleanupThreadLocal(magicNumberThreadLocal,
+                (t, currentValue) -> replacedValues.add(new ThreadValueEntry(t, currentValue)));
         shutdownLatch.countDown();
         assertEquals(magicNumberThreadLocal.get().intValue(), 42);
         assertEquals(valueAfterReset.get().intValue(), 42);

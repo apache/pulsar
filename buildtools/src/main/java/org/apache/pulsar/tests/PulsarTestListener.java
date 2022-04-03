@@ -56,18 +56,4 @@ public class PulsarTestListener implements ITestListener {
         System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
-
-    @Override
-    public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-
-    }
-
-    @Override
-    public void onStart(ITestContext context) {
-
-    }
-
-    @Override
-    public void onFinish(ITestContext context) {
-    }
 }

@@ -89,8 +89,4 @@ public class FailFastNotifier
         }
     }
 
-    @Override
-    public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult) {
-
-    }
 }

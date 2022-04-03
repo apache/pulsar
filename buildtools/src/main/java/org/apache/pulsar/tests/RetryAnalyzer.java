@@ -35,7 +35,7 @@ public class RetryAnalyzer extends RetryAnalyzerCount {
     // Only try again once
     static final int MAX_RETRIES = Integer.parseInt(System.getProperty("testRetryCount", "1"));
 
-    // Don't retry test classes that are changed in the current changeset in CI
+    // Don't retry test classes that are changed in the current change set in CI
     private static final Pattern TEST_FILE_PATTERN = Pattern.compile("^.*src/test/java/(.*)\\.java$");
     private static final Set<String> CHANGED_TEST_CLASSES = Optional.ofNullable(System.getenv("CHANGED_TESTS"))
             .map(changedTestsCsv ->
