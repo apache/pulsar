@@ -42,23 +42,28 @@ PYTHON_VERSIONS=(
    '3.10 cp310-cp310  aarch64'
 )
 
-function contains() {
-    local n=$#
-    local value=${!n}
-    for ((i=1;i < $#;i++)) {
-        if [ "${!i}" == "${value}" ]; then
-            echo "y"
-            return 0
+function contains_build_version {
+    echo "build_version_2: $build_version"
+    for line in "${PYTHON_VERSIONS[@]}"; do
+        read -r -a v <<< "$line"
+        value="${v[0]} ${v[1]} ${v[2]}"
+
+        if [ "${build_version}" == "${value}" ]; then
+            # found
+            res=1
+            return
         fi
-    }
-    echo "n"
-    return 1
+    done
+
+    # not found
+    res=0
 }
 
 
 if [ $# -ge 1 ]; then
     build_version=$@
-    if [ $(contains "${PYTHON_VERSIONS[@]}" "${build_version}") == "y" ]; then
+    contains_build_version
+    if [ $res == 1 ]; then
         PYTHON_VERSIONS=(
             "${build_version}"
         )
