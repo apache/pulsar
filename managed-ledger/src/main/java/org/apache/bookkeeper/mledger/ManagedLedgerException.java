@@ -38,10 +38,7 @@ public class ManagedLedgerException extends Exception {
     }
 
     public static ManagedLedgerException getManagedLedgerException(Throwable e) {
-        if (e instanceof ManagedLedgerException) {
-            return (ManagedLedgerException) e;
-        }
-        return new ManagedLedgerException(e);
+        return e instanceof ManagedLedgerException ? (ManagedLedgerException) e : new ManagedLedgerException(e);
     }
 
     public static class MetaStoreException extends ManagedLedgerException {

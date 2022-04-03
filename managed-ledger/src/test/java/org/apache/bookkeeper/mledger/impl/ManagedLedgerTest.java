@@ -2423,7 +2423,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl newVersionLedger = (ManagedLedgerImpl) factory.open("backward_test_ledger", conf);
         List<LedgerInfo> mlInfo = newVersionLedger.getLedgersInfoAsList();
 
-        assertTrue(mlInfo.stream().allMatch(ledgerInfo -> ledgerInfo.hasTimestamp()));
+        assertTrue(mlInfo.stream().allMatch(LedgerInfo::hasTimestamp));
     }
 
 
@@ -3261,7 +3261,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
     }
 
-    private abstract class MockedPlacementPolicy implements EnsemblePlacementPolicy{}
+    private abstract class MockedPlacementPolicy implements EnsemblePlacementPolicy {}
 
     @Test(timeOut = 10000)
     public void testManagedLedgerWithPlacementPolicyInCustomMetadata() throws Exception {
@@ -3453,7 +3453,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CompletableFuture<Void> future = ledger2.asyncTruncate();
         future.get();
 
-        assertTrue(ledger2.getLedgersInfoAsList().size() == 1);
+        assertEquals(ledger2.getLedgersInfoAsList().size(), 1);
     }
 
     @Test

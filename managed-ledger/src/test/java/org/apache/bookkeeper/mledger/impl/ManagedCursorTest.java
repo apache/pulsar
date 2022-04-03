@@ -44,7 +44,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -93,7 +92,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.awaitility.Awaitility;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -726,39 +724,36 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             final ManagedCursor cursor = ledger.openCursor("tcrc" + i);
             final int idx = i;
 
-            futures.add(executor.submit(new Callable<AtomicBoolean>() {
-                @Override
-                public AtomicBoolean call() throws Exception {
-                    barrier.await();
+            futures.add(executor.submit(() -> {
+                barrier.await();
 
-                    final AtomicBoolean moveStatus = new AtomicBoolean(false);
-                    CountDownLatch countDownLatch = new CountDownLatch(1);
-                    final PositionImpl resetPosition = new PositionImpl(lastPosition.getLedgerId(),
-                            lastPosition.getEntryId() - (5 * idx));
+                final AtomicBoolean moveStatus = new AtomicBoolean(false);
+                CountDownLatch countDownLatch = new CountDownLatch(1);
+                final PositionImpl resetPosition = new PositionImpl(lastPosition.getLedgerId(),
+                        lastPosition.getEntryId() - (5 * idx));
 
-                    cursor.asyncResetCursor(resetPosition, false, new AsyncCallbacks.ResetCursorCallback() {
-                        @Override
-                        public void resetComplete(Object ctx) {
-                            moveStatus.set(true);
-                            PositionImpl pos = (PositionImpl) ctx;
-                            log.info("move to [{}] completed for consumer [{}]", pos.toString(), idx);
-                            countDownLatch.countDown();
-                        }
+                cursor.asyncResetCursor(resetPosition, false, new AsyncCallbacks.ResetCursorCallback() {
+                    @Override
+                    public void resetComplete(Object ctx) {
+                        moveStatus.set(true);
+                        PositionImpl pos = (PositionImpl) ctx;
+                        log.info("move to [{}] completed for consumer [{}]", pos.toString(), idx);
+                        countDownLatch.countDown();
+                    }
 
-                        @Override
-                        public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                            moveStatus.set(false);
-                            PositionImpl pos = (PositionImpl) ctx;
-                            log.warn("move to [{}] failed for consumer [{}]", pos.toString(), idx);
-                            countDownLatch.countDown();
-                        }
-                    });
-                    countDownLatch.await();
-                    assertEquals(resetPosition, cursor.getReadPosition());
-                    cursor.close();
+                    @Override
+                    public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                        moveStatus.set(false);
+                        PositionImpl pos = (PositionImpl) ctx;
+                        log.warn("move to [{}] failed for consumer [{}]", pos.toString(), idx);
+                        countDownLatch.countDown();
+                    }
+                });
+                countDownLatch.await();
+                assertEquals(resetPosition, cursor.getReadPosition());
+                cursor.close();
 
-                    return moveStatus;
-                }
+                return moveStatus;
             }));
         }
 
@@ -1778,21 +1773,18 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < Consumers; i++) {
             final ManagedCursor cursor = ledger.openCursor("c" + i);
 
-            futures.add(executor.submit(new Callable<Void>() {
-                @Override
-                public Void call() throws Exception {
-                    barrier.await();
+            futures.add(executor.submit(() -> {
+                barrier.await();
 
-                    int toRead = Messages;
-                    while (toRead > 0) {
-                        List<Entry> entries = cursor.readEntriesOrWait(10);
-                        assertTrue(entries.size() <= 10);
-                        toRead -= entries.size();
-                        entries.forEach(Entry::release);
-                    }
-
-                    return null;
+                int toRead = Messages;
+                while (toRead > 0) {
+                    List<Entry> entries = cursor.readEntriesOrWait(10);
+                    assertTrue(entries.size() <= 10);
+                    toRead -= entries.size();
+                    entries.forEach(Entry::release);
                 }
+
+                return null;
             }));
         }
 
@@ -2263,7 +2255,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     }
 
-    public static byte[] getEntryPublishTime(String msg) throws Exception {
+    public static byte[] getEntryPublishTime(String msg) {
         return Long.toString(System.currentTimeMillis()).getBytes();
     }
 
@@ -3073,17 +3065,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final long markDeleteEntryId = -1L;
 
         MetaStore mockMetaStore = mock(MetaStore.class);
-        doAnswer(new Answer<Object>() {
-            public Object answer(InvocationOnMock invocation) {
-                ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(cursorsLedgerId)
-                        .setMarkDeleteLedgerId(markDeleteLedgerId).setMarkDeleteEntryId(markDeleteEntryId)
-                        .setLastActive(0L).build();
-                Stat stat = mock(Stat.class);
-                MetaStoreCallback<ManagedCursorInfo> callback = (MetaStoreCallback<ManagedCursorInfo>) invocation
-                        .getArguments()[2];
-                callback.operationComplete(info, stat);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocation -> {
+            ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(cursorsLedgerId)
+                    .setMarkDeleteLedgerId(markDeleteLedgerId).setMarkDeleteEntryId(markDeleteEntryId)
+                    .setLastActive(0L).build();
+            Stat stat = mock(Stat.class);
+            MetaStoreCallback<ManagedCursorInfo> callback = (MetaStoreCallback<ManagedCursorInfo>) invocation
+                    .getArguments()[2];
+            callback.operationComplete(info, stat);
+            return null;
         }).when(mockMetaStore).asyncGetCursorInfo(eq(mlName), eq(cursorName), any(MetaStoreCallback.class));
 
         ManagedLedgerImpl ml = mock(ManagedLedgerImpl.class);

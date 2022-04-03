@@ -31,7 +31,7 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     final Rate cacheMisses = new Rate();
     final Rate cacheEvictions = new Rate();
 
-    public ManagedLedgerFactoryMBeanImpl(ManagedLedgerFactoryImpl factory) throws Exception {
+    public ManagedLedgerFactoryMBeanImpl(ManagedLedgerFactoryImpl factory) {
         this.factory = factory;
     }
 

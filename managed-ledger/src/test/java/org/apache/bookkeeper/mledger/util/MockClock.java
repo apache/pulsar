@@ -25,8 +25,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class MockClock extends Clock {
-    private Instant initialInstant = Clock.systemUTC().instant();
-    private AtomicLong delta = new AtomicLong(0);
+    private final Instant initialInstant = Clock.systemUTC().instant();
+    private final AtomicLong delta = new AtomicLong(0);
 
     public void advance(long period, TimeUnit unit) {
         delta.addAndGet(unit.toNanos(period));

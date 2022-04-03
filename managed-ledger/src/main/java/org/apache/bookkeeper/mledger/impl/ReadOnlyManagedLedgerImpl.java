@@ -65,28 +65,27 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                     // Fetch last add confirmed for last ledger
                     bookKeeper.newOpenLedgerOp().withRecovery(false).withLedgerId(lastLedgerId)
                             .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute()
-                            .thenAccept(readHandle -> {
-                                readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
-                                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
-                                            .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
-                                            .setTimestamp(clock.millis()).build();
-                                    ledgers.put(lastLedgerId, info);
+                            .thenAccept(readHandle -> readHandle.readLastAddConfirmedAsync()
+                                    .thenAccept(lastAddConfirmed -> {
+                                LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
+                                        .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
+                                        .setTimestamp(clock.millis()).build();
+                                ledgers.put(lastLedgerId, info);
 
-                                    future.complete(createReadOnlyCursor(startPosition));
-                                }).exceptionally(ex -> {
-                                    if (ex instanceof CompletionException
-                                            && ex.getCause() instanceof IllegalArgumentException) {
-                                        // The last ledger was empty, so we cannot read the last add confirmed.
-                                        LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
-                                                .setEntries(0).setSize(0).setTimestamp(clock.millis()).build();
-                                        ledgers.put(lastLedgerId, info);
-                                        future.complete(createReadOnlyCursor(startPosition));
-                                    } else {
-                                        future.completeExceptionally(new ManagedLedgerException(ex));
-                                    }
-                                    return null;
-                                });
+                                future.complete(createReadOnlyCursor(startPosition));
                             }).exceptionally(ex -> {
+                                if (ex instanceof CompletionException
+                                        && ex.getCause() instanceof IllegalArgumentException) {
+                                    // The last ledger was empty, so we cannot read the last add confirmed.
+                                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
+                                            .setEntries(0).setSize(0).setTimestamp(clock.millis()).build();
+                                    ledgers.put(lastLedgerId, info);
+                                    future.complete(createReadOnlyCursor(startPosition));
+                                } else {
+                                    future.completeExceptionally(new ManagedLedgerException(ex));
+                                }
+                                return null;
+                            })).exceptionally(ex -> {
                                 if (ex instanceof CompletionException
                                         && ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
                                     // The last ledger was empty, so we cannot read the last add confirmed.

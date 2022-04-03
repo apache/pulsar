@@ -199,7 +199,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
 
     static class MockLedgerOffloader implements LedgerOffloader {
-        ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
+        ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<>();
 
 
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
@@ -243,7 +243,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
                                                        Map<String, String> offloadDriverMetadata) {
             offloads.remove(uuid);
             return CompletableFuture.completedFuture(null);
-        };
+        }
 
         @Override
         public OffloadPoliciesImpl getOffloadPolicies() {

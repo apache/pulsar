@@ -122,7 +122,7 @@ public class ManagedCursorContainerTest {
         @Override
         public void markDelete(Position position, Map<String, Long> properties) throws ManagedLedgerException {
             this.position = position;
-            container.cursorUpdated(this, (PositionImpl) position);
+            container.cursorUpdated(this, position);
         }
 
         @Override
@@ -394,7 +394,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void testSlowestReadPositionForActiveCursors() throws Exception {
+    public void testSlowestReadPositionForActiveCursors() {
         ManagedCursorContainer container =
                 new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
         assertNull(container.getSlowestReadPositionForActiveCursors());
@@ -488,7 +488,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void updatingCursorOutsideContainer() throws Exception {
+    public void updatingCursorOutsideContainer() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -510,7 +510,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void removingCursor() throws Exception {
+    public void removingCursor() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -581,7 +581,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void orderingWithUpdates() throws Exception {
+    public void orderingWithUpdates() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -646,7 +646,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    public void orderingWithUpdatesAndReset() throws Exception {
+    public void orderingWithUpdatesAndReset() {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));

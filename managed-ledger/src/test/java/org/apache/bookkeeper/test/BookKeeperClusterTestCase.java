@@ -75,16 +75,16 @@ public abstract class BookKeeperClusterTestCase {
     protected FaultInjectionMetadataStore metadataStore;
 
     // BookKeeper related variables
-    protected List<File> tmpDirs = new LinkedList<File>();
-    protected List<BookieServer> bs = new LinkedList<BookieServer>();
-    protected List<ServerConfiguration> bsConfs = new LinkedList<ServerConfiguration>();
+    protected List<File> tmpDirs = new LinkedList<>();
+    protected List<BookieServer> bs = new LinkedList<>();
+    protected List<ServerConfiguration> bsConfs = new LinkedList<>();
     protected int numBookies;
     protected BookKeeperTestClient bkc;
 
     protected ServerConfiguration baseConf = new ServerConfiguration();
     protected ClientConfiguration baseClientConf = new ClientConfiguration();
 
-    private final Map<BookieServer, AutoRecoveryMain> autoRecoveryProcesses = new HashMap<BookieServer, AutoRecoveryMain>();
+    private final Map<BookieServer, AutoRecoveryMain> autoRecoveryProcesses = new HashMap<>();
 
     private boolean isAutoRecoveryEnabled;
 
@@ -325,7 +325,7 @@ public abstract class BookKeeperClusterTestCase {
                     try {
                         bookie.suspendProcessing();
                         l.countDown();
-                        Thread.sleep(seconds * 1000);
+                        Thread.sleep(seconds * 1000L);
                         bookie.resumeProcessing();
                     } catch (Exception e) {
                         LOG.error("Error suspending bookie", e);
@@ -394,7 +394,7 @@ public abstract class BookKeeperClusterTestCase {
         Thread.sleep(1000);
         // restart them to ensure we can't
 
-        List<ServerConfiguration> bsConfsCopy = new ArrayList<ServerConfiguration>(bsConfs);
+        List<ServerConfiguration> bsConfsCopy = new ArrayList<>(bsConfs);
         bsConfs.clear();
         for (ServerConfiguration conf : bsConfsCopy) {
             if (null != newConf) {
@@ -515,7 +515,7 @@ public abstract class BookKeeperClusterTestCase {
      * Will stops all the auto recovery processes for the bookie cluster, if isAutoRecoveryEnabled is true.
      */
     public void stopReplicationService() throws Exception {
-        if (false == isAutoRecoveryEnabled()) {
+        if (!isAutoRecoveryEnabled()) {
             return;
         }
         for (Entry<BookieServer, AutoRecoveryMain> autoRecoveryProcess : autoRecoveryProcesses.entrySet()) {

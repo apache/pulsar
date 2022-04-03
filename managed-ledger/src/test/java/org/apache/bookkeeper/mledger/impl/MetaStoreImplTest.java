@@ -52,7 +52,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    void getMLList() throws Exception {
+    void getMLList() {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
         metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->

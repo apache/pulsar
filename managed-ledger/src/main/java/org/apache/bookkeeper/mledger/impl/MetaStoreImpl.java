@@ -106,13 +106,11 @@ public class MetaStoreImpl implements MetaStore {
                                     .thenAccept(stat -> {
                                         ManagedLedgerInfo.Builder ledgerBuilder = ManagedLedgerInfo.newBuilder();
                                         if (properties != null) {
-                                            properties.forEach((k, v) -> {
-                                                ledgerBuilder.addProperties(
-                                                        MLDataFormats.KeyValue.newBuilder()
-                                                                .setKey(k)
-                                                                .setValue(v)
-                                                                .build());
-                                            });
+                                            properties.forEach((k, v) -> ledgerBuilder.addProperties(
+                                                    MLDataFormats.KeyValue.newBuilder()
+                                                            .setKey(k)
+                                                            .setValue(v)
+                                                            .build()));
                                         }
                                         callback.operationComplete(ledgerBuilder.build(), stat);
                                     }).exceptionally(ex -> {

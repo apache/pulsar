@@ -246,7 +246,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
                 long firstEntry = (Long) args[0];
                 long lastEntry = (Long) args[1];
 
-                Vector<LedgerEntry> entries = new Vector<LedgerEntry>();
+                Vector<LedgerEntry> entries = new Vector<>();
                 for (int i = 0; i <= (lastEntry - firstEntry); i++) {
                     entries.add(ledgerEntry);
                 }

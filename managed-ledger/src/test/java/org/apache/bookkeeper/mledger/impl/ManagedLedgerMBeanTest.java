@@ -69,9 +69,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.addLedgerSwitchLatencySample(1, TimeUnit.SECONDS);
 
         // Simulate stats getting update from different thread
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor.submit(() -> mbean.refreshStats(1, TimeUnit.SECONDS)).get();
 
         assertEquals(mbean.getAddEntryBytesRate(), 0.0);
         assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 0.0);
@@ -97,9 +95,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         ledger.addEntry(new byte[600]);
         cursor.markDelete(p1);
 
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor.submit(() -> mbean.refreshStats(1, TimeUnit.SECONDS)).get();
 
         assertEquals(mbean.getAddEntryBytesRate(), 800.0);
         assertEquals(mbean.getAddEntryWithReplicasBytesRate(), 1600.0);
@@ -117,9 +113,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.recordAddEntryError();
         mbean.recordReadEntriesError();
 
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor.submit(() -> mbean.refreshStats(1, TimeUnit.SECONDS)).get();
 
         assertEquals(mbean.getAddEntryErrors(), 1);
         assertEquals(mbean.getReadEntriesErrors(), 1);
@@ -127,9 +121,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
 
-        factory.scheduledExecutor.submit(() -> {
-            mbean.refreshStats(1, TimeUnit.SECONDS);
-        }).get();
+        factory.scheduledExecutor.submit(() -> mbean.refreshStats(1, TimeUnit.SECONDS)).get();
 
         assertEquals(mbean.getReadEntriesBytesRate(), 600.0);
         assertEquals(mbean.getReadEntriesRate(), 1.0);

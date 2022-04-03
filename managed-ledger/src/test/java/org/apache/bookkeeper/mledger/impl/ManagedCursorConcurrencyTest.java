@@ -324,7 +324,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < N; i++) {
             ledger.addEntry(("entry" + i).getBytes());
         }
-        long currentLedger = ((PositionImpl) cursors.get(0).getMarkDeletedPosition()).getLedgerId();
+        long currentLedger = (cursors.get(0).getMarkDeletedPosition()).getLedgerId();
 
         // empty the cache
         ((ManagedLedgerImpl) ledger).entryCache.invalidateAllEntries(currentLedger);

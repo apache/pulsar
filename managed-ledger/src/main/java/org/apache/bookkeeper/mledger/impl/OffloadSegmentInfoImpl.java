@@ -35,7 +35,6 @@ public class OffloadSegmentInfoImpl {
         this.driverMetadata = driverMetadata;
     }
 
-
     public final UUID uuid;
     public final long beginLedgerId;
     public final long beginEntryId;

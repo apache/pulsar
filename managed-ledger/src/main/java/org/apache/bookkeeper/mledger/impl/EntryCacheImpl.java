@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 import org.apache.bookkeeper.mledger.util.RangeCache;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -285,7 +286,7 @@ public class EntryCacheImpl implements EntryCache {
 
         } else {
             if (!cachedEntries.isEmpty()) {
-                cachedEntries.forEach(entry -> entry.release());
+                cachedEntries.forEach(AbstractCASReferenceCounted::release);
             }
 
             // Read all the entries from bookkeeper

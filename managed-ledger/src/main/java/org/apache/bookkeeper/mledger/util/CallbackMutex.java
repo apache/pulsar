@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CallbackMutex {
 
-    private Semaphore semaphore = new Semaphore(1, true);
+    private final Semaphore semaphore = new Semaphore(1, true);
 
     String owner;
     String position;

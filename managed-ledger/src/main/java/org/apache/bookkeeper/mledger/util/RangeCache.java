@@ -40,7 +40,7 @@ import org.apache.commons.lang3.tuple.Pair;
 public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCounted> {
     // Map from key to nodes inside the linked list
     private final ConcurrentNavigableMap<Key, Value> entries;
-    private AtomicLong size; // Total size of values stored in cache
+    private final AtomicLong size; // Total size of values stored in cache
     private final Weighter<Value> weighter; // Weighter object used to extract the size from values
     private final TimestampExtractor<Value> timestampExtractor; // Extract the timestamp associated with a value
 

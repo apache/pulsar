@@ -479,7 +479,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         config.setMetadataMaxEntriesPerLedger(5);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
         final ManagedCursor c1 = ledger.openCursor("c1");
-        final AtomicReference<Position> lastPosition = new AtomicReference<Position>();
+        final AtomicReference<Position> lastPosition = new AtomicReference<>();
 
         final int N = 100;
         final CountDownLatch latch = new CountDownLatch(N);

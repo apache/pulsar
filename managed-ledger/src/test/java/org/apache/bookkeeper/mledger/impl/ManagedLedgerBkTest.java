@@ -414,7 +414,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         factoryConf.setMaxCacheSize(0);
 
         @Cleanup("shutdown")
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1)
                 .setMetadataAckQuorumSize(1);
@@ -436,7 +436,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(
                 DigestType.CRC32, "".getBytes(Charsets.UTF_8), "", false);
         PersistentOfflineTopicStats offlineTopicStats = offlineTopicBacklog.getEstimatedUnloadedTopicBacklog(
-                (ManagedLedgerFactoryImpl) factory, "property/cluster/namespace/my-ledger");
+                factory, "property/cluster/namespace/my-ledger");
         assertNotNull(offlineTopicStats);
     }
 

@@ -60,6 +60,6 @@ public class SimpleBookKeeperTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    private static Logger log = LoggerFactory.getLogger(SimpleBookKeeperTest.class);
+    private static final Logger log = LoggerFactory.getLogger(SimpleBookKeeperTest.class);
 
 }

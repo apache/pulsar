@@ -133,7 +133,7 @@ public class ZooKeeperUtil {
                     try {
                         t.suspend();
                         l.countDown();
-                        Thread.sleep(seconds * 1000);
+                        Thread.sleep(seconds * 1000L);
                         t.resume();
                     } catch (Exception e) {
                         LOG.error("Error suspending thread", e);
