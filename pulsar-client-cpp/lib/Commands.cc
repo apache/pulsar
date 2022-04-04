@@ -268,6 +268,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
                                     Optional<MessageId> startMessageId, bool readCompacted,
                                     const std::map<std::string, std::string>& metadata,
+                                    const std::map<std::string, std::string>& subscriptionProperties,
                                     const SchemaInfo& schemaInfo,
                                     CommandSubscribe_InitialPosition subscriptionInitialPosition,
                                     bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
@@ -306,6 +307,14 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         keyValue->set_key(it->first);
         keyValue->set_value(it->second);
         subscribe->mutable_metadata()->AddAllocated(keyValue);
+    }
+
+    for (std::map<std::string, std::string>::const_iterator it = subscriptionProperties.begin();
+         it != subscriptionProperties.end(); it++) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(it->first);
+        keyValue->set_value(it->second);
+        subscribe->mutable_subscription_properties()->AddAllocated(keyValue);
     }
 
     if (subType == CommandSubscribe_SubType_Key_Shared) {
