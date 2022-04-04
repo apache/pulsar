@@ -103,7 +103,7 @@ import org.slf4j.LoggerFactory;
 public class ClientCnx extends PulsarHandler {
 
     protected final Authentication authentication;
-    private State state;
+    protected State state;
 
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
@@ -129,11 +129,11 @@ public class ClientCnx extends PulsarHandler {
                     .concurrencyLevel(1)
                     .build();
 
-    private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
+    protected final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
-    private final EventLoopGroup eventLoopGroup;
+    protected final EventLoopGroup eventLoopGroup;
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ClientCnx.class, "numberOfRejectRequests");
@@ -146,7 +146,7 @@ public class ClientCnx extends PulsarHandler {
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
     private final int protocolVersion;
-    private final long operationTimeoutMs;
+    protected final long operationTimeoutMs;
 
     protected String proxyToTargetBrokerAddress = null;
     // Remote hostName with which client is connected
@@ -164,7 +164,7 @@ public class ClientCnx extends PulsarHandler {
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
 
-    enum State {
+    protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
 
@@ -242,28 +242,30 @@ public class ClientCnx extends PulsarHandler {
             log.info("{} Connected through proxy to target broker at {}", ctx.channel(), proxyToTargetBrokerAddress);
         }
         // Send CONNECT command
-        ctx.writeAndFlush(newConnectCommand())
-                .addListener(future -> {
-                    if (future.isSuccess()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Complete: {}", future.isSuccess());
-                        }
-                        state = State.SentConnectFrame;
-                    } else {
-                        log.warn("Error during handshake", future.cause());
-                        ctx.close();
-                    }
-                });
+        sendConnectCommand();
     }
 
-    protected ByteBuf newConnectCommand() throws Exception {
+    protected void sendConnectCommand() throws Exception {
         // mutual authentication is to auth between `remoteHostName` and this client for this channel.
         // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
         // and return authData to server.
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-        return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
+        ByteBuf command = Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
+            PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
+
+        ctx.writeAndFlush(command)
+            .addListener(future -> {
+                if (future.isSuccess()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Complete: {}", future.isSuccess());
+                    }
+                    state = State.SentConnectFrame;
+                } else {
+                    log.warn("Error during handshake", future.cause());
+                    ctx.close();
+                }
+            });
     }
 
     @Override
