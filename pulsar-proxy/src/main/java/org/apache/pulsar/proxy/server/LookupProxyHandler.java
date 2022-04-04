@@ -292,14 +292,20 @@ public class LookupProxyHandler {
         if (!StringUtils.isNotBlank(serviceUrl)) {
             return;
         }
+        String topicsPattern = commandGetTopicsOfNamespace.hasTopicsPattern()
+                ? commandGetTopicsOfNamespace.getTopicsPattern() : null;
+        String topicsHash = commandGetTopicsOfNamespace.hasTopicsHash()
+                ? commandGetTopicsOfNamespace.getTopicsHash() : null;
         performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl,
-                10, commandGetTopicsOfNamespace.getMode());
+                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode());
     }
 
     private void performGetTopicsOfNamespace(long clientRequestId,
                                              String namespaceName,
                                              String brokerServiceUrl,
                                              int numberOfRetries,
+                                             String topicsPattern,
+                                             String topicsHash,
                                              CommandGetTopicsOfNamespace.Mode mode) {
         if (numberOfRetries == 0) {
             proxyConnection.ctx().writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
@@ -321,7 +327,8 @@ public class LookupProxyHandler {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode);
+            command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
+                    topicsPattern, topicsHash);
             clientCnx.newGetTopicsOfNamespace(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     log.warn("[{}] Failed to get TopicsOfNamespace {}: {}",
@@ -330,7 +337,8 @@ public class LookupProxyHandler {
                         Commands.newError(clientRequestId, ServerError.ServiceNotReady, t.getMessage()));
                 } else {
                     proxyConnection.ctx().writeAndFlush(
-                        Commands.newGetTopicsOfNamespaceResponse(r, clientRequestId));
+                        Commands.newGetTopicsOfNamespaceResponse(r.getTopics(), r.getTopicsHash(), r.isFiltered(),
+                                r.isChanged(), clientRequestId));
                 }
             });
 

@@ -914,6 +914,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int resourceUsageTransportPublishIntervalInSecs = 60;
 
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables evaluating subscription pattern on broker side."
+    )
+    private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Max length of subscription pattern"
+    )
+    private int subscriptionPatternMaxLength = 50;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
