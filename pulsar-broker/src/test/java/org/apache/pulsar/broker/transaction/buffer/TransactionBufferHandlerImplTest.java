@@ -57,7 +57,7 @@ public class TransactionBufferHandlerImplTest {
         when(((PulsarClientImpl)pulsarClient).getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
         TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarService, null, 1000, 3000));
         doNothing().when(handler).endTxn(any());
-        doReturn(CompletableFuture.completedFuture(mock(ClientCnx.class))).when(handler).getClientCnxViaBundle(anyString());
+        doReturn(CompletableFuture.completedFuture(mock(ClientCnx.class))).when(handler).getClientCnx(anyString());
         for (int i = 0; i < 500; i++) {
             handler.endTxnOnTopic("public/default/t", 1L, 1L, TxnAction.COMMIT, 1L);
         }
