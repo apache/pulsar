@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -148,8 +149,9 @@ public class OwnershipCache {
      * @param bundle namespace bundle
      * @return future that will complete with check result
      */
-    public boolean checkOwnership(NamespaceBundle bundle) {
-        return getOwnedBundle(bundle) != null;
+    public CompletableFuture<Boolean> checkOwnershipAsync(NamespaceBundle bundle) {
+        return getOwnedBundleAsync(bundle)
+                .thenApply(Objects::nonNull);
     }
 
     /**
@@ -277,6 +279,10 @@ public class OwnershipCache {
         } else {
             return null;
         }
+    }
+
+    public CompletableFuture<OwnedBundle> getOwnedBundleAsync(NamespaceBundle bundle) {
+        return ownedBundlesCache.getIfPresent(bundle);
     }
 
     /**
