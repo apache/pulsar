@@ -27,25 +27,12 @@ BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 ROOT_DIR=`cd $(dirname $0)/../..; pwd`
 cd $ROOT_DIR
 
-PYTHON_VERSIONS=(
-   '2.7  cp27-cp27mu  x86_64'
-   '2.7  cp27-cp27m   x86_64'
-   '3.5  cp35-cp35m   x86_64'
-   '3.6  cp36-cp36m   x86_64'
-   '3.7  cp37-cp37m   x86_64'
-   '3.8  cp38-cp38    x86_64'
-   '3.9  cp39-cp39    x86_64'
-   '3.10 cp310-cp310  x86_64'
-   '3.7  cp37-cp37m   aarch64'
-   '3.8  cp38-cp38    aarch64'
-   '3.9  cp39-cp39    aarch64'
-   '3.10 cp310-cp310  aarch64'
-)
+source ./pulsar-client-cpp/docker/python-versions.sh
 
 function contains_build_version {
     for line in "${PYTHON_VERSIONS[@]}"; do
         read -r -a v <<< "$line"
-        value="${v[0]} ${v[1]} ${v[2]}"
+        value="${v[0]} ${v[1]} ${v[2]} ${v[3]}"
 
         if [ "${build_version}" == "${value}" ]; then
             # found
@@ -78,10 +65,11 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     read -r -a PY <<< "$line"
     PYTHON_VERSION=${PY[0]}
     PYTHON_SPEC=${PY[1]}
-    ARCH=${PY[2]}
-    echo "--------- Build Python wheel for $PYTHON_VERSION -- $PYTHON_SPEC -- $ARCH"
+    IMAGE=${PY[2]}
+    ARCH=${PY[3]}
+    echo "--------- Build Python wheel for $PYTHON_VERSION -- $IMAGE -- $PYTHON_SPEC -- $ARCH"
 
-    IMAGE=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC-$ARCH
+    IMAGE=$BUILD_IMAGE_NAME:${IMAGE}-$PYTHON_SPEC-$ARCH
 
     echo "Using image: $IMAGE"
 
