@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamedEntity;
@@ -411,8 +412,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         // remove from owned namespace map and ephemeral node from ZK
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> futuresForDeleteTopics = Lists.newArrayList();
+        final List<CompletableFuture<Void>> futuresForDeleteBundles = Lists.newArrayList();
         try {
+            final PulsarAdmin pulsarAdmin = pulsar().getAdminClient();
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
                 Set<String> partitionedTopics = new HashSet<>();
@@ -425,12 +428,12 @@ public abstract class NamespacesBase extends AdminResource {
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
                                 // Distinguish partitioned topic to avoid duplicate deletion of the same schema
-                                futures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
+                                futuresForDeleteTopics.add(pulsarAdmin.topics().deletePartitionedTopicAsync(
                                         partitionedTopic, true, true));
                                 partitionedTopics.add(partitionedTopic);
                             }
                         } else {
-                            futures.add(pulsar().getAdminClient().topics().deleteAsync(
+                            futuresForDeleteTopics.add(pulsarAdmin.topics().deleteAsync(
                                     topic, true, true));
                             nonPartitionedTopics.add(topic);
                         }
@@ -458,8 +461,12 @@ public abstract class NamespacesBase extends AdminResource {
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
                 if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                    futures.add(pulsar().getAdminClient().namespaces()
-                            .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange(), true));
+                    CompletableFuture<Void> futureForDeleteBundle = FutureUtil.waitForAll(futuresForDeleteTopics)
+                            .thenCompose(__ -> {
+                                return pulsarAdmin.namespaces().deleteNamespaceBundleAsync(namespaceName.toString(),
+                                        bundle.getBundleRange(), true);
+                            });
+                    futuresForDeleteBundles.add(futureForDeleteBundle);
                 }
             }
         } catch (Exception e) {
@@ -468,7 +475,7 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
-        FutureUtil.waitForAll(futures).thenCompose(__ -> internalClearZkSources()).handle((result, exception) -> {
+        FutureUtil.waitForAll(futuresForDeleteBundles).thenCompose(__ -> internalClearZkSources()).handle((result, exception) -> {
             if (exception != null) {
                 if (exception.getCause() instanceof PulsarAdminException) {
                     asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
@@ -1851,7 +1858,7 @@ public abstract class NamespacesBase extends AdminResource {
             return namespaces.stream().filter(ns -> {
                 Optional<LocalPolicies> policies;
                 try {
-                    policies = getLocalPolicies().getLocalPolicies(namespaceName);
+                    policies = getLocalPolicies().getLocalPolicies(NamespaceName.get(ns));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
