@@ -275,7 +275,7 @@ public class Transactions extends TransactionsBase {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetPendingAckInternalStats(authoritative, topicName, subName, metadata)
+            internalGetPendingAckInternalStats(authoritative, subName, metadata)
                     .thenAccept(stats -> asyncResponse.resume(stats))
                     .exceptionally(ex -> {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);

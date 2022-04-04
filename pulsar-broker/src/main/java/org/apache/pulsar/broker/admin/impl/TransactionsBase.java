@@ -126,73 +126,26 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected CompletableFuture<TransactionInPendingAckStats> internalGetTransactionInPendingAckStats(
             boolean authoritative, long mostSigBits, long leastSigBits, String subName) {
-        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture == null) {
-                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-            }
-            return topicFuture.thenCompose(optionalTopic -> {
-                if (!optionalTopic.isPresent()) {
-                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-                }
-                return CompletableFuture.completedFuture(((PersistentTopic) optionalTopic.get())
-                        .getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits), subName));
-            });
-        });
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
+                        subName));
     }
 
     protected CompletableFuture<TransactionInBufferStats> internalGetTransactionInBufferStats(
             boolean authoritative, long mostSigBits, long leastSigBits) {
-        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture == null) {
-                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-            }
-            return topicFuture.thenCompose(optionalTopic -> {
-                if (!optionalTopic.isPresent()) {
-                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-                }
-                return CompletableFuture.completedFuture(((PersistentTopic) optionalTopic.get())
-                        .getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits)));
-            });
-        });
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits)));
     }
 
     protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative) {
-        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture == null) {
-                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-            }
-            return topicFuture.thenCompose(optionalTopic -> {
-                if (!optionalTopic.isPresent()) {
-                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-                }
-                return CompletableFuture.completedFuture(((PersistentTopic) optionalTopic.get())
-                        .getTransactionBufferStats());
-            });
-        });
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionBufferStats());
     }
 
-    protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(boolean authoritative,
-                                                                                       String subName) {
-        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
-            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                    .getTopics().get(topicName.toString());
-            if (topicFuture == null) {
-                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-            }
-            return topicFuture.thenCompose(optionalTopic -> {
-                if (!optionalTopic.isPresent()) {
-                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-                }
-                return CompletableFuture.completedFuture(
-                        ((PersistentTopic) optionalTopic.get()).getTransactionPendingAckStats(subName));
-            });
-        });
+    protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(
+            boolean authoritative, String subName) {
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenApply(topic -> topic.getTransactionPendingAckStats(subName));
     }
 
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
@@ -425,36 +378,39 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<TransactionPendingAckInternalStats> internalGetPendingAckInternalStats(
-            boolean authoritative, TopicName topicName, String subName, boolean metadata) {
-        return validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> {
-                    CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
-                            .getTopics().get(topicName.toString());
-                    if (topicFuture == null) {
-                        return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-                    }
-                    return topicFuture.thenCompose(optionalTopic -> {
-                        if (!optionalTopic.isPresent()) {
-                            return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
-                        } else {
-                            Topic topicObject = optionalTopic.get();
-                            return ((PersistentTopic) topicObject).getPendingAckManagedLedger(subName)
-                                    .thenCompose(managedLedger -> managedLedger.getManagedLedgerInternalStats(metadata)
-                                            .thenApply(internalStats -> {
-                                                TransactionLogStats pendingAckLogStats = new TransactionLogStats();
-                                                pendingAckLogStats.managedLedgerName = managedLedger.getName();
-                                                pendingAckLogStats.managedLedgerInternalStats = internalStats;
-                                                return pendingAckLogStats;
-                                            })
-                                            .thenApply(pendingAckLogStats -> {
-                                                TransactionPendingAckInternalStats stats =
-                                                        new TransactionPendingAckInternalStats();
-                                                stats.pendingAckLogStats = pendingAckLogStats;
-                                                return stats;
-                                            }));
-                        }
-                    });
-                });
+            boolean authoritative, String subName, boolean metadata) {
+        return getExistingPersistentTopicAsync(authoritative)
+                .thenCompose(topic -> topic.getPendingAckManagedLedger(subName))
+                .thenCompose(managedLedger ->
+                        managedLedger.getManagedLedgerInternalStats(metadata)
+                            .thenApply(internalStats -> {
+                                TransactionLogStats pendingAckLogStats = new TransactionLogStats();
+                                pendingAckLogStats.managedLedgerName = managedLedger.getName();
+                                pendingAckLogStats.managedLedgerInternalStats = internalStats;
+                                return pendingAckLogStats;
+                            })
+                            .thenApply(pendingAckLogStats -> {
+                                TransactionPendingAckInternalStats stats = new TransactionPendingAckInternalStats();
+                                stats.pendingAckLogStats = pendingAckLogStats;
+                                return stats;
+                            })
+                );
+    }
+
+    protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
+            CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
+                    .getTopics().get(topicName.toString());
+            if (topicFuture == null) {
+                return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+            }
+            return topicFuture.thenCompose(optionalTopic -> {
+                if (!optionalTopic.isPresent()) {
+                    return FutureUtil.failedFuture(new RestException(NOT_FOUND, "Topic not found"));
+                }
+                return CompletableFuture.completedFuture((PersistentTopic) optionalTopic.get());
+            });
+        });
     }
 
     protected void checkTransactionCoordinatorEnabled() {
