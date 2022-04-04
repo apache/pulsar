@@ -1,5 +1,5 @@
 ---
-id: develop-binary-protocol
+id: developing-binary-protocol
 title: Pulsar binary protocol specification
 sidebar_label: Binary protocol
 ---

@@ -185,7 +185,7 @@ When you want to add a page to sidebar, you can add the document `id` you used i
     "Getting started": [
       "pulsar-2.0",
       "standalone",
-      "standalone-docker",
+      "getting-started-docker",
       "client-libraries",
       "concepts-architecture"
     ],

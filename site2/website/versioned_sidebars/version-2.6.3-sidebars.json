@@ -3,8 +3,8 @@
     "Get Started": [
       "version-2.6.3-pulsar-2.0",
       "version-2.6.3-standalone",
-      "version-2.6.3-standalone-docker",
-      "version-2.6.3-kubernetes-helm",
+      "version-2.6.3-getting-started-docker",
+      "version-2.6.3-getting-started-helm",
       "version-2.6.3-client-libraries"
     ],
     "Concepts and Architecture": [
@@ -133,7 +133,7 @@
     ],
     "Development": [
       "version-2.6.3-develop-tools",
-      "version-2.6.3-develop-binary-protocol",
+      "version-2.6.3-developing-binary-protocol",
       "version-2.6.3-develop-schema",
       "version-2.6.3-develop-load-manager",
       "version-2.6.3-develop-cpp"

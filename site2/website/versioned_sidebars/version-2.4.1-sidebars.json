@@ -3,7 +3,7 @@
     "Get Started": [
       "version-2.4.1-pulsar-2.0",
       "version-2.4.1-standalone",
-      "version-2.4.1-standalone-docker",
+      "version-2.4.1-getting-started-docker",
       "version-2.4.1-client-libraries"
     ],
     "Concepts and Architecture": [
@@ -120,7 +120,7 @@
     ],
     "Development": [
       "version-2.4.1-develop-tools",
-      "version-2.4.1-develop-binary-protocol",
+      "version-2.4.1-developing-binary-protocol",
       "version-2.4.1-develop-schema",
       "version-2.4.1-develop-load-manager",
       "version-2.4.1-develop-cpp"
