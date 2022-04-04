@@ -119,6 +119,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final String name;
     private final BookKeeper.DigestType digestType;
 
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, PositionImpl> MARK_DELETE_POSITION_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, PositionImpl.class, "markDeletePosition");
     protected volatile PositionImpl markDeletePosition;
 
     // this position is have persistent mark delete position
@@ -1588,7 +1590,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      *
      * @param newMarkDeletePosition
      *            the new acknowledged position
-     * @return the previous acknowledged position
+     * @return the new updated acknowledged position
      */
     PositionImpl setAcknowledgedPosition(PositionImpl newMarkDeletePosition) {
         if (newMarkDeletePosition.compareTo(markDeletePosition) < 0) {
@@ -1597,9 +1599,32 @@ public class ManagedCursorImpl implements ManagedCursor {
                             + " -- attempted mark delete: " + newMarkDeletePosition);
         }
 
-        PositionImpl oldMarkDeletePosition = markDeletePosition;
+        PositionImpl newAcknowledgedPosition = MARK_DELETE_POSITION_UPDATER.updateAndGet(this,
+                oldMarkDeletePosition -> updateMarkDeletePosition(newMarkDeletePosition, oldMarkDeletePosition));
 
-        if (!newMarkDeletePosition.equals(oldMarkDeletePosition)) {
+        READ_POSITION_UPDATER.updateAndGet(this, currentReadPosition -> {
+            PositionImpl currentMarkDeletePosition = markDeletePosition;
+            if (currentReadPosition.compareTo(currentMarkDeletePosition) <= 0) {
+                // If the position that is mark-deleted is past the read position, it
+                // means that the client has skipped some entries. We need to move
+                // read position forward
+                PositionImpl newReadPosition = ledger.getNextValidPosition(currentMarkDeletePosition);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Moved read position from: {} to: {}, and new mark-delete position {}",
+                            ledger.getName(), currentReadPosition, newReadPosition, currentMarkDeletePosition);
+                }
+                return newReadPosition;
+            } else {
+                return currentReadPosition;
+            }
+        });
+
+        return newAcknowledgedPosition;
+    }
+
+    private PositionImpl updateMarkDeletePosition(PositionImpl newMarkDeletePosition,
+                                                  PositionImpl oldMarkDeletePosition) {
+        if (newMarkDeletePosition.compareTo(oldMarkDeletePosition) > 0) {
             long skippedEntries = 0;
             if (newMarkDeletePosition.getLedgerId() == oldMarkDeletePosition.getLedgerId()
                     && newMarkDeletePosition.getEntryId() == oldMarkDeletePosition.getEntryId() + 1) {
@@ -1632,29 +1657,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                         oldMarkDeletePosition, newMarkDeletePosition, skippedEntries);
             }
             MSG_CONSUMED_COUNTER_UPDATER.addAndGet(this, skippedEntries);
+
+            // clear out deletedMsgSet
+            individualDeletedMessages
+                    .removeAtMost(newMarkDeletePosition.getLedgerId(), newMarkDeletePosition.getEntryId());
+
+            return newMarkDeletePosition;
+        } else {
+            return oldMarkDeletePosition;
         }
-
-        // markDelete-position and clear out deletedMsgSet
-        markDeletePosition = newMarkDeletePosition;
-        individualDeletedMessages.removeAtMost(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-
-        READ_POSITION_UPDATER.updateAndGet(this, currentReadPosition -> {
-            if (currentReadPosition.compareTo(markDeletePosition) <= 0) {
-                // If the position that is mark-deleted is past the read position, it
-                // means that the client has skipped some entries. We need to move
-                // read position forward
-                PositionImpl newReadPosition = ledger.getNextValidPosition(markDeletePosition);
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Moved read position from: {} to: {}, and new mark-delete position {}",
-                            ledger.getName(), currentReadPosition, newReadPosition, markDeletePosition);
-                }
-                return newReadPosition;
-            } else {
-                return currentReadPosition;
-            }
-        });
-
-        return newMarkDeletePosition;
     }
 
     @Override
