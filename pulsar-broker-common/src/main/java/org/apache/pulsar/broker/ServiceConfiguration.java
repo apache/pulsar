@@ -2479,7 +2479,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TRANSACTION,
             doc = "The transaction buffer client's operation timeout in milliseconds."
     )
-    private long transactionBufferClientOperationTimeoutInMills = 3000;
+    private long transactionBufferClientOperationTimeoutInMills = 3000L;
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
