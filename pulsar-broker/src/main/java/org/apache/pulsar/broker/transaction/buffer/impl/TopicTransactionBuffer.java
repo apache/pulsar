@@ -55,6 +55,7 @@ import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Codec;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -201,7 +202,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -639,7 +640,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 }
                             }
 
-                            closeCursor(managedCursor);
+                            closeCursor(SUBSCRIPTION_NAME);
                             callBack.recoverComplete();
                         }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                                 .getExecutor(this)).exceptionally(e -> {
@@ -656,17 +657,19 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             });
         }
 
-        private void closeCursor(ManagedCursor cursor) {
-            cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
+        private void closeCursor(String subscriptionName) {
+            topic.getManagedLedger().asyncDeleteCursor(Codec.encode(subscriptionName),
+                    new AsyncCallbacks.DeleteCursorCallback() {
                 @Override
-                public void closeComplete(Object ctx) {
+                public void deleteCursorComplete(Object ctx) {
                     log.info("[{}]Transaction buffer snapshot recover cursor close complete.", topic.getName());
                 }
 
                 @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}]Transaction buffer snapshot recover cursor close fail.", topic.getName());
                 }
+
             }, null);
         }
 

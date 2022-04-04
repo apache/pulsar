@@ -108,8 +108,8 @@ public class FileModifiedTimeUpdaterTest {
         createFile(Paths.get(certFile));
         provider.certFilePath = certFile;
         provider.keyFilePath = certFile;
-        NettyClientSslContextRefresher refresher = new NettyClientSslContextRefresher(false, certFile,
-                provider, 1);
+        NettyClientSslContextRefresher refresher = new NettyClientSslContextRefresher(null, false, certFile,
+                provider, null, null, 1);
         Thread.sleep(5000);
         Paths.get(certFile).toFile().delete();
         // update the file

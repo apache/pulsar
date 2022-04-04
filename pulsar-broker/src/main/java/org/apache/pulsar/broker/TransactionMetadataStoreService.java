@@ -443,8 +443,7 @@ public class TransactionMetadataStoreService {
 
     // when managedLedger fence will remove this tc and reload
     public void handleOpFail(Throwable e, TransactionCoordinatorID tcId) {
-        if (e.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException
-                || e instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+        if (e instanceof ManagedLedgerException.ManagedLedgerFencedException) {
             removeTransactionMetadataStore(tcId);
         }
     }
