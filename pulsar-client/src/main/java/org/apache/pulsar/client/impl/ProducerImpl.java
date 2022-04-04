@@ -1408,9 +1408,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         te.getMessage(),
                         RelativeTimeUtil.nsToSeconds(ns - this.createdAt),
                         RelativeTimeUtil.nsToSeconds(this.firstSentAt <= 0
-                                ? ns - this.lastSentAt
+                                ? this.firstSentAt
                                 : ns - this.firstSentAt),
-                        RelativeTimeUtil.nsToSeconds(ns - this.lastSentAt),
+                        RelativeTimeUtil.nsToSeconds(this.lastSentAt <= 0
+                                ? this.lastSentAt
+                                : ns - this.lastSentAt),
                         retryCount
                     );
 
