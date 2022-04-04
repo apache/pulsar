@@ -43,7 +43,6 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
-import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -58,6 +57,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.AbstractMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -339,7 +339,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     private GenericRecord getGenericRecord(Object value, Schema schema) {
         final GenericRecord rec;
-        if(value instanceof GenericRecord) {
+        if (value instanceof GenericRecord) {
             rec = (GenericRecord) value;
         } else {
             rec = MockGenericObjectWrapper.builder()
@@ -502,13 +502,89 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     }
 
     @Test
-    public void KeyValueSchemaTest() throws Exception {
-        KeyValue<Integer, String> kv = new KeyValue<>(11, "value");
+    public void coreKeyValueSchemaTest() throws Exception {
+        org.apache.pulsar.io.core.KeyValue<Integer, String> kv =
+                new org.apache.pulsar.io.core.KeyValue<>(11, "value");
         SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
         String val = (String) sinkRecord.value();
         Assert.assertEquals(val, "value");
         int key = (int) sinkRecord.key();
         Assert.assertEquals(key, 11);
+    }
+
+    @Test
+    public void schemaKeyValueSchemaTest() throws Exception {
+        org.apache.pulsar.common.schema.KeyValue<Integer, String> kv =
+                new org.apache.pulsar.common.schema.KeyValue<>(11, "value");
+        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
+        String val = (String) sinkRecord.value();
+        Assert.assertEquals(val, "value");
+        int key = (int) sinkRecord.key();
+        Assert.assertEquals(key, 11);
+    }
+
+    @Test
+    public void nullKeyValueSchemaTest() throws Exception {
+        props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        sink.open(props, context);
+
+        Message msg = mock(MessageImpl.class);
+        // value is null
+        when(msg.getValue()).thenReturn(null);
+        when(msg.getKey()).thenReturn("key");
+        when(msg.hasKey()).thenReturn(true);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName("fake-topic")
+                .message(msg)
+                .schema(Schema.KeyValue(Schema.INT32, Schema.STRING))
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .build();
+
+        sink.write(record);
+        sink.flush();
+
+        // expect fail
+        assertEquals(status.get(), -1);
+
+        sink.close();
+    }
+
+    @Test
+    public void wrongKeyValueSchemaTest() throws Exception {
+        props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        sink.open(props, context);
+
+        Message msg = mock(MessageImpl.class);
+        // value is of a wrong/unsupported type
+        when(msg.getValue()).thenReturn(new AbstractMap.SimpleEntry<>(11, "value"));
+        when(msg.getKey()).thenReturn("key");
+        when(msg.hasKey()).thenReturn(true);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName("fake-topic")
+                .message(msg)
+                .schema(Schema.KeyValue(Schema.INT32, Schema.STRING))
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .build();
+
+        sink.write(record);
+        sink.flush();
+
+        // expect fail
+        assertEquals(status.get(), -1);
+
+        sink.close();
     }
 
     @Test
