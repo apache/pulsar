@@ -458,7 +458,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
+    protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
         long callTime = System.nanoTime();
         try {
@@ -469,10 +469,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageProcessed(message);
             if (!isValidConsumerEpoch(message)) {
                 long executionTime = System.nanoTime() - callTime;
-                if (executionTime >= unit.toNanos(timeout)) {
+                long timeoutInNanos = unit.toNanos(timeout);
+                if (executionTime >= timeoutInNanos) {
                     return null;
                 } else {
-                    return internalReceive((int) (timeout - executionTime), TimeUnit.NANOSECONDS);
+                    return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
                 }
             }
             return beforeConsume(message);

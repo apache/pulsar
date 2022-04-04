@@ -198,7 +198,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return internalReceive(timeout, unit);
     }
 
-    protected abstract Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
+    protected abstract Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException;
 
     @Override
     public Messages<T> batchReceive() throws PulsarClientException {
