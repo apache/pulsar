@@ -18,6 +18,7 @@
 #
 
 cmake_minimum_required(VERSION 3.4)
+
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
@@ -114,13 +115,13 @@ endif(NOT LOG_CATEGORY_NAME)
 
 add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME} -DBUILDING_PULSAR -DBOOST_ALL_NO_LIB -DBOOST_ALLOW_DEPRECATED_HEADERS)
 
-set(OPENSSL_ROOT_DIR /usr/lib64/)
+set(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR} /usr/lib64/)
 
 ### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
-### After find the libs, will unset related cache, and will not affact another same call to find_package.
+### After find the libs, will unset related cache, and will not affect another same call to find_package.
 if (APPLE)
     set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/ /opt/homebrew/opt/openssl/include)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/ /opt/homebrew/opt/openssl)
+    set(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR} /usr/local/opt/openssl/ /opt/homebrew/opt/openssl)
 endif ()
 
 set(OPENSSL_USE_STATIC_LIBS FALSE)
@@ -139,11 +140,15 @@ unset(OPENSSL_VERSION CACHE)
 
 if (LINK_STATIC)
     find_library(ZLIB_LIBRARIES REQUIRED NAMES libz.a z zlib)
+    message(STATUS "ZLIB_LIBRARIES: ${ZLIB_LIBRARIES}")
     find_library(Protobuf_LIBRARIES NAMES libprotobuf.a libprotobuf)
+    message(STATUS "Protobuf: ${Protobuf_LIBRARIES}")
     find_library(CURL_LIBRARIES NAMES libcurl.a curl curl_a libcurl_a)
+    message(STATUS "CURL_LIBRARIES: ${CURL_LIBRARIES}")
     find_library(LIB_ZSTD NAMES libzstd.a)
+    message(STATUS "ZStd: ${LIB_ZSTD}")
     find_library(LIB_SNAPPY NAMES libsnappy.a)
-    message(STATUS "Protobuf_LIBRARIES: ${Protobuf_LIBRARIES}")
+    message(STATUS "LIB_SNAPPY: ${LIB_SNAPPY}")
     set(COMMON_LIBS ${Protobuf_LIBRARIES} ${COMMON_LIBS})
 
     if (USE_LOG4CXX)
@@ -268,7 +273,7 @@ if (BUILD_PYTHON_WRAPPER)
         list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
         set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
         # For python3 the lib name is boost_python3
-        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python39;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
+        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python39;python310;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
     else ()
         # Regular boost_python
         set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
@@ -286,6 +291,7 @@ if (BUILD_PYTHON_WRAPPER)
         MESSAGE(FATAL_ERROR "Could not find Boost Python library")
     endif ()
 
+    MESSAGE(STATUS "BOOST_PYTHON_NAME_FOUND: " ${BOOST_PYTHON_NAME_FOUND})
     find_package(Boost REQUIRED COMPONENTS ${BOOST_PYTHON_NAME_FOUND})
 endif (BUILD_PYTHON_WRAPPER)
 
