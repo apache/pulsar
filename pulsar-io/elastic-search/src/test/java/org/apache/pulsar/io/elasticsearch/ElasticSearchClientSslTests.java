@@ -30,12 +30,16 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
-public class ElasticSearchClientSslTests extends ElasticSearchTestBase {
+public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase {
 
     final static String INDEX = "myindex";
 
     final static String sslResourceDir = MountableFile.forClasspathResource("ssl").getFilesystemPath();
     final static  String configDir = "/usr/share/elasticsearch/config";
+
+    public ElasticSearchClientSslTests(String elasticImageName) {
+        super(elasticImageName);
+    }
 
     @Test
     public void testSslBasic() throws IOException {

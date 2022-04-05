@@ -125,4 +125,13 @@
     <cve>CVE-2021-34429</cve>
   </suppress>
 
+  <!-- CVE-2021-23214 is about PostGre server -->
+  <suppress>
+    <notes><![CDATA[
+   file name: debezium-connector-postgres-1.7.2.Final.jar
+   ]]></notes>
+    <sha1>69c1edfa7d89531af511fcd07e8516fa450f746a</sha1>
+    <cve>CVE-2021-23214</cve>
+  </suppress>
+
 </suppressions>

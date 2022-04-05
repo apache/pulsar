@@ -38,7 +38,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  * This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between
  * broker with highest load and broker with lowest load. If the difference is higher than configured thresholds
  * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} or
- * {@link ServiceConfiguration#loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold()} then it finds out
+ * {@link ServiceConfiguration#getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold()} then it finds out
  * bundles which can be unloaded to distribute traffic evenly across all brokers.
  *
  */

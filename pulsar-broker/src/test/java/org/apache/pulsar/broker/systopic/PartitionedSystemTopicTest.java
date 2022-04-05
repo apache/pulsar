@@ -19,21 +19,28 @@
 package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker")
 public class PartitionedSystemTopicTest extends BrokerTestBase {
@@ -74,6 +81,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Assert.assertEquals(admin.topics().getPartitionedTopicList(ns).size(), 1);
         Assert.assertEquals(partitions, PARTITIONS);
         Assert.assertEquals(admin.topics().getList(ns).size(), PARTITIONS);
+        reader.close();
     }
 
     @Test(timeOut = 1000 * 60)
@@ -97,6 +105,34 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
                     .subscribeAsync());
         }
         FutureUtil.waitForAll(futureList).get();
+        // Close all the consumers after check
+        for (CompletableFuture<Consumer<byte[]>> consumer : futureList) {
+            consumer.join().close();
+        }
+    }
+
+    @Test
+    public void testProduceAndConsumeUnderSystemNamespace() throws Exception {
+        TenantInfo tenantInfo = TenantInfo
+                .builder()
+                .adminRoles(Sets.newHashSet("admin"))
+                .allowedClusters(Sets.newHashSet("test"))
+                .build();
+        admin.tenants().createTenant("pulsar", tenantInfo);
+        admin.namespaces().createNamespace("pulsar/system", 2);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("pulsar/system/__topic-1").create();
+        producer.send("test".getBytes(StandardCharsets.UTF_8));
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("pulsar/system/__topic-1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("sub1")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Message<byte[]> receive = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(receive);
     }
 
 }

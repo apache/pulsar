@@ -34,19 +34,19 @@ import org.apache.pulsar.client.api.Range;
  * 2.The whole range of hash value could be covered by all the consumers.
  * 3.Once a consumer is removed, the left consumers could still serve the whole range.
  *
- * Initializing with a fixed hash range, by default 2 << 15.
+ * Initializing with a fixed hash range, by default 2 &gt;&gt; 15.
  * First consumer added, hash range looks like:
  *
- * 0 -> 65536(consumer-1)
+ * 0 -&lt; 65536(consumer-1)
  *
  * Second consumer added, will find a biggest range to split:
  *
- * 0 -> 32768(consumer-2) -> 65536(consumer-1)
+ * 0 -&lt; 32768(consumer-2) -&lt; 65536(consumer-1)
  *
  * While a consumer removed, The range for this consumer will be taken over
  * by other consumer, consumer-2 removed:
  *
- * 0 -> 65536(consumer-1)
+ * 0 -&lt; 65536(consumer-1)
  *
  * In this approach use skip list map to maintain the hash range and consumers.
  *

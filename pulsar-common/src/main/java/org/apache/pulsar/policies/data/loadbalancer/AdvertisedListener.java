@@ -44,4 +44,29 @@ public class AdvertisedListener {
     @Setter
     // the broker service uri with ssl
     private URI brokerServiceUrlTls;
+
+    //
+    @Getter
+    @Setter
+    // the broker service uri without ssl
+    private URI brokerHttpUrl;
+    //
+    @Getter
+    @Setter
+    // the broker service uri with ssl
+    private URI brokerHttpsUrl;
+
+    public boolean hasUriForProtocol(String protocol) {
+        if ("pulsar".equals(protocol)) {
+            return brokerServiceUrl != null;
+        } else if ("pulsar+ssl".equals(protocol)) {
+            return brokerServiceUrlTls != null;
+        } else if ("http".equals(protocol)) {
+            return brokerHttpUrl != null;
+        } else if ("https".equals(protocol)) {
+            return brokerHttpsUrl != null;
+        } else {
+            return false;
+        }
+    }
 }

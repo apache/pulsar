@@ -25,6 +25,8 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +44,10 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
+import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
@@ -70,6 +75,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1963,6 +1969,56 @@ public class Namespaces extends NamespacesBase {
                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceResourceGroup(null);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/scanOffloadedLedgers")
+    @ApiOperation(value = "Trigger the scan of offloaded Ledgers on the LedgerOffloader for the given namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public Response scanOffloadedLedgers(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        try {
+            StreamingOutput output = (outputStream) -> {
+                try {
+                    OutputStreamWriter out = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+                    out.append("{objects:[\n");
+                    internalScanOffloadedLedgers(new OffloaderObjectsScannerUtils.ScannerResultSink() {
+                        boolean first = true;
+                        @Override
+                        public void object(Map<String, Object> data) throws Exception {
+                            if (!first) {
+                                out.write(',');
+                            } else {
+                                first = true;
+                            }
+                            String json = ObjectMapperFactory.getThreadLocal().writeValueAsString(data);
+                            out.write(json);
+                        }
+
+                        @Override
+                        public void finished(int total, int errors, int unknown) throws Exception {
+                            out.append("]\n");
+                            out.append("\"total\": " + total + ",\n");
+                            out.append("\"errors\": " + errors + ",\n");
+                            out.append("\"unknown\": " + unknown + "\n");
+                        }
+                    });
+                    out.append("}");
+                    out.flush();
+                    outputStream.flush();
+                } catch (Exception err) {
+                    log.error("error", err);
+                    throw new RuntimeException(err);
+                }
+            };
+            return Response.ok(output).type(MediaType.APPLICATION_JSON_TYPE).build();
+        } catch (Throwable err) {
+            log.error("Error while scanning offloaded ledgers for namespace {}", namespaceName, err);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR,
+                    "Error while scanning ledgers for " + namespaceName);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);

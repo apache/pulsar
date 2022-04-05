@@ -45,7 +45,7 @@ public class StreamsRecord implements Record<byte[]> {
     private static final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
     private final Optional<String> key;
     private final byte[] value;
-    private final Map<String, String> properties = new HashMap<String, String> ();
+    private final Map<String, String> properties = new HashMap<> ();
     public StreamsRecord(com.amazonaws.services.kinesis.model.Record record) {
         if (record instanceof RecordAdapter) {
             com.amazonaws.services.dynamodbv2.model.Record dynamoRecord = ((RecordAdapter) record).getInternalObject();
