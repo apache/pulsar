@@ -2640,7 +2640,7 @@ public class BrokerService implements Closeable {
 
     @SuppressWarnings("deprecation")
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
-        if (topicName.toString().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+        if (topicName.getLocalName().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
             return FutureUtil.failedFuture(new PulsarServerException.
                     InvalidTopicNameException(
                             String.format("Invalid topic name: %s , should not contain -partition-", topicName)));
