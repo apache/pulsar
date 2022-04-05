@@ -150,8 +150,12 @@ public class OwnershipCache {
      * @return future that will complete with check result
      */
     public CompletableFuture<Boolean> checkOwnershipAsync(NamespaceBundle bundle) {
-        return getOwnedBundleAsync(bundle)
-                .thenApply(Objects::nonNull);
+        Optional<CompletableFuture<OwnedBundle>> ownedBundleFuture = getOwnedBundleAsync(bundle);
+        if (!ownedBundleFuture.isPresent()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return ownedBundleFuture.get()
+                .thenApply(bd -> bd != null && bd.isActive());
     }
 
     /**
@@ -281,8 +285,8 @@ public class OwnershipCache {
         }
     }
 
-    public CompletableFuture<OwnedBundle> getOwnedBundleAsync(NamespaceBundle bundle) {
-        return ownedBundlesCache.getIfPresent(bundle);
+    public Optional<CompletableFuture<OwnedBundle>> getOwnedBundleAsync(NamespaceBundle bundle) {
+        return Optional.ofNullable(ownedBundlesCache.getIfPresent(bundle));
     }
 
     /**
