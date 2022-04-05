@@ -667,8 +667,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         typedMessageBuilderNew.key(message.getKey());
                     }
                     typedMessageBuilderNew.sendAsync()
-                            .thenAccept(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null)
-                                    .thenAccept(v -> result.complete(null)))
+                            .thenCompose(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
+                            .thenAccept(v -> result.complete(null))
                             .exceptionally(ex -> {
                                 result.completeExceptionally(ex);
                                 return null;
