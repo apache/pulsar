@@ -156,6 +156,7 @@ public class LinuxInfoUtils {
             // wireless NICs don't report speed, ignore them.
             return Integer.parseInt(type) == ARPHRD_ETHER;
         } catch (Exception e) {
+            log.warn("[LinuxInfo] Failed to read {} NIC type, the detail is: {}", nicPath, e.getMessage());
             // Read type got error.
             return false;
         }
@@ -176,23 +177,6 @@ public class LinuxInfoUtils {
                 return 0d;
             }
         }).sum());
-    }
-
-    /**
-     * Get all physical nic limit.
-     * @param nics All nic path
-     * @param nicUnit Nic speed unit
-     * @return Total nic limit
-     * @throws IOException Read file exception
-     */
-    public static double getUncheckedTotalNicLimit(List<String> nics, NICUnit nicUnit)
-            throws IOException {
-        double sum = 0.0;
-        for (String nicPath : nics) {
-            double v = readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
-            sum += v;
-        }
-        return nicUnit.convertBy(sum);
     }
 
     /**
@@ -237,13 +221,8 @@ public class LinuxInfoUtils {
         if (CollectionUtils.isEmpty(physicalNICs)) {
             return false;
         }
-        try {
-            double totalNicLimit = getUncheckedTotalNicLimit(physicalNICs, NICUnit.Kbps);
-            return totalNicLimit > 0;
-        } catch (IOException e) {
-            log.error("[LinuxInfo] Failed to get total nic limit.", e);
-            return false;
-        }
+        double totalNicLimit = getTotalNicLimit(physicalNICs, NICUnit.Kbps);
+        return totalNicLimit > 0;
     }
 
     private static Path getReplacedNICPath(String template, String nic) {
