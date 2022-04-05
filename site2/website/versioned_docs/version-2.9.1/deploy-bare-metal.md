@@ -25,7 +25,7 @@ Deploying a Pulsar cluster consists of the following steps:
 
 ### Requirements
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions, JRE/JDK 11 is recommended.
 
 >**Tips**  
 > You can reuse existing Zookeeper clusters.

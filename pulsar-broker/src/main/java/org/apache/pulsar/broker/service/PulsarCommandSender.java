@@ -50,7 +50,8 @@ public interface PulsarCommandSender {
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
-    void sendGetTopicsOfNamespaceResponse(List<String> topics, long requestId);
+    void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
+                                          boolean changed, long requestId);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 

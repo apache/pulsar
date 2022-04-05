@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin.internal.http;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -137,21 +138,32 @@ public class AsyncHttpConnector implements Connector {
                     JsseSslEngineFactory sslEngineFactory = new JsseSslEngineFactory(sslCtx);
                     confBuilder.setSslEngineFactory(sslEngineFactory);
                 } else {
+                    SslProvider sslProvider = null;
+                    if (conf.getSslProvider() != null) {
+                        sslProvider = SslProvider.valueOf(conf.getSslProvider());
+                    }
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
                         sslCtx = authData.getTlsTrustStoreStream() == null
                                 ? SecurityUtility.createAutoRefreshSslContextForClient(
-                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
-                                        authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
+                                authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
                                 : SecurityUtility.createNettySslContextForClient(
-                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                        authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
-                                        authData.getTlsPrivateKey());
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
+                                sslProvider,
                                 conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                conf.getTlsTrustCertsFilePath());
+                                conf.getTlsTrustCertsFilePath(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
                 }

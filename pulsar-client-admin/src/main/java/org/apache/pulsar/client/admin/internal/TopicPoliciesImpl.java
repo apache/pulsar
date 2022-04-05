@@ -80,18 +80,6 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         }
     }
 
-
-    @Override
-    public void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
-        TopicPolicies.super.setBacklogQuota(topic, backlogQuota);
-    }
-
-
-    @Override
-    public void removeBacklogQuota(String topic) throws PulsarAdminException {
-        TopicPolicies.super.removeBacklogQuota(topic);
-    }
-
     @Override
     public void setBacklogQuota(String topic, BacklogQuota backlogQuota,
                                 BacklogQuotaType backlogQuotaType) throws PulsarAdminException {

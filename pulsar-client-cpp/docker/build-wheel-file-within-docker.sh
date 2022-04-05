@@ -32,7 +32,7 @@ cmake . -DPYTHON_INCLUDE_DIR=/opt/python/$PYTHON_SPEC/include/python$PYTHON_VERS
         -DBUILD_WIRESHARK=OFF
 
 make clean
-make _pulsar -j3 VERBOSE=1
+make _pulsar -j3
 
 cd python
 python setup.py bdist_wheel
@@ -43,4 +43,4 @@ python setup.py bdist_wheel
 # Audit wheel will make sure no external dependencies are needed for
 # the shared library and that only symbols supported by most linux
 # distributions are used.
-auditwheel repair dist/pulsar_client*-$PYTHON_SPEC-linux_x86_64.whl
+auditwheel repair dist/pulsar_client*-$PYTHON_SPEC-linux_${ARCH}.whl

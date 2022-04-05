@@ -18,19 +18,38 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
-import org.testcontainers.elasticsearch.ElasticsearchContainer;
-
 import java.util.Optional;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
-public class ElasticSearchTestBase {
+public abstract class ElasticSearchTestBase {
 
-    private static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
+    public static final String ELASTICSEARCH_8 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V8"))
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:8.1.0");
+
+    public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
 
-    protected static ElasticsearchContainer createElasticsearchContainer() {
-        return new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
-                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m");
+    public static final String OPENSEARCH = Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE"))
+            .orElse("opensearchproject/opensearch:1.2.4");
 
+    protected final String elasticImageName;
+
+    public ElasticSearchTestBase(String elasticImageName) {
+        this.elasticImageName = elasticImageName;
     }
 
+    protected ElasticsearchContainer createElasticsearchContainer() {
+        if (elasticImageName.equals(OPENSEARCH)) {
+            DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH).asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
+            return new ElasticsearchContainer(dockerImageName)
+                    .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms128m -Xmx256m")
+                    .withEnv("bootstrap.memory_lock", "true")
+                    .withEnv("plugins.security.disabled", "true");
+        }
+        return new ElasticsearchContainer(elasticImageName)
+                .withEnv("ES_JAVA_OPTS", "-Xms128m -Xmx256m")
+                .withEnv("xpack.security.enabled", "false")
+                .withEnv("xpack.security.http.ssl.enabled", "false");
+    }
 }
