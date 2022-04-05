@@ -147,10 +147,10 @@ public class LinuxInfoUtils {
      * @return whether The VM has physical nic.
      */
     private static boolean isPhysicalNic(Path nicPath) {
-        if (nicPath.toString().contains("/virtual/")) {
-            return false;
-        }
         try {
+            if (nicPath.toRealPath().toString().contains("/virtual/")) {
+                return false;
+            }
             // Check the type to make sure it's ethernet (type "1")
             String type = readTrimStringFromFile(nicPath.resolve("type"));
             // wireless NICs don't report speed, ignore them.
