@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
+import static org.apache.pulsar.common.naming.Constants.SCHEMA_REGISTRY_CLASS_NAME;
 import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_LOG;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -687,7 +688,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.startNamespaceService();
 
             schemaStorage = createAndStartSchemaStorage();
-            setSchemaRegistryName(schemaStorage);
+            ensureSchemaRegistryName(schemaStorage);
             schemaRegistryService = SchemaRegistryService.create(config.getSchemaRegistryClassName());
             schemaRegistryService.initialize(config, schemaStorage);
 
@@ -1286,10 +1287,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return schemaStorage;
     }
 
-    private void setSchemaRegistryName(SchemaStorage schemaStorage) {
-        String schemaRegistryClassName = "org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService";
+    private void ensureSchemaRegistryName(SchemaStorage schemaStorage) {
         if (schemaStorage == null) {
-            this.config.setSchemaRegistryClassName(schemaRegistryClassName);
+            this.config.setSchemaRegistryClassName(SCHEMA_REGISTRY_CLASS_NAME);
         }
     }
 
