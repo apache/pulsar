@@ -221,8 +221,7 @@ std::map<std::string, std::string>& ConsumerConfiguration::getSubscriptionProper
 ConsumerConfiguration& ConsumerConfiguration::setSubscriptionProperties(
     const std::map<std::string, std::string>& subscriptionProperties) {
     for (const auto& subscriptionProperty : subscriptionProperties) {
-        impl_->subscriptionProperties.emplace(
-            std::make_pair(subscriptionProperty.first, subscriptionProperty.second));
+        impl_->subscriptionProperties.emplace(subscriptionProperty.first, subscriptionProperty.second);
     }
     return *this;
 }
