@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -357,16 +358,15 @@ public class PersistentSubscriptionTest {
     @Test
     public void testPersistentSubscriptionMetric() throws Exception {
         doReturn(CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
-        Awaitility.await().until(() -> {
-            try {
-                persistentSubscription.addConsumer(consumerMock);
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        });
+        Dispatcher dispatcher = mock(Dispatcher.class);
+        PersistentSubscription subscription =
+                spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, subName, cursorMock, false);
+        doReturn(dispatcher).when(subscription).getDispatcher();
+        List<Consumer> consumers = new ArrayList<>();
+        consumers.add(consumerMock);
+        doReturn(consumers).when(dispatcher).getConsumers();
 
-        Field field = persistentSubscription.getClass().getDeclaredField("CONSUMERS");
+        Field field = subscription.getClass().getDeclaredField("CONSUMERS");
         field.setAccessible(true);
         Gauge gauge = (Gauge) field.get(null);
 
@@ -377,7 +377,7 @@ public class PersistentSubscriptionTest {
                 List<String> labelValues = sample.labelValues;
                 if (labelValues.size() == 2 && labelValues.get(0).equals(successTopicName)
                 && labelValues.get(1).equals(subName)) {
-                    Assert.assertTrue(sample.value >= 0);
+                    Assert.assertTrue(sample.value > 0);
                 }
             }
         }

@@ -162,6 +162,7 @@ public class PersistentSubscription implements Subscription {
         CONSUMERS.setChild(new Gauge.Child() {
             @Override
             public double get() {
+                Dispatcher dispatcher = getDispatcher();
                 return dispatcher == null ? 0D : dispatcher.getConsumers().size();
             }
         }, topicName, subName);
