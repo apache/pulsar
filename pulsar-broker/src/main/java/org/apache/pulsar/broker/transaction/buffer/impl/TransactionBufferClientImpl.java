@@ -40,9 +40,9 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
     }
 
     public static TransactionBufferClient create(PulsarClient pulsarClient, HashedWheelTimer timer,
-             int maxConcurrentRequests) {
+             int maxConcurrentRequests, long operationTimeoutInMills) {
         TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarClient, timer,
-                maxConcurrentRequests);
+                maxConcurrentRequests, operationTimeoutInMills);
         return new TransactionBufferClientImpl(handler);
     }
 
