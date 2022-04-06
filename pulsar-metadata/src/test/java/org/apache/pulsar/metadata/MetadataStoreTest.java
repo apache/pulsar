@@ -86,24 +86,20 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void concurrentPutTest(String provider, Supplier<String> urlSupplier) throws Exception {
-        if (!provider.equals("ZooKeeper")) {
-            return;
-        }
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String data = "data";
         String path = "/non-existing-key";
         int concurrent = 50;
-        List<CompletableFuture<Stat>> resultList = new ArrayList<>();
-        while (concurrent > 0) {
-            concurrent --;
-            resultList.add(store.put(path, data.getBytes(), Optional.empty()).exceptionally(ex -> {
+        List<CompletableFuture<Stat>> futureList = new ArrayList<>();
+        for (int i = 0; i < concurrent; i++) {
+            futureList.add(store.put(path, data.getBytes(), Optional.empty()).exceptionally(ex -> {
                 fail("fail to execute concurrent put", ex);
                 return null;
             }));
         }
-        FutureUtil.waitForAll(resultList).join();
+        FutureUtil.waitForAll(futureList).join();
 
         assertEquals(store.get(path).join().get().getValue(), data.getBytes());
     }
