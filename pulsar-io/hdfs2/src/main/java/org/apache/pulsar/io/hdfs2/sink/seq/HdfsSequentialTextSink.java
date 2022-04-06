@@ -26,8 +26,8 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.io.SequenceFile.Writer.Option;
 import org.apache.hadoop.io.Text;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
 
 /**
  * This Sink should be used when the records are originating from a sequential source,

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.io.hdfs2.sink.text;
 
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 
 /**

@@ -23,8 +23,8 @@ import java.util.List;
 import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.io.SequenceFile.Writer.Option;
 import org.apache.hadoop.io.Text;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
 
 /**
  * A Simple Sink class for Hdfs Sequence File.

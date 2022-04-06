@@ -23,13 +23,21 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * A simple KeyValue class.
+ *
+ * Deprecated, use org.apache.pulsar.common.schema.KeyValue or Pair instead.
  */
+@Deprecated
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public class KeyValue<K, V> {
     private K key;
     private V value;
 
+    /**
+     * Deprecated, use org.apache.pulsar.common.schema.KeyValue or Pair instead.
+     * @param key - key
+     * @param value - value
+     */
     public KeyValue(K key, V value) {
         setKey(key);
         setValue(value);
