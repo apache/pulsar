@@ -135,7 +135,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     protected void cancelPendingRead() {
-        if (havePendingRead && cursor.cancelPendingReadRequest()) {
+        cursor.cancelPendingReadRequest();
+        if (havePendingRead) {
             havePendingRead = false;
         }
     }
