@@ -270,60 +270,59 @@ public abstract class NamespacesBase extends AdminResource {
 
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        try {
-            // remove system topics first.
-            if (!topics.isEmpty()) {
-                for (String topic : topics) {
-                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
-                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
-                    });
+        // remove system topics first.
+        if (!topics.isEmpty()) {
+            for (String topic : topics) {
+                try {
+                    futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
+                } catch (Exception ex) {
+                    log.error("[{}] Failed to delete system topic {}", clientAppId(), topic, ex);
+                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, ex));
+                    return;
                 }
             }
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(namespaceName);
+        }
+        FutureUtil.waitForAll(futures).thenCompose(__ -> {
+            List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
+            NamespaceBundles bundles = null;
+            try {
+                bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                        .getBundles(namespaceName);
+            } catch (Exception e) {
+                throw new RestException(e);
+            }
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
-                if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                    futures.add(pulsar().getAdminClient().namespaces()
-                            .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
-                }
+                deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle).thenCompose(ownership -> {
+                    if (ownership.isPresent()) {
+                        try {
+                            return pulsar().getAdminClient().namespaces()
+                                    .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange());
+                        } catch (PulsarServerException e) {
+                            throw new RestException(e);
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }));
             }
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
-            asyncResponse.resume(new RestException(e));
-            return;
-        }
-
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
-                } else {
-                    log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, exception);
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
-                }
-            }
-
-            try {
-                // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
-                // now
-                final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-                namespaceResources().delete(globalZkPolicyPath);
-                try {
-                    getLocalPolicies().delete(localZkPolicyPath);
-                } catch (NotFoundException nne) {
-                    // If the z-node with the modified information is not there anymore, we're already good
-                }
-            } catch (Exception e) {
-                log.error("[{}] Failed to remove owned namespace {} from ZK", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return null;
-            }
-
+            return FutureUtil.waitForAll(deleteBundleFutures);
+        })
+        .thenCompose(__ -> {
+            // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
+            // now
+            final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
+            final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+            return namespaceResources().deleteAsync(globalZkPolicyPath)
+                    .thenCompose((ignore -> getLocalPolicies().deleteAsync(localZkPolicyPath)));
+        })
+        .thenAccept(__ -> {
+            log.info("[{}] Remove namespace successfully {}", clientAppId(), namespaceName);
             asyncResponse.resume(Response.noContent().build());
+        })
+        .exceptionally(ex -> {
+            log.error("[{}] Failed to remove namespace {}", clientAppId(), namespaceName, ex.getCause());
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
