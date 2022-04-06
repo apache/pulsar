@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import io.prometheus.client.Gauge;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -111,6 +112,9 @@ public class PersistentSubscription implements Subscription {
     // instance of the map.
     private static final Map<String, Long> REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = new TreeMap<>();
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
+    private static final Gauge CONSUMERS = Gauge.build("pulsar_persistent_subscription_consumer_count", "-")
+            .labelNames("topic", "subscription")
+            .register();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
@@ -154,6 +158,13 @@ public class PersistentSubscription implements Subscription {
             this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
+
+        CONSUMERS.setChild(new Gauge.Child() {
+            @Override
+            public double get() {
+                return dispatcher == null ? 0D : dispatcher.getConsumers().size();
+            }
+        }, topicName, subName);
     }
 
     public void updateLastMarkDeleteAdvancedTimestamp() {

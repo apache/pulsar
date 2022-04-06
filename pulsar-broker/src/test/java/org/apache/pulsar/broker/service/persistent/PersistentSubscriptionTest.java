@@ -32,6 +32,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.prometheus.client.Collector;
+import io.prometheus.client.Gauge;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -74,6 +76,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
+import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -348,5 +351,35 @@ public class PersistentSubscriptionTest {
         positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
 
         persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
+    }
+
+
+    @Test
+    public void testPersistentSubscriptionMetric() throws Exception {
+        doReturn(CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
+        Awaitility.await().until(() -> {
+            try {
+                persistentSubscription.addConsumer(consumerMock);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+
+        Field field = persistentSubscription.getClass().getDeclaredField("CONSUMERS");
+        field.setAccessible(true);
+        Gauge gauge = (Gauge) field.get(null);
+
+
+        List<Collector.MetricFamilySamples> samples = gauge.collect();
+        for (Collector.MetricFamilySamples samples1 : samples) {
+            for (Collector.MetricFamilySamples.Sample sample: samples1.samples) {
+                List<String> labelValues = sample.labelValues;
+                if (labelValues.size() == 2 && labelValues.get(0).equals(successTopicName)
+                && labelValues.get(1).equals(subName)) {
+                    Assert.assertTrue(sample.value >= 0);
+                }
+            }
+        }
     }
 }
