@@ -955,8 +955,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void triggerListener() {
-        // Use internalPinnedExecutor to maintain message ordering
+    protected void tryTriggerListener() {
+        if (listener != null) {
+            triggerListener();
+        }
+    }
+
+    private void triggerListener() {
         internalPinnedExecutor.execute(() -> {
             try {
                 // Listener should only have one pending/running executable to process a message
@@ -979,7 +984,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 }
             } catch (PulsarClientException e) {
                 log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
-                return;
             }
 
             if (log.isDebugEnabled()) {

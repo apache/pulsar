@@ -305,9 +305,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             notifyPendingBatchReceivedCallBack();
         }
 
-        if (listener != null) {
-            triggerListener();
-        }
+        tryTriggerListener();
     }
 
     @Override
