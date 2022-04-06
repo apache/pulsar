@@ -148,8 +148,13 @@ public class OwnershipCache {
      * @param bundle namespace bundle
      * @return future that will complete with check result
      */
-    public boolean checkOwnership(NamespaceBundle bundle) {
-        return getOwnedBundle(bundle) != null;
+    public CompletableFuture<Boolean> checkOwnershipAsync(NamespaceBundle bundle) {
+        Optional<CompletableFuture<OwnedBundle>> ownedBundleFuture = getOwnedBundleAsync(bundle);
+        if (!ownedBundleFuture.isPresent()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return ownedBundleFuture.get()
+                .thenApply(bd -> bd != null && bd.isActive());
     }
 
     /**
@@ -277,6 +282,10 @@ public class OwnershipCache {
         } else {
             return null;
         }
+    }
+
+    public Optional<CompletableFuture<OwnedBundle>> getOwnedBundleAsync(NamespaceBundle bundle) {
+        return Optional.ofNullable(ownedBundlesCache.getIfPresent(bundle));
     }
 
     /**
