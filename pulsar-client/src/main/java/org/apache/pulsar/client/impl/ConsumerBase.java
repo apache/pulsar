@@ -984,6 +984,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 }
             } catch (PulsarClientException e) {
                 log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
+                return;
             }
 
             if (log.isDebugEnabled()) {
