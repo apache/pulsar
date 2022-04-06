@@ -2166,10 +2166,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (entryCache.getSize() <= 0) {
             return;
         }
-        // Always remove all entries already read by active cursors
-        PositionImpl slowestReaderPos = getEarlierReadPositionForActiveCursors();
-        if (slowestReaderPos != null) {
-            entryCache.invalidateEntries(slowestReaderPos);
+        PositionImpl evictionPos;
+        if (config.isCacheEvictionByMarkDeletedPosition()) {
+            evictionPos = getEarlierMarkDeletedPositionForActiveCursors().getNext();
+        } else {
+            // Always remove all entries already read by active cursors
+            evictionPos = getEarlierReadPositionForActiveCursors();
+        }
+        if (evictionPos != null) {
+            entryCache.invalidateEntries(evictionPos);
         }
 
         // Remove entries older than the cutoff threshold
@@ -2179,6 +2184,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private PositionImpl getEarlierReadPositionForActiveCursors() {
         PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestReadPositionForActiveCursors();
         PositionImpl durablePosition = activeCursors.getSlowestReadPositionForActiveCursors();
+        if (nonDurablePosition == null) {
+            return durablePosition;
+        }
+        if (durablePosition == null) {
+            return nonDurablePosition;
+        }
+        return durablePosition.compareTo(nonDurablePosition) > 0 ? nonDurablePosition : durablePosition;
+    }
+
+    private PositionImpl getEarlierMarkDeletedPositionForActiveCursors() {
+        PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestMarkDeletedPositionForActiveCursors();
+        PositionImpl durablePosition = activeCursors.getSlowestMarkDeletedPositionForActiveCursors();
         if (nonDurablePosition == null) {
             return durablePosition;
         }
