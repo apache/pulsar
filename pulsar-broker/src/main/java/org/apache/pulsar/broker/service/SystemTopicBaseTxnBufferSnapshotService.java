@@ -71,7 +71,7 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
             initWriterFuture();
         }
 
-        private void initWriterFuture() {
+        private synchronized void initWriterFuture() {
             this.future = service.getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync();
             this.future.thenRunAsync(this.backoff::reset).exceptionally(throwable -> {
                 long delay = backoff.next();
@@ -85,6 +85,7 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
         public CompletableFuture<Writer<TransactionBufferSnapshot>> getFuture() {
             if (future == null) {
+                // normally, this will not happen, not affect reference count, only avoid return a null object.
                 initWriterFuture();
             }
             return future;
@@ -92,11 +93,16 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
         @Override
         protected void deallocate() {
-            ReferenceCountedWriter referenceCountedWriter = service.writerFutureMap.remove(namespaceName);
-            if (referenceCountedWriter != null && referenceCountedWriter.getFuture() != null) {
-                service.pendingCloseWriterList.add(referenceCountedWriter.getFuture());
-                service.closePendingCloseWriter();
-            }
+            service.writerFutureMap.compute(namespaceName, (k, v) -> {
+                if (v == this) {
+                    // only remove it's self, avoid remove new add reference count object
+                    service.writerFutureMap.remove(namespaceName);
+                    service.pendingCloseWriterList.add(this.future);
+                    service.closePendingCloseWriter();
+                    return null;
+                }
+                return v;
+            });
         }
 
         @Override
@@ -176,6 +182,9 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
                 pendingCloseWriterList.stream().iterator();
         while (iterator.hasNext()) {
             CompletableFuture<Writer<TransactionBufferSnapshot>> future = iterator.next();
+            if (future == null) {
+                continue;
+            }
             future.thenAccept(writer ->
                     writer.closeAsync().thenAccept(ignore ->
                             pendingCloseWriterList.remove(future)));
