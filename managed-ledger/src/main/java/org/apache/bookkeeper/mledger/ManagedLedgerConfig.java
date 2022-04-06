@@ -24,6 +24,8 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -75,6 +77,9 @@ public class ManagedLedgerConfig {
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
+    @Getter
+    @Setter
+    private boolean cacheEvictionByMarkDeletedPosition = false;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
