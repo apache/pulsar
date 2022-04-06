@@ -261,12 +261,12 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
             if (nativeObject instanceof org.apache.pulsar.common.schema.KeyValue) {
                 org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) nativeObject;
-                key = kv.getKey();
-                value = kv.getValue();
+                key = KafkaConnectData.getKafkaConnectData(kv.getKey(), keySchema);
+                value = KafkaConnectData.getKafkaConnectData(kv.getValue(), valueSchema);
             } else if (nativeObject instanceof org.apache.pulsar.io.core.KeyValue) {
                 org.apache.pulsar.io.core.KeyValue kv = (org.apache.pulsar.io.core.KeyValue) nativeObject;
-                key = kv.getKey();
-                value = kv.getValue();
+                key = KafkaConnectData.getKafkaConnectData(kv.getKey(), keySchema);
+                value = KafkaConnectData.getKafkaConnectData(kv.getValue(), valueSchema);
             } else if (nativeObject != null) {
                 throw new IllegalStateException("Cannot extract KeyValue data from " + nativeObject.getClass());
             } else {
