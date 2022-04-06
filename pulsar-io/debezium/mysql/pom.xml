@@ -46,6 +46,16 @@
 
   </dependencies>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <version>${debezium.mysql.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
 
   <build>
     <plugins>
