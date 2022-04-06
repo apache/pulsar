@@ -21,7 +21,6 @@ package org.apache.pulsar.io.elasticsearch.client;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -79,6 +78,6 @@ public interface BulkProcessor extends Closeable {
 
     void flush();
 
-    void awaitClose(long timeout, TimeUnit unit) throws InterruptedException;
-
+    @Override
+    void close();
 }

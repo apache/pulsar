@@ -76,6 +76,7 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
     @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
+        container = null;
     }
 
     @SuppressWarnings("unchecked")

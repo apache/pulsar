@@ -24,7 +24,8 @@ import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestCl
 import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+
 
 public class RestClientFactoryTest {
 
@@ -35,13 +36,19 @@ public class RestClientFactoryTest {
         config.setElasticSearchUrl("http://localhost:9200");
 
         config.setCompatibilityMode(ElasticSearchConfig.CompatibilityMode.ELASTICSEARCH_7);
-        assertTrue(RestClientFactory.createClient(config, null) instanceof OpenSearchHighLevelRestClient);
+        assertInstance(config, OpenSearchHighLevelRestClient.class);
 
         config.setCompatibilityMode(ElasticSearchConfig.CompatibilityMode.OPENSEARCH);
-        assertTrue(RestClientFactory.createClient(config, null) instanceof OpenSearchHighLevelRestClient);
+        assertInstance(config, OpenSearchHighLevelRestClient.class);
 
         config.setCompatibilityMode(ElasticSearchConfig.CompatibilityMode.ELASTICSEARCH);
-        assertTrue(RestClientFactory.createClient(config, null) instanceof ElasticSearchJavaRestClient);
+        assertInstance(config, ElasticSearchJavaRestClient.class);
+    }
 
+    @SneakyThrows
+    private static void assertInstance(ElasticSearchConfig config, Class<? extends RestClient> expectedClass) {
+        try (RestClient client = RestClientFactory.createClient(config, null)){
+            assertEquals(client.getClass(), expectedClass);
+        }
     }
 }
