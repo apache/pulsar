@@ -26,6 +26,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 
@@ -77,6 +79,10 @@ public class ManagedLedgerConfig {
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+
+    @Getter
+    @Setter
+    private boolean cacheEvictionByMarkDeletedPosition = false;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;

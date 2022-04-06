@@ -2227,8 +2227,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Maximum prefetch rounds for ledger reading for offloading"
     )
     private int managedLedgerOffloadPrefetchRounds = 1;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
+                    + "The default is to evict through readPosition."
+    )
+    private boolean cacheEvictionByMarkDeletedPosition = false;
 
-    /**** --- Transaction config variables --- ****/
+    /**** --- Transaction config variables. --- ****/
     @FieldContext(
             category = CATEGORY_TRANSACTION,
             doc = "Enable transaction coordinator in broker"
