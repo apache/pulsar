@@ -153,8 +153,7 @@ public class PulsarCluster {
 
         // create bookies
         bookieContainers.putAll(
-                runNumContainers("bookie", spec.numBookies(), (name) -> {
-                    BKContainer bkContainer = new BKContainer(clusterName, name)
+                runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
                             .withNetwork(network)
                             .withNetworkAliases(appendClusterName(name))
                             .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
@@ -165,9 +164,7 @@ public class PulsarCluster {
                             .withEnv("clusterName", clusterName)
                             .withEnv("diskUsageThreshold", "0.99")
                             .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize))
-                            .withEnv("metadataServiceUri", "metadata-store:" + getMetadataStoreConnString());
-                    return bkContainer;
-                }
+                            .withEnv("metadataServiceUri", "metadata-store:" + getMetadataStoreConnString())
             )
         );
 
