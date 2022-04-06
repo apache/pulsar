@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.ReferenceCounted;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
@@ -25,9 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import io.netty.util.AbstractReferenceCounted;
-import io.netty.util.ReferenceCounted;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -75,8 +74,8 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
             this.future = service.getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync();
             this.future.thenRunAsync(this.backoff::reset).exceptionally(throwable -> {
                 long delay = backoff.next();
-                log.error("[{}] Failed to new transaction buffer system topic writer," +
-                                "try to re-create the writer in {} ms.", delay, namespaceName, throwable);
+                log.error("[{}] Failed to new transaction buffer system topic writer,"
+                        + "try to re-create the writer in {} ms.", delay, namespaceName, throwable);
                 service.scheduledExecutorService.schedule(
                         SafeRun.safeRun(this::initWriterFuture), delay, TimeUnit.MILLISECONDS);
                 return null;
