@@ -309,11 +309,10 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         subscribe->mutable_metadata()->AddAllocated(keyValue);
     }
 
-    for (std::map<std::string, std::string>::const_iterator it = subscriptionProperties.begin();
-         it != subscriptionProperties.end(); it++) {
+    for (const auto& subscriptionProperty : subscriptionProperties) {
         proto::KeyValue* keyValue = proto::KeyValue().New();
-        keyValue->set_key(it->first);
-        keyValue->set_value(it->second);
+        keyValue->set_key(subscriptionProperty.first);
+        keyValue->set_value(subscriptionProperty.second);
         subscribe->mutable_subscription_properties()->AddAllocated(keyValue);
     }
 

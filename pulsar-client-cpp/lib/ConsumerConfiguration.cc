@@ -220,9 +220,9 @@ std::map<std::string, std::string>& ConsumerConfiguration::getSubscriptionProper
 
 ConsumerConfiguration& ConsumerConfiguration::setSubscriptionProperties(
     const std::map<std::string, std::string>& subscriptionProperties) {
-    for (std::map<std::string, std::string>::const_iterator it = subscriptionProperties.begin();
-         it != subscriptionProperties.end(); it++) {
-        impl_->subscriptionProperties.insert(std::make_pair(it->first, it->second));
+    for (const auto& subscriptionProperty : subscriptionProperties) {
+        impl_->subscriptionProperties.emplace(
+            std::make_pair(subscriptionProperty.first, subscriptionProperty.second));
     }
     return *this;
 }
