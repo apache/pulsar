@@ -284,29 +284,25 @@ public abstract class NamespacesBase extends AdminResource {
         }
         FutureUtil.waitForAll(futures).thenCompose(__ -> {
             List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
-            NamespaceBundles bundles = null;
-            try {
-                bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                        .getBundles(namespaceName);
-            } catch (Exception e) {
-                throw new RestException(e);
-            }
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
-                deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle).thenCompose(ownership -> {
-                    if (ownership.isPresent()) {
-                        try {
-                            return pulsar().getAdminClient().namespaces()
-                                    .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange());
-                        } catch (PulsarServerException e) {
-                            throw new RestException(e);
+            return pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundlesAsync(namespaceName).thenCompose(bundles -> {
+                        for (NamespaceBundle bundle : bundles.getBundles()) {
+                            // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
+                            deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle).thenCompose(ownership -> {
+                                if (ownership.isPresent()) {
+                                    try {
+                                        return pulsar().getAdminClient().namespaces()
+                                                .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange());
+                                    } catch (PulsarServerException e) {
+                                        throw new RestException(e);
+                                    }
+                                } else {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                            }));
                         }
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                }));
-            }
-            return FutureUtil.waitForAll(deleteBundleFutures);
+                        return FutureUtil.waitForAll(deleteBundleFutures);
+                    });
         })
         .thenCompose(__ -> {
             // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
