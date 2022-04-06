@@ -270,44 +270,31 @@ public abstract class NamespacesBase extends AdminResource {
 
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        // remove system topics first.
-        if (!topics.isEmpty()) {
-            for (String topic : topics) {
-                try {
-                    futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
-                } catch (Exception ex) {
-                    log.error("[{}] Failed to delete system topic {}", clientAppId(), topic, ex);
-                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, ex));
-                    return;
+        try {
+            // remove system topics first.
+            if (!topics.isEmpty()) {
+                for (String topic : topics) {
+                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
+                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
+                    });
                 }
             }
+            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(namespaceName);
+            for (NamespaceBundle bundle : bundles.getBundles()) {
+                // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
+                if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
+                    futures.add(pulsar().getAdminClient().namespaces()
+                            .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
+                }
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
+            asyncResponse.resume(new RestException(e));
+            return;
         }
-        FutureUtil.waitForAll(futures).thenCompose(__ -> {
-            List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
-            return pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundlesAsync(namespaceName).thenCompose(bundles -> {
-                        for (NamespaceBundle bundle : bundles.getBundles()) {
-                            // check if the bundle is owned by any broker, if not then we do not need to delete
-                            // the bundle
-                            deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle)
-                                    .thenCompose(ownership -> {
-                                if (ownership.isPresent()) {
-                                    try {
-                                        return pulsar().getAdminClient().namespaces()
-                                                .deleteNamespaceBundleAsync(namespaceName.toString(),
-                                                        bundle.getBundleRange());
-                                    } catch (PulsarServerException e) {
-                                        throw new RestException(e);
-                                    }
-                                } else {
-                                    return CompletableFuture.completedFuture(null);
-                                }
-                            }));
-                        }
-                        return FutureUtil.waitForAll(deleteBundleFutures);
-                    });
-        })
-        .handle((result, exception) -> {
+
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
             if (exception != null) {
                 if (exception.getCause() instanceof PulsarAdminException) {
                     asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));

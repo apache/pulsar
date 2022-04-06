@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
@@ -798,7 +799,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void checkNotNull(Object o, String errorMessage) {
-        if (o == null) {
+            if (o == null) {
             throw new RestException(Status.BAD_REQUEST, errorMessage);
         }
     }
