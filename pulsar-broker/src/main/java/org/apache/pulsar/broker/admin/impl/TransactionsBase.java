@@ -501,11 +501,7 @@ public abstract class TransactionsBase extends AdminResource {
                         "This Broker is not configured with transactionCoordinatorEnabled=true."));
             }
         } catch (Exception e) {
-            if (e instanceof ExecutionException) {
-                resumeAsyncResponseExceptionally(asyncResponse, new RestException(e.getCause()));
-            } else {
-                resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
-            }
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 
