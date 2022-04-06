@@ -42,7 +42,8 @@ public class TransactionBufferHandlerImplTest {
     public void testRequestCredits() {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         when(pulsarClient.getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
-        TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarClient, null, 1000));
+        TransactionBufferHandlerImpl handler = spy(
+                new TransactionBufferHandlerImpl(pulsarClient, null, 1000, 3000));
         doNothing().when(handler).endTxn(any());
         for (int i = 0; i < 500; i++) {
             handler.endTxnOnTopic("t", 1L, 1L, TxnAction.COMMIT, 1L);
@@ -61,7 +62,8 @@ public class TransactionBufferHandlerImplTest {
 
     @Test
     public void testMinRequestCredits() {
-        TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(null, null, 50));
+        TransactionBufferHandlerImpl handler = spy(
+                new TransactionBufferHandlerImpl(null, null, 50, 3000));
         assertEquals(handler.getAvailableRequestCredits(), 100);
     }
 }
