@@ -263,11 +263,10 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
     }
 
     @Override
-    public void awaitClose(long timeout, TimeUnit unit) throws InterruptedException {
-        super.close();
+    public void closeClient() {
         try {
             if (internalBulkProcessor != null) {
-                internalBulkProcessor.awaitClose(5000L, TimeUnit.MILLISECONDS);
+                internalBulkProcessor.awaitClose(5000, TimeUnit.MILLISECONDS);
                 internalBulkProcessor = null;
             }
         } catch (InterruptedException e) {
@@ -283,7 +282,13 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         }
     }
 
+    @VisibleForTesting
     public RestHighLevelClient getClient() {
         return client;
+    }
+
+    @VisibleForTesting
+    public org.opensearch.action.bulk.BulkProcessor getInternalBulkProcessor() {
+        return internalBulkProcessor;
     }
 }
