@@ -51,6 +51,7 @@ import org.apache.kafka.connect.sink.SinkTask;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
@@ -259,12 +260,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
             Object nativeObject = sourceRecord.getValue().getNativeObject();
 
-            if (nativeObject instanceof org.apache.pulsar.common.schema.KeyValue) {
-                org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) nativeObject;
-                key = KafkaConnectData.getKafkaConnectData(kv.getKey(), keySchema);
-                value = KafkaConnectData.getKafkaConnectData(kv.getValue(), valueSchema);
-            } else if (nativeObject instanceof org.apache.pulsar.io.core.KeyValue) {
-                org.apache.pulsar.io.core.KeyValue kv = (org.apache.pulsar.io.core.KeyValue) nativeObject;
+            if (nativeObject instanceof KeyValue) {
+                KeyValue kv = (KeyValue) nativeObject;
                 key = KafkaConnectData.getKafkaConnectData(kv.getKey(), keySchema);
                 value = KafkaConnectData.getKafkaConnectData(kv.getValue(), valueSchema);
             } else if (nativeObject != null) {

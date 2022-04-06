@@ -43,6 +43,7 @@ import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.util.MessageIdUtils;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.core.SinkContext;
@@ -515,20 +516,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     }
 
     @Test
-    public void coreKeyValueSchemaTest() throws Exception {
-        org.apache.pulsar.io.core.KeyValue<Integer, String> kv =
-                new org.apache.pulsar.io.core.KeyValue<>(11, "value");
-        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
-        String val = (String) sinkRecord.value();
-        Assert.assertEquals(val, "value");
-        int key = (int) sinkRecord.key();
-        Assert.assertEquals(key, 11);
-    }
-
-    @Test
     public void schemaKeyValueSchemaTest() throws Exception {
-        org.apache.pulsar.common.schema.KeyValue<Integer, String> kv =
-                new org.apache.pulsar.common.schema.KeyValue<>(11, "value");
+        KeyValue<Integer, String> kv = new KeyValue<>(11, "value");
         SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
         String val = (String) sinkRecord.value();
         Assert.assertEquals(val, "value");
@@ -563,9 +552,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         // integer is coming back from ObjectMapper
         expectedValue.put("field3", 100);
 
-        org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord> kv =
-                new org.apache.pulsar.common.schema.KeyValue<>(
-                            getGenericRecord(key, pulsarAvroSchema),
+        KeyValue<GenericRecord, GenericRecord> kv = new KeyValue<>(getGenericRecord(key, pulsarAvroSchema),
                             getGenericRecord(value, pulsarAvroSchema));
 
         SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema),
