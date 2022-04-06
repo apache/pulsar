@@ -799,7 +799,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void checkNotNull(Object o, String errorMessage) {
-            if (o == null) {
+        if (o == null) {
             throw new RestException(Status.BAD_REQUEST, errorMessage);
         }
     }
