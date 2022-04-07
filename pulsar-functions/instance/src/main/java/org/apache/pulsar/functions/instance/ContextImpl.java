@@ -61,11 +61,13 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.StateStore;
+import org.apache.pulsar.functions.api.metrics.MetricProvider;
 import org.apache.pulsar.functions.instance.state.DefaultStateStore;
 import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
+import org.apache.pulsar.functions.instance.stats.PrometheusMetricProviderImpl;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function;
@@ -82,6 +84,9 @@ import org.slf4j.Logger;
  */
 @ToString(exclude = {"pulsarAdmin"})
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
+
+    private final FunctionCollectorRegistry collectorRegistry;
+    private final String userMetricNamePrefix;
     private InstanceConfig config;
     private Logger logger;
 
@@ -144,6 +149,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.pulsarAdmin = pulsarAdmin;
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
+        this.collectorRegistry = collectorRegistry;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
@@ -203,6 +209,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             default:
                 throw new RuntimeException("Unknown component type: " + componentType);
         }
+        this.userMetricNamePrefix = prefix + USER_METRIC_PREFIX;
+
         this.userMetricsSummary = collectorRegistry.registerIfNotExist(
                 prefix + ComponentStatsManager.USER_METRIC_PREFIX,
                 Summary.build()
@@ -488,6 +496,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
     }
 
+    @Deprecated
     @Override
     public void recordMetric(String metricName, double value) {
         String[] userMetricLabels = userMetricsLabels.get(metricName);
@@ -501,6 +510,12 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         } else {
             userMetricsSummary.labels(userMetricLabels).observe(value);
         }
+    }
+
+    @Override
+    public MetricProvider metricProvider() {
+        return new PrometheusMetricProviderImpl(collectorRegistry, userMetricNamePrefix,
+                ComponentStatsManager.METRICS_LABEL_NAMES, metricsLabels);
     }
 
     @Override

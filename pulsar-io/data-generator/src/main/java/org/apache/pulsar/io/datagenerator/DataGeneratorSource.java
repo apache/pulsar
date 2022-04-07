@@ -21,7 +21,10 @@ package org.apache.pulsar.io.datagenerator;
 import io.codearte.jfairy.Fairy;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.api.metrics.Counter;
+import org.apache.pulsar.functions.api.metrics.Summary;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 
@@ -29,16 +32,39 @@ public class DataGeneratorSource implements Source<Person> {
 
     private Fairy fairy;
     private DataGeneratorSourceConfig dataGeneratorSourceConfig;
+    private Counter counter;
+    private Summary execTime;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         dataGeneratorSourceConfig = DataGeneratorSourceConfig.loadOrGetDefault(config);
         this.fairy = Fairy.create();
+        this.counter = sourceContext.metricProvider()
+                .registerCounter()
+                .name("records_counter")
+                .help("counter for records read")
+                .labelNames("label1")
+                .labels("foo")
+                .register();
+        this.execTime = sourceContext
+                .metricProvider()
+                .registerSummary()
+                .name("runtime")
+                .help("runtime latency")
+                .labelNames("label1", "label2")
+                .labels("foo", "bar")
+                .quantile(0.5, 0.01)
+                .quantile(0.9, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(0.999, 0.01)
+                .register();
     }
 
     @Override
     public Record<Person> read() throws Exception {
         Thread.sleep(dataGeneratorSourceConfig.getSleepBetweenMessages());
+        counter.inc();
+        execTime.observe(new Random().nextDouble());
         return new Record<Person>() {
             @Override
             public Optional<String> getKey() {

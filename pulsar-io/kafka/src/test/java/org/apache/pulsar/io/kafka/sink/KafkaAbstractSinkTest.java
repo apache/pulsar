@@ -22,6 +22,7 @@ package org.apache.pulsar.io.kafka.sink;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.pulsar.functions.api.metrics.MetricProvider;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
@@ -90,6 +91,11 @@ public class KafkaAbstractSinkTest {
             @Override
             public void recordMetric(String metricName, double value) {
 
+            }
+
+            @Override
+            public MetricProvider metricProvider() {
+                return null;
             }
 
             @Override

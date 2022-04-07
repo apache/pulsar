@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.metrics.MetricProvider;
 import org.slf4j.Logger;
 
 /**
@@ -188,10 +189,18 @@ public interface BaseContext {
 
     /**
      * Record a user defined metric.
+     * Deprecated, please use metricProvider().
      * @param metricName The name of the metric
      * @param value The value of the metric
      */
+    @Deprecated
     void recordMetric(String metricName, double value);
+
+    /**
+     * Returns {@code MetricProvider} to register or create new metrics.
+     * @return {@code MetricProvider}
+     */
+    MetricProvider metricProvider();
 
     /**
      * Get the pre-configured pulsar client.

@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.functions.api.metrics.MetricProvider;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -115,6 +116,11 @@ public class IOConfigUtilsTest {
         @Override
         public void recordMetric(String metricName, double value) {
 
+        }
+
+        @Override
+        public MetricProvider metricProvider() {
+            return null;
         }
 
         @Override
@@ -277,6 +283,11 @@ public class IOConfigUtilsTest {
         @Override
         public void recordMetric(String metricName, double value) {
 
+        }
+
+        @Override
+        public MetricProvider metricProvider() {
+            return null;
         }
 
         @Override
