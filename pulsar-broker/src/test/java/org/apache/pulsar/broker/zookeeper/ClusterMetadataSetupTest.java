@@ -92,6 +92,44 @@ public class ClusterMetadataSetupTest {
     }
 
     @Test(dataProvider = "useMetadataStoreUrl")
+    public void testSetupClusterWithMultiZkServers(boolean useMetadataStoreUrl) throws Exception {
+        HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
+                "bookies", "ledgers", "pulsar", "stream", "admin"
+        ));
+        final String metadataStoreParam;
+        final String metadataStoreValue;
+        if (useMetadataStoreUrl) {
+            metadataStoreParam = "--metadata-store";
+            metadataStoreValue = "zk:127.0.0.1:" + localZkS.getZookeeperPort()
+                    + ",127.0.0.1:" + localZkS.getZookeeperPort() + "/test";
+        } else {
+            metadataStoreParam = "--zookeeper";
+            metadataStoreValue = "127.0.0.1:" + localZkS.getZookeeperPort()
+                    + ",127.0.0.1:" + localZkS.getZookeeperPort() + "/test";
+        }
+        String[] args = {
+                "--cluster", "testReSetupClusterMetadata-cluster",
+                metadataStoreParam, metadataStoreValue,
+                "--configuration-store", "127.0.0.1:" + localZkS.getZookeeperPort() + "/test",
+                "--web-service-url", "http://127.0.0.1:8080",
+                "--web-service-url-tls", "https://127.0.0.1:8443",
+                "--broker-service-url", "pulsar://127.0.0.1:6650",
+                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+        };
+        PulsarClusterMetadataSetup.main(args);
+
+        try (ZooKeeper zk = ZooKeeperClient.newBuilder()
+                .connectString("127.0.0.1:" + localZkS.getZookeeperPort())
+                .build()) {
+            assertNotNull(zk.exists("/test", false));
+            assertEquals(new HashSet<>(zk.getChildren("/test", false)), firstLevelNodes);
+            assertEquals(new HashSet<>(zk.getChildren("/test/ledgers", false)),
+                    new HashSet<>(Arrays.asList("available", "INSTANCEID")));
+
+        }
+    }
+
+    @Test(dataProvider = "useMetadataStoreUrl")
     public void testSetupClusterDefault(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin", "zookeeper"

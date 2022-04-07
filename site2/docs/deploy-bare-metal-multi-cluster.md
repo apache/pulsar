@@ -25,7 +25,7 @@ A Pulsar instance consists of multiple Pulsar clusters working in unison. You ca
 
 ## System requirement
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. You need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. You need to install 64-bit JRE/JDK 8 or later versions, JRE/JDK 11 is recommended.
 
 > **Note**
 >

@@ -104,6 +104,8 @@ public class ElasticSearchConfigTests {
         assertNull(config.getSsl().getCipherSuites());
         assertEquals(config.getSsl().isHostnameVerification(), true);
         assertEquals(config.getSsl().getProtocols(), "TLSv1.2");
+
+        assertEquals(config.getCompatibilityMode(), ElasticSearchConfig.CompatibilityMode.AUTO);
     }
 
     @Test

@@ -731,40 +731,36 @@ public class BacklogQuotaManagerTest {
         Consumer<byte[]> consumer1 = client2.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
         Consumer<byte[]> consumer2 = client2.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
 
-        Thread producerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs; i++) {
-                        // only one consumer acknowledges the message
-                        consumer1.acknowledge(consumer1.receive());
-                        consumer2.receive();
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs; i++) {
+                    // only one consumer acknowledges the message
+                    consumer1.acknowledge(consumer1.receive());
+                    consumer2.receive();
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         producerThread.start();
         consumerThread.start();
@@ -807,39 +803,35 @@ public class BacklogQuotaManagerTest {
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
-        Thread producerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client2, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client2, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs; i++) {
-                        consumer1.acknowledge(consumer1.receive());
-                        consumer2.acknowledge(consumer2.receive());
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs; i++) {
+                    consumer1.acknowledge(consumer1.receive());
+                    consumer2.acknowledge(consumer2.receive());
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         producerThread.start();
         consumerThread.start();
@@ -878,71 +870,63 @@ public class BacklogQuotaManagerTest {
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
-        Thread producerThread1 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client2, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread1 = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client2, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread producerThread2 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client3, topic1);
-                    byte[] content = new byte[1024];
-                    for (int i = 0; i < numMsgs; i++) {
-                        producer.send(content);
-                    }
-                    producer.close();
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread producerThread2 = new Thread(() -> {
+            try {
+                barrier.await();
+                Producer<byte[]> producer = createProducer(client3, topic1);
+                byte[] content = new byte[1024];
+                for (int i = 0; i < numMsgs; i++) {
+                    producer.send(content);
                 }
+                producer.close();
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread1 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs * 2; i++) {
-                        consumer1.acknowledge(consumer1.receive());
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread1 = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs * 2; i++) {
+                    consumer1.acknowledge(consumer1.receive());
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread consumerThread2 = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    for (int i = 0; i < numMsgs * 2; i++) {
-                        consumer2.acknowledge(consumer2.receive());
-                    }
-                } catch (Exception e) {
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread consumerThread2 = new Thread(() -> {
+            try {
+                barrier.await();
+                for (int i = 0; i < numMsgs * 2; i++) {
+                    consumer2.acknowledge(consumer2.receive());
                 }
+            } catch (Exception e) {
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         producerThread1.start();
         producerThread2.start();

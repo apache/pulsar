@@ -187,7 +187,7 @@ public class NarClassLoader extends URLClassLoader {
         }
 
         if (log.isDebugEnabled()) {
-            log.info("Created class loader with paths: {}", Arrays.toString(getURLs()));
+            log.debug("Created class loader with paths: {}", Arrays.toString(getURLs()));
         }
     }
 

@@ -151,7 +151,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final ConnectionHandler connectionHandler;
 
-    private ScheduledFuture<?> batchTimerTask;
+    // A batch flush task is scheduled when one of the following is true:
+    // - A message is added to a message batch without also triggering a flush for that batch.
+    // - A batch flush task executes with messages in the batchMessageContainer, thus actually triggering messages.
+    // - A message was sent more recently than the configured BatchingMaxPublishDelayMicros. In this case, the task is
+    //   scheduled to run BatchingMaxPublishDelayMicros after the most recent send time.
+    // The goal is to optimize batch density while also ensuring that a producer never waits longer than the configured
+    // batchingMaxPublishDelayMicros to send a batch.
+    // Only update from within synchronized block on this producer.
+    private ScheduledFuture<?> batchFlushTask;
+    // The time, in nanos, of the last batch send. This field ensures that we don't deliver batches via the
+    // batchFlushTask before the batchingMaxPublishDelayMicros duration has passed.
+    private long lastBatchSendNanoTime;
 
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
@@ -630,7 +641,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         lastSendFuture = callback.getFuture();
                         payload.release();
                         if (isBatchFull) {
-                            batchMessageAndSend();
+                            batchMessageAndSend(false);
+                        } else {
+                            maybeScheduleBatchFlushTask();
                         }
                     }
                     isLastSequenceIdPotentialDuplicated = false;
@@ -820,7 +833,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msg.getUncompressedSize());
         }
         try {
-            batchMessageAndSend();
+            batchMessageAndSend(false);
             batchMessageContainer.add(msg, callback);
             lastSendFuture = callback.getFuture();
         } finally {
@@ -1647,29 +1660,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             this.msgIdGenerator = lastSequenceId + 1;
                         }
 
-                        if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
-                            // schedule the first batch message task
-                            batchTimerTask = cnx.ctx().executor()
-                                    .scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
-                                        if (log.isTraceEnabled()) {
-                                            log.trace(
-                                                    "[{}] [{}] Batching the messages from the batch container from "
-                                                            + "timer thread",
-                                                    topic,
-                                                    producerName);
-                                        }
-                                        // semaphore acquired when message was enqueued to container
-                                        synchronized (ProducerImpl.this) {
-                                            // If it's closing/closed we need to ignore the send batch timer and not
-                                            // schedule next timeout.
-                                            if (getState() == State.Closing || getState() == State.Closed) {
-                                                return;
-                                            }
-
-                                            batchMessageAndSend();
-                                        }
-                                    }), 0, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
-                        }
                         resendMessages(cnx, epoch);
                     }
                 }).exceptionally((e) -> {
@@ -1796,12 +1786,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sendTimeout = null;
         }
 
-        ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
-        if (batchTimerTask != null) {
-            batchTimerTask.cancel(false);
-            this.batchTimerTask = null;
-        }
-
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
             keyGeneratorTask.cancel(false);
         }
@@ -1818,6 +1802,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     cnx.channel().close();
                     return;
                 }
+
                 int messagesToResend = pendingMessages.messagesCount();
                 if (messagesToResend == 0) {
                     if (log.isDebugEnabled()) {
@@ -1825,6 +1810,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                     if (changeToReadyState()) {
                         producerCreatedFuture.complete(ProducerImpl.this);
+                        scheduleBatchFlushTask(0);
                         return;
                     } else {
                         // Producer was closed while reconnecting, close the connection to make sure the broker
@@ -1912,24 +1898,37 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             OpSendMsg firstMsg = pendingMessages.peek();
-            if (firstMsg == null) {
+            if (firstMsg == null && (batchMessageContainer == null || batchMessageContainer.isEmpty())) {
                 // If there are no pending messages, reset the timeout to the configured value.
                 timeToWaitMs = conf.getSendTimeoutMs();
             } else {
+                long createdAt;
+                if (firstMsg != null) {
+                    createdAt = firstMsg.createdAt;
+                } else {
+                    // Because we don't flush batch messages while disconnected, we consider them "createdAt" when
+                    // they would have otherwise been flushed.
+                    createdAt = lastBatchSendNanoTime
+                            + TimeUnit.MICROSECONDS.toNanos(conf.getBatchingMaxPublishDelayMicros());
+                }
                 // If there is at least one message, calculate the diff between the message timeout and the elapsed
                 // time since first message was created.
                 long diff = conf.getSendTimeoutMs()
-                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - firstMsg.createdAt);
+                        - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - createdAt);
                 if (diff <= 0) {
                     // The diff is less than or equal to zero, meaning that the message has been timed out.
                     // Set the callback to timeout on every message, then clear the pending queue.
                     log.info("[{}] [{}] Message send timed out. Failing {} messages", topic, producerName,
-                            pendingMessages.messagesCount());
+                            getPendingQueueSize());
+                    String msg = format("The producer %s can not send message to the topic %s within given timeout",
+                            producerName, topic);
+                    if (firstMsg != null) {
+                        PulsarClientException te = new PulsarClientException.TimeoutException(msg, firstMsg.sequenceId);
+                        failPendingMessages(cnx(), te);
+                    } else {
+                        failPendingBatchMessages(new PulsarClientException.TimeoutException(msg));
+                    }
 
-                    PulsarClientException te = new PulsarClientException.TimeoutException(
-                        format("The producer %s can not send message to the topic %s within given timeout",
-                            producerName, topic), firstMsg.sequenceId);
-                    failPendingMessages(cnx(), te);
                     // Since the pending queue is cleared now, set timer to expire after configured value.
                     timeToWaitMs = conf.getSendTimeoutMs();
                 } else {
@@ -2005,7 +2004,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public CompletableFuture<Void> flushAsync() {
         synchronized (ProducerImpl.this) {
             if (isBatchMessagingEnabled()) {
-                batchMessageAndSend();
+                batchMessageAndSend(false);
             }
             CompletableFuture<MessageId>  lastSendFuture = this.lastSendFuture;
             if (!(lastSendFuture == this.lastSendFutureWrapper.lastSendFuture)) {
@@ -2020,19 +2019,57 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected void triggerFlush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
-                batchMessageAndSend();
+                batchMessageAndSend(false);
             }
         }
     }
 
+    // must acquire semaphore before calling
+    private void maybeScheduleBatchFlushTask() {
+        if (this.batchFlushTask != null || getState() != State.Ready) {
+            return;
+        }
+        scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros());
+    }
+
+    // must acquire semaphore before calling
+    private void scheduleBatchFlushTask(long batchingDelayMicros) {
+        ClientCnx cnx = cnx();
+        if (cnx != null && isBatchMessagingEnabled()) {
+            this.batchFlushTask = cnx.ctx().executor().schedule(catchingAndLoggingThrowables(this::batchFlushTask),
+                    batchingDelayMicros, TimeUnit.MICROSECONDS);
+        }
+    }
+
+    private synchronized void batchFlushTask() {
+        if (log.isTraceEnabled()) {
+            log.trace("[{}] [{}] Batching the messages from the batch container from flush thread",
+                    topic, producerName);
+        }
+        this.batchFlushTask = null;
+        // If we're not ready, don't schedule another flush and don't try to send.
+        if (getState() != State.Ready) {
+            return;
+        }
+        // If a batch was sent more recently than the BatchingMaxPublishDelayMicros, schedule another flush to run just
+        // at BatchingMaxPublishDelayMicros after the last send.
+        long microsSinceLastSend = TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - lastBatchSendNanoTime);
+        if (microsSinceLastSend < conf.getBatchingMaxPublishDelayMicros()) {
+            scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros() - microsSinceLastSend);
+            return;
+        }
+        batchMessageAndSend(true);
+    }
+
     // must acquire semaphore before enqueuing
-    private void batchMessageAndSend() {
+    private void batchMessageAndSend(boolean shouldScheduleNextBatchFlush) {
         if (log.isTraceEnabled()) {
             log.trace("[{}] [{}] Batching the messages from the batch container with {} messages", topic, producerName,
                     batchMessageContainer.getNumMessagesInBatch());
         }
         if (!batchMessageContainer.isEmpty()) {
             try {
+                lastBatchSendNanoTime = System.nanoTime();
                 List<OpSendMsg> opSendMsgs;
                 if (batchMessageContainer.isMultiBatches()) {
                     opSendMsgs = batchMessageContainer.createOpSendMsgs();
@@ -2048,6 +2085,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } catch (Throwable t) {
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
                 log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
+            } finally {
+                if (shouldScheduleNextBatchFlush) {
+                    maybeScheduleBatchFlushTask();
+                }
             }
         }
     }
@@ -2058,7 +2099,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         try {
             if (op.msg != null && isBatchMessagingEnabled()) {
-                batchMessageAndSend();
+                batchMessageAndSend(false);
             }
             if (isMessageSizeExceeded(op)) {
                 return;
@@ -2153,6 +2194,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             cnx.channel().close();
             return;
         }
+        // If any messages were enqueued while the producer was not Ready, we would have skipped
+        // scheduling the batch flush task. Schedule it now, if there are messages in the batch container.
+        if (isBatchMessagingEnabled() && !batchMessageContainer.isEmpty()) {
+            maybeScheduleBatchFlushTask();
+        }
         if (pendingRegisteringOp != null) {
             tryRegisterSchema(cnx, pendingRegisteringOp.msg, pendingRegisteringOp.callback, expectedEpoch);
         }
@@ -2193,6 +2239,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     public int getPendingQueueSize() {
+        if (isBatchMessagingEnabled()) {
+            synchronized (this) {
+                return pendingMessages.messagesCount() + batchMessageContainer.getNumMessagesInBatch();
+            }
+        }
         return pendingMessages.messagesCount();
     }
 
