@@ -25,7 +25,6 @@ import io.netty.util.ReferenceCountUtil;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
@@ -34,8 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.lookup.LookupResult;
-import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
@@ -46,9 +44,10 @@ import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
 @Slf4j
@@ -130,8 +129,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     }
 
     public void endTxn(OpRequestSend op) {
-        op.cnx.whenComplete((clientCnx, throwable) -> {
-            if (throwable == null) {
+        op.cnx.whenComplete((clientCnx, ex) -> {
+            if (ex == null) {
                 if (clientCnx.ctx().channel().isActive()) {
                     clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
                     outstandingRequests.put(op.requestId, op);
@@ -151,9 +150,14 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     onResponse(op);
                 }
             } else {
-                log.error("endTxn error topic: [{}]", op.topic, throwable);
-                op.cb.completeExceptionally(
-                        new PulsarClientException.LookupException(throwable.getMessage()));
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                log.error("endTxn error topic: [{}]", op.topic, cause);
+                if (cause instanceof PulsarClientException.BrokerMetadataException) {
+                    op.cb.complete(null);
+                } else {
+                    op.cb.completeExceptionally(
+                            new PulsarClientException.LookupException(cause.getMessage()));
+                }
                 onResponse(op);
             }
         });
@@ -299,31 +303,37 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {
         NamespaceService namespaceService = pulsarService.getNamespaceService();
-        LookupOptions options = LookupOptions.builder().authoritative(true).readOnly(false).build();
-        CompletableFuture<Optional<LookupResult>> brokerServiceUrl = namespaceService.getBrokerServiceUrlAsync(
-                TopicName.get(topic), options);
-        return brokerServiceUrl.thenCompose(data -> {
-            if (data.isPresent()) {
-                try {
-                    URI uri;
-                    LookupData lookupData = data.get().getLookupData();
-                    if (pulsarClient.getConfiguration().isUseTls()) {
-                        uri = new URI(lookupData.getBrokerUrlTls());
+        namespaceService.getNamespaceBundleFactory().invalidateBundleCache(TopicName.get(topic).getNamespaceObject());
+        CompletableFuture<NamespaceBundle> nsBundle = namespaceService.getBundleAsync(TopicName.get(topic));
+        return nsBundle
+                .thenCompose(bundle -> namespaceService.getOwnerAsync(bundle))
+                .thenCompose(data -> {
+                    if (data.isPresent()) {
+                        NamespaceEphemeralData ephemeralData = data.get();
+                        try {
+                            if (!ephemeralData.isDisabled()) {
+                                URI uri;
+                                if (pulsarClient.getConfiguration().isUseTls()) {
+                                    uri = new URI(ephemeralData.getNativeUrlTls());
+                                } else {
+                                    uri = new URI(ephemeralData.getNativeUrl());
+                                }
+                                InetSocketAddress brokerAddress =
+                                        InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
+                                return pulsarClient.getConnection(brokerAddress, brokerAddress);
+                            } else {
+                                // Bundle is unloading, lookup topic
+                                return getClientCnxWithLookup(topic);
+                            }
+                        } catch (URISyntaxException e) {
+                            // Should never go here
+                            return getClientCnxWithLookup(topic);
+                        }
                     } else {
-                        uri = new URI(lookupData.getBrokerUrl());
+                        // Bundle is not loaded yet, lookup topic
+                        return getClientCnxWithLookup(topic);
                     }
-                    InetSocketAddress brokerAddress =
-                            InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-                    return pulsarClient.getConnection(brokerAddress, brokerAddress);
-                } catch (URISyntaxException e) {
-                    // Should never go here
-                    return getClientCnxWithLookup(topic);
-                }
-            } else {
-                // Should never go here.
-                return getClientCnxWithLookup(topic);
-            }
-        });
+                });
     }
 
     @Override
