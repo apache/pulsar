@@ -506,7 +506,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 throw (RestException) e.getCause();
             }
             if (e.getCause() instanceof PulsarServerException.InvalidTopicNameException) {
-                throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
+                throw new RestException(Status.PRECONDITION_FAILED, e.getCause().getMessage());
             }
             throw new RestException(e);
         }
