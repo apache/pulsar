@@ -61,6 +61,7 @@ public class Transactions extends TransactionsBase {
                                     @QueryParam("authoritative")
                                     @DefaultValue("false") boolean authoritative,
                                     @QueryParam("coordinatorId") Integer coordinatorId) {
+        checkTransactionCoordinatorEnabled();
         internalGetCoordinatorStats(asyncResponse, authoritative, coordinatorId);
     }
 
@@ -82,9 +83,19 @@ public class Transactions extends TransactionsBase {
                                             @PathParam("topic") @Encoded String encodedTopic,
                                             @PathParam("mostSigBits") String mostSigBits,
                                             @PathParam("leastSigBits") String leastSigBits) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetTransactionInBufferStats(asyncResponse, authoritative,
-                Long.parseLong(mostSigBits), Long.parseLong(leastSigBits));
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionInBufferStats(authoritative, Long.parseLong(mostSigBits),
+                    Long.parseLong(leastSigBits))
+                    .thenAccept(stat -> asyncResponse.resume(stat))
+                    .exceptionally(ex -> {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -106,9 +117,19 @@ public class Transactions extends TransactionsBase {
                                                 @PathParam("mostSigBits") String mostSigBits,
                                                 @PathParam("leastSigBits") String leastSigBits,
                                                 @PathParam("subName") String subName) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetTransactionInPendingAckStats(asyncResponse, authoritative, Long.parseLong(mostSigBits),
-                Long.parseLong(leastSigBits), subName);
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionInPendingAckStats(authoritative, Long.parseLong(mostSigBits),
+                    Long.parseLong(leastSigBits), subName)
+                    .thenAccept(stat -> asyncResponse.resume(stat))
+                    .exceptionally(ex -> {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -127,8 +148,18 @@ public class Transactions extends TransactionsBase {
                                           @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetTransactionBufferStats(asyncResponse, authoritative);
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionBufferStats(authoritative)
+                    .thenAccept(stat -> asyncResponse.resume(stat))
+                    .exceptionally(ex -> {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -148,8 +179,18 @@ public class Transactions extends TransactionsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic,
                                    @PathParam("subName") String subName) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetPendingAckStats(asyncResponse, authoritative, subName);
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetPendingAckStats(authoritative, subName)
+                    .thenAccept(stats -> asyncResponse.resume(stats))
+                    .exceptionally(ex -> {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -168,6 +209,7 @@ public class Transactions extends TransactionsBase {
                                        @DefaultValue("false") boolean authoritative,
                                        @PathParam("mostSigBits") String mostSigBits,
                                        @PathParam("leastSigBits") String leastSigBits) {
+        checkTransactionCoordinatorEnabled();
         internalGetTransactionMetadata(asyncResponse, authoritative, Integer.parseInt(mostSigBits),
                 Long.parseLong(leastSigBits));
     }
@@ -188,6 +230,7 @@ public class Transactions extends TransactionsBase {
                                     @DefaultValue("false") boolean authoritative,
                                     @PathParam("timeout") String timeout,
                                     @QueryParam("coordinatorId") Integer coordinatorId) {
+        checkTransactionCoordinatorEnabled();
         internalGetSlowTransactions(asyncResponse, authoritative, Long.parseLong(timeout), coordinatorId);
     }
 
@@ -205,6 +248,7 @@ public class Transactions extends TransactionsBase {
                                             @DefaultValue("false") boolean authoritative,
                                             @PathParam("coordinatorId") String coordinatorId,
                                             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+        checkTransactionCoordinatorEnabled();
         internalGetCoordinatorInternalStats(asyncResponse, authoritative, metadata, Integer.parseInt(coordinatorId));
     }
 
@@ -229,8 +273,9 @@ public class Transactions extends TransactionsBase {
                                            @PathParam("subName") String subName,
                                            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         try {
+            checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetPendingAckInternalStats(authoritative, topicName, subName, metadata)
+            internalGetPendingAckInternalStats(authoritative, subName, metadata)
                     .thenAccept(stats -> asyncResponse.resume(stats))
                     .exceptionally(ex -> {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
