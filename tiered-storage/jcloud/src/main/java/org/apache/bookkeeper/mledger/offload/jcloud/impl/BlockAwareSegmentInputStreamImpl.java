@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import java.io.IOException;
@@ -44,6 +45,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStreamImpl.class);
 
     static final int[] BLOCK_END_PADDING = new int[]{ 0xFE, 0xDC, 0xDE, 0xAD };
+    static final byte[] BLOCK_END_PADDING_BYTES = Ints.toByteArray(0xFEDCDEAD);
 
     private final ReadHandle ledger;
     private final long startEntryId;
@@ -74,6 +76,52 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         this.blockEntryCount = 0;
         this.dataBlockFullOffset = blockSize;
         this.entriesByteBuf = Lists.newLinkedList();
+    }
+
+    private int currentOffset = 0;
+
+    private byte[] readEntries(int len) throws IOException {
+        checkState(bytesReadOffset >= DataBlockHeaderImpl.getDataStartOffset());
+        checkState(bytesReadOffset < blockSize);
+
+        // once reach the end of entry buffer, read more, if there is more
+        if (bytesReadOffset < dataBlockFullOffset
+            && entriesByteBuf.isEmpty()
+            && startEntryId + blockEntryCount <= ledger.getLastAddConfirmed()) {
+            entriesByteBuf = readNextEntriesFromLedger(startEntryId + blockEntryCount, ENTRIES_PER_READ);
+        }
+
+        if (!entriesByteBuf.isEmpty()
+            && bytesReadOffset + entriesByteBuf.get(0).readableBytes() <= blockSize) {
+            // always read from the first ByteBuf in the list, once read all of its content remove it.
+            ByteBuf entryByteBuf = entriesByteBuf.get(0);
+            int readableBytes = entryByteBuf.readableBytes();
+            int read = Math.min(readableBytes, len);
+            byte[] buf = new byte[read];
+            entryByteBuf.getBytes(currentOffset, buf);
+            currentOffset += read;
+            entryByteBuf.readerIndex(currentOffset);
+            bytesReadOffset += read;
+
+            if (entryByteBuf.readableBytes() == 0) {
+                entryByteBuf.release();
+                entriesByteBuf.remove(0);
+                blockEntryCount++;
+                currentOffset = 0;
+            }
+
+            return buf;
+        } else {
+            // no space for a new entry or there are no more entries
+            // set data block full, return end padding
+            if (dataBlockFullOffset == blockSize) {
+                dataBlockFullOffset = bytesReadOffset;
+            }
+            return new byte[]{
+                BLOCK_END_PADDING_BYTES[(bytesReadOffset++ - dataBlockFullOffset) % BLOCK_END_PADDING_BYTES.length]
+            };
+
+        }
     }
 
     // read ledger entries.
@@ -141,6 +189,41 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             }
             throw new IOException(e);
         }
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        if (len == 0) {
+            return 0;
+        }
+
+        int offset = off;
+        int readLen = len;
+        int readBytes = 0;
+        // reading header
+        if (dataBlockHeaderStream.available() > 0) {
+            int read = dataBlockHeaderStream.read(b, off, len);
+            offset += read;
+            readLen -= readLen;
+            readBytes += read;
+            bytesReadOffset += read;
+        }
+        if (readLen == 0) {
+            return readBytes;
+        }
+
+        // reading ledger entries
+        if (bytesReadOffset < blockSize) {
+            byte[] readEntries = readEntries(readLen);
+            for (int i = 0; i < readEntries.length; i++) {
+                b[offset + i] = readEntries[i];
+                readBytes++;
+            }
+            return readBytes;
+        }
+
+        // reached end
+        return -1;
     }
 
     @Override
