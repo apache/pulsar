@@ -1071,3 +1071,81 @@ TEST(BatchMessageTest, testProducerQueueWithBatches) {
 
     ASSERT_EQ(rejectedMessges, 10);
 }
+
+TEST(BatchMessageTest, testSingleMessageMetadata) {
+    const auto topic = "BatchMessageTest-SingleMessageMetadata-" + std::to_string(time(nullptr));
+    constexpr int numMessages = 3;
+
+    Client client(lookupUrl);
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(
+                            topic, ProducerConfiguration().setBatchingMaxMessages(numMessages), producer));
+
+    producer.sendAsync(MessageBuilder()
+                           .setContent("msg-0")
+                           .setPartitionKey("key-0")
+                           .setOrderingKey("ordering-key-0")
+                           .setEventTimestamp(10UL)
+                           .setProperty("k0", "v0")
+                           .setProperty("k1", "v1")
+                           .build(),
+                       nullptr);
+    producer.sendAsync(MessageBuilder()
+                           .setContent("msg-1")
+                           .setOrderingKey("ordering-key-1")
+                           .setEventTimestamp(11UL)
+                           .setProperty("k2", "v2")
+                           .build(),
+                       nullptr);
+    producer.sendAsync(MessageBuilder().setContent("msg-2").build(), nullptr);
+    ASSERT_EQ(ResultOk, producer.flush());
+
+    Message msgs[numMessages];
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 3000));
+        msgs[i] = msg;
+        LOG_INFO("message " << i << ": " << msg.getDataAsString()
+                            << ", key: " << (msg.hasPartitionKey() ? msg.getPartitionKey() : "(null)")
+                            << ", ordering key: " << (msg.hasOrderingKey() ? msg.getOrderingKey() : "(null)")
+                            << ", event time: " << (msg.getEventTimestamp())
+                            << ", properties count: " << msg.getProperties().size()
+                            << ", has schema version: " << msg.hasSchemaVersion());
+    }
+
+    ASSERT_EQ(msgs[0].getDataAsString(), "msg-0");
+    ASSERT_TRUE(msgs[0].hasPartitionKey());
+    ASSERT_EQ(msgs[0].getPartitionKey(), "key-0");
+    ASSERT_TRUE(msgs[0].hasOrderingKey());
+    ASSERT_EQ(msgs[0].getOrderingKey(), "ordering-key-0");
+    ASSERT_EQ(msgs[0].getEventTimestamp(), 10UL);
+    ASSERT_EQ(msgs[0].getProperties().size(), 2);
+    ASSERT_TRUE(msgs[0].hasProperty("k0"));
+    ASSERT_EQ(msgs[0].getProperty("k0"), "v0");
+    ASSERT_TRUE(msgs[0].hasProperty("k1"));
+    ASSERT_EQ(msgs[0].getProperty("k1"), "v1");
+    ASSERT_FALSE(msgs[0].hasSchemaVersion());
+
+    ASSERT_EQ(msgs[1].getDataAsString(), "msg-1");
+    ASSERT_FALSE(msgs[1].hasPartitionKey());
+    ASSERT_TRUE(msgs[1].hasOrderingKey());
+    ASSERT_EQ(msgs[1].getOrderingKey(), "ordering-key-1");
+    ASSERT_EQ(msgs[1].getEventTimestamp(), 11UL);
+    ASSERT_EQ(msgs[1].getProperties().size(), 1);
+    ASSERT_TRUE(msgs[1].hasProperty("k2"));
+    ASSERT_EQ(msgs[1].getProperty("k2"), "v2");
+    ASSERT_FALSE(msgs[1].hasSchemaVersion());
+
+    ASSERT_EQ(msgs[2].getDataAsString(), "msg-2");
+    ASSERT_FALSE(msgs[2].hasPartitionKey());
+    ASSERT_FALSE(msgs[2].hasOrderingKey());
+    ASSERT_EQ(msgs[2].getEventTimestamp(), 0UL);
+    ASSERT_EQ(msgs[2].getProperties().size(), 0);
+    ASSERT_FALSE(msgs[2].hasSchemaVersion());
+
+    client.close();
+}
