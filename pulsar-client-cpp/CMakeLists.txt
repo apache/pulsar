@@ -94,7 +94,7 @@ else() # GCC or Clang are mostly compatible:
     add_compile_options(-Wall -Wformat-security -Wvla -Werror) 
     # Turn off certain warnings that are too much pain for too little gain:
     add_compile_options(-Wno-sign-compare -Wno-deprecated-declarations -Wno-error=cpp)
-    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR APPLE)
         add_compile_options(-msse4.2 -mpclmul)
     endif()
     # Options unique to Clang or GCC:
