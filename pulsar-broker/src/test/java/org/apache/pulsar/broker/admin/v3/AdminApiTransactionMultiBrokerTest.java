@@ -29,10 +29,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-admin")
 public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
     private static final int NUM_BROKERS = 16;
-    private static final int NUM_PARTITIONS = 16;
+    private static final int NUM_PARTITIONS = 3;
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -48,9 +49,10 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
         Map<String, String> map = admin.lookups()
                 .lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
-        while (map.values().contains(getPulsarServiceList().get(0).getBrokerServiceUrl())) {
+        while (map.containsValue(getPulsarServiceList().get(0).getBrokerServiceUrl())) {
             admin.topics().deletePartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
             admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
+            map = admin.lookups().lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
         }
         //init tc stores
         pulsarClient = PulsarClient.builder()
