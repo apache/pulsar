@@ -125,27 +125,48 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<TransactionInPendingAckStats> internalGetTransactionInPendingAckStats(
-            boolean authoritative, long mostSigBits, long leastSigBits, String subName) {
+            AsyncResponse asyncResponse, boolean authoritative, long mostSigBits, long leastSigBits, String subName) {
         return getExistingPersistentTopicAsync(authoritative)
                 .thenApply(topic -> topic.getTransactionInPendingAckStats(new TxnID(mostSigBits, leastSigBits),
-                        subName));
+                        subName))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get transaction state in pending ack.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     protected CompletableFuture<TransactionInBufferStats> internalGetTransactionInBufferStats(
-            boolean authoritative, long mostSigBits, long leastSigBits) {
+            AsyncResponse asyncResponse, boolean authoritative, long mostSigBits, long leastSigBits) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits)));
+                .thenApply(topic -> topic.getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits)))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get transaction state in transaction buffer.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
-    protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative) {
+    protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(AsyncResponse asyncResponse,
+                                                                                          boolean authoritative) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionBufferStats());
+                .thenApply(topic -> topic.getTransactionBufferStats())
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get transaction buffer stats in topic.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(
-            boolean authoritative, String subName) {
+            AsyncResponse asyncResponse, boolean authoritative, String subName) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionPendingAckStats(subName));
+                .thenApply(topic -> topic.getTransactionPendingAckStats(subName))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get transaction pending ack stats in topic.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
@@ -378,7 +399,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<TransactionPendingAckInternalStats> internalGetPendingAckInternalStats(
-            boolean authoritative, String subName, boolean metadata) {
+            AsyncResponse asyncResponse, boolean authoritative, String subName, boolean metadata) {
         return getExistingPersistentTopicAsync(authoritative)
                 .thenCompose(topic -> topic.getPendingAckManagedLedger(subName))
                 .thenCompose(managedLedger ->
@@ -394,7 +415,11 @@ public abstract class TransactionsBase extends AdminResource {
                                 stats.pendingAckLogStats = pendingAckLogStats;
                                 return stats;
                             })
-                );
+                ).exceptionally(ex -> {
+                    log.error("[{}] Failed to get transaction pending ack internal stats.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
