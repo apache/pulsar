@@ -299,7 +299,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {
         NamespaceService namespaceService = pulsarService.getNamespaceService();
-        LookupOptions options = LookupOptions.builder().authoritative(false).readOnly(false).build();
+        LookupOptions options = LookupOptions.builder().authoritative(true).readOnly(false).build();
         CompletableFuture<Optional<LookupResult>> brokerServiceUrl = namespaceService.getBrokerServiceUrlAsync(
                 TopicName.get(topic), options);
         return brokerServiceUrl.thenCompose(data -> {
@@ -320,7 +320,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     return getClientCnxWithLookup(topic);
                 }
             } else {
-                // Should never go here. because LookupOptions#readLonly=false
+                // Should never go here.
                 return getClientCnxWithLookup(topic);
             }
         });
