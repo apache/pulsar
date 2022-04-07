@@ -174,7 +174,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     @Override
-    protected void triggerListener() {
+    protected void tryTriggerListener() {
         // Ignore since it was already triggered in the triggerZeroQueueSizeListener() call
     }
 
