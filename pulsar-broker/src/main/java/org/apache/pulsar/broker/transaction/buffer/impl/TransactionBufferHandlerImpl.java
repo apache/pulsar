@@ -303,7 +303,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {
         NamespaceService namespaceService = pulsarService.getNamespaceService();
-        namespaceService.getNamespaceBundleFactory().invalidateBundleCache(TopicName.get(topic).getNamespaceObject());
         CompletableFuture<NamespaceBundle> nsBundle = namespaceService.getBundleAsync(TopicName.get(topic));
         return nsBundle
                 .thenCompose(bundle -> namespaceService.getOwnerAsync(bundle))
