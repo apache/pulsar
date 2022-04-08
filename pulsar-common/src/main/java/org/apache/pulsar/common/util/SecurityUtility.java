@@ -548,7 +548,7 @@ public class SecurityUtility {
         SslContextFactory sslCtxFactory = null;
         if (autoRefresh) {
             sslCtxFactory = new SslContextFactoryWithAutoRefresh(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, 0);
+                tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec);
         } else {
             sslCtxFactory = new SslContextFactory();
             SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
