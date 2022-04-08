@@ -70,3 +70,37 @@ TEST(SchemaTest, testSchema) {
     res = client.subscribe("topic-avro", "sub-2", consumerConf, consumer);
     ASSERT_EQ(ResultIncompatibleSchema, res);
 }
+
+TEST(SchemaTest, testHasSchemaVersion) {
+    Client client(lookupUrl);
+    std::string topic = "SchemaTest-HasSchemaVersion";
+    SchemaInfo stringSchema(SchemaType::STRING, "String", "");
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic + "1", "sub", ConsumerConfiguration().setSchema(stringSchema),
+                                         consumer));
+    Producer batchedProducer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic + "1", ProducerConfiguration().setSchema(stringSchema),
+                                              batchedProducer));
+    Producer nonBatchedProducer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic + "1", ProducerConfiguration().setSchema(stringSchema),
+                                              nonBatchedProducer));
+
+    ASSERT_EQ(ResultOk, batchedProducer.send(MessageBuilder().setContent("msg-0").build()));
+    ASSERT_EQ(ResultOk, nonBatchedProducer.send(MessageBuilder().setContent("msg-1").build()));
+
+    Message msgs[2];
+    ASSERT_EQ(ResultOk, consumer.receive(msgs[0], 3000));
+    ASSERT_EQ(ResultOk, consumer.receive(msgs[1], 3000));
+
+    std::string schemaVersion(8, '\0');
+    ASSERT_EQ(msgs[0].getDataAsString(), "msg-0");
+    ASSERT_TRUE(msgs[0].hasSchemaVersion());
+    ASSERT_EQ(msgs[0].getSchemaVersion(), schemaVersion);
+
+    ASSERT_EQ(msgs[1].getDataAsString(), "msg-1");
+    ASSERT_TRUE(msgs[1].hasSchemaVersion());
+    ASSERT_EQ(msgs[1].getSchemaVersion(), schemaVersion);
+
+    client.close();
+}
