@@ -747,7 +747,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         // Redirect if we are not the leader
         if (!worker().getLeaderService().isLeader()) {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
-            if (workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+            if (workerInfo == null || workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
                 throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
                         "Leader not yet ready. Please retry again");
             }
