@@ -46,6 +46,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -73,6 +74,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -569,4 +571,50 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertTrue(stats.getSubscriptions().keySet().contains("__compaction"));
     }
 
+    @Test
+    public void transactionBufferRecoverFailRemoveProducerFuture() throws Exception {
+        String topic = NAMESPACE1 + "/transactionBufferRecoverFailRemoveProducerFuture";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+
+        // txn buffer init success
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        txn.commit().get();
+
+        PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) originalTopic.getTransactionBuffer();
+
+        CompletableFuture<Void> bufferFuture = new CompletableFuture<>();
+        bufferFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException("test"));
+
+        // set fail future to topic transaction buffer
+        Whitebox.setInternalState(topicTransactionBuffer, "transactionBufferFuture", bufferFuture);
+
+        originalTopic.getProducers().get(originalTopic.getProducers().keySet().toArray()[0]).disconnect().get();
+        // client producer has been close and reconnect
+        Awaitility.await().untilAsserted(() -> assertFalse(producer.isConnected()));
+        // producer is dis connect
+        Awaitility.await().until(() -> !producer.isConnected());
+        // client producer can't reconnect to broker
+        Awaitility.await().during(5, TimeUnit.SECONDS).until(() -> !producer.isConnected());
+
+        // recover the buffer future
+        bufferFuture = new CompletableFuture<>();
+        bufferFuture.complete(null);
+        Whitebox.setInternalState(topicTransactionBuffer, "transactionBufferFuture", bufferFuture);
+
+        // client producer can't connect to broker
+        Awaitility.await().until(producer::isConnected);
+    }
 }

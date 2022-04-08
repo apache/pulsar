@@ -1256,6 +1256,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     Throwable cause = exception.getCause();
                                     log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
                                             producerId, requestId, exception);
+                                    producers.remove(producerId, producerFuture);
                                     commandSender.sendErrorResponse(requestId,
                                             ServiceUnitNotReadyException.getClientErrorCode(cause),
                                             cause.getMessage());
