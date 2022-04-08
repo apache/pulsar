@@ -165,7 +165,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             return;
         }
 
-        if (lh != null &&  ledger!=null && ledger.getId() != lh.getId()) {
+        if (lh != null && ledger != null && ledger.getId() != lh.getId()) {
             log.warn("[{}] ledgerId {} doesn't match with acked ledgerId {}", ml.getName(), ledger.getId(), lh.getId());
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
