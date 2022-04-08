@@ -229,7 +229,11 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             }
         } else {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
-            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            if (workerInfo == null) {
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Leader cannot be determined");
+            }
+            URI redirect =
+                    UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
     }
