@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.discovery.service;
 
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
-
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.SslContext;
 
 /**
  * Initialize service channel handlers.
@@ -65,11 +65,17 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                         serviceConfig.getTlsProtocols(),
                         serviceConfig.getTlsCertRefreshCheckDurationSec());
             } else {
-                sslCtxRefresher = new NettyServerSslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
-                        serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                        serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                        serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
-                        serviceConfig.getTlsCertRefreshCheckDurationSec());
+                SslProvider sslProvider = null;
+                if (serviceConfig.getTlsProvider() != null) {
+                    sslProvider = SslProvider.valueOf(serviceConfig.getTlsProvider());
+                }
+                sslCtxRefresher =
+                        new NettyServerSslContextBuilder(sslProvider, serviceConfig.isTlsAllowInsecureConnection(),
+                                serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                                serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(),
+                                serviceConfig.getTlsProtocols(),
+                                serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
+                                serviceConfig.getTlsCertRefreshCheckDurationSec());
             }
         } else {
             this.sslCtxRefresher = null;
