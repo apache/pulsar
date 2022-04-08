@@ -45,7 +45,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStreamImpl.class);
 
     static final int[] BLOCK_END_PADDING = new int[]{ 0xFE, 0xDC, 0xDE, 0xAD };
-    static final byte[] BLOCK_END_PADDING_BYTES = Ints.toByteArray(0xFEDCDEAD);
+    static final byte[] BLOCK_END_PADDING_BYTES =  Ints.toByteArray(0xFEDCDEAD);
 
     private final ReadHandle ledger;
     private final long startEntryId;
@@ -204,7 +204,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         if (dataBlockHeaderStream.available() > 0) {
             int read = dataBlockHeaderStream.read(b, off, len);
             offset += read;
-            readLen -= readLen;
+            readLen -= read;
             readBytes += read;
             bytesReadOffset += read;
         }
