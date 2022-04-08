@@ -20,8 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
