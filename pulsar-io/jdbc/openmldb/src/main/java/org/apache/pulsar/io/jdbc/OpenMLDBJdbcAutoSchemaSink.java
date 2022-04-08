@@ -22,9 +22,6 @@ package org.apache.pulsar.io.jdbc;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
-/**
- *
- */
 @Connector(
         name = "jdbc-openmldb",
         type = IOType.SINK,
