@@ -689,26 +689,35 @@ void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::Messa
             batchMetadata.add_replicate_to(metadata.replicate_to(i));
         }
     }
-    // TODO: set other optional fields
+    if (metadata.has_schema_version()) {
+        batchMetadata.set_schema_version(metadata.schema_version());
+    }
 }
 
 uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
                                                             unsigned long maxMessageSizeInBytes) {
+    const auto& msgMetadata = msg.impl_->metadata;
     SingleMessageMetadata metadata;
-    if (msg.impl_->hasPartitionKey()) {
-        metadata.set_partition_key(msg.impl_->getPartitionKey());
+    if (msgMetadata.has_partition_key()) {
+        metadata.set_partition_key(msgMetadata.partition_key());
+    }
+    if (msgMetadata.has_ordering_key()) {
+        metadata.set_ordering_key(msgMetadata.ordering_key());
     }
 
-    for (MessageBuilder::StringMap::const_iterator it = msg.impl_->properties().begin();
-         it != msg.impl_->properties().end(); it++) {
-        proto::KeyValue* keyValue = proto::KeyValue().New();
-        keyValue->set_key(it->first);
-        keyValue->set_value(it->second);
+    metadata.mutable_properties()->Reserve(msgMetadata.properties_size());
+    for (int i = 0; i < msgMetadata.properties_size(); i++) {
+        auto keyValue = proto::KeyValue().New();
+        *keyValue = msgMetadata.properties(i);
         metadata.mutable_properties()->AddAllocated(keyValue);
     }
 
-    if (msg.impl_->getEventTimestamp() != 0) {
-        metadata.set_event_time(msg.impl_->getEventTimestamp());
+    if (msgMetadata.has_event_time()) {
+        metadata.set_event_time(msgMetadata.event_time());
+    }
+
+    if (msgMetadata.has_sequence_id()) {
+        metadata.set_sequence_id(msgMetadata.sequence_id());
     }
 
     // Format of batch message
@@ -738,7 +747,7 @@ uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, 
     batchPayLoad.bytesWritten(msgMetadataSize);
     batchPayLoad.write(msg.impl_->payload.data(), payloadSize);
 
-    return msg.impl_->metadata.sequence_id();
+    return msgMetadata.sequence_id();
 }
 
 Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex) {
