@@ -748,8 +748,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
-                this.transactionBufferSnapshotService =
-                        new SystemTopicBaseTxnBufferSnapshotService(getClient(), executor);
+                this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
                 transactionBufferClient = TransactionBufferClientImpl.create(this, transactionTimer,

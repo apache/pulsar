@@ -48,6 +48,13 @@ public interface TransactionBufferSnapshotService {
     SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter createReferenceWriter(NamespaceName namespaceName);
 
     /**
+     * Release the reference count writer.
+     *
+     * @param referenceCountedWriter reference count writer
+     */
+    void releaseReferenceWriter(SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter referenceCountedWriter);
+
+    /**
      * Create a transaction buffer snapshot reader.
      *
      * @param topicName {@link TopicName} the topic name

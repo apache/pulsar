@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -476,9 +475,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
+    public synchronized CompletableFuture<Void> closeAsync() {
+        if (!checkIfClose()) {
+            // make sure the object only release one time.
+            topic.getBrokerService().pulsar().getTransactionBufferSnapshotService()
+                    .releaseReferenceWriter(this.takeSnapshotWriter);
+        }
         changeToCloseState();
-        ReferenceCountUtil.safeRelease(this.takeSnapshotWriter);
         return CompletableFuture.completedFuture(null);
     }
 

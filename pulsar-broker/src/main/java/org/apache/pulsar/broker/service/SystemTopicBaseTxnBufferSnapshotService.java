@@ -19,16 +19,14 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.util.AbstractReferenceCounted;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.ReferenceCounted;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
@@ -37,7 +35,6 @@ import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -49,7 +46,6 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
     private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
-    private final ScheduledExecutorService scheduledExecutorService;
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerFutureMap;
     private final LinkedList<CompletableFuture<Writer<TransactionBufferSnapshot>>> pendingCloseWriterList;
 
@@ -59,49 +55,31 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
         private final NamespaceName namespaceName;
         private final SystemTopicBaseTxnBufferSnapshotService service;
-        private CompletableFuture<Writer<TransactionBufferSnapshot>> future;
-        private final Backoff backoff;
+        private final CompletableFuture<Writer<TransactionBufferSnapshot>> future;
 
-        protected ReferenceCountedWriter(NamespaceName namespaceName,
-                                         SystemTopicBaseTxnBufferSnapshotService service) {
+        private ReferenceCountedWriter(NamespaceName namespaceName,
+                                         SystemTopicBaseTxnBufferSnapshotService service,
+                                         CompletableFuture<Writer<TransactionBufferSnapshot>> future) {
             this.namespaceName = namespaceName;
             this.service = service;
-            this.backoff = new Backoff(1, TimeUnit.SECONDS, 3, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
-            initWriterFuture();
-        }
-
-        private synchronized void initWriterFuture() {
-            this.future = service.getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync();
-            this.future.thenRunAsync(this.backoff::reset).exceptionally(throwable -> {
-                long delay = backoff.next();
-                log.error("[{}] Failed to new transaction buffer system topic writer,"
-                        + "try to re-create the writer in {} ms.", delay, namespaceName, throwable);
-                service.scheduledExecutorService.schedule(
-                        SafeRun.safeRun(this::initWriterFuture), delay, TimeUnit.MILLISECONDS);
+            this.future = future;
+            this.future.exceptionally(t -> {
+                log.error("[{}] Failed to create transaction buffer snapshot writer.", namespaceName, t);
+                service.writerFutureMap.remove(namespaceName, this);
                 return null;
             });
         }
 
         public CompletableFuture<Writer<TransactionBufferSnapshot>> getFuture() {
-            if (future == null) {
-                // normally, this will not happen, not affect reference count, only avoid return a null object.
-                initWriterFuture();
-            }
             return future;
         }
 
         @Override
         protected void deallocate() {
-            service.writerFutureMap.compute(namespaceName, (k, v) -> {
-                if (v == this) {
-                    // only remove it's self, avoid remove new add reference count object
-                    service.writerFutureMap.remove(namespaceName);
-                    service.pendingCloseWriterList.add(this.future);
-                    service.closePendingCloseWriter();
-                    return null;
-                }
-                return v;
-            });
+            if (service.writerFutureMap.remove(namespaceName, this)) {
+                service.pendingCloseWriterList.add(this.future);
+                service.closePendingCloseWriter();
+            }
         }
 
         @Override
@@ -111,11 +89,9 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
     }
 
-    public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client,
-                                                   ScheduledExecutorService scheduledExecutorService) {
+    public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client) {
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.clients = new ConcurrentHashMap<>();
-        this.scheduledExecutorService = scheduledExecutorService;
         this.writerFutureMap = new ConcurrentHashMap<>();
         this.pendingCloseWriterList = new LinkedList<>();
     }
@@ -132,20 +108,32 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
     @Override
     public ReferenceCountedWriter createReferenceWriter(NamespaceName namespaceName) {
-        return writerFutureMap.compute(namespaceName, (ns, writerFuture) -> {
-            if (writerFuture == null) {
-                return new ReferenceCountedWriter(namespaceName, this);
+        ReferenceCountedWriter referenceCountedWriter = writerFutureMap.compute(namespaceName, (ns, value) -> {
+            if (value == null) {
+                return new ReferenceCountedWriter(namespaceName, this,
+                        getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync());
             }
             try {
-                writerFuture.retain();
+                value.retain();
             } catch (Exception e) {
-                // Resolve potential race condition problem, if retain method encounter reference count exception
-                // or other exceptions, create a new `ReferenceCountedWriter`, when the `ReferenceCountedWriter` release
-                // but didn't remove from `writerFutureMap`.
-                return new ReferenceCountedWriter(namespaceName, this);
+                log.warn("[{}] The reference counted writer was already released, {}", namespaceName, e.getMessage());
+                return null;
             }
-            return writerFuture;
+            return value;
         });
+        if (referenceCountedWriter == null) {
+            // normally, this will not happen, just a safety check.
+            throw new RuntimeException(
+                    String.format("[%s] Failed to create transaction buffer snapshot writer.", namespaceName));
+        }
+        return referenceCountedWriter;
+    }
+
+    @Override
+    public void releaseReferenceWriter(ReferenceCountedWriter referenceCountedWriter) {
+        synchronized (writerFutureMap) {
+            ReferenceCountUtil.safeRelease(referenceCountedWriter);
+        }
     }
 
     private SystemTopicClient<TransactionBufferSnapshot> getTransactionBufferSystemTopicClient(
