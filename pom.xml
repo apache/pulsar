@@ -150,7 +150,7 @@ flexible messaging model and an intuitive client API.</description>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.2.25</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.3.3</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
@@ -161,7 +161,8 @@ flexible messaging model and an intuitive client API.</description>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
-    <debezium.postgresql.version>42.2.25</debezium.postgresql.version>
+    <debezium.postgresql.version>42.3.3</debezium.postgresql.version>
+    <debezium.mysql.version>8.0.28</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>

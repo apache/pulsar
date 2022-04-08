@@ -40,6 +40,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -144,6 +145,7 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.functions.utils.Exceptions;
@@ -159,6 +161,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final String listenerName;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
+    private final boolean enableSubscriptionPatternEvaluation;
+    private final int maxSubscriptionPatternLength;
     private State state;
     private volatile boolean isActive = true;
     String authRole = null;
@@ -267,6 +271,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 / conf.getNumIOThreads();
         this.resumeThresholdPendingBytesPerThread = this.maxPendingBytesPerThread / 2;
         this.connectionController = new ConnectionController.DefaultConnectionController(conf);
+        this.enableSubscriptionPatternEvaluation = conf.isEnableBrokerSideSubscriptionPatternEvaluation();
+        this.maxSubscriptionPatternLength = conf.getSubscriptionPatternMaxLength();
     }
 
     @Override
@@ -1952,6 +1958,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
         final String namespace = commandGetTopicsOfNamespace.getNamespace();
         final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
+        final Optional<String> topicsPattern = Optional.ofNullable(commandGetTopicsOfNamespace.hasTopicsPattern()
+                ? commandGetTopicsOfNamespace.getTopicsPattern() : null);
+        final Optional<String> topicsHash = Optional.ofNullable(commandGetTopicsOfNamespace.hasTopicsHash()
+                ? commandGetTopicsOfNamespace.getTopicsHash() : null);
         final NamespaceName namespaceName = NamespaceName.get(namespace);
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
@@ -1968,12 +1978,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (isAuthorized) {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
                         .thenAccept(topics -> {
+                            boolean filterTopics = false;
+                            List<String> filteredTopics = topics;
+
+                            if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
+                                if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
+                                    filterTopics = true;
+                                    filteredTopics = TopicList.filterTopics(topics, topicsPattern.get());
+                                } else {
+                                    log.info("[{}] Subscription pattern provided was longer than maximum {}.",
+                                            remoteAddress, maxSubscriptionPatternLength);
+                                }
+                            }
+                            String hash = TopicList.calculateHash(filteredTopics);
+                            boolean hashUnchanged = topicsHash.isPresent() && topicsHash.get().equals(hash);
+                            if (hashUnchanged) {
+                                filteredTopics = Collections.emptyList();
+                            }
                             if (log.isDebugEnabled()) {
                                 log.debug(
                                         "[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
                                         remoteAddress, namespace, requestId, topics.size());
                             }
-                            commandSender.sendGetTopicsOfNamespaceResponse(topics, requestId);
+                            commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics, hash, filterTopics,
+                                    !hashUnchanged, requestId);
                             lookupSemaphore.release();
                         })
                         .exceptionally(ex -> {
@@ -2009,6 +2037,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     "Failed due to too many pending lookup requests");
         }
     }
+
+
 
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
