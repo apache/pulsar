@@ -72,12 +72,12 @@ RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/
     rm -rf /boost_1_78_0.tar.gz /boost_1_78_0
 
 # Download and copile protoubf
-RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
-    tar xvfz protobuf-cpp-3.3.0.tar.gz && \
-    cd protobuf-3.3.0/ && \
+RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
+    tar xvfz protobuf-cpp-3.20.0.tar.gz && \
+    cd protobuf-3.20.0/ && \
     CXXFLAGS=-fPIC ./configure && \
     make -j8 && make install && ldconfig && \
-    rm -rf /protobuf-cpp-3.3.0.tar.gz /protobuf-3.3.0
+    rm -rf /protobuf-cpp-3.20.0.tar.gz /protobuf-3.20.0
 
 # Compile expat
 RUN curl -O -L  https://github.com/libexpat/libexpat/archive/R_2_2_0.tar.gz && \
