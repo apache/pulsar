@@ -33,7 +33,7 @@
     <name>Pulsar IO :: Canal</name>
 
     <properties>
-        <spring.version>5.0.20.RELEASE</spring.version>
+        <spring.version>5.3.18</spring.version>
         <canal.version>1.1.5</canal.version>
     </properties>
 
