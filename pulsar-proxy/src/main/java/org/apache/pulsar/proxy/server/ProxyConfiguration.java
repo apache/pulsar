@@ -603,9 +603,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
            minValue = 1,
            category = CATEGORY_HTTP,
-           doc = "Number of threads to use for HTTP requests processing"
+            doc = "Maximum number of threads to use for HTTP requests processing"
+                    + " Default is set to 200. Initial number of threads is 8 when numHttpServerThreads >= 8."
     )
-    private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
+    private int httpNumThreads = 200;
 
     @FieldContext(
             category = CATEGORY_SERVER,
