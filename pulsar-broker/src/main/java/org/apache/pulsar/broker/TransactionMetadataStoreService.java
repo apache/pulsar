@@ -445,7 +445,7 @@ public class TransactionMetadataStoreService {
         return getTxnMeta(txnID)
                 .thenCompose(txnMeta -> {
                     long lowWaterMark = getLowWaterMark(txnID);
-                    Stream<CompletableFuture<?>> onSubFutureStream =txnMeta.ackedPartitions().stream().map(tbSub -> {
+                    Stream<CompletableFuture<?>> onSubFutureStream = txnMeta.ackedPartitions().stream().map(tbSub -> {
                         switch (txnAction) {
                             case TxnAction.COMMIT_VALUE:
                                 return tbClient.commitTxnOnSubscription(
