@@ -66,6 +66,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+@Test(groups = "broker-admin")
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
