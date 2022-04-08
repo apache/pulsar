@@ -19,18 +19,23 @@
 package org.apache.pulsar.client.impl;
 
 import lombok.Cleanup;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +54,20 @@ public class ProducerCloseTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    /**
+     * Param1: Producer enableBatch or not
+     * Param2: Send in async way or not
+     */
+    @DataProvider(name = "produceConf")
+    public Object[][] produceConf() {
+        return new Object[][]{
+                {true, true},
+                {true, false},
+                {false, true},
+                {false, false}
+        };
     }
 
     @Test(timeOut = 10_000)
@@ -96,6 +115,33 @@ public class ProducerCloseTest extends ProducerConsumerBase {
             completableFuture.get();
         } catch (ExecutionException e) {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.AlreadyClosedException);
+        }
+    }
+
+    @Test(timeOut = 10_000, dataProvider = "produceConf")
+    public void brokerCloseTopicTest(boolean enableBatch, boolean isAsyncSend) throws Exception {
+        PulsarClient longBackOffClient = PulsarClient.builder()
+                .startingBackoffInterval(5, TimeUnit.SECONDS)
+                .maxBackoffInterval(5, TimeUnit.SECONDS)
+                .serviceUrl(lookupUrl.toString())
+                .build();
+        String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) longBackOffClient.newProducer()
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+        producer.newMessage().value("test".getBytes()).send();
+
+        Optional<Topic> topicOptional = pulsar.getBrokerService()
+                .getTopicReference(TopicName.get(topic).getPartitionedTopicName());
+        Assert.assertTrue(topicOptional.isPresent());
+        topicOptional.get().close(true).get();
+        Assert.assertEquals(producer.getState(), HandlerState.State.Connecting);
+        if (isAsyncSend) {
+            producer.newMessage().value("test".getBytes()).sendAsync().get();
+        } else {
+            producer.newMessage().value("test".getBytes()).send();
         }
     }
 

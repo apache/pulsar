@@ -76,4 +76,34 @@ public class DataBlockUtils {
                 version, key, CURRENT_VERSION));
         }
     };
+
+    public static Long parseLedgerId(String name) {
+        if (name == null || name.isEmpty()) {
+            return null;
+        }
+        if (name.endsWith("-index")) {
+            name = name.substring(0, name.length() - "-index".length());
+        }
+        int pos = name.indexOf("-ledger-");
+        if (pos < 0) {
+            return null;
+        }
+        try {
+            return Long.parseLong(name.substring(pos + 8));
+        } catch (NumberFormatException err) {
+            return null;
+        }
+    }
+
+    public static String parseContextUuid(String name, Long ledgerId) {
+        if (ledgerId == null || name == null) {
+            return null;
+        }
+        int pos = name.indexOf("-ledger-" + ledgerId);
+        if (pos <= 0) {
+            return null;
+        }
+        return name.substring(0, pos);
+    }
+
 }

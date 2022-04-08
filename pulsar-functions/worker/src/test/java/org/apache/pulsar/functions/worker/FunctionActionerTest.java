@@ -33,6 +33,7 @@ import static org.testng.AssertJUnit.fail;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
@@ -216,6 +217,54 @@ public class FunctionActionerTest {
 
         // make sure cache
         verify(functionAuthProvider.get(), times(0)).cleanUpAuthData(any(), any());
+    }
+
+    @Test
+    public void testStartFunctionWithPackageUrl() throws Exception {
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+        workerConfig.setStateStorageServiceUrl("foo");
+        workerConfig.setFunctionAssignmentTopicName("assignments");
+        String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+        workerConfig.setDownloadDirectory(downloadDir);
+
+        RuntimeFactory factory = mock(RuntimeFactory.class);
+        Runtime runtime = mock(Runtime.class);
+        doReturn(runtime).when(factory).createContainer(any(), any(), any(), any());
+        doNothing().when(runtime).start();
+        Namespace dlogNamespace = mock(Namespace.class);
+        final String exceptionMsg = "dl namespace not-found";
+        doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
+        PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
+        Packages packages = mock(Packages.class);
+        doReturn(packages).when(pulsarAdmin).packages();
+        doNothing().when(packages).download(any(), any());
+
+        @SuppressWarnings("resource")
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), pulsarAdmin);
+
+        // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
+        // RuntimeSpawner
+        String pkgPathLocation = "function://public/default/test-function@latest";
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
+                        .setNamespace("test-namespace").setName("func-1"))
+                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
+                .build();
+        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                .build();
+        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
+        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+
+        actioner.startFunction(functionRuntimeInfo);
+        verify(runtime, times(1)).start();
     }
 
 }

@@ -55,6 +55,7 @@ import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Codec;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -181,6 +182,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void recoverExceptionally(Throwable e) {
 
+                        log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
+                                + "transaction buffer throw exception", topic.getName(), e);
                         // when create reader or writer fail throw PulsarClientException,
                         // should close this topic and then reinit this topic
                         if (e instanceof PulsarClientException) {
@@ -189,8 +192,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             // the tc do op will retry
                             transactionBufferFuture.completeExceptionally
                                     (new BrokerServiceException.ServiceUnitNotReadyException(e.getMessage(), e));
-                            log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
-                                    + "transaction buffer throw exception", topic.getName(), e);
                         } else {
                             transactionBufferFuture.completeExceptionally(e);
                         }
@@ -201,7 +202,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -590,6 +591,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     }
                                 }
                                 if (!hasSnapshot) {
+                                    closeReader(reader);
                                     callBack.noNeedToRecover();
                                     return;
                                 }
@@ -597,16 +599,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 log.error("[{}]Transaction buffer recover fail when read "
                                         + "transactionBufferSnapshot!", topic.getName(), pulsarClientException);
                                 callBack.recoverExceptionally(pulsarClientException);
-                                reader.closeAsync().exceptionally(e -> {
-                                    log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                                    return null;
-                                });
+                                closeReader(reader);
                                 return;
                             }
-                            reader.closeAsync().exceptionally(e -> {
-                                log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                                return null;
-                            });
+                            closeReader(reader);
 
                             ManagedCursor managedCursor;
                             try {
@@ -644,7 +640,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 }
                             }
 
-                            closeCursor(managedCursor);
+                            closeCursor(SUBSCRIPTION_NAME);
                             callBack.recoverComplete();
                         }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                                 .getExecutor(this)).exceptionally(e -> {
@@ -661,23 +657,32 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             });
         }
 
-        private void closeCursor(ManagedCursor cursor) {
-            cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
+        private void closeCursor(String subscriptionName) {
+            topic.getManagedLedger().asyncDeleteCursor(Codec.encode(subscriptionName),
+                    new AsyncCallbacks.DeleteCursorCallback() {
                 @Override
-                public void closeComplete(Object ctx) {
+                public void deleteCursorComplete(Object ctx) {
                     log.info("[{}]Transaction buffer snapshot recover cursor close complete.", topic.getName());
                 }
 
                 @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}]Transaction buffer snapshot recover cursor close fail.", topic.getName());
                 }
+
             }, null);
         }
 
         private void callBackException(ManagedLedgerException e) {
             log.error("Transaction buffer recover fail when recover transaction entry!", e);
             this.exceptionNumber.getAndIncrement();
+        }
+
+        private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {
+            reader.closeAsync().exceptionally(e -> {
+                log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
+                return null;
+            });
         }
     }
 
@@ -732,7 +737,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (recover.topic.getManagedLedger().getConfig().isAutoSkipNonRecoverableData()
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
-                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
             } else {
                 outstandingReadsRequests.decrementAndGet();

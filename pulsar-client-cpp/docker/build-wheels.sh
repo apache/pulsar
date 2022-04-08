@@ -27,33 +27,29 @@ BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 ROOT_DIR=`cd $(dirname $0)/../..; pwd`
 cd $ROOT_DIR
 
-PYTHON_VERSIONS=(
-   '2.7 cp27-cp27mu'
-   '2.7 cp27-cp27m'
-   '3.5 cp35-cp35m'
-   '3.6 cp36-cp36m'
-   '3.7 cp37-cp37m'
-   '3.8 cp38-cp38'
-   '3.9 cp39-cp39'
-)
+source ./pulsar-client-cpp/docker/python-versions.sh
 
-function contains() {
-    local n=$#
-    local value=${!n}
-    for ((i=1;i < $#;i++)) {
-        if [ "${!i}" == "${value}" ]; then
-            echo "y"
-            return 0
+function contains_build_version {
+    for line in "${PYTHON_VERSIONS[@]}"; do
+        read -r -a v <<< "$line"
+        value="${v[0]} ${v[1]} ${v[2]} ${v[3]}"
+
+        if [ "${build_version}" == "${value}" ]; then
+            # found
+            res=1
+            return
         fi
-    }
-    echo "n"
-    return 1
+    done
+
+    # not found
+    res=0
 }
 
 
 if [ $# -ge 1 ]; then
     build_version=$@
-    if [ $(contains "${PYTHON_VERSIONS[@]}" "${build_version}") == "y" ]; then
+    contains_build_version
+    if [ $res == 1 ]; then
         PYTHON_VERSIONS=(
             "${build_version}"
         )
@@ -69,9 +65,11 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     read -r -a PY <<< "$line"
     PYTHON_VERSION=${PY[0]}
     PYTHON_SPEC=${PY[1]}
-    echo "--------- Build Python wheel for $PYTHON_VERSION -- $PYTHON_SPEC"
+    IMAGE=${PY[2]}
+    ARCH=${PY[3]}
+    echo "--------- Build Python wheel for $PYTHON_VERSION -- $IMAGE -- $PYTHON_SPEC -- $ARCH"
 
-    IMAGE=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC
+    IMAGE=$BUILD_IMAGE_NAME:${IMAGE}-$PYTHON_SPEC-$ARCH
 
     echo "Using image: $IMAGE"
 
@@ -79,6 +77,6 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     COMMAND="/pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh"
     DOCKER_CMD="docker run -i ${VOLUME_OPTION} -e USE_FULL_POM_NAME -e NAME_POSTFIX ${IMAGE}"
 
-    $DOCKER_CMD bash -c "${COMMAND}"
+    $DOCKER_CMD bash -c "ARCH=$ARCH ${COMMAND}"
 
 done

@@ -45,7 +45,9 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -89,6 +91,8 @@ import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
@@ -99,6 +103,7 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -106,6 +111,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -142,6 +148,14 @@ public class ServerCnxTest {
     private final String successSubName = "successSub";
     private final String nonExistentTopicName = "persistent://nonexistent-prop/nonexistent-cluster/nonexistent-namespace/successNonExistentTopic";
     private final String topicWithNonLocalCluster = "persistent://prop/usw/ns-abc/successTopic";
+    private final List<String> matchingTopics = Arrays.asList(
+            "persistent://use/ns-abc/topic-1",
+            "persistent://use/ns-abc/topic-2");
+
+    private final List<String> topics = Arrays.asList(
+            "persistent://use/ns-abc/topic-1",
+            "persistent://use/ns-abc/topic-2",
+            "persistent://use/ns-abc/topic");
 
     private final ManagedLedger ledgerMock = mock(ManagedLedger.class);
     private final ManagedCursor cursorMock = mock(ManagedCursor.class);
@@ -194,6 +208,8 @@ public class ServerCnxTest {
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
         doReturn(true).when(namespaceService).isServiceUnitActive(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
+                NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
 
         setupMLAsyncCallbackMocks();
 
@@ -1833,6 +1849,101 @@ public class ServerCnxTest {
         assertEquals(response3.getClass(), CommandError.class);
         assertEquals(((CommandError) response3).getError(), ServerError.ServiceNotReady);
         assertEquals(((CommandError) response3).getRequestId(), 3);
+
+        channel.finish();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespace() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
+                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL, null, null);
+        channel.writeInbound(clientCommand);
+        CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
+
+        assertEquals(response.getTopicsList(), topics);
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(topics));
+        assertTrue(response.isChanged());
+        assertFalse(response.isFiltered());
+
+        channel.finish();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceDisabledFiltering() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(false);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
+                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
+                "use/ns-abc/topic-.*", null);
+        channel.writeInbound(clientCommand);
+        CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
+
+        assertEquals(response.getTopicsList(), topics);
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(topics));
+        assertTrue(response.isChanged());
+        assertFalse(response.isFiltered());
+
+        channel.finish();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceLongPattern() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        svcConfig.setSubscriptionPatternMaxLength(10);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
+                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
+                "use/ns-abc/(t|o|to|p|i|c)+-?)+!", null);
+        channel.writeInbound(clientCommand);
+        CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
+
+        assertEquals(response.getTopicsList(), topics);
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(topics));
+        assertTrue(response.isChanged());
+        assertFalse(response.isFiltered());
+
+        channel.finish();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceFiltering() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
+                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
+                "use/ns-abc/topic-.*", "SOME_HASH");
+        channel.writeInbound(clientCommand);
+        CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
+
+        assertEquals(response.getTopicsList(), matchingTopics);
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(matchingTopics));
+        assertTrue(response.isChanged());
+        assertTrue(response.isFiltered());
+
+        channel.finish();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceNoChange() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
+                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
+                "use/ns-abc/topic-.*", TopicList.calculateHash(matchingTopics));
+        channel.writeInbound(clientCommand);
+        CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
+
+        assertEquals(response.getTopicsList(), Collections.emptyList());
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(matchingTopics));
+        assertFalse(response.isChanged());
+        assertTrue(response.isFiltered());
 
         channel.finish();
     }
