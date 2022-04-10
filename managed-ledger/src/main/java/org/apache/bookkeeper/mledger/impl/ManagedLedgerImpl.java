@@ -1750,6 +1750,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             opReadEntry.readEntriesFailed(new ManagedLedgerFencedException(), opReadEntry.ctx);
             return;
         }
+        if (opReadEntry.isInvalid()) {
+            opReadEntry.readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException("The ceilingKey(opReadEntry.readPosition"
+                    + ") method is used to return the least key greater than or equal to the given key, "
+                    + "or null if there is no such key"), opReadEntry.ctx);
+            return;
+        }
 
         long ledgerId = opReadEntry.readPosition.getLedgerId();
 
@@ -2230,9 +2236,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     PositionImpl startReadOperationOnLedger(PositionImpl position, OpReadEntry opReadEntry) {
         Long ledgerId = ledgers.ceilingKey(position.getLedgerId());
         if (null == ledgerId) {
-            opReadEntry.readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException("The ceilingKey(K key"
-                    + ") method is used to return the least key greater than or equal to the given key, "
-                    + "or null if there is no such key"), null);
+            opReadEntry.makeInvalid();
+            return null;
         }
 
         if (ledgerId != position.getLedgerId()) {

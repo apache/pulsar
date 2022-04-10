@@ -39,6 +39,7 @@ class OpReadEntry implements ReadEntriesCallback {
     private int count;
     private ReadEntriesCallback callback;
     Object ctx;
+    private boolean invalid;
 
     // Results
     private List<Entry> entries;
@@ -48,7 +49,6 @@ class OpReadEntry implements ReadEntriesCallback {
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
         OpReadEntry op = RECYCLER.get();
-        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
         op.cursor = cursor;
         op.count = count;
         op.callback = callback;
@@ -58,7 +58,8 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         op.maxPosition = maxPosition;
         op.ctx = ctx;
-        op.nextReadPosition = PositionImpl.get(op.readPosition);
+        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
+        op.nextReadPosition = op.readPosition == null ? null : PositionImpl.get(op.readPosition);
         return op;
     }
 
@@ -161,6 +162,14 @@ class OpReadEntry implements ReadEntriesCallback {
         }
     }
 
+    public void makeInvalid() {
+        this.invalid = true;
+    }
+
+    public boolean isInvalid() {
+        return this.invalid;
+    }
+
     public int getNumberOfEntriesToRead() {
         return count - entries.size();
     }
@@ -185,8 +194,10 @@ class OpReadEntry implements ReadEntriesCallback {
     public void recycle() {
         cursor = null;
         readPosition = null;
+        count = 0;
         callback = null;
         ctx = null;
+        invalid = false;
         entries = null;
         nextReadPosition = null;
         maxPosition = null;

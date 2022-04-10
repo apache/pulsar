@@ -3750,5 +3750,49 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> assertTrue(flag.get()));
     }
 
+    @Test
+    public void testReadInvalidPositionEntry() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMetadataMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testReadInvalidPositionEntry", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
+
+        PositionImpl lastPosition = (PositionImpl) ledger.addEntry("test".getBytes(Encoding));
+        ledger.rollCurrentLedgerIfFull();
+
+        AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+        AtomicReference<Object> ctxRef = new AtomicReference<>();
+
+        ReadEntriesCallback callback = new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                exceptionRef.set(exception);
+                ctxRef.set(ctx);
+            }
+        };
+        //Invalid position
+        PositionImpl invalidPosition = new PositionImpl(ledger.lastConfirmedEntry.getLedgerId() + 1, 0);
+
+        Object ctx = new Object();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, invalidPosition, 10, callback,
+                ctx, PositionImpl.get(lastPosition.getLedgerId(), -1));
+        ledger.asyncReadEntries(opReadEntry);
+
+        // when readPosition's ledger didn't exist, throw NoMoreEntriesToReadException.
+        Awaitility.await().untilAsserted(() -> assertNotNull(exceptionRef.get()));
+        Awaitility.await().untilAsserted(() -> assertEquals(exceptionRef.get().getClass(), ManagedLedgerException.NoMoreEntriesToReadException.class));
+
+        Awaitility.await().untilAsserted(() -> assertNotNull(ctxRef.get()));
+        Awaitility.await().untilAsserted(() -> assertEquals(ctxRef.get(), ctx));
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
