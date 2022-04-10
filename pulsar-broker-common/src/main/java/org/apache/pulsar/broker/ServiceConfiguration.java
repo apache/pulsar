@@ -1814,12 +1814,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Max number of `acknowledgment holes` that can be stored in MetadataStore.\n\n"
+                    + "If number of unack message range is higher than this limit then broker will persist"
+                    + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
+    private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
             doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
@@ -2724,6 +2731,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return SchemaCompatibilityStrategy.FULL;
         }
         return schemaCompatibilityStrategy;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersistInMetadataStore() {
+        return managedLedgerMaxUnackedRangesToPersistInZooKeeper != 1000 ?
+                managedLedgerMaxUnackedRangesToPersistInZooKeeper :
+                managedLedgerMaxUnackedRangesToPersistInMetadataStore;
     }
 
     public long getMetadataStoreSessionTimeoutMillis() {

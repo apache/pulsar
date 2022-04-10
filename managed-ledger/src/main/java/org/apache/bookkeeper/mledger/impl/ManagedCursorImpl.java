@@ -2326,7 +2326,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return cursorLedger != null
                 && !isCursorLedgerReadOnly
                 && config.getMaxUnackedRangesToPersist() > 0
-                && individualDeletedMessages.size() > config.getMaxUnackedRangesToPersistInZk();
+                && individualDeletedMessages.size() > config.getMaxUnackedRangesToPersistInMetadataStore();
     }
 
     private void persistPositionMetaStore(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
