@@ -2238,6 +2238,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (null == ledgerId) {
             opReadEntry.makeInvalid();
             return null;
+        } else {
+            // for wait opReadEntry, the readPosition will recalculate.
+            opReadEntry.makeValid();
         }
 
         if (ledgerId != position.getLedgerId()) {

@@ -166,6 +166,10 @@ class OpReadEntry implements ReadEntriesCallback {
         this.invalid = true;
     }
 
+    public void makeValid() {
+        this.invalid = false;
+    }
+
     public boolean isInvalid() {
         return this.invalid;
     }
