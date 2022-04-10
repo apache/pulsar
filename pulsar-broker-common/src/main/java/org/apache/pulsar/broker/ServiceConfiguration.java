@@ -1817,6 +1817,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        deprecated = true,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
