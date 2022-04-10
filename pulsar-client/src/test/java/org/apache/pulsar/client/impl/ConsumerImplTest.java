@@ -218,6 +218,46 @@ public class ConsumerImplTest {
         Assert.assertTrue(consumer.paused);
     }
 
+    @Test(invocationTimeOut = 1000)
+    public void testExecuteNotifyCallback0_WorkNormally() {
+        CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
+        MessageImpl message = mock(MessageImpl.class);
+        ConsumerImpl<byte[]> spy = spy(consumer);
+
+        consumer.pendingReceives.add(receiveFuture);
+        spy.executeNotifyCallback0(message);
+
+        Message<byte[]> receivedMessage = receiveFuture.join();
+
+        Assert.assertTrue(receiveFuture.isDone());
+        Assert.assertFalse(receiveFuture.isCompletedExceptionally());
+        Assert.assertEquals(receivedMessage, message);
+
+        Assert.assertEquals(consumer.incomingMessages.size(), 0);
+
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testExecuteNotifyCallback0_PendingReceivesAllDone() {
+        MessageImpl completedMessage = mock(MessageImpl.class);
+        CompletableFuture<Message<byte[]>> receiveFuture = CompletableFuture.completedFuture(completedMessage);
+
+        MessageImpl message = mock(MessageImpl.class);
+        ConsumerImpl<byte[]> spy = spy(consumer);
+
+        consumer.pendingReceives.add(receiveFuture);
+        spy.executeNotifyCallback0(message);
+
+        Message<byte[]> receivedMessage = receiveFuture.join();
+
+        Assert.assertTrue(receiveFuture.isDone());
+        Assert.assertFalse(receiveFuture.isCompletedExceptionally());
+        Assert.assertNotEquals(receivedMessage, message);
+        Assert.assertEquals(receivedMessage, completedMessage);
+
+        Assert.assertEquals(consumer.incomingMessages.size(), 1);
+    }
+
     @Test
     public void testMaxReceiverQueueSize() {
         int size = consumer.getCurrentReceiverQueueSize();

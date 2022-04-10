@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
@@ -1155,16 +1156,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void executeNotifyCallback(final MessageImpl<T> message) {
+        internalPinnedExecutor.execute(() -> {
+            executeNotifyCallback0(message);
+        });
+    }
+
+    @VisibleForTesting
+    void executeNotifyCallback0(final MessageImpl<T> message) {
         // Enqueue the message so that it can be retrieved when application calls receive()
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
-        internalPinnedExecutor.execute(() -> {
-            if (hasNextPendingReceive()) {
-                notifyPendingReceivedCallback(message, null);
-            } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
-                notifyPendingBatchReceivedCallBack();
+        if (hasNextPendingReceive()) {
+            if (!notifyPendingReceivedCallback(message, null)) {
+                return;
             }
-        });
+        }
+        if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
+            notifyPendingBatchReceivedCallBack();
+        }
     }
 
     private void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
@@ -1419,40 +1428,42 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * Notify waiting asyncReceive request with the received message.
      *
      * @param message
+     * @return the message is enqueue incomingMessages.
      */
-    void notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
+    boolean notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
         if (pendingReceives.isEmpty()) {
-            return;
+            return false;
         }
 
         // fetch receivedCallback from queue
         final CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture == null) {
-            return;
+            return message != null && getCurrentReceiverQueueSize() != 0;
         }
 
         if (exception != null) {
             internalPinnedExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
-            return;
+            return false;
         }
 
         if (message == null) {
             IllegalStateException e = new IllegalStateException("received message can't be null");
             internalPinnedExecutor.execute(() -> receivedFuture.completeExceptionally(e));
-            return;
+            return false;
         }
 
         if (getCurrentReceiverQueueSize() == 0) {
             // call interceptor and complete received callback
             trackMessage(message);
             interceptAndComplete(message, receivedFuture);
-            return;
+            return false;
         }
 
         // increase permits for available message-queue
         messageProcessed(message);
         // call interceptor and complete received callback
         interceptAndComplete(message, receivedFuture);
+        return false;
     }
 
     private void interceptAndComplete(final Message<T> message, final CompletableFuture<Message<T>> receivedFuture) {
