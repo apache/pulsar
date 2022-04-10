@@ -144,7 +144,16 @@ public class PackagesManagementImpl implements PackagesManagement {
         return CompletableFuture.allOf(
             storage.deleteAsync(metadataPath(packageName)),
             storage.deleteAsync(packagePath(packageName)),
-            storage.deleteAsync(packageName.toRestPath()));
+            storage.deleteAsync(packageName.toRestPath()).thenApply(__ -> {
+                return list(packageName).thenCompose(list -> {
+                    if (list == null || list.isEmpty()){
+                        return storage.deleteAsync(packageWithoutVersionPath(packageName));
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
+            })
+        );
     }
 
     @Override

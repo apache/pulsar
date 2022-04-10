@@ -188,6 +188,9 @@ public class PackagesManagementImplTest {
         // delete an existent package should succeed
         try {
             packagesManagement.delete(packageName).get();
+            // after the last package-version-item-node deleted, the package should be deleted
+            List<String> packageNames = packagesManagement.list(packageName).get();
+            Assert.assertEquals(0, packageNames.size());
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
         }

@@ -53,6 +53,10 @@ public interface PackagesStorage {
     /**
      * Delete a file.
      *
+     * TODO this api will delete all children-files.
+     * TODO maybe need provided another api. just like: deleteNotConcurrently or deleteIfEmpty or deleteWithLock.
+     * TODO see https://github.com/apache/pulsar/issues/14734
+     *
      * @param path
      *          file path
      * @return
