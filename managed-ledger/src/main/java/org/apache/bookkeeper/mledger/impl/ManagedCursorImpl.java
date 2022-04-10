@@ -2761,7 +2761,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-            opReadEntry.readPosition = (PositionImpl) getReadPosition();
+            opReadEntry.readPosition = ledger.startReadOperationOnLedger((PositionImpl) getReadPosition(), opReadEntry);
             ledger.asyncReadEntries(opReadEntry);
         } else {
             // No one is waiting to be notified. Ignore
