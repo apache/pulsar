@@ -1752,7 +1752,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         if (opReadEntry.isInvalid()) {
             opReadEntry.readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException("The ceilingKey("
-                    + "opReadEntry.readPosition method is used to return the least key greater than or equal to the "
+                    + "opReadEntry.readPosition) method is used to return the least key greater than or equal to the "
                     + "given key, or null if there is no such key"), opReadEntry.ctx);
             return;
         }
