@@ -1431,10 +1431,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * @return the message is enqueue incomingMessages.
      */
     boolean notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
-        if (pendingReceives.isEmpty()) {
-            return false;
-        }
-
         // fetch receivedCallback from queue
         final CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture == null) {
