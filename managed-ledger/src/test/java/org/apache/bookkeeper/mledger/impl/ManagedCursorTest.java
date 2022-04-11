@@ -3795,20 +3795,22 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testReadInvalidPositionEntryWhenNotify() throws Exception {
+    public void testReadEntryWhenNotifyNormally() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(1);
         managedLedgerConfig.setMetadataMaxEntriesPerLedger(1);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
-                .open("testReadInvalidPositionEntryWhenNotify", managedLedgerConfig);
+                .open("testReadEntryWhenNotifyNormally", managedLedgerConfig);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
 
         PositionImpl lastPosition = (PositionImpl) ledger.addEntry("test".getBytes(Encoding));
 
         //make cursor read position greater than ledger's lastConfirmedEntry.
         //It guarantees readPosition is valid and cursor has not more entries.
-        cursor.setReadPosition(new PositionImpl(lastPosition.getLedgerId() + 1, 0));
+        // maxEntriesPerLedger == 1, so add two entry will occupy 2 ledgers. and cursor will occupy one ledger,
+        // so here need + 2.
+        cursor.setReadPosition(new PositionImpl(lastPosition.getLedgerId() + 2, 0));
 
         AtomicReference<Exception> exceptionRef = new AtomicReference<>();
         AtomicReference<Object> exceptionCtxRef = new AtomicReference<>();
@@ -3854,6 +3856,67 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> assertEquals(ctxRef.get(), ctx));
 
         entryRef.get().release();
+    }
+
+    @Test
+    public void testReadEntryWhenNotifyInvalid() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMetadataMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testReadEntryWhenNotifyInvalid", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
+
+        PositionImpl lastPosition = (PositionImpl) ledger.addEntry("test".getBytes(Encoding));
+
+        //make cursor read position greater than ledger's lastConfirmedEntry.
+        //It guarantees readPosition is valid and cursor has not more entries.
+        // maxEntriesPerLedger == 1, so add two entry will occupy 2 ledgers. and cursor will occupy one ledger.
+        //so here + 3, make opReadEntry still invalid.
+        cursor.setReadPosition(new PositionImpl(lastPosition.getLedgerId() + 3, 0));
+
+        AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+        AtomicReference<Object> exceptionCtxRef = new AtomicReference<>();
+
+        AtomicReference<Entry> entryRef = new AtomicReference<>();
+        AtomicReference<Object> ctxRef = new AtomicReference<>();
+
+
+        ReadEntriesCallback callback = new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                exceptionRef.set(exception);
+                exceptionCtxRef.set(ctx);
+            }
+        };
+
+        Object ctx = new Object();
+
+        cursor.asyncReadEntriesOrWait(1, -1, callback, ctx, PositionImpl.LATEST);
+
+        // here wait checkForNewEntries to add cursor to ledger waitingCursors.
+        if (cursor.config.getNewEntriesCheckDelayInMillis() > 0) {
+            Thread.sleep(cursor.config.getNewEntriesCheckDelayInMillis() + 50);
+        }
+
+        //Add entry to notify waiting cursor.
+        ledger.addEntry("test1".getBytes(Encoding));
+
+
+        // when readPosition's ledger didn't exist, throw NoMoreEntriesToReadException.
+        Awaitility.await().untilAsserted(() -> assertNotNull(exceptionRef.get()));
+        Awaitility.await().untilAsserted(() -> assertEquals(exceptionRef.get().getClass(), ManagedLedgerException.NoMoreEntriesToReadException.class));
+
+        Awaitility.await().untilAsserted(() -> assertNotNull(exceptionCtxRef.get()));
+        Awaitility.await().untilAsserted(() -> assertEquals(exceptionCtxRef.get(), ctx));
+
+        Awaitility.await().untilAsserted(() -> assertNull(entryRef.get()));
+        Awaitility.await().untilAsserted(() -> assertNull(ctxRef.get()));
     }
 
 
