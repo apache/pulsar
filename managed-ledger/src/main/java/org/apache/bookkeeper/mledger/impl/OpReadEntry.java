@@ -137,12 +137,8 @@ class OpReadEntry implements ReadEntriesCallback {
         // op readPosition is smaller or equals maxPosition then can read again
         if (entries.size() < count && cursor.hasMoreEntries()
                 && maxPosition.compareTo(readPosition) > 0) {
-            // We still have more entries to read from the next ledger, schedule a new async operation
-            if (nextReadPosition.getLedgerId() != readPosition.getLedgerId()) {
-                cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
-            }
 
-            // Schedule next read in a different thread
+            // We still have more entries to read from the next ledger, schedule a new async operation
             cursor.ledger.getExecutor().execute(safeRun(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
