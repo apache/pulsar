@@ -187,8 +187,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
                         response.getMessage()));
             }
-        } catch (Exception e) {
-            log.error("[{}] Got exception when complete EndTxnOnTopic op for request {}", op.topic, e);
         } finally {
             onResponse(op);
         }
