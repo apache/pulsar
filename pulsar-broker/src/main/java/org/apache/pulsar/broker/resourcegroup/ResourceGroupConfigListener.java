@@ -20,8 +20,11 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.ResourceGroupResources;
@@ -53,14 +56,14 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         this.rgService = rgService;
         this.pulsarService = pulsarService;
         this.rgResources = pulsarService.getPulsarResources().getResourcegroupResources();
-        loadAllResourceGroups();
+        loadAllResourceGroups(); // ensure resource group config load completely.
         this.rgResources.getStore().registerListener(this);
         rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(
                 rgService, pulsarService, this);
     }
 
-    private void loadAllResourceGroups() {
-        rgResources.listResourceGroupsAsync().whenCompleteAsync((rgList, ex) -> {
+    private CompletableFuture<List<String>> loadAllResourceGroupsAsync() {
+        return rgResources.listResourceGroupsAsync().whenCompleteAsync((rgList, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when fetching resource groups", ex);
                 return;
@@ -90,6 +93,14 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
                 });
             }
         });
+    }
+
+    private List<String> loadAllResourceGroups() {
+        try {
+            return loadAllResourceGroupsAsync().get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Load all resource groups error", e);
+        }
     }
 
     public synchronized void deleteResourceGroup(String rgName) {
@@ -142,7 +153,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         Optional<String> rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath);
         if ((notification.getType() == NotificationType.ChildrenChanged)
             || (notification.getType() == NotificationType.Created)) {
-            loadAllResourceGroups();
+            loadAllResourceGroupsAsync();
         } else if (rgName.isPresent()) {
             switch (notification.getType()) {
             case Modified:
