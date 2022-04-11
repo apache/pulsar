@@ -180,6 +180,8 @@ public class TransactionMetadataStoreService {
                         // so we should jude the store exist again.
                         if (stores.get(tcId) != null) {
                             completableFuture.complete(null);
+                            tcLoadSemaphore.release();
+                            return;
                         }
 
                         openTransactionMetadataStore(tcId).thenAccept((store) -> internalPinnedExecutor.execute(() -> {
