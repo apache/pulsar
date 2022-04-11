@@ -3779,11 +3779,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
         };
         //Invalid position
-        PositionImpl invalidPosition = new PositionImpl(ledger.lastConfirmedEntry.getLedgerId() + 1, 0);
+        PositionImpl invalidPosition = new PositionImpl(lastPosition.getLedgerId() + 1, 0);
 
         Object ctx = new Object();
-        OpReadEntry opReadEntry = OpReadEntry.create(cursor, invalidPosition, 10, callback,
-                ctx, PositionImpl.get(lastPosition.getLedgerId(), -1));
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, invalidPosition, 1, callback,
+                ctx, PositionImpl.LATEST);
         ledger.asyncReadEntries(opReadEntry);
 
         // when readPosition's ledger didn't exist, throw NoMoreEntriesToReadException.
@@ -3793,6 +3793,72 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> assertNotNull(ctxRef.get()));
         Awaitility.await().untilAsserted(() -> assertEquals(ctxRef.get(), ctx));
     }
+
+    @Test
+    public void testReadInvalidPositionEntryWhenNotify() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMetadataMaxEntriesPerLedger(1);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testReadInvalidPositionEntryWhenNotify", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
+
+        PositionImpl lastPosition = (PositionImpl) ledger.addEntry("test".getBytes(Encoding));
+
+        //make cursor read position greater than ledger's lastConfirmedEntry.
+        //It guarantees readPosition is valid and cursor has not more entries.
+        cursor.setReadPosition(new PositionImpl(lastPosition.getLedgerId() + 1, 0));
+
+        AtomicReference<Exception> exceptionRef = new AtomicReference<>();
+        AtomicReference<Object> exceptionCtxRef = new AtomicReference<>();
+
+        AtomicReference<Entry> entryRef = new AtomicReference<>();
+        AtomicReference<Object> ctxRef = new AtomicReference<>();
+
+
+        ReadEntriesCallback callback = new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                assertEquals(entries.size(), 1);
+                entryRef.set(entries.get(0));
+                ctxRef.set(ctx);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                exceptionRef.set(exception);
+                exceptionCtxRef.set(ctx);
+            }
+        };
+
+        Object ctx = new Object();
+
+        cursor.asyncReadEntriesOrWait(1, -1, callback, ctx, PositionImpl.LATEST);
+
+        // here wait checkForNewEntries to add cursor to ledger waitingCursors.
+        if (cursor.config.getNewEntriesCheckDelayInMillis() > 0) {
+            Thread.sleep(cursor.config.getNewEntriesCheckDelayInMillis() + 50);
+        }
+
+        //Add entry to notify waiting cursor.
+        ledger.addEntry("test1".getBytes(Encoding));
+
+        //Cause add new entry, the wait opReadEntry can work normally.
+        Awaitility.await().untilAsserted(() -> assertNull(exceptionRef.get()));
+        Awaitility.await().untilAsserted(() -> assertNull(exceptionCtxRef.get()));
+
+
+        Awaitility.await().untilAsserted(() -> assertNotNull(entryRef.get()));
+        Awaitility.await().untilAsserted(() -> assertEquals(entryRef.get().getData(), "test1".getBytes(Encoding)));
+        Awaitility.await().untilAsserted(() -> assertEquals(ctxRef.get(), ctx));
+
+        entryRef.get().release();
+    }
+
+
+
+
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

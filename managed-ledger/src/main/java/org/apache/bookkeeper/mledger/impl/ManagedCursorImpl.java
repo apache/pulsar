@@ -821,6 +821,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 name, op.readPosition);
                     }
                     PENDING_READ_OPS_UPDATER.incrementAndGet(this);
+                    //Here maybe in schedule thread, recalculate readPosition, ledger maybe add some new entry.
+                    op.readPosition = ledger.startReadOperationOnLedger((PositionImpl) getReadPosition(), op);
                     ledger.asyncReadEntries(op);
                 } else {
                     if (log.isDebugEnabled()) {
@@ -2761,7 +2763,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-            opReadEntry.readPosition = (PositionImpl) getReadPosition();
+            //recalculate readPosition, cause ledger's add some new entry.
+            opReadEntry.readPosition = ledger.startReadOperationOnLedger((PositionImpl) getReadPosition(), opReadEntry);
             ledger.asyncReadEntries(opReadEntry);
         } else {
             // No one is waiting to be notified. Ignore
