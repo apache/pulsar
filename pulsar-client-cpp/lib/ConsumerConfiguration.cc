@@ -214,6 +214,18 @@ ConsumerConfiguration& ConsumerConfiguration::setProperties(
     return *this;
 }
 
+std::map<std::string, std::string>& ConsumerConfiguration::getSubscriptionProperties() const {
+    return impl_->subscriptionProperties;
+}
+
+ConsumerConfiguration& ConsumerConfiguration::setSubscriptionProperties(
+    const std::map<std::string, std::string>& subscriptionProperties) {
+    for (const auto& subscriptionProperty : subscriptionProperties) {
+        impl_->subscriptionProperties.emplace(subscriptionProperty.first, subscriptionProperty.second);
+    }
+    return *this;
+}
+
 ConsumerConfiguration& ConsumerConfiguration::setPriorityLevel(int priorityLevel) {
     if (priorityLevel < 0) {
         throw std::invalid_argument("Consumer Config Exception: PriorityLevel should be nonnegative number.");

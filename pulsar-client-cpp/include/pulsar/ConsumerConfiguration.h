@@ -425,6 +425,21 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
 
     /**
+     * Get all the subscription properties attached to this subscription.
+     */
+    std::map<std::string, std::string>& getSubscriptionProperties() const;
+
+    /**
+     * Sets a new subscription properties for this subscription.
+     * Notice: SubscriptionProperties are immutable, and consumers under the same subscription will fail to
+     * create a subscription if they use different properties.
+     *
+     * @param subscriptionProperties all the subscription properties in the provided map
+     */
+    ConsumerConfiguration& setSubscriptionProperties(
+        const std::map<std::string, std::string>& subscriptionProperties);
+
+    /**
      * Set the Priority Level for consumer (0 is the default value and means the highest priority).
      *
      * @param priorityLevel the priority of this consumer
