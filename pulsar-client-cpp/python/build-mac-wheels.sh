@@ -20,6 +20,11 @@
 
 set -e
 
+ARCHS=(
+  'x86_64'
+  'arm64'
+)
+
 PYTHON_VERSIONS=(
    '3.8  3.8.13'
    '3.9  3.9.10'
@@ -45,9 +50,9 @@ cd "${ROOT_DIR}/pulsar-client-cpp"
 CACHE_DIR=~/.pulsar-mac-wheels-cache
 mkdir -p $CACHE_DIR
 
-PREFIX=$CACHE_DIR/install
-
 cd $CACHE_DIR
+
+PREFIX=$CACHE_DIR/install
 
 ###############################################################################
 for line in "${PYTHON_VERSIONS[@]}"; do
@@ -63,7 +68,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
       PY_PREFIX=$CACHE_DIR/py-$PYTHON_VERSION
       pushd Python-${PYTHON_VERSION_LONG}
           CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
-              ./configure --prefix=$PY_PREFIX --enable-shared
+              ./configure --prefix=$PY_PREFIX --enable-shared --enable-universalsdk --with-universal-archs=universal2
           make -j16
           make install
 
@@ -83,7 +88,7 @@ if [ ! -f zlib-${ZLIB_VERSION}/.done ]; then
     curl -O -L https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
     tar xvfz zlib-$ZLIB_VERSION.tar.gz
     pushd zlib-$ZLIB_VERSION
-      CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" ./configure --prefix=$PREFIX
+      CFLAGS="-fPIC -O3 -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" ./configure --prefix=$PREFIX
       make -j16
       make install
       touch .done
@@ -93,16 +98,35 @@ else
 fi
 
 ###############################################################################
-if [ ! -f openssl-OpenSSL_${OPENSSL_VERSION}/.done ]; then
+if [ ! -f openssl-OpenSSL_${OPENSSL_VERSION}.done ]; then
     echo "Building OpenSSL"
     curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_${OPENSSL_VERSION}.tar.gz
+    # -arch arm64 -arch x86_64
     tar xvfz OpenSSL_${OPENSSL_VERSION}.tar.gz
-    pushd openssl-OpenSSL_${OPENSSL_VERSION}
-      ./Configure -fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} --prefix=$PREFIX no-shared darwin64-arm64-cc
+    mv openssl-OpenSSL_${OPENSSL_VERSION} openssl-OpenSSL_${OPENSSL_VERSION}-arm64
+    pushd openssl-OpenSSL_${OPENSSL_VERSION}-arm64
+      CFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+          ./Configure --prefix=$PREFIX no-shared darwin64-arm64-cc
       make -j8
       make install
-      touch .done
     popd
+
+    tar xvfz OpenSSL_${OPENSSL_VERSION}.tar.gz
+    mv openssl-OpenSSL_${OPENSSL_VERSION} openssl-OpenSSL_${OPENSSL_VERSION}-x86_64
+    pushd openssl-OpenSSL_${OPENSSL_VERSION}-x86_64
+      CFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+          ./Configure --prefix=$PREFIX no-shared darwin64-x86_64-cc
+      make -j8
+      make install
+    popd
+
+    # Create universal binaries
+    lipo -create openssl-OpenSSL_${OPENSSL_VERSION}-arm64/libssl.a openssl-OpenSSL_${OPENSSL_VERSION}-x86_64/libssl.a \
+          -output $PREFIX/lib/libssl.a
+    lipo -create openssl-OpenSSL_${OPENSSL_VERSION}-arm64/libcrypto.a openssl-OpenSSL_${OPENSSL_VERSION}-x86_64/libcrypto.a \
+              -output $PREFIX/lib/libcrypto.a
+
+    touch openssl-OpenSSL_${OPENSSL_VERSION}.done
 else
     echo "Using cached OpenSSL"
 fi
@@ -133,7 +157,8 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 EOF
           ./bootstrap.sh --with-libraries=python --with-python=python3 --with-python-root=$PY_PREFIX \
                 --prefix=$CACHE_DIR/boost-py-$PYTHON_VERSION
-          ./b2 address-model=64 cxxflags="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" link=static threading=multi \
+          ./b2 address-model=64 cxxflags="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+                    link=static threading=multi \
                     --user-config=./user-config.jam \
                     variant=release python=${PYTHON_VERSION} \
                     -j16 \
@@ -154,7 +179,8 @@ if [ ! -f protobuf-${PROTOBUF_VERSION}/.done ]; then
     curl -O -L  https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-cpp-${PROTOBUF_VERSION}.tar.gz
     tar xvfz protobuf-cpp-${PROTOBUF_VERSION}.tar.gz
     pushd protobuf-${PROTOBUF_VERSION}
-      CXXFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" ./configure --prefix=$PREFIX
+      CXXFLAGS="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+            ./configure --prefix=$PREFIX
       make -j16
       make install
       touch .done
@@ -169,7 +195,8 @@ if [ ! -f zstd-${ZSTD_VERSION}/.done ]; then
     curl -O -L https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz
     tar xvfz zstd-${ZSTD_VERSION}.tar.gz
     pushd zstd-${ZSTD_VERSION}
-      CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" PREFIX=$PREFIX make -j16 install
+      CFLAGS="-fPIC -O3 -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" PREFIX=$PREFIX \
+            make -j16 install
       touch .done
     popd
 else
@@ -182,7 +209,8 @@ if [ ! -f snappy-${SNAPPY_VERSION}/.done ]; then
     curl -O -L https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz
     tar xvfz snappy-${SNAPPY_VERSION}.tar.gz
     pushd snappy-${SNAPPY_VERSION}
-      CXXFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" ./configure --prefix=$PREFIX
+      CXXFLAGS="-fPIC -O3 -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+            ./configure --prefix=$PREFIX
       make -j16
       make install
       touch .done
@@ -198,8 +226,10 @@ if [ ! -f curl-${CURL_VERSION}/.done ]; then
     curl -O -L  https://github.com/curl/curl/releases/download/curl-${CURL_VERSION_}/curl-${CURL_VERSION}.tar.gz
     tar xfz curl-${CURL_VERSION}.tar.gz
     pushd curl-${CURL_VERSION}
-      CFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" ./configure --with-ssl=$PREFIX \
-              --without-nghttp2 --without-libidn2 --prefix=$PREFIX
+      CFLAGS="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+            ./configure --with-ssl=$PREFIX \
+              --without-nghttp2 --without-libidn2 --disable-ldap \
+              --prefix=$PREFIX
       make -j16 install
       touch .done
     popd
@@ -230,6 +260,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     PY_EXE=$PY_PREFIX/bin/python3
 
     cmake . \
+            -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
             -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX${MACOSX_DEPLOYMENT_TARGET_MAJOR}.sdk \
             -DCMAKE_INSTALL_PREFIX=$PREFIX \
