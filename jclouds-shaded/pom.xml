@@ -42,6 +42,11 @@
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds.driver</groupId>
+      <artifactId>jclouds-apachehc</artifactId>
+      <version>${jclouds.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jclouds.driver</groupId>
       <artifactId>jclouds-slf4j</artifactId>
       <version>${jclouds.version}</version>
     </dependency>
@@ -74,11 +79,13 @@
                   <include>org.apache.jclouds:*</include>
                   <include>org.apache.jclouds.api:*</include>
                   <include>org.apache.jclouds.common:*</include>
+                  <include>org.apache.jclouds.driver:*</include>
                   <include>org.apache.jclouds.provider:*</include>
                   <include>com.google.inject.extensions:guice-assistedinject</include>
                   <include>com.google.inject:guice</include>
                   <include>com.google.inject.extensions:guice-multibindings</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>org.apache.httpcomponents:*</include>
                   <include>javax.ws.rs:*</include>
                   <include>com.jamesmurty.utils:*</include>
                   <include>net.iharder:*</include>

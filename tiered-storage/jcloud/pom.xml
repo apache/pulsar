@@ -68,6 +68,10 @@
           <groupId>org.apache.jclouds.provider</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.jclouds.driver</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
