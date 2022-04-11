@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
-
 import java.time.Duration;
 import java.util.Properties;
 import java.util.UUID;
@@ -28,7 +27,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -267,6 +265,29 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 Assert.assertFalse(msg.getMessageId() instanceof BatchMessageIdImpl);
             }
         }
+    }
+
+    @Test
+    public void testNullBody() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        String topicName = getTopicWithRandomSuffix("nullBody");
+        final String key = UUID.randomUUID().toString();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("nullBodyTest")
+                .subscribe();
+
+        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+        String[] args = {"produce", "--null", "-k", key, topicName};
+        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+
+        Message<byte[]> message = consumer.receive();
+        Assert.assertEquals(message.getKey(), key);
+        Assert.assertNull(message.getData());
     }
 
     private static String getTopicWithRandomSuffix(String localNameBase) {

@@ -85,13 +85,18 @@ public class CmdProduce {
     private List<String> mainOptions;
 
     @Parameter(names = { "-m", "--messages" },
-               description = "Messages to send, either -m or -f must be specified. The default separator is comma",
+               description = "Messages to send, either -m or -f or --null must be specified. "
+                       + "The default separator is comma",
                splitter = NoSplitter.class)
     private List<String> messages = new ArrayList<>();
 
     @Parameter(names = { "-f", "--files" },
-               description = "Comma separated file paths to send, either -m or -f must be specified.")
+               description = "Comma separated file paths to send, either -m or -f or --null must be specified.")
     private List<String> messageFileNames = new ArrayList<>();
+
+    @Parameter(names = { "--null" },
+               description = "Send a message with the body is null")
+    private boolean nullBodyMessage = false;
 
     @Parameter(names = { "-n", "--num-produce" },
                description = "Number of times to send message(s), the count of messages/files * num-produce "
@@ -169,9 +174,12 @@ public class CmdProduce {
      *
      * @param messageFileNames List of file names to read and send
      *
+     * @param nullBodyMessage Weather put a null message body
+     *
      * @return list of message bodies
      */
-    private List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames) {
+    private List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames,
+                                               boolean nullBodyMessage) {
         List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
@@ -185,6 +193,10 @@ public class CmdProduce {
             }
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
+        }
+
+        if (nullBodyMessage) {
+            messageBodies.add(null);
         }
 
         return messageBodies;
@@ -208,8 +220,8 @@ public class CmdProduce {
             messages = Collections.unmodifiableList(Arrays.asList(messages.get(0).split(separator)));
         }
 
-        if (messages.size() == 0 && messageFileNames.size() == 0) {
-            throw (new ParameterException("Please supply message content with either --messages or --files"));
+        if (messages.size() == 0 && messageFileNames.size() == 0 && !nullBodyMessage) {
+            throw (new ParameterException("Please supply message content with either --messages or --files or --null"));
         }
 
         if (keyValueEncodingType == null) {
@@ -261,7 +273,8 @@ public class CmdProduce {
             }
             Producer<?> producer = producerBuilder.create();
 
-            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
+            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames,
+                    this.nullBodyMessage);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
 
             Map<String, String> kvMap = new HashMap<>();
@@ -434,7 +447,8 @@ public class CmdProduce {
         }
 
         try {
-            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
+            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames,
+                    this.nullBodyMessage);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
             for (int i = 0; i < this.numTimesProduce; i++) {
                 int index = i * 10;
