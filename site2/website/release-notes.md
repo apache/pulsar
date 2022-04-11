@@ -496,7 +496,6 @@
 - Upgrade Gson version 2.8.6 to 2.8.9 [13610](https://github.com/apache/pulsar/pull/13610)
 - Upgrade commons-cli to 1.5.0 [14094](https://github.com/apache/pulsar/pull/14094)
 - Bump netty version to 4.1.74.Final [14257](https://github.com/apache/pulsar/pull/14257)
->>>>>>> apache/master
 
 ### 2.9.1
 #### 2021-12-20
