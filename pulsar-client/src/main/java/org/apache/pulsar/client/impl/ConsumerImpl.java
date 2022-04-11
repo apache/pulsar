@@ -1167,7 +1167,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
         if (hasNextPendingReceive()) {
-            if (!notifyPendingReceivedCallback(message, null)) {
+            if (notifyPendingReceivedCallback(message, null)) {
                 return;
             }
         }
@@ -1428,38 +1428,42 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * Notify waiting asyncReceive request with the received message.
      *
      * @param message
-     * @return the message is enqueue incomingMessages.
+     * @return return true if this message is handled by pending receive.
      */
     boolean notifyPendingReceivedCallback(final Message<T> message, Exception exception) {
         // fetch receivedCallback from queue
         final CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
         if (receivedFuture == null) {
-            return message != null && getCurrentReceiverQueueSize() != 0;
+            if (exception != null) {
+                log.warn("Received exception but no future to callback.", exception);
+                return true;
+            }
+            return getCurrentReceiverQueueSize() == 0;
         }
 
         if (exception != null) {
             internalPinnedExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
-            return false;
+            return true;
         }
 
         if (message == null) {
             IllegalStateException e = new IllegalStateException("received message can't be null");
             internalPinnedExecutor.execute(() -> receivedFuture.completeExceptionally(e));
-            return false;
+            return true;
         }
 
         if (getCurrentReceiverQueueSize() == 0) {
             // call interceptor and complete received callback
             trackMessage(message);
             interceptAndComplete(message, receivedFuture);
-            return false;
+            return true;
         }
 
         // increase permits for available message-queue
         messageProcessed(message);
         // call interceptor and complete received callback
         interceptAndComplete(message, receivedFuture);
-        return false;
+        return true;
     }
 
     private void interceptAndComplete(final Message<T> message, final CompletableFuture<Message<T>> receivedFuture) {
