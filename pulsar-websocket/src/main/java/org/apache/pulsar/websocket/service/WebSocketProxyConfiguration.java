@@ -190,45 +190,45 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
-            doc = "Enable TLS with KeyStore type configuration in broker"
+            doc = "Enable TLS with KeyStore type configuration for WebSocket"
     )
     private boolean tlsEnabledWithKeyStore = false;
 
     @FieldContext(
-            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+            doc = "Specify the TLS provider for the WebSocket service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
                     + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )
     private String tlsProvider = null;
 
     @FieldContext(
-            doc = "TLS KeyStore type configuration in broker: JKS, PKCS12"
+            doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
     )
     private String tlsKeyStoreType = "JKS";
 
     @FieldContext(
-            doc = "TLS KeyStore path in broker"
+            doc = "TLS KeyStore path in WebSocket"
     )
     private String tlsKeyStore = null;
 
     @FieldContext(
-            doc = "TLS KeyStore password for broker"
+            doc = "TLS KeyStore password for WebSocket"
     )
     @ToString.Exclude
     private String tlsKeyStorePassword = null;
 
     @FieldContext(
-            doc = "TLS TrustStore type configuration in broker: JKS, PKCS12"
+            doc = "TLS TrustStore type configuration in WebSocket: JKS, PKCS12"
     )
     private String tlsTrustStoreType = "JKS";
 
     @FieldContext(
-            doc = "TLS TrustStore path in broker"
+            doc = "TLS TrustStore path in WebSocket"
     )
     private String tlsTrustStore = null;
 
     @FieldContext(
-            doc = "TLS TrustStore password for broker, null means empty password."
+            doc = "TLS TrustStore password for WebSocket, null means empty password."
     )
     @ToString.Exclude
     private String tlsTrustStorePassword = null;

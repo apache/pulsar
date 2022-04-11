@@ -76,7 +76,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Category
     private static final String CATEGORY_SECURITY = "Common Security Settings (applied for both worker and client)";
     @Category
-    private static final String CATEGORY_KEYSTORE_TLS = "Common Security Settings (applied for both worker and client)";
+    private static final String CATEGORY_KEYSTORE_TLS = "KeyStoreTLS";
     @Category
     private static final String CATEGORY_WORKER_SECURITY = "Worker Security Settings";
     @Category
@@ -453,13 +453,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "Enable TLS with KeyStore type configuration in broker"
+            doc = "Enable TLS with KeyStore type configuration in function worker"
     )
     private boolean tlsEnabledWithKeyStore = false;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+            doc = "Specify the TLS provider for the function worker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
                     + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )
@@ -467,38 +467,38 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS KeyStore type configuration in broker: JKS, PKCS12"
+            doc = "TLS KeyStore type configuration in function worker: JKS, PKCS12"
     )
     private String tlsKeyStoreType = "JKS";
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS KeyStore path in broker"
+            doc = "TLS KeyStore path in function worker"
     )
     private String tlsKeyStore = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS KeyStore password for broker"
+            doc = "TLS KeyStore password for function worker"
     )
     @ToString.Exclude
     private String tlsKeyStorePassword = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore type configuration in broker: JKS, PKCS12"
+            doc = "TLS TrustStore type configuration in function worker: JKS, PKCS12"
     )
     private String tlsTrustStoreType = "JKS";
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore path in broker"
+            doc = "TLS TrustStore path in function worker"
     )
     private String tlsTrustStore = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS TrustStore password for broker, null means empty password."
+            doc = "TLS TrustStore password for function worker, null means empty password."
     )
     @ToString.Exclude
     private String tlsTrustStorePassword = null;
