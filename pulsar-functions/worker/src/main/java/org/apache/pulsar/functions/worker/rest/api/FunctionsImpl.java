@@ -747,7 +747,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         // Redirect if we are not the leader
         if (!worker().getLeaderService().isLeader()) {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
-            if (workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+            if (workerInfo == null || workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
                 throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
                         "Leader not yet ready. Please retry again");
             }
@@ -815,6 +815,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // use the Nar extraction directory as a temporary directory for downloaded files
             tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
         }
+        Files.createDirectories(tempDirectory);
         File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
         worker.getBrokerAdmin().packages().download(packageName, file.toString());
         return file;

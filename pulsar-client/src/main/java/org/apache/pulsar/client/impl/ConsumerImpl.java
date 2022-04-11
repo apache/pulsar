@@ -180,7 +180,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected volatile boolean paused;
 
-    protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentOpenHashMap<>();
+    protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap =
+            ConcurrentOpenHashMap.<String, ChunkedMessageCtx>newBuilder().build();
     private int pendingChunkedMessageCount = 0;
     protected long expireTimeOfIncompleteChunkedMessageMillis = 0;
     private boolean expireChunkMessageTaskScheduled = false;
@@ -455,7 +456,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
+    protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
         long callTime = System.nanoTime();
         try {
@@ -466,10 +467,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageProcessed(message);
             if (!isValidConsumerEpoch(message)) {
                 long executionTime = System.nanoTime() - callTime;
-                if (executionTime >= unit.toNanos(timeout)) {
+                long timeoutInNanos = unit.toNanos(timeout);
+                if (executionTime >= timeoutInNanos) {
                     return null;
                 } else {
-                    return internalReceive((int) (timeout - executionTime), TimeUnit.NANOSECONDS);
+                    return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
                 }
             }
             return beforeConsume(message);
@@ -665,8 +667,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         typedMessageBuilderNew.key(message.getKey());
                     }
                     typedMessageBuilderNew.sendAsync()
-                            .thenAccept(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null)
-                                    .thenAccept(v -> result.complete(null)))
+                            .thenCompose(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
+                            .thenAccept(v -> result.complete(null))
                             .exceptionally(ex -> {
                                 result.completeExceptionally(ex);
                                 return null;
@@ -1341,12 +1343,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     }
 
-    private void tryTriggerListener() {
-        if (listener != null) {
-            triggerListener();
-        }
-    }
-
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
             MessageIdData messageId, ClientCnx cnx) {
 
@@ -1915,20 +1911,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (messageIds == null || messageIds.isEmpty()) {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
-        List<MessageIdData> data = new ArrayList<>(messageIds.size());
-        List<CompletableFuture<Void>> futures = new ArrayList<>(messageIds.size());
-        messageIds.forEach(messageId -> {
+        List<CompletableFuture<MessageIdData>> futures = messageIds.stream().map(messageId -> {
             CompletableFuture<Boolean> future = processPossibleToDLQ(messageId);
-            futures.add(future.thenAccept(sendToDLQ -> {
+            return future.thenApply(sendToDLQ -> {
                 if (!sendToDLQ) {
-                    data.add(new MessageIdData()
+                    return new MessageIdData()
                             .setPartition(messageId.getPartitionIndex())
                             .setLedgerId(messageId.getLedgerId())
-                            .setEntryId(messageId.getEntryId()));
+                            .setEntryId(messageId.getEntryId());
                 }
-            }));
-        });
-        return FutureUtil.waitForAll(futures).thenCompose(v -> CompletableFuture.completedFuture(data));
+                return null;
+            });
+        }).collect(Collectors.toList());
+        return FutureUtil.waitForAll(futures).thenApply(v ->
+                futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()));
     }
 
     private CompletableFuture<Boolean> processPossibleToDLQ(MessageIdImpl messageId) {

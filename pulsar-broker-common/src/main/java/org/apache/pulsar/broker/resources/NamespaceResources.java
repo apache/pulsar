@@ -143,6 +143,11 @@ public class NamespaceResources extends BaseResources<Policies> {
                 && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
     }
 
+    public static boolean pathIsNamespaceLocalPolicies(String path) {
+        return path.startsWith(LOCAL_POLICIES_ROOT + "/")
+                && path.substring(LOCAL_POLICIES_ROOT.length() + 1).contains("/");
+    }
+
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
@@ -157,6 +162,10 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static NamespaceName namespaceFromPath(String path) {
         return NamespaceName.get(path.substring(BASE_POLICIES_PATH.length() + 1));
+    }
+
+    public static NamespaceName namespaceFromLocalPoliciesPath(String path) {
+        return NamespaceName.get(path.substring(LOCAL_POLICIES_ROOT.length() + 1));
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationDataImpl>> {

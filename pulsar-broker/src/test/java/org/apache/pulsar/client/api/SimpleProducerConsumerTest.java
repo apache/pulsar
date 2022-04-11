@@ -39,6 +39,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.Timeout;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -57,6 +58,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
@@ -86,6 +88,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -113,9 +116,10 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
-    private static final int RECEIVE_TIMEOUT_SECONDS = 3;
-    private static final int RECEIVE_TIMEOUT_SHORT_MILLIS = 100;
-    private static final int RECEIVE_TIMEOUT_MEDIUM_MILLIS = 500;
+    private static final int TIMEOUT_MULTIPLIER = Integer.getInteger("SimpleProducerConsumerTest.receive.timeout.multiplier", 1);
+    private static final int RECEIVE_TIMEOUT_SECONDS = 5 * TIMEOUT_MULTIPLIER;
+    private static final int RECEIVE_TIMEOUT_SHORT_MILLIS = 200 * TIMEOUT_MULTIPLIER;
+    private static final int RECEIVE_TIMEOUT_MEDIUM_MILLIS = 1000 * TIMEOUT_MULTIPLIER;
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -603,6 +607,83 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         Assert.assertNull(msg);
         consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(dataProvider = "batch")
+    public void testSendTimeoutAndRecover(int batchMessageDelayMs) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 6;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/sendTimeoutAndRecover-1");
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName.toString())
+                .subscriptionName("my-subscriber-name").subscribe();
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
+
+        if (batchMessageDelayMs != 0) {
+            producerBuilder.enableBatching(true);
+            producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
+            producerBuilder.batchingMaxMessages(5);
+        }
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> partitionedProducer =
+                (PartitionedProducerImpl<byte[]>) producerBuilder.create();
+        final String message = "my-message";
+        // 1. Trigger the send timeout
+        stopBroker();
+
+        partitionedProducer.sendAsync(message.getBytes());
+
+        String exceptionMessage = "";
+        try {
+            // 2. execute flush to get results,
+            // it should be failed because step 1
+            partitionedProducer.flush();
+            Assert.fail("Send operation should have failed");
+        } catch (PulsarClientException e) {
+            exceptionMessage = e.getMessage();
+        }
+
+        // 3. execute flush to get results,
+        // it shouldn't fail because we already handled the exception in the step 2, unless we keep sending data.
+        partitionedProducer.flush();
+        // 4. execute flushAsync, we only catch the exception once,
+        // but by getting the original lastSendFuture twice below,
+        // the same exception information must be caught twice to verify that our handleOnce works as expected.
+        try {
+            partitionedProducer.getOriginalLastSendFuture().get();
+            Assert.fail("Send operation should have failed");
+        } catch (Exception e) {
+            Assert.assertEquals(PulsarClientException.unwrap(e).getMessage(), exceptionMessage);
+        }
+        try {
+            partitionedProducer.getOriginalLastSendFuture().get();
+            Assert.fail("Send operation should have failed");
+        } catch (Exception e) {
+            Assert.assertEquals(PulsarClientException.unwrap(e).getMessage(), exceptionMessage);
+        }
+
+        startBroker();
+
+        // 5. We should not have received any message
+        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        Assert.assertNull(msg);
+
+        // 6. We keep sending data after connection reconnected.
+        partitionedProducer.sendAsync(message.getBytes());
+        // 7. This flush operation must succeed.
+        partitionedProducer.flush();
+
+        // 8. We should have received message
+        msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        Assert.assertNotNull(msg);
+        Assert.assertEquals(new String(msg.getData()), message);
+
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -4272,5 +4353,82 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(r2.get() >= 1);
             assertEquals(resultSet.size(), total);
         });
+    }
+
+    @Test
+    public void testPartitionsAutoUpdate() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int numPartitions = 3;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/partitionsAutoUpdate-1");
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+        int operationTimeout = 2000; // MILLISECONDS
+        @Cleanup final PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .operationTimeout(operationTimeout, TimeUnit.MILLISECONDS)
+                .build();
+
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer()
+                .topic(topicName.toString()).sendTimeout(1, TimeUnit.SECONDS);
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> partitionedProducer =
+                (PartitionedProducerImpl<byte[]>) producerBuilder.autoUpdatePartitions(true).create();
+
+        // Trigger the Connection refused exception
+        stopBroker();
+
+        log.info("trigger partitionsAutoUpdateTimerTask run failed for producer");
+        Timeout timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+            assertTrue(FutureUtil.getException(partitionedProducer.getPartitionsAutoUpdateFuture()).get().getMessage()
+                    .contains("Connection refused:"));
+        });
+
+        startBroker();
+
+        log.info("trigger partitionsAutoUpdateTimerTask run successful for producer");
+        timeout = partitionedProducer.getPartitionsAutoUpdateTimeout();
+        timeout.task().run(timeout);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(partitionedProducer.getPartitionsAutoUpdateFuture());
+            assertTrue(partitionedProducer.getPartitionsAutoUpdateFuture().isDone());
+            assertFalse(partitionedProducer.getPartitionsAutoUpdateFuture().isCompletedExceptionally());
+        });
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(invocationCount = 5)
+    public void testListenerOrdering() throws Exception {
+        final String topic = "persistent://my-property/my-ns/test-listener-ordering-" + System.currentTimeMillis();
+        final int numMessages = 1000;
+        final CountDownLatch latch = new CountDownLatch(numMessages);
+        final List<String> values = new CopyOnWriteArrayList<>();
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .messageListener((MessageListener<String>) (consumer1, msg) -> {
+                    values.add(msg.getValue());
+                    latch.countDown();
+                })
+                .subscribe();
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        for (int i = 0; i < numMessages; i++) {
+            producer.send("msg-" + i);
+        }
+        latch.await(3, TimeUnit.SECONDS);
+        producer.close();
+        consumer.close();
+        assertEquals(values.size(), numMessages);
+        for (int i = 0; i < numMessages; i++) {
+            assertEquals(values.get(i), "msg-" + i);
+        }
     }
 }

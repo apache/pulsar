@@ -69,14 +69,11 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         config.setPort(11080);
         config.setEnableAuth(enableAuth);
         server = new Socks5Server(config);
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    server.start();
-                } catch (Exception e) {
-                    log.error("start socks5 server error", e);
-                }
+        Thread thread = new Thread(() -> {
+            try {
+                server.start();
+            } catch (Exception e) {
+                log.error("start socks5 server error", e);
             }
         });
         thread.setDaemon(true);

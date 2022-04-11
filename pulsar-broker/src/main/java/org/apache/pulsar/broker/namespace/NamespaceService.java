@@ -66,6 +66,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.BundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -166,7 +167,8 @@ public class NamespaceService implements AutoCloseable {
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
-        this.namespaceClients = new ConcurrentOpenHashMap<>();
+        this.namespaceClients =
+                ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
         this.localPoliciesCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalPolicies.class);
@@ -285,7 +287,6 @@ public class NamespaceService implements AutoCloseable {
     /**
      * Register all the bootstrap name spaces including the heartbeat namespace.
      *
-     * @return
      * @throws PulsarServerException
      */
     public void registerBootstrapNamespaces() throws PulsarServerException {
@@ -356,9 +357,15 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
-            findingBundlesAuthoritative = new ConcurrentOpenHashMap<>();
+            findingBundlesAuthoritative =
+            ConcurrentOpenHashMap.<NamespaceBundle,
+                    CompletableFuture<Optional<LookupResult>>>newBuilder()
+                    .build();
     private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
-            findingBundlesNotAuthoritative = new ConcurrentOpenHashMap<>();
+            findingBundlesNotAuthoritative =
+            ConcurrentOpenHashMap.<NamespaceBundle,
+                    CompletableFuture<Optional<LookupResult>>>newBuilder()
+                    .build();
 
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker.
@@ -1022,7 +1029,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         return getBundleAsync(topicName)
-                .thenApply(ownershipCache::checkOwnership);
+                .thenCompose(ownershipCache::checkOwnershipAsync);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
@@ -1235,7 +1242,8 @@ public class NamespaceService implements AutoCloseable {
     private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterDataImpl peerClusterData,
                                                                                   NamespaceName namespace) {
         PulsarClientImpl client = getNamespaceClient(peerClusterData);
-        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT);
+        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT, null, null)
+                .thenApply(GetTopicsResult::getTopics);
     }
 
     public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {

@@ -79,7 +79,10 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
     @Override
     public boolean add(long item1, long item2) {
         ConcurrentLongPairSet messagesToReplay = longPairSets.computeIfAbsent(item1,
-                (key) -> new ConcurrentLongPairSet(expectedItems, concurrencyLevel));
+                (key) -> ConcurrentLongPairSet.newBuilder()
+                        .expectedItems(expectedItems)
+                        .concurrencyLevel(concurrencyLevel)
+                        .build());
         return messagesToReplay.add(item1, item2);
     }
 
