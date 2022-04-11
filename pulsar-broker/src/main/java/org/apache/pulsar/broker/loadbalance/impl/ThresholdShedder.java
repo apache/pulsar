@@ -39,8 +39,9 @@ import org.slf4j.LoggerFactory;
  * Load shedding strategy that unloads any broker that exceeds the average resource utilization of all brokers by a
  * configured threshold. As a consequence, this strategy tends to distribute load among all brokers. It does this by
  * first computing the average resource usage per broker for the whole cluster. The resource usage for each broker is
- * calculated using the following method: {@link LocalBrokerData#getMaxResourceUsageWithWeight)}. The weights for each
- * resource are configurable. Historical observations are included in the running average based on the broker's
+ * calculated using the following method:
+ * {@link LocalBrokerData#getMaxResourceUsageWithWeight(double, double, double, double, double)}. The weights
+ * for each resource are configurable. Historical observations are included in the running average based on the broker's
  * setting for loadBalancerHistoryResourcePercentage. Once the average resource usage is calculated, a broker's
  * current/historical usage is compared to the average broker usage. If a broker's usage is greater than the average
  * usage per broker plus the loadBalancerBrokerThresholdShedderPercentage, this load shedder proposes removing

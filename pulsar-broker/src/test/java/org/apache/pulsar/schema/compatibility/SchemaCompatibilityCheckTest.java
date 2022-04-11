@@ -39,6 +39,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -247,6 +248,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
+
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                 (false).withSupportSchemaVersioning(true).
@@ -259,6 +261,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
 
         pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(true);
+        Policies policies = admin.namespaces().getPolicies(namespaceName.toString());
+        Assert.assertTrue(policies.is_allow_auto_update_schema);
+
         ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                         SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                                         (false).withSupportSchemaVersioning(true).

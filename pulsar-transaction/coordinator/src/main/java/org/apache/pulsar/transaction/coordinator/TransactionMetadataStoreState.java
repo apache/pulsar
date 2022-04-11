@@ -33,6 +33,7 @@ public abstract class TransactionMetadataStoreState {
         None,
         Initializing,
         Ready,
+        Closing,
         Close
     }
 
@@ -55,10 +56,14 @@ public abstract class TransactionMetadataStoreState {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
     }
 
+    protected boolean changeToClosingState() {
+        return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Closing)
+                || STATE_UPDATER.compareAndSet(this, State.None, State.Closing)
+                || STATE_UPDATER.compareAndSet(this, State.Initializing, State.Closing));
+    }
+
     protected boolean changeToCloseState() {
-        return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.None, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.Initializing, State.Close));
+        return STATE_UPDATER.compareAndSet(this, State.Closing, State.Close);
     }
 
     protected boolean checkIfReady() {

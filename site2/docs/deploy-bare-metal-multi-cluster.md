@@ -25,7 +25,7 @@ A Pulsar instance consists of multiple Pulsar clusters working in unison. You ca
 
 ## System requirement
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. You need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. You need to install 64-bit JRE/JDK 8 or later versions, JRE/JDK 11 is recommended.
 
 > **Note**
 >
@@ -212,7 +212,7 @@ $ bin/pulsar initialize-cluster-metadata \
 As you can see from the example above, you need to specify the following:
 
 * The name of the cluster
-* The local ZooKeeper connection string for the cluster
+* The local metadata store connection string for the cluster
 * The configuration store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster

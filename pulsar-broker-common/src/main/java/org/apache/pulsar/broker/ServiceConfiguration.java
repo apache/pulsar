@@ -599,6 +599,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> subscriptionTypesEnabled =
             Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
@@ -702,6 +703,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " of namespace policy. This is enabled by default."
     )
     private boolean isAllowAutoUpdateSchemaEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether to enable the automatic shrink of pendingAcks map, "
+                    + "the default is false, which means it is not enabled. "
+                    + "When there are a large number of share or key share consumers in the cluster, "
+                    + "it can be enabled to reduce the memory consumption caused by pendingAcks.")
+    private boolean autoShrinkForConsumerPendingAcksMap = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -904,6 +913,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
     )
     private int resourceUsageTransportPublishIntervalInSecs = 60;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables evaluating subscription pattern on broker side."
+    )
+    private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Max length of subscription pattern"
+    )
+    private int subscriptionPatternMaxLength = 50;
 
     // <-- dispatcher read settings -->
     @FieldContext(
@@ -1240,6 +1263,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "take effect."
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable or disable strict bookie affinity.")
+    private boolean strictBookieAffinityEnabled = false;
 
     /***** --- TLS. --- ****/
     @FieldContext(
@@ -1646,6 +1672,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
         )
+    @ToString.Exclude
     private String managedLedgerPassword = "";
 
     @FieldContext(
@@ -1668,16 +1695,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxAckQuorum = 5;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Amount of memory to use for caching data payload in managed ledger. \n\nThis"
             + " memory is allocated from JVM direct memory and it's shared across all the topics"
             + " running in the same broker. By default, uses 1/5th of available direct memory")
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
+
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
     )
     private double managedLedgerCacheEvictionWatermark = 0.9;
@@ -1685,6 +1715,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
     private double managedLedgerCacheEvictionFrequency = 100.0;
     @FieldContext(category = CATEGORY_STORAGE_ML,
+            dynamic = true,
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
     private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
     @FieldContext(category = CATEGORY_STORAGE_ML,
@@ -1722,11 +1753,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The class of the managed ledger storage"
     )
     private String managedLedgerStorageClassName = "org.apache.pulsar.broker.ManagedLedgerClientFactory";
-    @FieldContext(
-        category = CATEGORY_STORAGE_ML,
-        doc = "Number of threads to be used for managed ledger tasks dispatching"
-    )
-    private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger scheduled tasks"
@@ -2079,7 +2105,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Supported algorithms name for namespace bundle split"
     )
     private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide",
-            "topic_count_equally_divide");
+            "topic_count_equally_divide", "specified_positions_divide");
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -2410,6 +2436,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         )
     private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
+                    + "The default is to evict through readPosition."
+    )
+    private boolean cacheEvictionByMarkDeletedPosition = false;
+
     /**** --- Transaction config variables. --- ****/
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -2457,6 +2490,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int transactionBufferSnapshotMinTimeInMillis = 5000;
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The max concurrent requests for transaction buffer client."
+    )
+    private int transactionBufferClientMaxConcurrentRequests = 1000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The transaction buffer client's operation timeout in milliseconds."
+    )
+    private long transactionBufferClientOperationTimeoutInMills = 3000L;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -2466,7 +2511,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for KeyStore type"
+            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )
     private String tlsProvider = null;
 
@@ -2486,6 +2533,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore password for broker"
     )
+    @ToString.Exclude
     private String tlsKeyStorePassword = null;
 
     @FieldContext(
@@ -2504,6 +2552,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore password for broker, null means empty password."
     )
+    @ToString.Exclude
     private String tlsTrustStorePassword = null;
 
     /**** --- KeyStore TLS config variables used for internal client/admin to auth with other broker. --- ****/
@@ -2535,6 +2584,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "TLS TrustStore password for internal client, "
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
+    @ToString.Exclude
     private String brokerClientTlsTrustStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,

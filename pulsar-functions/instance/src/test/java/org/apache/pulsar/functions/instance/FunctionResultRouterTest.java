@@ -21,9 +21,7 @@ package org.apache.pulsar.functions.instance;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import java.time.Clock;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.Hash;

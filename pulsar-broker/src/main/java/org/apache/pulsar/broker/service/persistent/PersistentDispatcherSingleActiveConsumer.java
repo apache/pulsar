@@ -293,6 +293,15 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+
+        if (consumerEpoch > consumer.getConsumerEpoch()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Update epoch, old epoch [{}], new epoch [{}]",
+                        name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
+            }
+            consumer.setConsumerEpoch(consumerEpoch);
+        }
+
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
@@ -304,23 +313,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     name, consumer);
             return;
         }
-
-        cancelPendingRead();
-
-        if (!havePendingRead) {
-            if (consumerEpoch > consumer.getConsumerEpoch()) {
-                consumer.setConsumerEpoch(consumerEpoch);
-            }
-            cursor.rewind();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
-            }
-            readMoreEntries(consumer);
-        } else {
-            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: cancelPendingRequest on cursor failed", name,
-                    consumer);
+        cursor.cancelPendingReadRequest();
+        havePendingRead = false;
+        cursor.rewind();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
         }
-
+        readMoreEntries(consumer);
     }
 
     @Override
@@ -352,15 +351,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
-            havePendingRead = true;
-            if (consumer.readCompacted()) {
-                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
-                        this, consumer);
-            } else {
-                ReadEntriesCtx readEntriesCtx =
-                        ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
-                cursor.asyncReadEntriesOrWait(messagesToRead,
-                        bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
+            synchronized (this) {
+                havePendingRead = true;
+                if (consumer.readCompacted()) {
+                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                            this, consumer);
+                } else {
+                    ReadEntriesCtx readEntriesCtx =
+                            ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
+                    cursor.asyncReadEntriesOrWait(messagesToRead,
+                            bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
+                }
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -400,7 +401,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
         // if turn of precise dispatcher flow control, adjust the records to read
         if (consumer.isPreciseDispatcherFlowControl()) {
-            int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
+            int avgMessagesPerEntry = Math.max(1, consumer.getAvgMessagesPerEntry());
             messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
         }
 

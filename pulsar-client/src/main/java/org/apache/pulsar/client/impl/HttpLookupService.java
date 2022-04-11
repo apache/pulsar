@@ -34,10 +34,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -122,8 +124,9 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode) {
-        CompletableFuture<List<String>> future = new CompletableFuture<>();
+    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
+                                                                      String topicsPattern, String topicsHash) {
+        CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
 
         String format = namespace.isV2()
             ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
@@ -138,7 +141,7 @@ public class HttpLookupService implements LookupService {
                         result.add(filtered);
                     }
                 });
-                future.complete(result);
+                future.complete(new GetTopicsResult(result, topicsHash, false, true));
             }).exceptionally(ex -> {
                 log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, ex.getMessage());
                 future.completeExceptionally(ex);
@@ -159,6 +162,10 @@ public class HttpLookupService implements LookupService {
         String schemaName = topicName.getSchemaName();
         String path = String.format("admin/v2/schemas/%s/schema", schemaName);
         if (version != null) {
+            if (version.length == 0) {
+                future.completeExceptionally(new SchemaSerializationException("Empty schema version"));
+                return future;
+            }
             path = String.format("admin/v2/schemas/%s/schema/%s",
                     schemaName,
                     ByteBuffer.wrap(version).getLong());

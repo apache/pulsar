@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfig
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.ConfigValidation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.CredentialBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.jclouds.ShadedJCloudsUtils;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -136,6 +137,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
             ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+            ShadedJCloudsUtils.addStandardModules(contextBuilder);
             contextBuilder.overrides(config.getOverrides());
 
             if (config.getProviderCredentials() != null) {
@@ -200,8 +202,9 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         @Override
         public BlobStore getBlobStore(TieredStorageConfiguration config) {
 
-            ContextBuilder builder =  ContextBuilder.newBuilder("transient");
-            BlobStoreContext ctx = builder
+            ContextBuilder contextBuilder =  ContextBuilder.newBuilder("transient");
+            ShadedJCloudsUtils.addStandardModules(contextBuilder);
+            BlobStoreContext ctx = contextBuilder
                     .buildView(BlobStoreContext.class);
 
             BlobStore bs = ctx.getBlobStore();
@@ -283,6 +286,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final BlobStoreBuilder BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        ShadedJCloudsUtils.addStandardModules(contextBuilder);
         contextBuilder.overrides(config.getOverrides());
 
         if (StringUtils.isNotEmpty(config.getServiceEndpoint())) {
@@ -367,6 +371,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final BlobStoreBuilder ALIYUN_OSS_BLOB_STORE_BUILDER = (TieredStorageConfiguration config) -> {
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
+        ShadedJCloudsUtils.addStandardModules(contextBuilder);
         Properties overrides = config.getOverrides();
         // For security reasons, OSS supports only virtual hosted style access.
         overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");

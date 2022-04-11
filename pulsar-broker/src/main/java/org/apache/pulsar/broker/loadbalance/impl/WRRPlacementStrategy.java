@@ -38,7 +38,7 @@ public class WRRPlacementStrategy implements PlacementStrategy {
     /**
      * Function : getByWeightedRoundRobin returns ResourceUnit selected by WRR algorithm
      *              based on available resource on RU.
-     * <code>
+     * &lt;code&gt;
      * ^
      * |
      * |
@@ -47,14 +47,14 @@ public class WRRPlacementStrategy implements PlacementStrategy {
      * |                |                        |                                |     |
      * |   Broker 2     |       Broker 3         |         Broker 1               |  B4 |
      * |                |                        |                                |     |
-     * +----------------+------------------------+--------------------------------+--------->
+     * +----------------+------------------------+--------------------------------+---------
      * 0                20                       50                               90    100
      *
      * This is weighted Round robin, we calculate weight based on availability of resources;
      * total availability is taken as a full range then each broker is given range based on
      *  its resource availability, if the number generated within total range happens to be in
      * broker's range, that broker is selected
-     * </code>
+     * &lt;/code&gt;
      */
     public ResourceUnit findBrokerForPlacement(Multimap<Long, ResourceUnit> finalCandidates) {
         if (finalCandidates.isEmpty()) {

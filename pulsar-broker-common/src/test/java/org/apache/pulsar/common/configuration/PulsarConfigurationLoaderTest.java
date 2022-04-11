@@ -43,8 +43,8 @@ public class PulsarConfigurationLoaderTest {
     public class MockConfiguration implements PulsarConfiguration {
         private Properties properties = new Properties();
 
-        private String zookeeperServers = "localhost:2181";
-        private String configurationStoreServers = "localhost:2184";
+        private String metadataStoreUrl = "zk:localhost:2181";
+        private String configurationMetadataStoreUrl = "zk:localhost:2184";
         private Optional<Integer> brokerServicePort = Optional.of(7650);
         private Optional<Integer> brokerServicePortTls = Optional.of(7651);
         private Optional<Integer> webServicePort = Optional.of(9080);
@@ -68,8 +68,8 @@ public class PulsarConfigurationLoaderTest {
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration);
 
         // check whether converting correctly
-        assertEquals(serviceConfiguration.getMetadataStoreUrl(), "localhost:2181");
-        assertEquals(serviceConfiguration.getConfigurationMetadataStoreUrl(), "localhost:2184");
+        assertEquals(serviceConfiguration.getMetadataStoreUrl(), "zk:localhost:2181");
+        assertEquals(serviceConfiguration.getConfigurationMetadataStoreUrl(), "zk:localhost:2184");
         assertEquals(serviceConfiguration.getBrokerServicePort().get(), Integer.valueOf(7650));
         assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), Integer.valueOf((7651)));
         assertEquals(serviceConfiguration.getWebServicePort().get(), Integer.valueOf((9080)));
@@ -90,10 +90,10 @@ public class PulsarConfigurationLoaderTest {
         if (testConfigFile.exists()) {
             testConfigFile.delete();
         }
-        final String zkServer = "z1.example.com,z2.example.com,z3.example.com";
+        final String metadataStoreUrl = "zk:z1.example.com,z2.example.com,z3.example.com";
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
-        printWriter.println("zookeeperServers=" + zkServer);
-        printWriter.println("configurationStoreServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        printWriter.println("metadataStoreUrl=" + metadataStoreUrl);
+        printWriter.println("configurationMetadataStoreUrl=gz1.example.com,gz2.example.com,gz3.example.com/foo");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=true");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -118,7 +118,7 @@ public class PulsarConfigurationLoaderTest {
         InputStream stream = new FileInputStream(testConfigFile);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
-        assertEquals(serviceConfig.getMetadataStoreUrl(), zkServer);
+        assertEquals(serviceConfig.getMetadataStoreUrl(), metadataStoreUrl);
         assertTrue(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
         assertEquals(serviceConfig.getClusterName(), "usc");
@@ -137,9 +137,9 @@ public class PulsarConfigurationLoaderTest {
 
     @Test
     public void testPulsarConfiguraitonLoadingProp() throws Exception {
-        final String zk = "localhost:2184";
+        final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
-        prop.setProperty("zookeeperServers", zk);
+        prop.setProperty("metadataStoreUrl", zk);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
         assertNotNull(serviceConfig);
         assertEquals(serviceConfig.getMetadataStoreUrl(), zk);
@@ -147,9 +147,9 @@ public class PulsarConfigurationLoaderTest {
 
     @Test
     public void testPulsarConfiguraitonComplete() throws Exception {
-        final String zk = "localhost:2184";
+        final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
-        prop.setProperty("zookeeperServers", zk);
+        prop.setProperty("metadataStoreUrl", zk);
         final ServiceConfiguration serviceConfig = PulsarConfigurationLoader.create(prop, ServiceConfiguration.class);
         try {
             isComplete(serviceConfig);

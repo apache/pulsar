@@ -33,5 +33,6 @@
     "jquery": "^3.1.1",
     "jquery.scrollto": "^2.1.2",
     "node-static": "^0.7.9"
-  }
+  },
+  "license": "Apache-2.0"
 }

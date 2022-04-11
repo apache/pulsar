@@ -229,7 +229,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
         @Override
         public CompletableFuture<MessageId> getFuture() {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
     }
 

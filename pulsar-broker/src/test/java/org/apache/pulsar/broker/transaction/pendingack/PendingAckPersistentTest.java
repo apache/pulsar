@@ -278,7 +278,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         // in order to check out the pending ack cursor is clear whether or not.
         Awaitility.await()
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
-                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
     }
 
     @Test

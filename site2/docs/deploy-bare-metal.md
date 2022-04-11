@@ -24,7 +24,7 @@ Deploying a Pulsar cluster consists of the following steps:
 
 ### Requirements
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions, JRE/JDK 11 is recommended.
 
 >**Tips**  
 > You can reuse existing Zookeeper clusters.
@@ -234,9 +234,9 @@ $ bin/pulsar-daemon start zookeeper
 
 ## Initialize cluster metadata
 
-Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper for each cluster in your instance. You only need to write this data **once**.
+Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper. You only need to write this data **once**.
 
-You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your ZooKeeper cluster. The following is an example:
+You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your Pulsar cluster, so the metadata can be initialized from a ZooKeeper, broker, or bookie machine. The following is an example:
 
 ```shell
 $ bin/pulsar initialize-cluster-metadata \
@@ -254,8 +254,8 @@ As you can see from the example above, you will need to specify the following:
 Flag | Description
 :----|:-----------
 `--cluster` | A name for the cluster
-`--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
-`--configuration-store` | The configuration store connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--metadata-store` | A "local" metadata store connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--configuration-metadata-store` | The configuration metadata store connection string for the entire instance. As with the `--metadata-store` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (you had better not use a different port).
 `--web-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (you had better not use a different port).

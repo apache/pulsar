@@ -63,7 +63,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetWorkerService() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setZookeeperServers("localhost");
+        configuration.setMetadataStoreUrl("zk:localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(true);
         configuration.setBrokerShutdownTimeoutMs(0L);
@@ -83,7 +83,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetWorkerServiceException() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setZookeeperServers("localhost");
+        configuration.setMetadataStoreUrl("zk:localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(false);
         configuration.setBrokerShutdownTimeoutMs(0L);

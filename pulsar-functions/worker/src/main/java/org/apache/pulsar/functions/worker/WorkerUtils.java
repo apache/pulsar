@@ -20,7 +20,20 @@ package org.apache.pulsar.functions.worker;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.Files;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
@@ -42,8 +55,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -52,27 +66,14 @@ import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
 @Slf4j
 public final class WorkerUtils {
 
-    private WorkerUtils(){}
+    private WorkerUtils() {
+    }
 
-    public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
+    public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace)
+            throws IOException {
         try (FileInputStream uploadedInputStream = new FileInputStream(sourceFile)) {
             uploadToBookKeeper(dlogNamespace, uploadedInputStream, packagePath);
         }
@@ -93,7 +94,7 @@ public final class WorkerUtils {
         log.info("Uploading function package to '{}'", destPkgPath);
 
         try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
-            try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()){
+            try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()) {
 
                 try (OutputStream out = new DLOutputStream(dlm, writer)) {
                     int read = 0;
@@ -174,7 +175,7 @@ public final class WorkerUtils {
         // for BC purposes
         if (internalConf.getBookkeeperMetadataServiceUri() == null) {
             ledgersRootPath = internalConf.getLedgersRootPath();
-            ledgersStoreServers = internalConf.getZookeeperServers();
+            ledgersStoreServers = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
             chrootPath = "";
         } else {
             URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
@@ -185,7 +186,8 @@ public final class WorkerUtils {
                 ledgersRootPath = "/";
             } else {
                 if (!fullPath.startsWith("/")) {
-                    throw new IllegalStateException("Found invalid path: " + fullPath + " for metadataServiceUri: " + metadataServiceUri);
+                    throw new IllegalStateException(
+                            "Found invalid path: " + fullPath + " for metadataServiceUri: " + metadataServiceUri);
                 }
                 ledgersRootPath = fullPath;
                 final int lastSlash = fullPath.lastIndexOf("/");
@@ -204,8 +206,8 @@ public final class WorkerUtils {
 
         final URI dlogUri = newDlogNamespaceURI(ledgersStoreServers + chrootPath);
 
-        log.info("initialize DistributedLog Namespace with ledgersStoreServers: {} " +
-                        "ledgersRootPath: {} uri: {}", ledgersStoreServers, ledgersRootPath, dlogUri);
+        log.info("initialize DistributedLog Namespace with ledgersStoreServers: {} "
+                + "ledgersRootPath: {} uri: {}", ledgersStoreServers, ledgersRootPath, dlogUri);
         try {
             dlMetadata.create(dlogUri);
         } catch (ZKException e) {
@@ -225,10 +227,10 @@ public final class WorkerUtils {
                                                    String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
                                                    Boolean enableTlsHostnameVerificationEnable) {
         log.info("Create Pulsar Admin to service url {}: "
-            + "authPlugin = {}, authParams = {}, "
-            + "tlsTrustCerts = {}, allowTlsInsecureConnector = {}, enableTlsHostnameVerification = {}",
-            pulsarWebServiceUrl, authPlugin, authParams,
-            tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerificationEnable);
+                        + "authPlugin = {}, authParams = {}, "
+                        + "tlsTrustCerts = {}, allowTlsInsecureConnector = {}, enableTlsHostnameVerification = {}",
+                pulsarWebServiceUrl, authPlugin, authParams,
+                tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerificationEnable);
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (isNotBlank(authPlugin) && isNotBlank(authParams)) {
@@ -304,17 +306,24 @@ public final class WorkerUtils {
                     FunctionInstanceStatsDataImpl functionInstanceStatsData = new FunctionInstanceStatsDataImpl();
 
                     functionInstanceStatsData.setReceivedTotal(metricsData.getReceivedTotal());
-                    functionInstanceStatsData.setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal());
+                    functionInstanceStatsData
+                            .setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal());
                     functionInstanceStatsData.setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal());
                     functionInstanceStatsData.setUserExceptionsTotal(metricsData.getUserExceptionsTotal());
-                    functionInstanceStatsData.setAvgProcessLatency(metricsData.getAvgProcessLatency() == 0.0 ? null : metricsData.getAvgProcessLatency());
-                    functionInstanceStatsData.setLastInvocation(metricsData.getLastInvocation() == 0 ? null : metricsData.getLastInvocation());
+                    functionInstanceStatsData.setAvgProcessLatency(
+                            metricsData.getAvgProcessLatency() == 0.0 ? null : metricsData.getAvgProcessLatency());
+                    functionInstanceStatsData.setLastInvocation(
+                            metricsData.getLastInvocation() == 0 ? null : metricsData.getLastInvocation());
 
                     functionInstanceStatsData.oneMin.setReceivedTotal(metricsData.getReceivedTotal1Min());
-                    functionInstanceStatsData.oneMin.setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal1Min());
-                    functionInstanceStatsData.oneMin.setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal1Min());
+                    functionInstanceStatsData.oneMin
+                            .setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal1Min());
+                    functionInstanceStatsData.oneMin
+                            .setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal1Min());
                     functionInstanceStatsData.oneMin.setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
-                    functionInstanceStatsData.oneMin.setAvgProcessLatency(metricsData.getAvgProcessLatency1Min() == 0.0 ? null : metricsData.getAvgProcessLatency1Min());
+                    functionInstanceStatsData.oneMin.setAvgProcessLatency(
+                            metricsData.getAvgProcessLatency1Min() == 0.0 ? null :
+                                    metricsData.getAvgProcessLatency1Min());
 
                     // Filter out values that are NaN
                     Map<String, Double> statsDataMap = metricsData.getUserMetricsMap().entrySet().stream()
@@ -378,7 +387,9 @@ public final class WorkerUtils {
                 tries++;
                 if (tries % 6 == 0) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Failed to acquire exclusive producer to topic {} after {} attempts.  Will retry if we are still the leader.", topic, tries);
+                        log.debug(
+                                "Failed to acquire exclusive producer to topic {} after {} attempts. "
+                                        + "Will retry if we are still the leader.", topic, tries);
                     }
                 }
                 Thread.sleep(sleepInBetweenMs);
@@ -392,5 +403,13 @@ public final class WorkerUtils {
 
     public static class NotLeaderAnymore extends Exception {
 
+    }
+
+    public static Supplier<Boolean> getIsStillLeaderSupplier(final MembershipManager membershipManager,
+                                                             final String workerId) {
+        return () -> {
+            WorkerInfo workerInfo = membershipManager.getLeader();
+            return workerInfo != null && workerInfo.getWorkerId().equals(workerId);
+        };
     }
 }
