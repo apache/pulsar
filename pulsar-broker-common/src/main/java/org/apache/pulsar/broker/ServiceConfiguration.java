@@ -1439,6 +1439,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
 
     @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "secret for SaslRoleTokenSigner . Default value is \"PulsarSecret\"."
+    )
+    private String saslJaasServerRoleTokenSignerSecret = SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "kerberos kinit command."
     )

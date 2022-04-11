@@ -81,7 +81,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         try {
             this.allowedIdsPattern = Pattern.compile(allowedIdsPatternRegExp);
         } catch (PatternSyntaxException error) {
-            log.error("Invalid regular expression for id " + allowedIdsPatternRegExp, error);
+            log.error("Invalid regular expression for id {}", allowedIdsPatternRegExp, error);
             throw new IOException(error);
         }
 
@@ -99,7 +99,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             }
         }
 
-        this.signer = new SaslRoleTokenSigner(Long.toString(new Random().nextLong()).getBytes());
+        this.signer = new SaslRoleTokenSigner(config.getSaslJaasServerRoleTokenSignerSecret().getBytes());
     }
 
     @Override
