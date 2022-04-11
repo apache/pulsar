@@ -90,6 +90,7 @@ public interface LedgerOffloader {
     // TODO: improve the user metadata in subsequent changes
     String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
     String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
+    String METADATA_PULSAR_CLUSTER_NAME = "pulsarClusterName";
 
     /**
      * Get offload driver name.
@@ -217,5 +218,17 @@ public interface LedgerOffloader {
      * Close the resources if necessary.
      */
     void close();
+
+    /**
+     * Scans all the ManagedLedgers stored on this Offloader (usually a Bucket).
+     * The callback should not modify/delete the ledgers.
+     * @param consumer receives the
+     * @param offloadDriverMetadata additional metadata
+     * @throws ManagedLedgerException
+     */
+    default void scanLedgers(OffloadedLedgerMetadataConsumer consumer,
+                             Map<String, String> offloadDriverMetadata) throws ManagedLedgerException {
+        throw ManagedLedgerException.getManagedLedgerException(new UnsupportedOperationException());
+    }
 }
 

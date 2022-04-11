@@ -336,6 +336,15 @@ public class KubernetesRuntime implements Runtime {
 
     @Override
     public void stop() throws Exception {
+        // Because we're about to delete the function pods, we don't want the channel to attempt loading DNS, which
+        // will cease to exist if the deletion succeeds. However, we don't want to shut down the channel until
+        // the StatefulSet and Service are actually deleted.
+        if (channel != null) {
+            for (ManagedChannel cn : channel) {
+                cn.enterIdle();
+            }
+        }
+
         deleteStatefulSet();
         deleteService();
 
@@ -637,7 +646,7 @@ public class KubernetesRuntime implements Runtime {
 
 
         Actions.Action waitForStatefulSetDeletion = Actions.Action.builder()
-                .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
+                .actionName(String.format("Waiting for StatefulSet deletion to complete deletion of function %s", fqfn))
                 // set retry period to be about 2x the graceshutdown time
                 .numRetries(KubernetesRuntimeFactory.numRetries * 2)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs * 2)
@@ -786,7 +795,7 @@ public class KubernetesRuntime implements Runtime {
                 .build();
 
         Actions.Action waitForServiceDeletion = Actions.Action.builder()
-                .actionName(String.format("Waiting for statefulset for function %s to complete deletion", fqfn))
+                .actionName(String.format("Waiting for service deletion to complete deletion of function %s", fqfn))
                 .numRetries(KubernetesRuntimeFactory.numRetries)
                 .sleepBetweenInvocationsMs(KubernetesRuntimeFactory.sleepBetweenRetriesMs)
                 .supplier(() -> {
@@ -796,7 +805,7 @@ public class KubernetesRuntime implements Runtime {
                                 null, null, null);
 
                     } catch (ApiException e) {
-                        // statefulset is gone
+                        // service is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
                             return Actions.ActionResult.builder().success(true).build();
                         }

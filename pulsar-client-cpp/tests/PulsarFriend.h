@@ -25,6 +25,7 @@
 #include "lib/ConsumerImpl.h"
 #include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
+#include "lib/ReaderImpl.h"
 
 using std::string;
 
@@ -79,6 +80,12 @@ class PulsarFriend {
         return std::static_pointer_cast<ConsumerImpl>(consumer.impl_);
     }
 
+    static ConsumerImplPtr getConsumer(Reader reader) {
+        return std::static_pointer_cast<ConsumerImpl>(reader.impl_->getConsumer().lock());
+    }
+
+    static ReaderImplWeakPtr getReaderImplWeakPtr(Reader reader) { return reader.impl_; }
+
     static decltype(ConsumerImpl::chunkedMessageCache_) & getChunkedMessageCache(Consumer consumer) {
         auto consumerImpl = getConsumerImplPtr(consumer);
         ConsumerImpl::Lock lock(consumerImpl->chunkProcessMutex_);
@@ -94,6 +101,14 @@ class PulsarFriend {
     }
 
     static std::shared_ptr<ClientImpl> getClientImplPtr(Client client) { return client.impl_; }
+
+    static ClientImpl::ProducersList& getProducers(const Client& client) {
+        return getClientImplPtr(client)->producers_;
+    }
+
+    static ClientImpl::ConsumersList& getConsumers(const Client& client) {
+        return getClientImplPtr(client)->consumers_;
+    }
 
     static void setNegativeAckEnabled(Consumer consumer, bool enabled) {
         consumer.impl_->setNegativeAcknowledgeEnabledForTesting(enabled);

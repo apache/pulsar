@@ -80,10 +80,6 @@ public class RedisSinkTest {
     private Record<byte[]> build(String topic, String key, String value) {
         // prepare a SinkRecord
         SinkRecord<byte[]> record = new SinkRecord<>(new Record<byte[]>() {
-            @Override
-            public Optional<String> getKey() {
-                return Optional.empty();
-            }
 
             @Override
             public byte[] getValue() {

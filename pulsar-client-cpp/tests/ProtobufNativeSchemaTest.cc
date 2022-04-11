@@ -121,6 +121,9 @@ TEST(ProtobufNativeSchemaTest, testEndToEnd) {
     receivedTestMessage.ParseFromArray(msg.getData(), msg.getLength());
     ASSERT_EQ(receivedTestMessage.testenum(), ::proto::TestEnum::FAILOVER);
 
+    ASSERT_TRUE(msg.hasSchemaVersion());
+    ASSERT_EQ(msg.getSchemaVersion(), std::string(8L, '\0'));
+
     client.close();
 }
 

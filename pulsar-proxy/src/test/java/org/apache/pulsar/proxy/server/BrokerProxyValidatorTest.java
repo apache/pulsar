@@ -90,6 +90,26 @@ public class BrokerProxyValidatorTest {
         brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
     }
 
+    @Test
+    public void shouldAllowIPv6Address() throws Exception {
+        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
+                createMockedAddressResolver("fd4d:801b:73fa:abcd:0000:0000:0000:0001"),
+                "*"
+                , "fd4d:801b:73fa:abcd::/64"
+                , "6650");
+        brokerProxyValidator.resolveAndCheckTargetAddress("myhost.mydomain:6650").get();
+    }
+
+    @Test
+    public void shouldAllowIPv6AddressNumeric() throws Exception {
+        BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
+                createMockedAddressResolver("fd4d:801b:73fa:abcd:0000:0000:0000:0001"),
+                "*"
+                , "fd4d:801b:73fa:abcd::/64"
+                , "6650");
+        brokerProxyValidator.resolveAndCheckTargetAddress("fd4d:801b:73fa:abcd:0000:0000:0000:0001:6650").get();
+    }
+
     private AddressResolver<InetSocketAddress> createMockedAddressResolver(String ipAddressResult) {
         AddressResolver<InetSocketAddress> inetSocketAddressResolver = mock(AddressResolver.class);
         when(inetSocketAddressResolver.resolve(any())).then(invocationOnMock -> {

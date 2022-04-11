@@ -313,19 +313,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     name, consumer);
             return;
         }
-
-        cancelPendingRead();
-
-        if (!havePendingRead) {
-            cursor.rewind();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
-            }
-            readMoreEntries(consumer);
-        } else {
-            log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: cancelPendingRequest on cursor failed", name,
-                    consumer);
+        cursor.cancelPendingReadRequest();
+        havePendingRead = false;
+        cursor.rewind();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] Cursor rewinded, redelivering unacknowledged messages. ", name, consumer);
         }
+        readMoreEntries(consumer);
     }
 
     @Override

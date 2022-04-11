@@ -29,16 +29,18 @@ cd $ROOT_DIR/pulsar-client-cpp
 # Build manylinux2014 build image
 PYTHON_VERSION="3.9"
 PYTHON_SPEC="cp39-cp39"
-IMAGE_NAME=pulsar-build:manylinux-$PYTHON_SPEC
+ARCH="x86_64"
+IMAGE_NAME=pulsar-build:manylinux-$PYTHON_SPEC-$ARCH
 
 docker build -t $IMAGE_NAME ./docker/manylinux2014 \
         --build-arg PYTHON_VERSION=$PYTHON_VERSION \
-        --build-arg PYTHON_SPEC=$PYTHON_SPEC
+        --build-arg PYTHON_SPEC=$PYTHON_SPEC \
+        --build-arg ARCH=$ARCH
 
 
 # Build wheel file
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-pulsar-build}"
-IMAGE=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC
+IMAGE=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC-$ARCH
 
 VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
 COMMAND="/pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh"
