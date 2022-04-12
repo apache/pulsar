@@ -1613,6 +1613,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     void initializeCursorPosition(Pair<PositionImpl, Long> lastPositionCounter) {
         readPosition = ledger.getNextValidPosition(lastPositionCounter.getLeft());
         markDeletePosition = lastPositionCounter.getLeft();
+        lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, getProperties(), null, null);
+        persistentMarkDeletePosition = null;
+        inProgressMarkDeletePersistPosition = null;
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is 0, to ensure the initial backlog count is 0.
