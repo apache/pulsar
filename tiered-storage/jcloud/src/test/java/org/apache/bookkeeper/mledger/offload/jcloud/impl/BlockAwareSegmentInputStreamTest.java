@@ -28,6 +28,7 @@ import com.google.common.primitives.Longs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -282,7 +283,7 @@ public class BlockAwareSegmentInputStreamTest {
         if (useBufferRead) {
             int ret = 0;
             int offset = 0;
-            while ((ret = inputStream.read(padding, offset, padding.length - ret)) > 0) {
+            while ((ret = inputStream.read(padding, offset, padding.length - offset)) > 0) {
                 offset += ret;
             }
         } else {
@@ -515,7 +516,7 @@ public class BlockAwareSegmentInputStreamTest {
         if (useBufferRead) {
             int ret = 0;
             int offset = 0;
-            while ((ret = inputStream.read(padding, offset, padding.length - ret)) > 0) {
+            while ((ret = inputStream.read(padding, offset, padding.length - offset)) > 0) {
                 offset += ret;
             }
         } else {
@@ -617,7 +618,7 @@ public class BlockAwareSegmentInputStreamTest {
         if (useBufferRead) {
             int ret = 0;
             int offset = 0;
-            while ((ret = inputStream.read(padding, offset, padding.length - ret)) > 0) {
+            while ((ret = inputStream.read(padding, offset, padding.length - offset)) > 0) {
                 offset += ret;
             }
         } else {
@@ -652,8 +653,8 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.close();
     }
 
-    @Test(dataProvider = "useBufferRead")
-    public void testOnlyNegativeOnEOF(boolean useBufferRead) throws Exception {
+    @Test()
+    public void testOnlyNegativeOnEOF() throws Exception {
         int ledgerId = 1;
         int entrySize = 10000;
         int lac = 0;
@@ -666,13 +667,7 @@ public class BlockAwareSegmentInputStreamTest {
 
         int bytesRead = 0;
         for (int i = 0; i < blockSize*2; i++) {
-            int ret;
-            if (useBufferRead) {
-                byte[] b = new byte[1];
-                ret = inputStream.read(b, 0, b.length);
-            } else {
-                ret = inputStream.read();
-            }
+            int ret = inputStream.read();
             if (ret < 0) { // should only be EOF
                 assertEquals(bytesRead, blockSize);
                 break;
@@ -682,4 +677,24 @@ public class BlockAwareSegmentInputStreamTest {
         }
     }
 
+    @Test
+    public void testOnlyNegativeOnEOFWithBufferedRead() throws IOException {
+        int ledgerId = 1;
+        int entrySize = 10000;
+        int lac = 0;
+
+        Random r = new Random(0);
+        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte)r.nextInt());
+
+        int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
+
+        int bytesRead = 0;
+        int ret;
+        byte[] buf = new byte[1024];
+        while ((ret = inputStream.read(buf, 0, buf.length)) > 0) {
+            bytesRead += ret;
+        }
+        assertEquals(bytesRead, blockSize);
+    }
 }
