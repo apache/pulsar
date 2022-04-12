@@ -110,27 +110,25 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         config.getProperties().setProperty("metadataStoreUrl", metadataStoreUrl);
         config.getProperties().setProperty("configurationMetadataStoreUrl", metadataStoreUrl);
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                try {
-                    if (fnWorkerService != null) {
-                        fnWorkerService.stop();
-                    }
-
-                    if (broker != null) {
-                        broker.close();
-                    }
-
-                    if (bkEnsemble != null) {
-                        bkEnsemble.stop();
-                    }
-
-                    LogManager.shutdown();
-                } catch (Exception e) {
-                    log.error("Shutdown failed: {}", e.getMessage(), e);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                if (fnWorkerService != null) {
+                    fnWorkerService.stop();
                 }
+
+                if (broker != null) {
+                    broker.close();
+                }
+
+                if (bkEnsemble != null) {
+                    bkEnsemble.stop();
+                }
+
+                LogManager.shutdown();
+            } catch (Exception e) {
+                log.error("Shutdown failed: {}", e.getMessage(), e);
             }
-        });
+        }));
     }
 
     private static boolean argsContains(String[] args, String arg) {
