@@ -388,4 +388,21 @@ class InMemTransactionBuffer implements TransactionBuffer {
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
     }
+
+    @Override
+    public long getOngoingTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.OPEN)
+                        || txnBuffer.status.equals(TxnStatus.COMMITTING)
+                        || txnBuffer.status.equals(TxnStatus.ABORTING)
+                )
+                .count();
+    }
+
+    @Override
+    public long getAbortTxnCount() {
+        return this.buffers.values().stream()
+                .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.ABORTED))
+                .count();
+    }
 }

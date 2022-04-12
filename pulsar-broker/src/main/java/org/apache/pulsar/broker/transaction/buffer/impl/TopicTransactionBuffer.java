@@ -236,6 +236,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
+    @Override
+    public long getOngoingTxnCount() {
+        return this.ongoingTxns.size();
+    }
+
+    @Override
+    public long getAbortTxnCount() {
+        return this.aborts.size();
+    }
+
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
