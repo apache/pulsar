@@ -391,8 +391,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     initializeBookKeeper(callback);
                                 }
                             } else if (isNoSuchLedgerExistsException(rc)) {
-                                log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
-                                ledgers.remove(ledgers.lastKey());
+                                log.warn("[{}] Ledger not found: {}", name, id);
+                                ledgers.remove(id);
                                 initializeBookKeeper(callback);
                             } else {
                                 log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));

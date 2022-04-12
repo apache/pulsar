@@ -22,16 +22,12 @@ import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.Map;
 import javax.validation.constraints.NotNull;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
-@Getter
+@Data
 @NoArgsConstructor
-@EqualsAndHashCode
-@ToString
 public class NamespaceEphemeralData {
     private String nativeUrl;
     private String nativeUrlTls;

@@ -139,6 +139,10 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
     ASSERT_EQ(conf.getProperties()["k1"], "v1");
     ASSERT_EQ(conf.hasProperty("k1"), true);
 
+    std::map<std::string, std::string> subscriptionProperties = {{"k1", "v1"}};
+    conf.setSubscriptionProperties(subscriptionProperties);
+    ASSERT_EQ(conf.getSubscriptionProperties()["k1"], "v1");
+
     conf.setPriorityLevel(1);
     ASSERT_EQ(conf.getPriorityLevel(), 1);
 
