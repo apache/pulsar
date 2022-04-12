@@ -340,15 +340,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     return this.currentCumulativeAckFuture;
                 } finally {
                     this.lock.readLock().unlock();
-                    if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
-                        flush();
-                    }
                 }
             } else {
                 doCumulativeAckAsync(messageId, bitSet);
-                if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
-                    flush();
-                }
                 return CompletableFuture.completedFuture(null);
             }
         }
