@@ -382,12 +382,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
 
-            if (SubscribeRateLimiter.isSubscribeRateEnabled(getSubscribeRate())) {
-                this.subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
-            } else {
-                this.subscribeRateLimiter = Optional.empty();
-            }
-
+            updateSubscribeRateLimiter();
             // dispatch rate limiter for each subscription
             subscriptions.forEach((name, subscription) -> {
                 Dispatcher dispatcher = subscription.getDispatcher();
@@ -447,10 +442,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public void updateSubscribeRateLimiter() {
         SubscribeRate subscribeRate = this.getSubscribeRate();
-        if (isSubscribeRateEnabled(subscribeRate)) {
-            subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
-        } else {
-            subscribeRateLimiter = Optional.empty();
+        synchronized (subscribeRateLimiter) {
+            if (isSubscribeRateEnabled(subscribeRate)) {
+                subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
+            } else {
+                subscribeRateLimiter = Optional.empty();
+            }
         }
         subscribeRateLimiter.ifPresent(limiter -> limiter.onSubscribeRateUpdate(subscribeRate));
     }
@@ -3037,9 +3034,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         updateTopicPolicy(policies);
 
-        Optional<Policies> namespacePolicies = getNamespacePolicies();
         initializeTopicDispatchRateLimiterIfNeeded(policies);
-
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
 
         List<CompletableFuture<Void>> consumerCheckFutures = new ArrayList<>();
@@ -3054,11 +3049,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         FutureUtil.waitForAll(consumerCheckFutures).thenRun(() -> {
             updatePublishDispatcher();
-            initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
-            if (this.subscribeRateLimiter.isPresent()) {
-                subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
-                        subscribeRateLimiter.onSubscribeRateUpdate(getSubscribeRate()));
-            }
+            updateSubscribeRateLimiter();
             replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                     .ifPresent(DispatchRateLimiter::updateDispatchRate));
 
@@ -3087,22 +3078,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         synchronized (dispatchRateLimiter) {
             if (!dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
-            }
-        }
-    }
-
-    private void initializeTopicSubscribeRateLimiterIfNeeded(Optional<TopicPolicies> policies) {
-        if (!policies.isPresent()) {
-            return;
-        }
-        synchronized (subscribeRateLimiter) {
-            if (!subscribeRateLimiter.isPresent()
-                    && policies.get().getSubscribeRate() != null
-                    && policies.get().getSubscribeRate().subscribeThrottlingRatePerConsumer > 0) {
-                this.subscribeRateLimiter = Optional.of(new SubscribeRateLimiter(this));
-            } else if (!policies.get().isSubscribeRateSet()
-                    || policies.get().getSubscribeRate().subscribeThrottlingRatePerConsumer <= 0) {
-                this.subscribeRateLimiter = Optional.empty();
             }
         }
     }
