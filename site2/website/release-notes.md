@@ -45,7 +45,7 @@
   - Allow to configure metadata store URL in proxy.conf [#13777](https://github.com/apache/pulsar/pull/13777)
   - Allow to configure metadata store URL in functions_worker.yml [#13782](https://github.com/apache/pulsar/pull/13782)
   - Add configuration metadata store url setting in WebSocket [#13786](https://github.com/apache/pulsar/pull/13786)
-  - Allow configuring configurationMetadataStore when initialize cluster metadata [#13889](https://github.com/apache/pulsar/pull/13889)
+  - Allow configuring configurationMetadataStore when initializing cluster metadata [#13889](https://github.com/apache/pulsar/pull/13889)
   - Using the consistent metadata store scheme name [#13937](https://github.com/apache/pulsar/pull/13937)
   - Allow configuring `metadataStoreUrl` in `pulsar-perf managed-ledger` [#14145](https://github.com/apache/pulsar/pull/14145)
   - Deprecated zookeeper settings [#14147](https://github.com/apache/pulsar/pull/14147)
