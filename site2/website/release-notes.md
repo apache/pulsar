@@ -239,7 +239,7 @@
 
 ### CLI
 - [Pulsar Admin] Support get a mapping of brokers to partitioned topics [#11763](https://github.com/apache/pulsar/pull/11763)
-- [Pulsar Admin] Support terminate a partitioned topic [#11893](https://github.com/apache/pulsar/pull/11893)
+- [Pulsar Admin] Support the termination of a partitioned topic [#11893](https://github.com/apache/pulsar/pull/11893)
 - [Pulsar Admin] Update command descriptions from old 'property/cluster/namespace' format to current 'tenant/namespace' format [#10485](https://github.com/apache/pulsar/pull/10485)
 - [Pulsar Admin] Add remove-subscription-types-enabled command for namespace [#12392](https://github.com/apache/pulsar/pull/12392)
 - [Pulsar Admin] Fix output format of string by pulsar-admin command [#11878](https://github.com/apache/pulsar/pull/11878)
