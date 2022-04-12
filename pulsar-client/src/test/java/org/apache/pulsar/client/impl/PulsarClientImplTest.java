@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -110,8 +112,11 @@ public class PulsarClientImplTest {
         LookupService lookup = mock(LookupService.class);
         when(lookup.getTopicsUnderNamespace(
                 any(NamespaceName.class),
-                any(CommandGetTopicsOfNamespace.Mode.class)))
-                .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+                any(CommandGetTopicsOfNamespace.Mode.class),
+                nullable(String.class),
+                nullable(String.class)))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new GetTopicsResult(Collections.emptyList(), null, false, true)));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class)))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
         when(lookup.getBroker(any(TopicName.class)))

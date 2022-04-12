@@ -347,10 +347,6 @@ public class PulsarSinkTest {
         for (String topic : topics) {
 
             SinkRecord<String> record = new SinkRecord<>(new Record<String>() {
-                @Override
-                public Optional<String> getKey() {
-                    return Optional.empty();
-                }
 
                 @Override
                 public String getValue() {

@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -36,8 +37,10 @@ public class NettyServerSslContextBuilder extends SslContextAutoRefreshBuilder<S
     protected final Set<String> tlsCiphers;
     protected final Set<String> tlsProtocols;
     protected final boolean tlsRequireTrustedClientCertOnConnect;
+    protected final SslProvider sslProvider;
 
-    public NettyServerSslContextBuilder(boolean allowInsecure, String trustCertsFilePath, String certificateFilePath,
+    public NettyServerSslContextBuilder(SslProvider sslProvider, boolean allowInsecure, String trustCertsFilePath,
+                                        String certificateFilePath,
                                         String keyFilePath, Set<String> ciphers, Set<String> protocols,
                                         boolean requireTrustedClientCertOnConnect,
                                         long delayInSeconds) {
@@ -49,14 +52,17 @@ public class NettyServerSslContextBuilder extends SslContextAutoRefreshBuilder<S
         this.tlsCiphers = ciphers;
         this.tlsProtocols = protocols;
         this.tlsRequireTrustedClientCertOnConnect = requireTrustedClientCertOnConnect;
+        this.sslProvider = sslProvider;
     }
 
     @Override
     public synchronized SslContext update()
-        throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
-        this.sslNettyContext = SecurityUtility.createNettySslContextForServer(tlsAllowInsecureConnection,
-                tlsTrustCertsFilePath.getFileName(), tlsCertificateFilePath.getFileName(), tlsKeyFilePath.getFileName(),
-                tlsCiphers, tlsProtocols, tlsRequireTrustedClientCertOnConnect);
+            throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
+        this.sslNettyContext =
+                SecurityUtility.createNettySslContextForServer(this.sslProvider, tlsAllowInsecureConnection,
+                        tlsTrustCertsFilePath.getFileName(), tlsCertificateFilePath.getFileName(),
+                        tlsKeyFilePath.getFileName(),
+                        tlsCiphers, tlsProtocols, tlsRequireTrustedClientCertOnConnect);
         return this.sslNettyContext;
     }
 
