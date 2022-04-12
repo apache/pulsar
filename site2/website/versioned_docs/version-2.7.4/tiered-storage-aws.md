@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-tiered-storage-aws
+id: version-2.7.4-tiered-storage-aws
 title: Use AWS S3 offloader with Pulsar
 sidebar_label: AWS S3 offloader
 original_id: tiered-storage-aws
@@ -49,7 +49,6 @@ This example uses Pulsar 2.5.1.
     **Output**
 
     As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/) and [GCS](https://cloud.google.com/storage/) for long term storage. 
-
 
     ```
     tiered-storage-file-system-2.5.1.nar
@@ -257,7 +256,6 @@ For individual topics, you can trigger AWS S3 offloader manually using one of th
     Offload was a success
     ```
 
-
     If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
     ```bash
@@ -271,7 +269,7 @@ For individual topics, you can trigger AWS S3 offloader manually using one of th
     null
 
     Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-    ````
+    ```
 
     > #### Tip
     >
