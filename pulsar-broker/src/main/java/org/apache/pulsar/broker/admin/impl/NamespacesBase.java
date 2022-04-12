@@ -287,15 +287,15 @@ public abstract class NamespacesBase extends AdminResource {
             return pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundlesAsync(namespaceName).thenCompose(bundles -> {
                         for (NamespaceBundle bundle : bundles.getBundles()) {
-                            // check if the bundle is owned by any broker, if not then we do not need to delete
-                            // the bundle
-                            deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle)
-                                    .thenCompose(ownership -> {
+                            // check if the bundle is owned by any broker,
+                            // if not then we do not need to delete the bundle
+                            deleteBundleFutures.add(
+                                    pulsar().getNamespaceService().getOwnerAsync(bundle).thenCompose(ownership -> {
                                 if (ownership.isPresent()) {
                                     try {
                                         return pulsar().getAdminClient().namespaces()
-                                                .deleteNamespaceBundleAsync(namespaceName.toString(),
-                                                        bundle.getBundleRange());
+                                                .deleteNamespaceBundleAsync(
+                                                        namespaceName.toString(), bundle.getBundleRange());
                                     } catch (PulsarServerException e) {
                                         throw new RestException(e);
                                     }
@@ -307,36 +307,21 @@ public abstract class NamespacesBase extends AdminResource {
                         return FutureUtil.waitForAll(deleteBundleFutures);
                     });
         })
-        .handle((result, exception) -> {
-            if (exception != null) {
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
-                } else {
-                    log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, exception);
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
-                }
-            }
-
-            try {
-                // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
-                // now
-                final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-                namespaceResources().delete(globalZkPolicyPath);
-                try {
-                    getLocalPolicies().delete(localZkPolicyPath);
-                } catch (NotFoundException nne) {
-                    // If the z-node with the modified information is not there anymore, we're already good
-                }
-            } catch (Exception e) {
-                log.error("[{}] Failed to remove owned namespace {} from ZK", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return null;
-            }
-
+        .thenCompose(__ -> {
+            // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
+            // now
+            final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
+            final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+            return namespaceResources().deleteAsync(globalZkPolicyPath)
+                    .thenCompose((ignore -> getLocalPolicies().deleteAsync(localZkPolicyPath)));
+        })
+        .thenAccept(__ -> {
+            log.info("[{}] Remove namespace successfully {}", clientAppId(), namespaceName);
             asyncResponse.resume(Response.noContent().build());
+        })
+        .exceptionally(ex -> {
+            log.error("[{}] Failed to remove namespace {}", clientAppId(), namespaceName, ex.getCause());
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
