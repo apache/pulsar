@@ -119,8 +119,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendGetTopicsOfNamespaceResponse(List<String> topics, long requestId) {
-        BaseCommand command = Commands.newGetTopicsOfNamespaceResponseCommand(topics, requestId);
+    public void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
+                                                 boolean filtered, boolean changed, long requestId) {
+        BaseCommand command = Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash,
+                filtered, changed, requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         cnx.ctx().writeAndFlush(outBuf);

@@ -17,16 +17,18 @@
 # under the License.
 #
 
-
-FROM quay.io/pypa/manylinux2014_x86_64
-
-RUN yum install -y gtest-devel
+ARG ARCH
+FROM quay.io/pypa/manylinux2014_${ARCH}
 
 ARG PYTHON_VERSION
 ARG PYTHON_SPEC
 
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 ENV PYTHON_SPEC=${PYTHON_SPEC}
+
+ARG ARCH
+ENV ARCH=${ARCH}
+
 
 ENV PATH="/opt/python/${PYTHON_SPEC}/bin:${PATH}"
 
@@ -46,69 +48,36 @@ RUN curl -O -L https://www.cpan.org/src/5.0/perl-5.10.0.tar.gz && \
 ####################################
 
 # ZLib
-RUN curl -O -L https://zlib.net/zlib-1.2.11.tar.gz && \
-    tar xvfz zlib-1.2.11.tar.gz && \
-    cd zlib-1.2.11 && \
+RUN curl -O -L https://zlib.net/zlib-1.2.12.tar.gz && \
+    tar xvfz zlib-1.2.12.tar.gz && \
+    cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
-    make && make install && \
-    rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
+    make -j8 && make install && \
+    rm -rf /zlib-1.2.12.tar.gz /zlib-1.2.12
 
 # Compile OpenSSL
-RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
-    tar xvfz OpenSSL_1_1_0j.tar.gz && \
-    cd openssl-OpenSSL_1_1_0j/ && \
-    ./Configure -fPIC --prefix=/usr/local/ssl/ no-shared linux-x86_64 && \
-    make && make install && \
-    rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz && \
+    tar xvfz OpenSSL_1_1_1n.tar.gz && \
+    cd openssl-OpenSSL_1_1_1n/ && \
+    ./Configure -fPIC --prefix=/usr/local/ssl/ no-shared linux-${ARCH} && \
+    make -j8 && make install && \
+    rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n
 
 # Download and compile boost
-RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.68.0/source/boost_1_68_0.tar.gz && \
-    tar xvfz boost_1_68_0.tar.gz && \
-    cd /boost_1_68_0 && \
+RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz && \
+    tar xvfz boost_1_78_0.tar.gz && \
+    cd /boost_1_78_0 && \
     ./bootstrap.sh --with-libraries=program_options,filesystem,regex,thread,system,python && \
-    ./b2 address-model=64 cxxflags=-fPIC link=static threading=multi variant=release install && \
-    rm -rf /boost_1_68_0.tar.gz /boost_1_68_0
+    ./b2 address-model=64 cxxflags=-fPIC link=static threading=multi variant=release install -j8 && \
+    rm -rf /boost_1_78_0.tar.gz /boost_1_78_0
 
 # Download and copile protoubf
 RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
     tar xvfz protobuf-cpp-3.3.0.tar.gz && \
     cd protobuf-3.3.0/ && \
     CXXFLAGS=-fPIC ./configure && \
-    make && make install && ldconfig && \
+    make -j8 && make install && ldconfig && \
     rm -rf /protobuf-cpp-3.3.0.tar.gz /protobuf-3.3.0
-
-# Compile APR
-RUN curl -O -L  http://archive.apache.org/dist/apr/apr-1.5.2.tar.gz && \
-    tar xvfz apr-1.5.2.tar.gz && \
-    cd apr-1.5.2 && \
-    CFLAGS=-fPIC CXXFLAGS=-fPIC ./configure && \
-    make && make install && \
-    rm -rf /apr-1.5.2.tar.gz /apr-1.5.2
-
-# Compile APR-Util
-RUN curl -O -L  http://archive.apache.org/dist/apr/apr-util-1.5.4.tar.gz && \
-    tar xvfz apr-util-1.5.4.tar.gz && \
-    cd apr-util-1.5.4 && \
-    CFLAGS=-fPIC CXXFLAGS=-fPIC ./configure -with-apr=/usr/local/apr && \
-    make && make install && \
-    rm -rf /apr-util-1.5.4.tar.gz /apr-util-1.5.4
-
-# Libtool
-RUN curl -L -O https://ftp.gnu.org/gnu/libtool/libtool-2.4.6.tar.gz && \
-    tar xvfz libtool-2.4.6.tar.gz && \
-    cd libtool-2.4.6 && \
-    ./configure && \
-    make && make install && \
-    rm -rf /libtool-2.4.6.tar.gz /libtool-2.4.6
-
-# Compile log4cxx
-RUN curl -O -L https://github.com/apache/logging-log4cxx/archive/v0.11.0.tar.gz && \
-    tar xvfz v0.11.0.tar.gz && \
-    cd logging-log4cxx-0.11.0 && \
-    ./autogen.sh && \
-    CXXFLAGS=-fPIC ./configure && \
-    make && make install && \
-    rm -rf /v0.11.0.tar.gz /logging-log4cxx-0.11.0
 
 # Compile expat
 RUN curl -O -L  https://github.com/libexpat/libexpat/archive/R_2_2_0.tar.gz && \
@@ -116,14 +85,14 @@ RUN curl -O -L  https://github.com/libexpat/libexpat/archive/R_2_2_0.tar.gz && \
     cd libexpat-R_2_2_0/expat && \
     ./buildconf.sh && \
     CFLAGS=-fPIC CXXFLAGS=-fPIC ./configure  && \
-    make && make installlib && \
+    make -j8 && make installlib && \
     rm -rf /R_2_2_0.tar.gz /libexpat-R_2_2_0
 
 RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.12.1.tar.gz && \
     tar xvfz v3.12.1.tar.gz && \
     cd CMake-3.12.1 && \
     ./configure && \
-    make && make install && \
+    make -j8 && make install && \
     rm -rf /v3.12.1.tar.gz /CMake-3.12.1
 
 # Zstandard
@@ -139,7 +108,7 @@ RUN curl -O -L https://github.com/google/snappy/releases/download/1.1.3/snappy-1
     tar xvfz snappy-1.1.3.tar.gz && \
     cd snappy-1.1.3 && \
     CXXFLAGS="-fPIC -O3" ./configure && \
-    make && make install && \
+    make -j8 && make install && \
     rm -rf /snappy-1.1.3 /snappy-1.1.3.tar.gz
 
 # LibCurl
@@ -147,7 +116,7 @@ RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-
     tar xvfz curl-7.61.0.tar.gz && \
     cd curl-7.61.0 && \
     CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
-    make && make install && \
+    make -j8 && make install && \
     rm -rf /curl-7.61.0.tar.gz /curl-7.61.0
 
 RUN pip install twine

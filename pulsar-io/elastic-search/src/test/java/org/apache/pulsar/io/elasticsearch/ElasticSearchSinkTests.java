@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import co.elastic.clients.transport.ElasticsearchTransport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -26,7 +27,9 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
+
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,24 +42,36 @@ import java.util.Optional;
 
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
+import org.apache.pulsar.io.elasticsearch.client.RestClient;
+import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestClient;
+import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
 import org.apache.pulsar.io.elasticsearch.data.UserProfile;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.opensearch.client.Node;
 import org.opensearch.client.RestHighLevelClient;
+import org.powermock.reflect.Whitebox;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+
 import static org.testng.Assert.assertNull;
 
-public class ElasticSearchSinkTests extends ElasticSearchTestBase {
+public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     private static ElasticsearchContainer container;
+
+    public ElasticSearchSinkTests(String elasticImageName) {
+        super(elasticImageName);
+    }
 
     @Mock
     protected Record<GenericObject> mockRecord;
@@ -71,9 +86,13 @@ public class ElasticSearchSinkTests extends ElasticSearchTestBase {
     static GenericSchema<GenericRecord> genericSchema;
     static GenericRecord userProfile;
 
-    @BeforeClass
-    public static final void initBeforeClass() {
+    @BeforeMethod(alwaysRun = true)
+    public final void initBeforeClass() {
+        if (container != null) {
+            return;
+        }
         container = createElasticsearchContainer();
+        container.start();
 
         valueSchema = Schema.JSON(UserProfile.class);
         genericSchema = Schema.generic(valueSchema.getSchemaInfo());
@@ -89,13 +108,12 @@ public class ElasticSearchSinkTests extends ElasticSearchTestBase {
     @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
+        container = null;
     }
 
     @SuppressWarnings("unchecked")
     @BeforeMethod
     public final void setUp() throws Exception {
-        container.start();
-
         map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://"+container.getHttpHostAddress());
         map.put("schemaEnable", "true");
@@ -142,14 +160,19 @@ public class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     @Test
     public final void multiNodesClientTest() throws Exception {
+        if (elasticImageName.equals(ELASTICSEARCH_8)) {
+            throw new SkipException("Elastic java-client doesn't provide internal info about server nodes");
+        }
         map.put("indexName", "myindex");
         map.put("typeName", "doc");
         map.put("username", "racerX");
         map.put("password", "go-speedie-go");
         map.put("elasticSearchUrl", "http://node1:90902,https://node2:90902,http://node3:90902");
+        map.put("compatibilityMode", "OPENSEARCH");
         sink.open(map, mockSinkContext);
-        RestHighLevelClient client = sink.getElasticsearchClient().getClient();
-        List<Node> nodeList = client.getLowLevelClient().getNodes();
+
+        OpenSearchHighLevelRestClient client = (OpenSearchHighLevelRestClient) sink.getElasticsearchClient().getRestClient();
+        List<Node> nodeList = client.getClient().getLowLevelClient().getNodes();
         assertEquals(nodeList.size(), 3);
     }
     
@@ -192,8 +215,17 @@ public class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         send(1);
         verify(mockRecord, times(1)).ack();
-        assertEquals(sink.getElasticsearchClient().totalHits(index), 1L);
-        assertEquals(sink.getElasticsearchClient().search(index).getHits().getHits()[0].getId(), "bob");
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), 1L);
+
+        if (elasticImageName.equals(ELASTICSEARCH_8)) {
+            final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient)
+                    sink.getElasticsearchClient().getRestClient();
+            assertEquals(restClient.search(index).hits().hits().get(0).id(), "bob");
+        } else {
+            final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient)
+                    sink.getElasticsearchClient().getRestClient();
+            assertEquals(restClient.search(index).getHits().getHits()[0].getId(), "bob");
+        }
     }
 
     @Test
@@ -205,8 +237,16 @@ public class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.open(map, mockSinkContext);
         send(1);
         verify(mockRecord, times(1)).ack();
-        assertEquals(sink.getElasticsearchClient().totalHits(index), 1L);
-        assertEquals(sink.getElasticsearchClient().search(index).getHits().getHits()[0].getId(), "[\"bob\",\"boby\"]");
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), 1L);
+        if (elasticImageName.equals(ELASTICSEARCH_8)) {
+            final ElasticSearchJavaRestClient restClient = (ElasticSearchJavaRestClient)
+                    sink.getElasticsearchClient().getRestClient();
+            assertEquals(restClient.search(index).hits().hits().get(0).id(), "[\"bob\",\"boby\"]");
+        } else {
+            final OpenSearchHighLevelRestClient restClient = (OpenSearchHighLevelRestClient)
+                    sink.getElasticsearchClient().getRestClient();
+            assertEquals(restClient.search(index).getHits().getHits()[0].getId(), "[\"bob\",\"boby\"]");
+        }
     }
 
     protected final void send(int numRecords) throws Exception {
@@ -323,9 +363,54 @@ public class ElasticSearchSinkTests extends ElasticSearchTestBase {
                 };
             }
         });
-        assertEquals(sink.getElasticsearchClient().totalHits(index), 1L);
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), 1L);
         sink.write(new MockRecordNullValue());
-        assertEquals(sink.getElasticsearchClient().totalHits(index), action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
+        assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
         assertNull(sink.getElasticsearchClient().irrecoverableError.get());
+    }
+
+    @Test
+    public void testCloseClient() throws Exception {
+        final ElasticSearchSink sink = new ElasticSearchSink();
+        map.put("bulkEnabled", true);
+        try {
+            sink.open(map, mockSinkContext);
+            final ElasticSearchClient elasticSearchClient = spy(sink.getElasticsearchClient());
+            final RestClient restClient = spy(elasticSearchClient.getRestClient());
+            if (restClient instanceof ElasticSearchJavaRestClient) {
+                ElasticSearchJavaRestClient client = (ElasticSearchJavaRestClient) restClient;
+                final BulkProcessor bulkProcessor = spy(restClient.getBulkProcessor());
+                final ElasticsearchTransport transport = spy(client.getTransport());
+
+                Whitebox.setInternalState(client, "transport", transport);
+                Whitebox.setInternalState(client, "bulkProcessor", bulkProcessor);
+                Whitebox.setInternalState(elasticSearchClient, "client", restClient);
+                Whitebox.setInternalState(sink, "elasticsearchClient", elasticSearchClient);
+                sink.close();
+                verify(transport).close();
+                verify(bulkProcessor).close();
+                verify(client).close();
+                verify(restClient).close();
+
+            } else {
+                OpenSearchHighLevelRestClient client = (OpenSearchHighLevelRestClient) restClient;
+
+                final org.opensearch.action.bulk.BulkProcessor internalBulkProcessor = spy(
+                        client.getInternalBulkProcessor());
+                final RestHighLevelClient restHighLevelClient = spy(client.getClient());
+
+                Whitebox.setInternalState(client, "client", restHighLevelClient);
+                Whitebox.setInternalState(client, "internalBulkProcessor", internalBulkProcessor);
+                Whitebox.setInternalState(elasticSearchClient, "client", restClient);
+                Whitebox.setInternalState(sink, "elasticsearchClient", elasticSearchClient);
+                sink.close();
+                verify(restHighLevelClient).close();
+                verify(internalBulkProcessor).awaitClose(Mockito.anyLong(), Mockito.any(TimeUnit.class));
+                verify(client).close();
+                verify(restClient).close();
+            }
+        } finally {
+            sink.close();
+        }
     }
 }

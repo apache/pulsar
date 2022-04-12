@@ -35,6 +35,7 @@ public abstract class BaseKinesisConfig implements Serializable {
     )
     private String awsEndpoint = "";
 
+
     @FieldDoc(
         required = false,
         defaultValue = "",
@@ -59,7 +60,7 @@ public abstract class BaseKinesisConfig implements Serializable {
     private String awsCredentialPluginName = "";
 
     @FieldDoc(
-        required = false,
+        required = true,
         defaultValue = "",
         sensitive = true,
         help = "json-parameters to initialize `AwsCredentialsProviderPlugin`")

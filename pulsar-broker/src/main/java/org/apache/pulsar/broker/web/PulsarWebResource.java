@@ -33,15 +33,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -237,16 +235,7 @@ public abstract class PulsarWebResource {
      *             if not authorized
      */
     public void validateSuperUserAccess() {
-        try {
-            validateSuperUserAccessAsync().get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            Throwable realCause = FutureUtil.unwrapCompletionException(e);
-            if (realCause instanceof WebApplicationException){
-                throw (WebApplicationException) realCause;
-            } else {
-                throw new RestException(realCause);
-            }
-        }
+        sync(this::validateSuperUserAccessAsync);
     }
 
     /**
@@ -468,16 +457,7 @@ public abstract class PulsarWebResource {
      * @throws Exception In case the redirect happens
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
-        try {
-            validateClusterOwnershipAsync(cluster).get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
-            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-            if (realCause instanceof WebApplicationException){
-                throw (WebApplicationException) realCause;
-            } else {
-                throw new RestException(realCause);
-            }
-        }
+        sync(()-> validateClusterOwnershipAsync(cluster));
     }
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
@@ -685,15 +665,7 @@ public abstract class PulsarWebResource {
      * @param authoritative
      */
     protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
-        try {
-            validateTopicOwnershipAsync(topicName, authoritative).join();
-        } catch (CompletionException ce) {
-            if (ce.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) ce.getCause();
-            } else {
-                throw new RestException(ce.getCause());
-            }
-        }
+        sync(()-> validateTopicOwnershipAsync(topicName, authoritative));
     }
 
     protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
@@ -834,7 +806,12 @@ public abstract class PulsarWebResource {
                 .getPoliciesAsync(namespace).thenAccept(policiesResult -> {
             if (policiesResult.isPresent()) {
                 Policies policies = policiesResult.get();
-                if (policies.replication_clusters.isEmpty()) {
+                if (policies.deleted) {
+                    String msg = String.format("Namespace %s is deleted", namespace.toString());
+                    log.warn(msg);
+                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                            "Namespace is deleted"));
+                } else if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(
                             "Namespace does not have any clusters configured : local_cluster=%s ns=%s",
                             localCluster, namespace.toString());
@@ -930,19 +907,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {
-        try {
-            int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
-            validateTenantOperationAsync(tenant, operation).get(timeout, SECONDS);
-        } catch (InterruptedException | TimeoutException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof WebApplicationException){
-                throw (WebApplicationException) cause;
-            } else {
-                throw new RestException(cause);
-            }
-        }
+        sync(()-> validateTenantOperationAsync(tenant, operation));
     }
 
     public CompletableFuture<Void> validateTenantOperationAsync(String tenant, TenantOperation operation) {
@@ -969,19 +934,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
-        try {
-            int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
-            validateNamespaceOperationAsync(namespaceName, operation).get(timeout, SECONDS);
-        } catch (InterruptedException | TimeoutException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof WebApplicationException){
-                throw (WebApplicationException) cause;
-            } else {
-                throw new RestException(cause);
-            }
-        }
+        sync(()-> validateNamespaceOperationAsync(namespaceName, operation));
     }
 
 
@@ -1008,22 +961,9 @@ public abstract class PulsarWebResource {
         return CompletableFuture.completedFuture(null);
     }
 
-    public void validateNamespacePolicyOperation(NamespaceName namespaceName,
-                                                 PolicyName policy,
+    public void validateNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy,
                                                  PolicyOperation operation) {
-        try {
-            int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
-            validateNamespacePolicyOperationAsync(namespaceName, policy, operation).get(timeout, SECONDS);
-        } catch (InterruptedException | TimeoutException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof WebApplicationException){
-                throw (WebApplicationException) cause;
-            } else {
-                throw new RestException(cause);
-            }
-        }
+        sync(()-> validateNamespacePolicyOperationAsync(namespaceName, policy, operation));
     }
 
     public CompletableFuture<Void> validateNamespacePolicyOperationAsync(NamespaceName namespaceName,
@@ -1171,19 +1111,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicPolicyOperation(TopicName topicName, PolicyName policy, PolicyOperation operation) {
-        try {
-            int timeout = pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
-            validateTopicPolicyOperationAsync(topicName, policy, operation).get(timeout, SECONDS);
-        } catch (InterruptedException | TimeoutException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof WebApplicationException){
-                throw (WebApplicationException) cause;
-            } else {
-                throw new RestException(cause);
-            }
-        }
+        sync(()-> validateTopicPolicyOperationAsync(topicName, policy, operation));
     }
 
     public CompletableFuture<Void> validateTopicPolicyOperationAsync(TopicName topicName,
@@ -1213,16 +1141,7 @@ public abstract class PulsarWebResource {
     }
 
     public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
-        try {
-            validateTopicOperationAsync(topicName, operation, subscription).get();
-        } catch (InterruptedException | ExecutionException e) {
-            Throwable cause = FutureUtil.unwrapCompletionException(e);
-            if (cause instanceof WebApplicationException){
-                throw (WebApplicationException) cause;
-            } else {
-                throw new RestException(cause);
-            }
-        }
+        sync(()-> validateTopicOperationAsync(topicName, operation, subscription));
     }
 
     public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {
@@ -1254,13 +1173,19 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected Void handleCommonRestAsyncException(AsyncResponse asyncResponse, Throwable ex) {
-        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-        if (realCause instanceof WebApplicationException) {
-            asyncResponse.resume(realCause);
-        } else {
-            asyncResponse.resume(new RestException(realCause));
+    public <T> T sync(Supplier<CompletableFuture<T>> supplier) {
+        try {
+            return supplier.get().get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (ExecutionException | TimeoutException ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof WebApplicationException) {
+                throw (WebApplicationException) realCause;
+            } else {
+                throw new RestException(realCause);
+            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new RestException(ex);
         }
-        return null;
     }
 }

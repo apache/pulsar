@@ -288,10 +288,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) {
-                new Thread(() -> {
-                    ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
-                            .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                }).start();
+                new Thread(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
+                        .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
                 return null;
             }

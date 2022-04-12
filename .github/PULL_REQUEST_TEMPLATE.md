@@ -1,9 +1,7 @@
 <!--
 ### Contribution Checklist
   
-  - Name the pull request in the form "[Issue XYZ][component] Title of the pull request", where *XYZ* should be replaced by the actual issue number.
-    Skip *Issue XYZ* if there is no associated github issue for this pull request.
-    Skip *component* if you are unsure about which is the best component. E.g. `[docs] Fix typo in produce method`.
+  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#heading=h.trs9rsex3xom)*. 
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
   
@@ -68,20 +66,18 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
-Check the box below or label this PR directly (if you have committer privilege).
+Check the box below or label this PR directly.
 
 Need to update docs? 
 
 - [ ] `doc-required` 
-  
-  (If you need help on updating docs, create a doc issue)
+(Your PR needs to update docs and you will update later)
   
 - [ ] `no-need-doc` 
-  
-  (Please explain why)
+(Please explain why)
   
 - [ ] `doc` 
-  
-  (If this PR contains doc changes)
+(Your PR contains doc changes)
 
-
+- [ ] `doc-added`
+(Docs have been already added)

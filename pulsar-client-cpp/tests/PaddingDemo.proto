@@ -22,5 +22,5 @@ package padding.demo;
 
 message Person {
   string name = 1;
-  optional int32 id = 2;
+  int32 id = 2;
 }

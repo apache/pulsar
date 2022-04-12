@@ -60,6 +60,10 @@ if (NOT DEFINED ${Boost_PYTHON39-MT_LIBRARY})
   set(Boost_PYTHON39-MT_LIBRARY ${Boost_PYTHON39_LIBRARY})
 endif()
 
+if (NOT DEFINED ${Boost_PYTHON310-MT_LIBRARY})
+  set(Boost_PYTHON310-MT_LIBRARY ${Boost_PYTHON310_LIBRARY})
+endif()
+
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY}
                         ${Boost_PYTHON3_LIBRARY}
@@ -69,7 +73,9 @@ set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY}
                         ${Boost_PYTHON35_LIBRARY}
                         ${Boost_PYTHON36_LIBRARY}
                         ${Boost_PYTHON38_LIBRARY}
-                        ${Boost_PYTHON39_LIBRARY})
+                        ${Boost_PYTHON39_LIBRARY}
+                        ${Boost_PYTHON310_LIBRARY}
+    )
 
 if (APPLE)
     if (Boost_PYTHON27-MT_LIBRARY_RELEASE)
@@ -83,6 +89,9 @@ if (APPLE)
     endif ()
     if (Boost_PYTHON39-MT_LIBRARY_RELEASE)
         set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS} ${Boost_PYTHON39-MT_LIBRARY_RELEASE})
+    endif ()
+    if (Boost_PYTHON310-MT_LIBRARY_RELEASE)
+        set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS} ${Boost_PYTHON310-MT_LIBRARY_RELEASE})
     endif ()
 endif()
 

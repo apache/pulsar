@@ -97,32 +97,34 @@ done
 if [ "$NO_PRESTO" -ne 1 ]; then
   # check pulsar sql jars
   JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | sed 's!.*/!!' | sort)
-  LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/lib\/presto\/LICENSE/')
-  LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
-  LICENSEJARS=$(echo "$LICENSE" | sed -nE 's!.* (.*\.jar).*!\1!gp')
+  if [ -n "$JARS" ]; then
+    LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/lib\/presto\/LICENSE/')
+    LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
+    LICENSEJARS=$(echo "$LICENSE" | sed -nE 's!.* (.*\.jar).*!\1!gp')
 
 
-  for J in $JARS; do
-      echo $J | grep -q "org.apache.pulsar"
-      if [ $? == 0 ]; then
-          continue
-      fi
+    for J in $JARS; do
+        echo $J | grep -q "org.apache.pulsar"
+        if [ $? == 0 ]; then
+      continue
+        fi
 
-      echo "$LICENSE" | grep -q $J
-      if [ $? != 0 ]; then
-          echo $J unaccounted for in lib/presto/LICENSE
-          EXIT=1
-      fi
-  done
+        echo "$LICENSE" | grep -q $J
+        if [ $? != 0 ]; then
+      echo $J unaccounted for in lib/presto/LICENSE
+      EXIT=1
+        fi
+    done
 
-  # Check all jars mentioned in LICENSE are bundled
-  for J in $LICENSEJARS; do
-      echo "$JARS" | grep -q $J
-      if [ $? != 0 ]; then
-          echo $J mentioned in lib/presto/LICENSE, but not bundled
-          EXIT=2
-      fi
-  done
+    # Check all jars mentioned in LICENSE are bundled
+    for J in $LICENSEJARS; do
+        echo "$JARS" | grep -q $J
+        if [ $? != 0 ]; then
+      echo $J mentioned in lib/presto/LICENSE, but not bundled
+      EXIT=2
+        fi
+    done
+  fi
 fi
 
 if [ $EXIT != 0 ]; then

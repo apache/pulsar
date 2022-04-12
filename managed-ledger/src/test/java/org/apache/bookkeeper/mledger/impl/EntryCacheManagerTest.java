@@ -280,7 +280,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 10);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
         assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 70);
@@ -311,7 +311,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         PositionImpl pos = (PositionImpl) entries.get(entries.size() - 1).getPosition();
         c2.setReadPosition(pos);
         ledger.discardEntriesFromCache(c2, pos);
-        entries.forEach(e -> e.release());
+        entries.forEach(Entry::release);
 
         cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
         assertEquals(cacheManager.mlFactoryMBean.getCacheUsedSize(), 7);

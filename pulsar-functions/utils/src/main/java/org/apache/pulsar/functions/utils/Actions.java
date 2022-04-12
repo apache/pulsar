@@ -111,7 +111,7 @@ public class Actions {
             ActionResult actionResult = action.getSupplier().get();
 
             if (actionResult.isSuccess()) {
-                log.info("Sucessfully completed action [ {} ]", action.getActionName());
+                log.info("Successfully completed action [ {} ]", action.getActionName());
                 if (action.getOnSuccess() != null) {
                     action.getOnSuccess().accept(actionResult);
                 }

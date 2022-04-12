@@ -38,6 +38,7 @@ import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -503,6 +504,9 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e.getCause();
+            }
+            if (e.getCause() instanceof PulsarServerException.InvalidTopicNameException) {
+                throw new RestException(Status.PRECONDITION_FAILED, e.getCause().getMessage());
             }
             throw new RestException(e);
         }
