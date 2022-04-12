@@ -191,7 +191,7 @@
 - [Java] Fix parseProtobufSchema method will be called two times [#13163](https://github.com/apache/pulsar/pull/13163)
 - [Java] Add getNumPartitions method into PartitionedProducerImpl [#13239](https://github.com/apache/pulsar/pull/13239)
 - [Java] Allow config client dns bind addr and port [#13390](https://github.com/apache/pulsar/pull/13390)
-- [Java] Support add custom properties for the reconsumeLater interface [#13461](https://github.com/apache/pulsar/pull/13461)
+- [Java] Support adding custom properties for the reconsumeLater interface [#13461](https://github.com/apache/pulsar/pull/13461)
 - [Java] Allow Client Builder set Dnslookup params [#13503](https://github.com/apache/pulsar/pull/13503)
 - [Java] Avoid repeatedly set startMessageIdData to null for ConsumerImpl [#13606](https://github.com/apache/pulsar/pull/13606)
 - [Java] Let the 'properties' to be empty for ConsumerBuilder and ProducerBuilder [#14074](https://github.com/apache/pulsar/pull/14074)
