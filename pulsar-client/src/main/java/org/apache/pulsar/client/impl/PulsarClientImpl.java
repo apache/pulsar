@@ -28,6 +28,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -890,7 +891,12 @@ public class PulsarClientImpl implements PulsarClient {
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return lookup.getBroker(topicName)
-                .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
+    }
+
+    public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
+                                                      final InetSocketAddress physicalAddress) {
+        return cnxPool.getConnection(logicalAddress, physicalAddress);
     }
 
     /** visible for pulsar-functions. **/
