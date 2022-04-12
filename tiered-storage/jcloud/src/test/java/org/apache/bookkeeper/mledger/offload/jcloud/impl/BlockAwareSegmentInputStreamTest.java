@@ -653,7 +653,7 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.close();
     }
 
-    @Test()
+    @Test
     public void testOnlyNegativeOnEOF() throws Exception {
         int ledgerId = 1;
         int entrySize = 10000;
