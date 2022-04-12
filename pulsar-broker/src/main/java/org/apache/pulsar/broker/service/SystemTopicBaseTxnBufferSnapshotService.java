@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
-import io.netty.util.AbstractReferenceCounted;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.ReferenceCounted;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -46,26 +44,28 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
     private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
-    private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerFutureMap;
-    private final LinkedList<CompletableFuture<Writer<TransactionBufferSnapshot>>> pendingCloseWriterList;
+    private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap;
+    private final LinkedList<Writer<TransactionBufferSnapshot>> pendingCloseWriterList;
 
     // The class ReferenceCountedWriter will maintain the reference count,
     // when the reference count decrement to 0, it will be removed from writerFutureMap, the writer will be closed.
-    public static class ReferenceCountedWriter extends AbstractReferenceCounted {
+    public static class ReferenceCountedWriter {
 
+        private final AtomicLong referenceCount;
         private final NamespaceName namespaceName;
         private final SystemTopicBaseTxnBufferSnapshotService service;
         private final CompletableFuture<Writer<TransactionBufferSnapshot>> future;
 
-        private ReferenceCountedWriter(NamespaceName namespaceName,
+        public ReferenceCountedWriter(NamespaceName namespaceName,
                                          SystemTopicBaseTxnBufferSnapshotService service,
                                          CompletableFuture<Writer<TransactionBufferSnapshot>> future) {
+            this.referenceCount = new AtomicLong(1);
             this.namespaceName = namespaceName;
             this.service = service;
             this.future = future;
             this.future.exceptionally(t -> {
                 log.error("[{}] Failed to create transaction buffer snapshot writer.", namespaceName, t);
-                service.writerFutureMap.remove(namespaceName, this);
+                service.writerMap.remove(namespaceName, this);
                 return null;
             });
         }
@@ -74,17 +74,20 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
             return future;
         }
 
-        @Override
-        protected void deallocate() {
-            if (service.writerFutureMap.remove(namespaceName, this)) {
-                service.pendingCloseWriterList.add(this.future);
-                service.closePendingCloseWriter();
-            }
+        public void retain() {
+            this.referenceCount.incrementAndGet();
         }
 
-        @Override
-        public ReferenceCounted touch(Object o) {
-            return this;
+        public void release() {
+            synchronized (service.writerMap) {
+                if (this.referenceCount.decrementAndGet() == 0) {
+                    service.writerMap.remove(namespaceName, this);
+                    this.future.thenAccept(writer -> {
+                        service.pendingCloseWriterList.add(writer);
+                        service.closePendingCloseWriter();
+                    });
+                }
+            }
         }
 
     }
@@ -92,7 +95,7 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
     public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client) {
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.clients = new ConcurrentHashMap<>();
-        this.writerFutureMap = new ConcurrentHashMap<>();
+        this.writerMap = new ConcurrentHashMap<>();
         this.pendingCloseWriterList = new LinkedList<>();
     }
 
@@ -107,33 +110,15 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
     }
 
     @Override
-    public ReferenceCountedWriter createReferenceWriter(NamespaceName namespaceName) {
-        ReferenceCountedWriter referenceCountedWriter = writerFutureMap.compute(namespaceName, (ns, value) -> {
-            if (value == null) {
+    public ReferenceCountedWriter getReferenceWriter(NamespaceName namespaceName) {
+        return writerMap.compute(namespaceName, (k, v) -> {
+            if (v == null) {
                 return new ReferenceCountedWriter(namespaceName, this,
                         getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync());
             }
-            try {
-                value.retain();
-            } catch (Exception e) {
-                log.warn("[{}] The reference counted writer was already released, {}", namespaceName, e.getMessage());
-                return null;
-            }
-            return value;
+            v.retain();
+            return v;
         });
-        if (referenceCountedWriter == null) {
-            // normally, this will not happen, just a safety check.
-            throw new RuntimeException(
-                    String.format("[%s] Failed to create transaction buffer snapshot writer.", namespaceName));
-        }
-        return referenceCountedWriter;
-    }
-
-    @Override
-    public void releaseReferenceWriter(ReferenceCountedWriter referenceCountedWriter) {
-        synchronized (writerFutureMap) {
-            ReferenceCountUtil.safeRelease(referenceCountedWriter);
-        }
     }
 
     private SystemTopicClient<TransactionBufferSnapshot> getTransactionBufferSystemTopicClient(
@@ -165,16 +150,12 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
     }
 
     private void closePendingCloseWriter() {
-        Iterator<CompletableFuture<Writer<TransactionBufferSnapshot>>> iterator =
-                pendingCloseWriterList.stream().iterator();
+        Iterator<Writer<TransactionBufferSnapshot>> iterator = pendingCloseWriterList.stream().iterator();
         while (iterator.hasNext()) {
-            CompletableFuture<Writer<TransactionBufferSnapshot>> future = iterator.next();
-            if (future == null) {
-                continue;
+            Writer<TransactionBufferSnapshot> writer = iterator.next();
+            if (writer != null) {
+                writer.closeAsync().thenAccept(ignore -> pendingCloseWriterList.remove(writer));
             }
-            future.thenAccept(writer ->
-                    writer.closeAsync().thenAccept(ignore ->
-                            pendingCloseWriterList.remove(future)));
         }
     }
 

@@ -100,7 +100,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         super(State.None);
         this.topic = topic;
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
-                .getTransactionBufferSnapshotService().createReferenceWriter(
+                .getTransactionBufferSnapshotService().getReferenceWriter(
                         TopicName.get(topic.getName()).getNamespaceObject());
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
@@ -477,9 +477,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public synchronized CompletableFuture<Void> closeAsync() {
         if (!checkIfClose()) {
-            // make sure the object only release one time.
-            topic.getBrokerService().pulsar().getTransactionBufferSnapshotService()
-                    .releaseReferenceWriter(this.takeSnapshotWriter);
+            // make sure the snapshot counted writer only release one time.
+            this.takeSnapshotWriter.release();
         }
         changeToCloseState();
         return CompletableFuture.completedFuture(null);

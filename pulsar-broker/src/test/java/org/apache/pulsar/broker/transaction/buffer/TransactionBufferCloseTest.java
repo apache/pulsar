@@ -131,18 +131,4 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         return topics;
     }
 
-    private void checkSnapshotPublisherCount(String namespace, int expectCount) throws PulsarAdminException {
-        TopicName snTopicName = TopicName.get(TopicDomain.persistent.value(), NamespaceName.get(namespace),
-                EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        Awaitility.await()
-                .atMost(2, TimeUnit.SECONDS)
-                .pollInterval(100, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    List<PublisherStats> publisherStatsList =
-                            (List<PublisherStats>) admin.topics()
-                                    .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
-                    Assert.assertEquals(publisherStatsList.size(), expectCount);
-                });
-    }
-
 }

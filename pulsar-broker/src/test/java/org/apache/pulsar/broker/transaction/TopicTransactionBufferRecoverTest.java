@@ -482,7 +482,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         doReturn(CompletableFuture.completedFuture(writer)).when(countedWriter).getFuture();
 
         doReturn(CompletableFuture.completedFuture(reader)).when(transactionBufferSnapshotService).createReader(any());
-        doReturn(countedWriter).when(transactionBufferSnapshotService).createReferenceWriter(any());
+        doReturn(countedWriter).when(transactionBufferSnapshotService).getReferenceWriter(any());
         doReturn(CompletableFuture.completedFuture(null)).when(reader).closeAsync();
         doReturn(CompletableFuture.completedFuture(null)).when(writer).closeAsync();
         Field field = PulsarService.class.getDeclaredField("transactionBufferSnapshotService");
@@ -512,7 +512,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // mock create writer fail
         ReferenceCountedWriter failedCountedWriter = mock(ReferenceCountedWriter.class);
         doReturn(FutureUtil.failedFuture(new PulsarClientException("test"))).when(failedCountedWriter).getFuture();
-        doReturn(failedCountedWriter).when(transactionBufferSnapshotService).createReferenceWriter(any());
+        doReturn(failedCountedWriter).when(transactionBufferSnapshotService).getReferenceWriter(any());
         checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
                 transactionBufferSnapshotService, originalTopic, field, producer);
     }

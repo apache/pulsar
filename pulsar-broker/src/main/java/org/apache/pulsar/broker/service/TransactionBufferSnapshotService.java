@@ -39,20 +39,13 @@ public interface TransactionBufferSnapshotService {
     CompletableFuture<Writer<TransactionBufferSnapshot>> createWriter(TopicName topicName);
 
     /**
-     * Create a reference counted transaction buffer snapshot writer.
+     * Get or create a reference counted transaction buffer snapshot writer.
      *
      * @param namespaceName Namespace name
      *
      * @return {@link SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter} return reference counted writer
      */
-    SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter createReferenceWriter(NamespaceName namespaceName);
-
-    /**
-     * Release the reference count writer.
-     *
-     * @param referenceCountedWriter reference count writer
-     */
-    void releaseReferenceWriter(SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter referenceCountedWriter);
+    SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter getReferenceWriter(NamespaceName namespaceName);
 
     /**
      * Create a transaction buffer snapshot reader.

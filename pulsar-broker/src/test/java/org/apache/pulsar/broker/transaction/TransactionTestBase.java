@@ -49,9 +49,12 @@ import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -60,6 +63,8 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
 import org.apache.zookeeper.data.ACL;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 
 @Slf4j
 public abstract class TransactionTestBase extends TestRetrySupport {
@@ -317,4 +322,19 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             log.warn("Failed to clean up mocked pulsar service:", e);
         }
     }
+
+    public void checkSnapshotPublisherCount(String namespace, int expectCount) {
+        TopicName snTopicName = TopicName.get(TopicDomain.persistent.value(), NamespaceName.get(namespace),
+                EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    List<PublisherStats> publisherStatsList =
+                            (List<PublisherStats>) admin.topics()
+                                    .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
+                    Assert.assertEquals(publisherStatsList.size(), expectCount);
+                });
+    }
+
 }

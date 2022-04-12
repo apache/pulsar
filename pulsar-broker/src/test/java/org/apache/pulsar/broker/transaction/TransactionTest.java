@@ -60,13 +60,17 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
+import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
@@ -972,4 +976,63 @@ public class TransactionTest extends TransactionTestBase {
                     Integer.parseInt(lastConfirmedEntry[1]) - 2);
         });
     }
+
+    @Test(timeOut = 10_000)
+    public void testTBSnapshotWriter() throws Exception {
+        String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
+        admin.namespaces().createNamespace(namespace, 16);
+        String topic = namespace + "/test-create-snapshot-writer-failed";
+        int partitionCount = 20;
+        admin.topics().createPartitionedTopic(topic, partitionCount);
+
+        // inject a failed counted writer
+        CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> writerFuture = new CompletableFuture<>();
+        for (PulsarService pulsarService : pulsarServiceList) {
+            SystemTopicBaseTxnBufferSnapshotService snapshotService =
+                    (SystemTopicBaseTxnBufferSnapshotService) pulsarService.getTransactionBufferSnapshotService();
+            ReferenceCountedWriter failedCountedWriter =
+                    new ReferenceCountedWriter(NamespaceName.get(namespace), snapshotService, writerFuture);
+
+            Class<SystemTopicBaseTxnBufferSnapshotService> clazz = SystemTopicBaseTxnBufferSnapshotService.class;
+            Field field = clazz.getDeclaredField("writerMap");
+            field.setAccessible(true);
+            ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(snapshotService))
+                    .put(NamespaceName.get(namespace), failedCountedWriter);
+        }
+
+        CompletableFuture<Producer<byte[]>> producerFuture = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .createAsync();
+        getTopic("persistent://" + topic + "-partition-0");
+        Thread.sleep(3000);
+        // the producer shouldn't be created, because the transaction buffer snapshot writer future didn't finish.
+        assertFalse(producerFuture.isDone());
+        writerFuture.completeExceptionally(new PulsarClientException.TopicTerminatedException("failed writer"));
+        Producer<byte[]> producer = producerFuture.get();
+
+        for (int i = 0; i < partitionCount * 2; i++) {
+            Transaction txn = pulsarClient.newTransaction()
+                    .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+            producer.newMessage(txn).value("test".getBytes()).sendAsync();
+            txn.commit().get();
+        }
+        checkSnapshotPublisherCount(namespace, 1);
+        producer.close();
+        admin.topics().unload(topic);
+        checkSnapshotPublisherCount(namespace, 0);
+    }
+
+    private void getTopic(String topicName) {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> {
+                    for (PulsarService pulsarService : pulsarServiceList) {
+                        if (pulsarService.getBrokerService().getTopicReference(topicName).isPresent()) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+    }
+
 }
