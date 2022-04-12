@@ -225,7 +225,7 @@
 - [IO Connector] Pass client builder if no service url provided to debezium connector [#12145](https://github.com/apache/pulsar/pull/12145)
 - [IO Connector] Fix: "Sqlcmd: Error: Microsoft ODBC Driver 17 for SQL Server : Login failed for user 'sa'.." in MS SQL integration test [12374](https://github.com/apache/pulsar/pull/12374)
 - [IO Connector] Fix the marshal and unmarshal the sink config [#12625](https://github.com/apache/pulsar/pull/12625)
-- [IO Connector] Support rename the file has been processed [#13373](https://github.com/apache/pulsar/pull/13373)
+- [IO Connector] Support renaming the file that has been processed [#13373](https://github.com/apache/pulsar/pull/13373)
 - [IO Connector] Support Fixed and ENUM datatypes for ElasticSearch Sink [#13800](https://github.com/apache/pulsar/pull/13800)
 - [IO Connector] Implement --retain-key-ordering (KEY_SHARED subscription) for Sinks [#14083](https://github.com/apache/pulsar/pull/14083)
 
