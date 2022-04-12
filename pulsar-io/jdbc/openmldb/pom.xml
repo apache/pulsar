@@ -46,7 +46,7 @@
     <dependency>
       <groupId>com.4paradigm.openmldb</groupId>
       <artifactId>openmldb-native</artifactId>
-      <version>${openmldb-jdbc.version}</version>
+      <version>${openmldb-jdbc.version}-allinone</version>
       <scope>runtime</scope>
     </dependency>
   </dependencies>

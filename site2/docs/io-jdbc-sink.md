@@ -15,16 +15,16 @@ The configuration of all JDBC sink connectors has the following properties.
 
 ### Property
 
-| Name        | Type   | Required | Default            | Description                                                                                                          |
-|-------------|--------|----------|--------------------|----------------------------------------------------------------------------------------------------------------------|
-| `userName`  | String | false    | " " (empty string) | The username used to connect to the database specified by `jdbcUrl`.<br><br>**Note: `userName` is case-sensitive.**  |
-| `password`  | String | false    | " " (empty string) | The password used to connect to the database specified by `jdbcUrl`. <br><br>**Note: `password` is case-sensitive.** |
-| `jdbcUrl`   | String | true     | " " (empty string) | The JDBC URL of the database to which the connector connects.                                                        |
-| `tableName` | String | true     | " " (empty string) | The name of the table to which the connector writes.                                                                 |
-| `nonKey`    | String | false    | " " (empty string) | A comma-separated list contains the fields used in updating events.                                                  |
-| `key`       | String | false    | " " (empty string) | A comma-separated list contains the fields used in `where` condition of updating and deleting events.                |
-| `timeoutMs` | int    | false    | 500                | The JDBC operation timeout in milliseconds.                                                                          |
-| `batchSize` | int    | false    | 200                | The batch size of updates made to the database.                                                                      |
+| Name        | Type   | Required | Default            | Description                                                                                                              |
+|-------------|--------|----------|--------------------|--------------------------------------------------------------------------------------------------------------------------|
+| `userName`  | String | false    | " " (empty string) | The username used to connect to the database specified by `jdbcUrl`.<br /><br />**Note: `userName` is case-sensitive.**  |
+| `password`  | String | false    | " " (empty string) | The password used to connect to the database specified by `jdbcUrl`. <br /><br />**Note: `password` is case-sensitive.** |
+| `jdbcUrl`   | String | true     | " " (empty string) | The JDBC URL of the database that the connector connects to.                                                             |
+| `tableName` | String | true     | " " (empty string) | The name of the table that the connector writes to.                                                                      |
+| `nonKey`    | String | false    | " " (empty string) | A comma-separated list containing the fields used in updating events.                                                    |
+| `key`       | String | false    | " " (empty string) | A comma-separated list containing the fields used in `where` condition of updating and deleting events.                  |
+| `timeoutMs` | int    | false    | 500                | The JDBC operation timeout in milliseconds.                                                                              |
+| `batchSize` | int    | false    | 200                | The batch size of updates made to the database.                                                                          |
 
 ### Example for ClickHouse
 
