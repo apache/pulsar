@@ -43,7 +43,7 @@
   - Removed ZooKeeperClientFactory [#13303](https://github.com/apache/pulsar/pull/13303)
   - Use reference counting in RocksDB metadata store [#13309](https://github.com/apache/pulsar/pull/13309)
   - Allow configuring metadata store URL in proxy.conf [#13777](https://github.com/apache/pulsar/pull/13777)
-  - Allow to configure metadata store URL in functions_worker.yml [#13782](https://github.com/apache/pulsar/pull/13782)
+  - Allow configuring metadata store URL in functions_worker.yml [#13782](https://github.com/apache/pulsar/pull/13782)
   - Add configuration metadata store url setting in WebSocket [#13786](https://github.com/apache/pulsar/pull/13786)
   - Allow configuring configurationMetadataStore when initializing cluster metadata [#13889](https://github.com/apache/pulsar/pull/13889)
   - Using the consistent metadata store scheme name [#13937](https://github.com/apache/pulsar/pull/13937)
