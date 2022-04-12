@@ -22,7 +22,11 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.net.URI;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +46,9 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle.OfferEntryResult;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerMetadata;
+import org.apache.bookkeeper.mledger.OffloadedLedgerMetadataConsumer;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
@@ -61,6 +68,10 @@ import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.MultipartPart;
 import org.jclouds.blobstore.domain.MultipartUpload;
+import org.jclouds.blobstore.domain.PageSet;
+import org.jclouds.blobstore.domain.StorageMetadata;
+import org.jclouds.blobstore.domain.StorageType;
+import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.blobstore.options.PutOptions;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LocationBuilder;
@@ -123,7 +134,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         //ensure buffer can have enough content to fill a block
         this.maxBufferLength = Math.max(config.getWriteBufferSizeInBytes(), config.getMinBlockSizeInBytes());
         this.segmentBeginTimeMillis = System.currentTimeMillis();
-
         if (!Strings.isNullOrEmpty(config.getRegion())) {
             this.writeLocation = new LocationBuilder()
                     .scope(LocationScope.REGION)
@@ -161,6 +171,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                            UUID uuid,
                                            Map<String, String> extraMetadata) {
         final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
+        log.info("offload {} uuid {} extraMetadata {} to {} {}", readHandle.getId(), uuid, extraMetadata,
+                config.getBlobStoreLocation(), writeBlobStore);
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(readHandle.getId()).submit(() -> {
             if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
@@ -173,6 +185,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
             String dataBlockKey = DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid);
             String indexBlockKey = DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid);
+            log.info("ledger {} dataBlockKey {} indexBlockKey {}", readHandle.getId(), dataBlockKey, indexBlockKey);
 
             MultipartUpload mpu = null;
             List<MultipartPart> parts = Lists.newArrayList();
@@ -180,8 +193,14 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             // init multi part upload for data block.
             try {
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
-                DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
+                Map<String, String> objectMetadata = new HashMap<>(userMetadata);
+                objectMetadata.put("role", "data");
+                if (extraMetadata != null) {
+                   objectMetadata.putAll(extraMetadata);
+                }
+                DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
                 Blob blob = blobBuilder.build();
+                log.info("initiateMultipartUpload bucket {}, metadata {} ", config.getBucket(), blob.getMetadata());
                 mpu = writeBlobStore.initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
             } catch (Throwable t) {
                 promise.completeExceptionally(t);
@@ -223,7 +242,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                     dataObjectLength += blockSize;
                 }
 
-                writeBlobStore.completeMultipartUpload(mpu, parts);
+                String etag = writeBlobStore.completeMultipartUpload(mpu, parts);
+                log.info("Ledger {}, upload finished, etag {}", readHandle.getId(), etag);
                 mpu = null;
             } catch (Throwable t) {
                 try {
@@ -243,7 +263,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                  IndexInputStream indexStream = index.toStream()) {
                 // write the index block
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
-                DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
+                Map<String, String> objectMetadata = new HashMap<>(userMetadata);
+                objectMetadata.put("role", "index");
+                if (extraMetadata != null) {
+                    objectMetadata.putAll(extraMetadata);
+                }
+                DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
                 indexPayload.getContentMetadata().setContentLength((long) indexStream.getStreamSize());
                 indexPayload.getContentMetadata().setContentType("application/octet-stream");
@@ -609,4 +634,76 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
         }
     }
+
+    @Override
+    public void scanLedgers(OffloadedLedgerMetadataConsumer consumer, Map<String,
+            String> offloadDriverMetadata) throws ManagedLedgerException {
+        BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
+        String endpoint = bsKey.getEndpoint();
+        String readBucket = bsKey.getBucket();
+        log.info("Scanning bucket {}, bsKey {}, location {} endpoint{} ", readBucket, bsKey,
+                config.getBlobStoreLocation(), endpoint);
+        BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
+        int batchSize = 100;
+        String bucketName = config.getBucket();
+        String marker = null;
+        do {
+            marker = scanContainer(consumer, readBlobstore, bucketName, marker, batchSize);
+        } while (marker != null);
+
+    }
+
+    private String scanContainer(OffloadedLedgerMetadataConsumer consumer, BlobStore readBlobstore,
+                                 String bucketName,
+                                 String lastMarker,
+                                 int batchSize) throws ManagedLedgerException {
+        ListContainerOptions options = new ListContainerOptions()
+                .maxResults(batchSize)
+                .withDetails();
+        if (lastMarker != null) {
+            options.afterMarker(lastMarker);
+        }
+        PageSet<? extends StorageMetadata> pages = readBlobstore.list(bucketName, options);
+        for (StorageMetadata md : pages) {
+            log.info("Found {} ", md);
+            String name = md.getName();
+            Long size = md.getSize();
+            Date lastModified = md.getLastModified();
+            StorageType type = md.getType();
+            if (type != StorageType.BLOB) {
+                continue;
+            }
+            URI uri = md.getUri();
+            Map<String, String> userMetadata = md.getUserMetadata();
+            Long ledgerId = DataBlockUtils.parseLedgerId(name);
+            String contextUuid = DataBlockUtils.parseContextUuid(name, ledgerId);
+            log.info("info {} {} {} {} {} {} ledgerId {}", name, size, lastModified, type, uri, userMetadata, ledgerId);
+            OffloadedLedgerMetadata offloadedLedgerMetadata = OffloadedLedgerMetadata.builder()
+                    .name(name)
+                    .bucketName(bucketName)
+                    .uuid(contextUuid)
+                    .ledgerId(ledgerId != null ? ledgerId : -1)
+                    .lastModified(lastModified != null ? lastModified.getTime() : 0)
+                    .size(size != null ? size : -1)
+                    .uri(uri != null ? uri.toString() : null)
+                    .userMetadata(userMetadata != null ? userMetadata : Collections.emptyMap())
+                    .build();
+            try {
+                boolean canContinue = consumer.accept(offloadedLedgerMetadata);
+                if (!canContinue) {
+                    log.info("Iteration stopped by the OffloadedLedgerMetadataConsumer");
+                    return null;
+                }
+            } catch (Exception err) {
+                log.error("Error in the OffloadedLedgerMetadataConsumer", err);
+                if (err instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                throw ManagedLedgerException.getManagedLedgerException(err);
+            }
+        }
+        log.info("NextMarker is {}", pages.getNextMarker());
+        return pages.getNextMarker();
+    }
+
 }

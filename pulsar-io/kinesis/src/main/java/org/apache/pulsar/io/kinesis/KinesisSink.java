@@ -29,12 +29,15 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration.ThreadingModel;
 import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,6 +46,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
@@ -68,16 +72,16 @@ import org.slf4j.LoggerFactory;
  *      which accepts json-map of credentials in awsCredentialPluginParam
  *      eg: awsCredentialPluginParam = {"accessKey":"my-access-key","secretKey":"my-secret-key"}
  * 5. <b>awsCredentialPluginParam:</b> json-parameters to initialize {@link AwsCredentialProviderPlugin}
- * 6. messageFormat: enum:["ONLY_RAW_PAYLOAD","FULL_MESSAGE_IN_JSON"]
+ * 6. messageFormat: enum:["ONLY_RAW_PAYLOAD","FULL_MESSAGE_IN_JSON","FULL_MESSAGE_IN_FB"]
  *   a. ONLY_RAW_PAYLOAD:     publishes raw payload to stream
  *   b. FULL_MESSAGE_IN_JSON: publish full message (encryptionCtx + properties + payload) in json format
  *   json-schema:
  *   {"type":"object","properties":{"encryptionCtx":{"type":"object","properties":{"metadata":{"type":"object","additionalProperties":{"type":"string"}},"uncompressedMessageSize":{"type":"integer"},"keysMetadataMap":{"type":"object","additionalProperties":{"type":"object","additionalProperties":{"type":"string"}}},"keysMapBase64":{"type":"object","additionalProperties":{"type":"string"}},"encParamBase64":{"type":"string"},"compressionType":{"type":"string","enum":["NONE","LZ4","ZLIB"]},"batchSize":{"type":"integer"},"algorithm":{"type":"string"}}},"payloadBase64":{"type":"string"},"properties":{"type":"object","additionalProperties":{"type":"string"}}}}
  *   Example:
  *   {"payloadBase64":"cGF5bG9hZA==","properties":{"prop1":"value"},"encryptionCtx":{"keysMapBase64":{"key1":"dGVzdDE=","key2":"dGVzdDI="},"keysMetadataMap":{"key1":{"ckms":"cmks-1","version":"v1"},"key2":{"ckms":"cmks-2","version":"v2"}},"metadata":{"ckms":"cmks-1","version":"v1"},"encParamBase64":"cGFyYW0=","algorithm":"algo","compressionType":"LZ4","uncompressedMessageSize":10,"batchSize":10}}
+ *   c. FULL_MESSAGE_IN_FB: publish full message (encryptionCtx + properties + payload) in flatbuffer format
+ *   d. FULL_MESSAGE_IN_JSON_EXPAND_VALUE: publish full message (topic + key + value + properties + event time) in JSON format using the schema to expand the value in JSON.
  * </pre>
- *
- *
  *
  */
 @Connector(
@@ -86,7 +90,7 @@ import org.slf4j.LoggerFactory;
     help = "A sink connector that copies messages from Pulsar to Kinesis",
     configClass = KinesisSinkConfig.class
 )
-public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
+public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObject> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSink.class);
 
@@ -97,6 +101,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     private static final int maxPartitionedKeyLength = 256;
     private SinkContext sinkContext;
     private ScheduledExecutorService scheduledExecutor;
+    private ObjectMapper objectMapper;
     //
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -116,7 +121,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     }
 
     @Override
-    public void write(Record<byte[]> record) throws Exception {
+    public void write(Record<GenericObject> record) throws Exception {
         // kpl-thread captures publish-failure. fail the publish on main pulsar-io-thread to maintain the ordering
         if (kinesisSinkConfig.isRetainOrdering() && previousPublishFailed == TRUE) {
             LOG.warn("Skip acking message to retain ordering with previous failed message {}-{}", this.streamName,
@@ -128,18 +133,19 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
                 ? partitionedKey.substring(0, maxPartitionedKeyLength - 1)
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256
         ByteBuffer data = createKinesisMessage(kinesisSinkConfig.getMessageFormat(), record);
+        int size = data.remaining();
         sendUserRecord(ProducerSendCallback.create(this, record, System.nanoTime(), partitionedKey, data));
         if (sinkContext != null) {
             sinkContext.recordMetric(METRICS_TOTAL_INCOMING, 1);
             sinkContext.recordMetric(METRICS_TOTAL_INCOMING_BYTES, data.array().length);
         }
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Published message to kinesis stream {} with size {}", streamName, record.getValue().length);
+            LOG.debug("Published message to kinesis stream {} with size {}", streamName, size);
         }
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         if (kinesisProducer != null) {
             kinesisProducer.flush();
             kinesisProducer.destroy();
@@ -148,7 +154,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
     }
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
         this.sinkContext = sinkContext;
@@ -161,10 +167,17 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
 
         KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration();
         kinesisConfig.setKinesisEndpoint(kinesisSinkConfig.getAwsEndpoint());
+        if (kinesisSinkConfig.getAwsEndpointPort() != null) {
+            kinesisConfig.setKinesisPort(kinesisSinkConfig.getAwsEndpointPort());
+        }
         kinesisConfig.setRegion(kinesisSinkConfig.getAwsRegion());
         kinesisConfig.setThreadingModel(ThreadingModel.POOLED);
         kinesisConfig.setThreadPoolSize(4);
         kinesisConfig.setCollectionMaxCount(1);
+        if (kinesisSinkConfig.getSkipCertificateValidation() != null
+                && kinesisSinkConfig.getSkipCertificateValidation()) {
+            kinesisConfig.setVerifyCertificate(false);
+        }
         AWSCredentialsProvider credentialsProvider = createCredentialProvider(
                 kinesisSinkConfig.getAwsCredentialPluginName(),
                 kinesisSinkConfig.getAwsCredentialPluginParam())
@@ -173,6 +186,10 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
         this.kinesisProducer = new KinesisProducer(kinesisConfig);
+        this.objectMapper = new ObjectMapper();
+        if (kinesisSinkConfig.isJsonIncludeNonNulls()) {
+            objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        }
         IS_PUBLISH_FAILED.set(this, FALSE);
 
         LOG.info("Kinesis sink started. {}",
@@ -181,7 +198,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
 
     private static final class ProducerSendCallback implements FutureCallback<UserRecordResult> {
 
-        private Record<byte[]> resultContext;
+        private Record<GenericObject> resultContext;
         private long startTime = 0;
         private final Handle<ProducerSendCallback> recyclerHandle;
         private KinesisSink kinesisSink;
@@ -193,7 +210,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(KinesisSink kinesisSink, Record<byte[]> resultContext, long startTime,
+        static ProducerSendCallback create(KinesisSink kinesisSink, Record<GenericObject> resultContext, long startTime,
                                            String partitionedKey, ByteBuffer data) {
             ProducerSendCallback sendCallback = RECYCLER.get();
             sendCallback.resultContext = resultContext;
@@ -280,14 +297,19 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
         }
     }
 
-    public static ByteBuffer createKinesisMessage(MessageFormat msgFormat, Record<byte[]> record) {
-        if (MessageFormat.FULL_MESSAGE_IN_JSON.equals(msgFormat)) {
-            return ByteBuffer.wrap(Utils.serializeRecordToJson(record).getBytes());
-        } else if (MessageFormat.FULL_MESSAGE_IN_FB.equals(msgFormat)) {
-            return Utils.serializeRecordToFlatBuffer(record);
-        } else {
-            // send raw-message
-            return ByteBuffer.wrap(record.getValue());
+    public ByteBuffer createKinesisMessage(MessageFormat msgFormat, Record<GenericObject> record)
+            throws JsonProcessingException {
+        switch (msgFormat) {
+            case FULL_MESSAGE_IN_JSON:
+                return ByteBuffer.wrap(Utils.serializeRecordToJson(record).getBytes(StandardCharsets.UTF_8));
+            case FULL_MESSAGE_IN_FB:
+                return Utils.serializeRecordToFlatBuffer(record);
+            case FULL_MESSAGE_IN_JSON_EXPAND_VALUE:
+                return ByteBuffer.wrap(Utils.serializeRecordToJsonExpandingValue(objectMapper, record)
+                        .getBytes(StandardCharsets.UTF_8));
+            default:
+                // send raw-message
+                return ByteBuffer.wrap(Utils.getMessage(record).getData());
         }
     }
 

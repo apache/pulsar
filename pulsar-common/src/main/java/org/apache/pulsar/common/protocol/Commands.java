@@ -1082,28 +1082,43 @@ public class Commands {
         return cmd;
     }
 
-    public static ByteBuf newGetTopicsOfNamespaceRequest(String namespace, long requestId, Mode mode) {
+    public static ByteBuf newGetTopicsOfNamespaceRequest(String namespace, long requestId, Mode mode,
+                                                         String topicsPattern, String topicsHash) {
         BaseCommand cmd = localCmd(Type.GET_TOPICS_OF_NAMESPACE);
         CommandGetTopicsOfNamespace topics = cmd.setGetTopicsOfNamespace();
         topics.setNamespace(namespace);
         topics.setRequestId(requestId);
         topics.setMode(mode);
+        if (topicsPattern != null) {
+            topics.setTopicsPattern(topicsPattern);
+        }
+        if (topicsHash != null) {
+            topics.setTopicsHash(topicsHash);
+        }
         return serializeWithSize(cmd);
     }
 
-    public static BaseCommand newGetTopicsOfNamespaceResponseCommand(List<String> topics, long requestId) {
+    public static BaseCommand newGetTopicsOfNamespaceResponseCommand(List<String> topics, String topicsHash,
+                                                                     boolean filtered, boolean changed,
+                                                                     long requestId) {
         BaseCommand cmd = localCmd(Type.GET_TOPICS_OF_NAMESPACE_RESPONSE);
         CommandGetTopicsOfNamespaceResponse topicsResponse = cmd.setGetTopicsOfNamespaceResponse();
         topicsResponse.setRequestId(requestId);
         for (int i = 0; i < topics.size(); i++) {
             topicsResponse.addTopic(topics.get(i));
         }
-
+        if (topicsHash != null) {
+            topicsResponse.setTopicsHash(topicsHash);
+        }
+        topicsResponse.setFiltered(filtered);
+        topicsResponse.setChanged(changed);
         return cmd;
     }
 
-    public static ByteBuf newGetTopicsOfNamespaceResponse(List<String> topics, long requestId) {
-        return serializeWithSize(newGetTopicsOfNamespaceResponseCommand(topics, requestId));
+    public static ByteBuf newGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
+                                                          boolean filtered, boolean changed, long requestId) {
+        return serializeWithSize(newGetTopicsOfNamespaceResponseCommand(
+                topics, topicsHash, filtered, changed, requestId));
     }
 
     private static final ByteBuf cmdPing;

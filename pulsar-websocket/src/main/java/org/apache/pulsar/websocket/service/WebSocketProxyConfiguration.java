@@ -31,14 +31,6 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 @Getter
 @Setter
 public class WebSocketProxyConfiguration implements PulsarConfiguration {
-
-    // Number of threads used by Proxy server
-    public static final int PROXY_SERVER_EXECUTOR_THREADS = 2 * Runtime.getRuntime().availableProcessors();
-    // Number of threads used by Websocket service
-    public static final int WEBSOCKET_SERVICE_THREADS = 20;
-    // Number of threads used by Global ZK
-    public static final int GLOBAL_ZK_THREADS = 8;
-
     @FieldContext(required = true, doc = "Name of the cluster to which this broker belongs to")
     private String clusterName;
 
@@ -139,6 +131,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "Number of threads to used in HTTP server")
     private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
+
+    @FieldContext(doc = "Number of threads used by Websocket service")
+    private int webSocketNumServiceThreads = 20;
 
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();

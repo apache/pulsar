@@ -47,6 +47,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -85,6 +86,32 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         isolationGroups.clear();
         store.close();
         timer.stop();
+    }
+
+    @Test
+    public void testNonRegionBookie() throws Exception {
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
+
+        mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        mainBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+
+        bookieMapping.put("group1", mainBookieGroup);
+
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL, NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+        assertFalse(ensemble.contains(new BookieSocketAddress(BOOKIE3).toBookieId()));
+        assertFalse(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
     }
 
     @Test
@@ -128,9 +155,12 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
         Set<BookieId> bookieToExclude = new HashSet<>();
         bookieToExclude.add(new BookieSocketAddress(BOOKIE1).toBookieId());
-        ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), bookieToExclude).getResult();
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
-        assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
+        try {
+            isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), bookieToExclude).getResult();
+        } catch (BKNotEnoughBookiesException e) {
+            Assert.assertEquals(e.getMessage(), "Not enough non-faulty bookies available");
+        }
+
 
         secondaryBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
         bookieMapping.put("group2", secondaryBookieGroup);
