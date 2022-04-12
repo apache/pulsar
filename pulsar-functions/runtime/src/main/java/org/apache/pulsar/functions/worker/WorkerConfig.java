@@ -138,6 +138,27 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         )
     private double httpRequestsMaxPerSecond = 100.0;
 
+    @FieldContext(category = CATEGORY_WORKER, doc = "Max concurrent web requests")
+    private int maxConcurrentHttpRequests = 1024;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Capacity for thread pool queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerThreadPoolQueueSize = 8192;
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Capacity for accept queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(category = CATEGORY_WORKER, doc = "Maximum number of inbound http connections. "
+            + "(0 to disable limiting)")
+    private int maxHttpServerConnections = 2048;
+
     @FieldContext(
             category = CATEGORY_WORKER,
             required = false,
