@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import io.netty.util.HashedWheelTimer;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferClientStats;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -34,47 +35,83 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 public class TransactionBufferClientImpl implements TransactionBufferClient {
 
     private final TransactionBufferHandler tbHandler;
+    private final TransactionBufferClientStats stats;
 
-    private TransactionBufferClientImpl(TransactionBufferHandler tbHandler) {
+    private TransactionBufferClientImpl(TransactionBufferHandler tbHandler, boolean exposeTopicLevelMetrics) {
         this.tbHandler = tbHandler;
+        this.stats = TransactionBufferClientStats.create(exposeTopicLevelMetrics);
     }
 
     public static TransactionBufferClient create(PulsarClient pulsarClient, HashedWheelTimer timer,
-             int maxConcurrentRequests, long operationTimeoutInMills) {
+             int maxConcurrentRequests, long operationTimeoutInMills, boolean exposeTopicLevelMetrics) {
         TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarClient, timer,
                 maxConcurrentRequests, operationTimeoutInMills);
-        return new TransactionBufferClientImpl(handler);
+        return new TransactionBufferClientImpl(handler, exposeTopicLevelMetrics);
     }
 
     @Override
     public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits,
                                                      long txnIdLeastBits, long lowWaterMark) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.COMMIT, lowWaterMark);
+        long start = System.currentTimeMillis();
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.COMMIT, lowWaterMark)
+                .whenComplete((__, t) -> {
+                    if (null != t) {
+                        this.stats.recordCommitFailed(topic);
+                    } else {
+                        this.stats.recordCommitLatency(topic, System.currentTimeMillis() - start);
+                    }
+                });
     }
 
     @Override
     public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits,
                                                     long txnIdLeastBits, long lowWaterMark) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.ABORT, lowWaterMark);
+        long start = System.currentTimeMillis();
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.ABORT, lowWaterMark)
+                .whenComplete((__, t) -> {
+                    if (null != t) {
+                        this.stats.recordAbortFailed(topic);
+                    } else {
+                        this.stats.recordAbortLatency(topic, System.currentTimeMillis() - start);
+                    }
+                });
     }
 
     @Override
     public CompletableFuture<TxnID> commitTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
                                                             long txnIdLeastBits, long lowWaterMark) {
+        long start = System.currentTimeMillis();
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                TxnAction.COMMIT, lowWaterMark);
+                TxnAction.COMMIT, lowWaterMark)
+                .whenComplete((__, t) -> {
+                    if (null != t) {
+                        this.stats.recordCommitFailed(topic);
+                    } else {
+                        this.stats.recordCommitLatency(topic, System.currentTimeMillis() - start);
+                    }
+                });
     }
 
     @Override
     public CompletableFuture<TxnID> abortTxnOnSubscription(String topic, String subscription,
                                                            long txnIdMostBits, long txnIdLeastBits, long lowWaterMark) {
+        long start = System.currentTimeMillis();
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                TxnAction.ABORT, lowWaterMark);
+                TxnAction.ABORT, lowWaterMark)
+                .whenComplete((__, t) -> {
+                    if (null != t) {
+                        this.stats.recordAbortFailed(topic);
+
+                    } else {
+                        this.stats.recordAbortLatency(topic, System.currentTimeMillis() - start);
+                    }
+                });
     }
 
     @Override
     public void close() {
         tbHandler.close();
+        this.stats.close();
     }
 
     @Override

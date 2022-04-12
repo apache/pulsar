@@ -81,7 +81,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         admin.namespaces().createNamespace(namespace, 10);
         admin.topics().createPartitionedTopic(partitionedTopicName.getPartitionedTopicName(), partitions);
         tbClient = TransactionBufferClientImpl.create(pulsarClient,
-                new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")), 1000, 3000);
+                new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")), 1000, 3000, true);
     }
 
     @Override
