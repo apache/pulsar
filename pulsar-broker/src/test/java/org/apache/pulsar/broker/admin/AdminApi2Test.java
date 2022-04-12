@@ -2431,4 +2431,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPublishers().size(), 2);
         topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
+
+    @Test
+    public void testDeleteNamespaceWithDeletedPartitionedTopic() throws Exception {
+        final String namespace = "prop-xyz/ns-delete";
+        admin.namespaces().createNamespace(namespace);
+        final String topicName = "persistent://" + namespace + "/delete-ns-topic";
+        admin.topics().createPartitionedTopic(topicName, 10);
+        List<String> topics = pulsar.getPulsarResources().getTopicResources()
+                .listPersistentTopicsAsync(NamespaceName.get(namespace)).get();
+        topics.forEach(topic -> {
+            try {
+                admin.topics().delete(topic);
+            } catch (PulsarAdminException e) {
+                fail("should not fail to delete");
+            }
+        });
+        admin.namespaces().deleteNamespace(namespace);
+        try {
+            admin.namespaces().getPolicies(namespace);
+        } catch (PulsarAdminException.NotFoundException e) {
+            // Ok..
+        }
+    }
 }

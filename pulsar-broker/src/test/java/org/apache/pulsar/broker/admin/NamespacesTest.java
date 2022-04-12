@@ -729,20 +729,19 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false, false);
-        errorCaptor = ArgumentCaptor.forClass(RestException.class);
         // Ok, namespace not empty
-        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
-        assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
-
-        mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
 
         testNs = this.testGlobalNamespaces.get(0);
+        namespaces.setNamespaceReplicationClusters(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), Lists.newArrayList("use"));
         // setup ownership to localhost
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), false, false);
-        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
 
@@ -755,12 +754,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
-        List<String> nsList = Lists.newArrayList(this.testLocalNamespaces.get(1).toString(),
-                this.testLocalNamespaces.get(2).toString());
+        List<String> nsList = Lists.newArrayList(this.testLocalNamespaces.get(2).toString());
         nsList.sort(null);
         assertEquals(namespaces.getTenantNamespaces(this.testTenant), nsList);
 
-        testNs = this.testLocalNamespaces.get(1);
+        testNs = this.testLocalNamespaces.get(2);
         // setup ownership to localhost
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
