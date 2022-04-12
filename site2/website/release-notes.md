@@ -199,7 +199,7 @@
 - [C++] Add Wireshark cmake and fix build with latest Wireshark [#13236](https://github.com/apache/pulsar/pull/13236)
 - [C++] Wireshark Pulsar dissector naming replace yahoo with apache [#13251](https://github.com/apache/pulsar/pull/13251)
 - [C++] Support arm64 optimized CRC32c hardware-instructions [#13246](https://github.com/apache/pulsar/pull/13246)
-- [C++] Support more pulsar command name and version in Wireshark dissector [#13286](https://github.com/apache/pulsar/pull/13286)
+- [C++] Support more pulsar command names and versions in Wireshark dissector [#13286](https://github.com/apache/pulsar/pull/13286)
 - [C++] Optimize MessageBuilder and SharedBuffer to avoid unnecessary memory copy [#13293](https://github.com/apache/pulsar/pull/13293)
 - [C++] Fix in Apple Silicon macOS the clang-format cannot find [#13333](https://github.com/apache/pulsar/pull/13333)
 - [C++] Add clang-format check for Pulsar Wireshark dissector [#13349](https://github.com/apache/pulsar/pull/13349)
