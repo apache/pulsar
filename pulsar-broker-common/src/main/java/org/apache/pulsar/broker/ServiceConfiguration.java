@@ -296,6 +296,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Capacity for thread pool queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerThreadPoolQueueSize = 8192;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Capacity for accept queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
+            + "(0 to disable limiting)")
+    private int maxHttpServerConnections = 2048;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
