@@ -245,7 +245,7 @@
 - [Pulsar Admin] Fix output format of string by pulsar-admin command [#11878](https://github.com/apache/pulsar/pull/11878)
 - [Pulsar Admin] Add a metric to get the earliest time in the backlog [#12523](https://github.com/apache/pulsar/pull/12523)
 - [Pulsar Admin] Reduce severity of log "refreshing key manager" in KeyManagerProxy [#12594](https://github.com/apache/pulsar/pull/12594)
-- [Pulsar Admin] Support to get list of topics under a namespace bundle [#12632](https://github.com/apache/pulsar/pull/12632)
+- [Pulsar Admin] Support getting a list of topics under a namespace bundle [#12632](https://github.com/apache/pulsar/pull/12632)
 - [Pulsar Admin] Add get-replicated-subscription-status command for topic [#12891](https://github.com/apache/pulsar/pull/12891)
 - [Pulsar Admin] Add remove-subscription-types-enabled command for topic [#12983](https://github.com/apache/pulsar/pull/12983)
 - [Pulsar Admin] Validate the size options in cmd for topic and namespace [#13002](https://github.com/apache/pulsar/pull/13002)
