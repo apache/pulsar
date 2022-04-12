@@ -2270,6 +2270,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Number of IO threads in Pulsar Client used in WebSocket proxy"
     )
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(category = CATEGORY_WEBSOCKET,
+            doc = "Number of threads used by Websocket service")
+    private int webSocketNumServiceThreads = 20;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
