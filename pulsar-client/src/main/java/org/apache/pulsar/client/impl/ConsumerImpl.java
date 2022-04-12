@@ -1438,7 +1438,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.warn("Received exception but no future to callback.", exception);
                 return true;
             }
-            return getCurrentReceiverQueueSize() == 0;
+            return false;
         }
 
         if (exception != null) {
