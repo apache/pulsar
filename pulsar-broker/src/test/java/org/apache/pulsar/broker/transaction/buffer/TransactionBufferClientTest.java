@@ -150,22 +150,30 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferClientTimeout() throws Exception {
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        PulsarService pulsarService = pulsarServiceList.get(0);
+        PulsarClient mockClient = mock(PulsarClientImpl.class);
         CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
         ClientCnx clientCnx = mock(ClientCnx.class);
         completableFuture.complete(clientCnx);
-        when(mockClient.getConnection(anyString())).thenReturn(completableFuture);
+        when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
         when(cnx.channel()).thenReturn(channel);
+        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
+
+            @Override
+            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
+                return mockClient;
+            }
+        });
 
         when(channel.isActive()).thenReturn(true);
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
         TransactionBufferHandlerImpl transactionBufferHandler =
-                new TransactionBufferHandlerImpl(mockClient, hashedWheelTimer, 1000, 3000);
+                new TransactionBufferHandlerImpl(pulsarService, hashedWheelTimer, 1000, 3000);
         CompletableFuture<TxnID> endFuture =
                 transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1);
 
@@ -192,23 +200,31 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     }
 
     @Test
-    public void testTransactionBufferChannelUnActive() {
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+    public void testTransactionBufferChannelUnActive() throws PulsarServerException {
+        PulsarService pulsarService = pulsarServiceList.get(0);
+        PulsarClient mockClient = mock(PulsarClientImpl.class);
         CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
         ClientCnx clientCnx = mock(ClientCnx.class);
         completableFuture.complete(clientCnx);
-        when(mockClient.getConnection(anyString())).thenReturn(completableFuture);
+        when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
         when(cnx.channel()).thenReturn(channel);
 
         when(channel.isActive()).thenReturn(false);
+        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
+
+            @Override
+            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
+                return mockClient;
+            }
+        });
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
         TransactionBufferHandlerImpl transactionBufferHandler =
-                new TransactionBufferHandlerImpl(mockClient, hashedWheelTimer, 1000, 3000);
+                new TransactionBufferHandlerImpl(pulsarServiceList.get(0), hashedWheelTimer, 1000, 3000);
         try {
             transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1).get();
             fail();
