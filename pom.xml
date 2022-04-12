@@ -207,10 +207,12 @@ flexible messaging model and an intuitive client API.</description>
     <cron-utils.version>9.1.6</cron-utils.version>
     <spring-context.version>5.3.18</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
+    <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -1228,6 +1230,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
         <version>${apache-http-client.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpcore</artifactId>
+        <version>${apache-httpcomponents.version}</version>
       </dependency>
 
       <dependency>
