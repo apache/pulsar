@@ -107,7 +107,7 @@
 - Fix compatibility issue with other metadata store implementations in resources [#13394](https://github.com/apache/pulsar/pull/13394)
 - Fix race condition in stopping replicator while it is starting [#13412](https://github.com/apache/pulsar/pull/13412)
 - Support backlog quota across multiple clusters [#13445](https://github.com/apache/pulsar/pull/13445)
-- Return null instead of RestException when get bookieAffinityGroup [#13462](https://github.com/apache/pulsar/pull/13462)
+- Return null instead of RestException when getting bookieAffinityGroup [#13462](https://github.com/apache/pulsar/pull/13462)
 - Fix failed to get Partitioned metadata for health checking [#13525](https://github.com/apache/pulsar/pull/13525)
 - Optimize TopicPolicies#maxConsumersPerSubscription with HierarchyTopicPolicies [#13548](https://github.com/apache/pulsar/pull/13548)
 - Fix raw use of generic types in OwnershipCache [#13592](https://github.com/apache/pulsar/pull/13592)
