@@ -184,7 +184,7 @@
 ### Clients
 - [Java] Support create a consumer in the paused state [#11974](https://github.com/apache/pulsar/pull/11974)
 - [Java] Support passing existing executor providers to the client [#12037](https://github.com/apache/pulsar/pull/12037)
-- [Java] Fix the producer OOM if got exception while add message to batch container [#12170](https://github.com/apache/pulsar/pull/12170)
+- [Java] Fix the producer OOM if got an exception while adding messages to batch container [#12170](https://github.com/apache/pulsar/pull/12170)
 - [Java] Allow to config client allocator out of memory policy [#12200](https://github.com/apache/pulsar/pull/12200)
 - [Java] Support negative ack redelivery backoff [#12566](https://github.com/apache/pulsar/pull/12566)
 - [Java] Fix confusing logs in UnAckedMessageTracker [#13017](https://github.com/apache/pulsar/pull/13017)
