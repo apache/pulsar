@@ -55,7 +55,7 @@
 - Add Multi-tiered storage key to broker.conf [#12173](https://github.com/apache/pulsar/pull/12173)
 - Support configuration to rate-limit dispatching on batch message [#12294](https://github.com/apache/pulsar/pull/12294)
 - Support splitting the largest bundle of the namespace [#12361](https://github.com/apache/pulsar/pull/12361)
-- Support create subscription by specifying the earliest or latest position [#12872](https://github.com/apache/pulsar/pull/12872)
+- Support creating a subscription by specifying the earliest or latest position [#12872](https://github.com/apache/pulsar/pull/12872)
 - Support roll-over ledgers for inactive topics [#13073](https://github.com/apache/pulsar/pull/13073)
 - Support graceful shutdown for Broker [#14114](https://github.com/apache/pulsar/pull/14114)
 - Transparent batching of ZK operations [#13043](https://github.com/apache/pulsar/pull/13043)
