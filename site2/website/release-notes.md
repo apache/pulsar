@@ -182,7 +182,7 @@
 - Optimize changeToCloseState method [#14277](https://github.com/apache/pulsar/pull/14277)
 
 ### Clients
-- [Java] Support create a consumer in the paused state [#11974](https://github.com/apache/pulsar/pull/11974)
+- [Java] Support creating a consumer in the paused state [#11974](https://github.com/apache/pulsar/pull/11974)
 - [Java] Support passing existing executor providers to the client [#12037](https://github.com/apache/pulsar/pull/12037)
 - [Java] Fix the producer OOM if got an exception while adding messages to batch container [#12170](https://github.com/apache/pulsar/pull/12170)
 - [Java] Allow to config client allocator out of memory policy [#12200](https://github.com/apache/pulsar/pull/12200)
