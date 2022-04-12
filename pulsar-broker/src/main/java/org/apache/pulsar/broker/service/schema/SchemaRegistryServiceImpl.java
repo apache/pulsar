@@ -108,8 +108,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         ((LongSchemaVersion) schemaAndMetadata.version).getVersion() == longVersion)
                         .collect(Collectors.toList())
                 ).thenCompose(metadataList -> {
-                        log.debug("[{}] Meta data list size {}", schemaId,
-                                CollectionUtils.isEmpty(metadataList) ? 0 : metadataList.size());
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Meta data list size {}", schemaId,
+                                    CollectionUtils.isEmpty(metadataList) ? 0 : metadataList.size());
+                        }
                         if (CollectionUtils.isNotEmpty(metadataList)) {
                             return schemaStorage.get(schemaId, version);
                         }
@@ -130,13 +132,19 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 })
                 .whenComplete((v, t) -> {
                     if (t != null) {
-                        log.debug("[{}] Get schema failed", schemaId);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Get schema failed", schemaId);
+                        }
                         this.stats.recordGetFailed(schemaId);
                     } else {
                         if (v == null) {
-                            log.debug("[{}] Schema not found", schemaId);
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Schema not found", schemaId);
+                            }
                         } else {
-                            log.debug("[{}] Schema is present", schemaId);
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Schema is present", schemaId);
+                            }
                         }
                         this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
                     }
@@ -158,7 +166,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                             )
                             ))
                             .collect(Collectors.toList());
-                    log.debug("[{}] {} schemas is found", schemaId, futures.size());
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] {} schemas is found", schemaId, futures.size());
+                    }
                     return futures;
                 })
                 .whenComplete((v, t) -> {
@@ -177,7 +187,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
                 getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
             if (schemaVersion != null) {
-                log.debug("[{}] Schema is already exists", schemaId);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Schema is already exists", schemaId);
+                }
                 return CompletableFuture.completedFuture(schemaVersion);
             }
             CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
@@ -212,7 +224,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                 log.error("[{}] Put schema failed", schemaId);
                                 this.stats.recordPutFailed(schemaId);
                             } else {
-                                log.debug("[{}] Put schema finished", schemaId);
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Put schema finished", schemaId);
+                                }
                                 this.stats.recordPutLatency(schemaId, this.clock.millis() - start);
                             }
                         });
@@ -237,7 +251,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         log.error("[{}] User {} delete schema failed", schemaId, user);
                         this.stats.recordDelFailed(schemaId);
                     } else {
-                        log.debug("[{}] User {} delete schema finished", schemaId, user);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] User {} delete schema finished", schemaId, user);
+                        }
                         this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
                     }
                 });
@@ -259,7 +275,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         log.error("[{}] Delete schema storage failed", schemaId);
                     } else {
                         this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
-                        log.debug("[{}] Delete schema storage finished", schemaId);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Delete schema storage finished", schemaId);
+                        }
                     }
                 });
     }
@@ -426,7 +444,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         log.error("[{}] Schema is incompatible", schemaId);
                         this.stats.recordSchemaIncompatible(schemaId);
                     } else {
-                        log.debug("[{}] Schema is compatible", schemaId);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Schema is compatible", schemaId);
+                        }
                         this.stats.recordSchemaCompatible(schemaId);
                     }
                 });
@@ -467,7 +487,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 log.error("[{}] Schema is incompatible, schema type {}", schemaId, schema.getType());
             } else {
                 this.stats.recordSchemaCompatible(schemaId);
-                log.debug("[{}] Schema is compatible, schema type {}", schemaId, schema.getType());
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Schema is compatible, schema type {}", schemaId, schema.getType());
+                }
             }
         });
 

@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.schema;
 import com.google.common.collect.Maps;
 import java.util.Map;
 import java.util.Set;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -43,11 +42,10 @@ public interface SchemaRegistryService extends SchemaRegistry {
         return checkers;
     }
 
-    static SchemaRegistryService create(SchemaStorage schemaStorage, ServiceConfiguration configuration) {
+    static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers) {
         if (schemaStorage != null) {
             try {
-                Set<String> compatibilityCheckers = configuration.getSchemaRegistryCompatibilityCheckers();
-                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(compatibilityCheckers);
+                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
                 return SchemaRegistryServiceWithSchemaDataValidator.of(
                         new SchemaRegistryServiceImpl(schemaStorage, checkers));

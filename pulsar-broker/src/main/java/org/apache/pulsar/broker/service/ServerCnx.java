@@ -956,9 +956,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
               : emptyKeySharedMeta;
 
-
-        log.debug("Topic name = {}, subscription name = {}, schema is {}", topicName, subscriptionName,
-                schema == null ? "absent" : "present");
+        if (log.isDebugEnabled()) {
+            log.debug("Topic name = {}, subscription name = {}, schema is {}", topicName, subscriptionName,
+                    schema == null ? "absent" : "present");
+        }
 
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
                 topicName,

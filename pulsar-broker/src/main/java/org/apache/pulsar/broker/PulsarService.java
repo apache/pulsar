@@ -687,7 +687,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.startNamespaceService();
 
             schemaStorage = createAndStartSchemaStorage();
-            schemaRegistryService = SchemaRegistryService.create(schemaStorage, config);
+            schemaRegistryService = SchemaRegistryService.create(
+                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties()));
