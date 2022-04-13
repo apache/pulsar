@@ -1547,7 +1547,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
         } else {
-            increaseAvailablePermits(currentCnx);
+            if (listener == null) {
+                increaseAvailablePermits(currentCnx);
+            }
             stats.updateNumMsgsReceived(msg);
 
             trackMessage(msg);
@@ -1582,13 +1584,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    void increaseAvailablePermits(Message<?> msg) {
+        ClientCnx currentCnx = cnx();
+        ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
+        if (msgCnx == currentCnx) {
+            increaseAvailablePermits(currentCnx);
+        }
+    }
+
     void increaseAvailablePermits(ClientCnx currentCnx) {
         increaseAvailablePermits(currentCnx, 1);
     }
 
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
-
         while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 sendFlowPermitsToBroker(currentCnx, available);
