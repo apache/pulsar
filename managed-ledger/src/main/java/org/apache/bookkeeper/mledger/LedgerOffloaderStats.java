@@ -54,62 +54,9 @@ public interface LedgerOffloaderStats extends AutoCloseable {
     static LedgerOffloaderStats create(boolean exposeManagedLedgerStats, boolean exposeTopicLevelMetrics,
                                        ScheduledExecutorService scheduler, int interval) {
         if (!exposeManagedLedgerStats) {
-            return NOOP;
+            return LedgerOffloaderStatsDisable.INSTANCE;
         }
 
         return LedgerOffloaderStatsImpl.getInstance(exposeTopicLevelMetrics, scheduler, interval);
     }
-
-
-    LedgerOffloaderStats NOOP = new LedgerOffloaderStats() {
-        @Override
-        public void recordOffloadError(String topic) {
-
-        }
-
-        @Override
-        public void recordOffloadBytes(String topic, long size) {
-
-        }
-
-        @Override
-        public void recordReadLedgerLatency(String topic, long latency, TimeUnit unit) {
-
-        }
-
-        @Override
-        public void recordWriteToStorageError(String topic) {
-
-        }
-
-        @Override
-        public void recordReadOffloadError(String topic) {
-
-        }
-
-        @Override
-        public void recordReadOffloadBytes(String topic, long size) {
-
-        }
-
-        @Override
-        public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {
-
-        }
-
-        @Override
-        public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {
-
-        }
-
-        @Override
-        public void recordDeleteOffloadOps(String topic, boolean succeed) {
-
-        }
-
-        @Override
-        public void close() throws Exception {
-
-        }
-    };
 }

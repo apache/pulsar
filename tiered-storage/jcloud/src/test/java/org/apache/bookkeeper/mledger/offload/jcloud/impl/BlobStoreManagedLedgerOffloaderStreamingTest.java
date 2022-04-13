@@ -62,7 +62,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         assertNotNull(provider);
         provider.validate(config);
         blobStore = provider.getBlobStore(config);
-        this.offloaderStats = LedgerOffloaderStats.NOOP;
+        this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
     }
 
     private BlobStoreManagedLedgerOffloader getOffloader(Map<String, String> additionalConfig) throws IOException {
