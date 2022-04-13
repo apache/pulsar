@@ -247,6 +247,17 @@ public class ElasticSearchConfig implements Serializable {
     )
     private boolean stripNulls = true;
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "AUTO",
+            help = "Specify compatibility mode with the ElasticSearch cluster. "
+                    + "'AUTO' value will try to auto detect the correct compatibility mode to use. "
+                    + "Use 'ELASTICSEARCH_7' if the target cluster is running ElasticSearch 7 or prior. "
+                    + "Use 'ELASTICSEARCH' if the target cluster is running ElasticSearch 8 or higher. "
+                    + "Use 'OPENSEARCH' if the target cluster is running OpenSearch."
+    )
+    private CompatibilityMode compatibilityMode = CompatibilityMode.AUTO;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,
@@ -257,6 +268,13 @@ public class ElasticSearchConfig implements Serializable {
         IGNORE,
         DELETE,
         FAIL
+    }
+
+    public enum CompatibilityMode {
+        AUTO,
+        ELASTICSEARCH_7,
+        ELASTICSEARCH,
+        OPENSEARCH
     }
 
     public static ElasticSearchConfig load(String yamlFile) throws IOException {

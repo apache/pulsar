@@ -68,23 +68,32 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
             + "  #\n"
             + "  #   Kinesis sink creates a flatbuffer serialized paylaod with pulsar message payload, \n"
             + "  #   properties and encryptionCtx, and publishes flatbuffer payload into the configured kinesis stream."
+            + "  #\n"
+            + "  # - FULL_MESSAGE_IN_JSON_EXPAND_VALUE \n"
+            + "  #\n"
+            + "  #   Kinesis sink sends a JSON structure containing the record topic name, key, payload, properties and event time.\n"
+            + "  #   The record schema is used to convert the value to JSON."
     )
     private MessageFormat messageFormat = MessageFormat.ONLY_RAW_PAYLOAD; // default : ONLY_RAW_PAYLOAD
 
     @FieldDoc(
-        required = false,
+        defaultValue = "true",
+        help = "Value that indicates that only properties with non-null values are to be included when using "
+            + "MessageFormat.FULL_MESSAGE_IN_JSON_EXPAND_VALUE."
+    )
+    private boolean jsonIncludeNonNulls = true;
+
+    @FieldDoc(
         defaultValue = "false",
         help = "A flag to tell Pulsar IO to retain ordering when moving messages from Pulsar to Kinesis")
     private boolean retainOrdering = false;
 
     @FieldDoc(
-            required = false,
             defaultValue = "100",
             help = "The initial delay(in milliseconds) between retries.")
     private long retryInitialDelayInMillis = 100;
 
     @FieldDoc(
-            required = false,
             defaultValue = "60000",
             help = "The maximum delay(in milliseconds) between retries.")
     private long retryMaxDelayInMillis = 60000;
@@ -114,7 +123,21 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
         /**
          * Kinesis sink sends message serialized in flat-buffer.
          */
-        FULL_MESSAGE_IN_FB;
+        FULL_MESSAGE_IN_FB,
+        /**
+         * Kinesis sink sends a JSON structure containing the record topic name, key, payload, properties and event time.
+         * The record schema is used to convert the value to JSON.
+         *
+         * Example for primitive schema:
+         * {"topicName":"my-topic","key":"message-key","payload":"message-value","properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
+         *
+         * Example for AVRO or JSON schema:
+         * {"topicName":"my-topic","key":"message-key","payload":{"c":"1","d":1,"e":{"a":"a"}},"properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
+         *
+         * Example for KeyValue schema:
+         * {"topicName":"my-topic","key":"message-key","payload":{"value":{"c":"1","d":1,"e":{"a":"a"}},"key":{"a":"1","b":1}},"properties":{"prop-key":"prop-value"},"eventTime":1648502845803}
+         */
+        FULL_MESSAGE_IN_JSON_EXPAND_VALUE
     }
 
 }

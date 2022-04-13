@@ -166,6 +166,17 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
+IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+# Start --add-opens options
+# '--add-opens' option is not supported in jdk8
+if [[ -z "$IS_JAVA_8" ]]; then
+  # BookKeeper: enable posix_fadvise usage
+  OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED"
+  # Netty: enable java.nio.DirectByteBuffer
+  # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
+  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED"
+fi
+
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
 OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"

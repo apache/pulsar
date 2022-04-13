@@ -419,7 +419,7 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.stats-codahale-metrics-provider-4.14.4.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.13.jar
-    - org.apache.httpcomponents-httpcore-4.4.13.jar
+    - org.apache.httpcomponents-httpcore-4.4.15.jar
  * AirCompressor
     - io.airlift-aircompressor-0.20.jar
  * AsyncHttpClient
@@ -446,7 +446,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.44.v20210927.jar
     - org.eclipse.jetty-jetty-alpn-server-9.4.44.v20210927.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.30.jar
- * RocksDB - org.rocksdb-rocksdbjni-6.29.4.1.jar
+ * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp3

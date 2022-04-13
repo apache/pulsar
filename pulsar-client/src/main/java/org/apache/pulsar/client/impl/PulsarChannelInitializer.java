@@ -25,6 +25,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
 import java.net.InetSocketAddress;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -92,19 +93,36 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
             sslContextSupplier = new ObjectCache<SslContext>(() -> {
                 try {
+                    SslProvider sslProvider = null;
+                    if (conf.getSslProvider() != null) {
+                        sslProvider = SslProvider.valueOf(conf.getSslProvider());
+                    }
+
                     // Set client certificate if available
                     AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
                     if (authData.hasDataForTls()) {
                         return authData.getTlsTrustStoreStream() == null
-                                ? SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                        conf.getTlsTrustCertsFilePath(),
-                                        authData.getTlsCertificates(), authData.getTlsPrivateKey())
-                                : SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                        authData.getTlsTrustStoreStream(),
-                                        authData.getTlsCertificates(), authData.getTlsPrivateKey());
+                                ? SecurityUtility.createNettySslContextForClient(
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath(),
+                                authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols())
+                                : SecurityUtility.createNettySslContextForClient(sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                authData.getTlsTrustStoreStream(),
+                                authData.getTlsCertificates(), authData.getTlsPrivateKey(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     } else {
-                        return SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath());
+                        return SecurityUtility.createNettySslContextForClient(
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     }
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to create TLS context", e);

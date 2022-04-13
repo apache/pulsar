@@ -19,10 +19,12 @@
 package org.apache.pulsar.common.util;
 
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
+import java.util.Set;
 import javax.net.ssl.SSLException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -33,15 +35,20 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 @Slf4j
 public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder<SslContext> {
     private volatile SslContext sslNettyContext;
-    private boolean tlsAllowInsecureConnection;
+    private final boolean tlsAllowInsecureConnection;
     protected final FileModifiedTimeUpdater tlsTrustCertsFilePath;
     protected final FileModifiedTimeUpdater tlsCertsFilePath;
     protected final FileModifiedTimeUpdater tlsPrivateKeyFilePath;
-    private AuthenticationDataProvider authData;
+    private final AuthenticationDataProvider authData;
+    private final SslProvider sslProvider;
+    private final Set<String> ciphers;
+    private final Set<String> protocols;
 
-    public NettyClientSslContextRefresher(boolean allowInsecure,
+    public NettyClientSslContextRefresher(SslProvider sslProvider, boolean allowInsecure,
                                           String trustCertsFilePath,
                                           AuthenticationDataProvider authData,
+                                          Set<String> ciphers,
+                                          Set<String> protocols,
                                           long delayInSeconds)
             throws IOException, GeneralSecurityException {
         super(delayInSeconds);
@@ -52,6 +59,9 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
                 authData != null ? authData.getTlsCerificateFilePath() : null);
         this.tlsPrivateKeyFilePath = new FileModifiedTimeUpdater(
                 authData != null ? authData.getTlsPrivateKeyFilePath() : null);
+        this.sslProvider = sslProvider;
+        this.ciphers = ciphers;
+        this.protocols = protocols;
     }
 
     @Override
@@ -59,15 +69,16 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
             throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
         if (authData != null && authData.hasDataForTls()) {
             this.sslNettyContext = authData.getTlsTrustStoreStream() == null
-                    ? SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
-                            tlsTrustCertsFilePath.getFileName(), (X509Certificate[]) authData.getTlsCertificates(),
-                            authData.getTlsPrivateKey())
-                    : SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
-                            authData.getTlsTrustStoreStream(), (X509Certificate[]) authData.getTlsCertificates(),
-                            authData.getTlsPrivateKey());
+                    ? SecurityUtility.createNettySslContextForClient(this.sslProvider, this.tlsAllowInsecureConnection,
+                    tlsTrustCertsFilePath.getFileName(), (X509Certificate[]) authData.getTlsCertificates(),
+                    authData.getTlsPrivateKey(), this.ciphers, this.protocols)
+                    : SecurityUtility.createNettySslContextForClient(this.sslProvider, this.tlsAllowInsecureConnection,
+                    authData.getTlsTrustStoreStream(), (X509Certificate[]) authData.getTlsCertificates(),
+                    authData.getTlsPrivateKey(), this.ciphers, this.protocols);
         } else {
-            this.sslNettyContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
-                    this.tlsTrustCertsFilePath.getFileName());
+            this.sslNettyContext =
+                    SecurityUtility.createNettySslContextForClient(this.sslProvider, this.tlsAllowInsecureConnection,
+                            this.tlsTrustCertsFilePath.getFileName(), this.ciphers, this.protocols);
         }
         return this.sslNettyContext;
     }

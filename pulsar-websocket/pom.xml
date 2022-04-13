@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.10.0-SNAPSHOT</version>
+    <version>2.11.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -115,6 +115,11 @@
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>
       <artifactId>javax-websocket-client-impl</artifactId>
+      <version>${jetty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-servlets</artifactId>
       <version>${jetty.version}</version>
     </dependency>
     <dependency>

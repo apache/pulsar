@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter.isSubscribeRateEnabled;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
@@ -137,6 +138,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerI
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -441,6 +443,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
 
         }
+    }
+
+    public void updateSubscribeRateLimiter() {
+        SubscribeRate subscribeRate = this.getSubscribeRate();
+        if (isSubscribeRateEnabled(subscribeRate)) {
+            subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
+        } else {
+            subscribeRateLimiter = Optional.empty();
+        }
+        subscribeRateLimiter.ifPresent(limiter -> limiter.onSubscribeRateUpdate(subscribeRate));
     }
 
     private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
@@ -1164,7 +1176,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     deleteTopicAuthenticationFuture.thenCompose(
                                     __ -> deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null))
                             .thenAccept(__ -> deleteTopicPolicies())
-                            .thenCompose(__ -> transactionBuffer.clearSnapshot()).whenComplete((v, ex) -> {
+                            .thenCompose(__ -> transactionBufferCleanupAndClose())
+                            .whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();
@@ -3166,6 +3179,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     + " not found subscription : " + subName)));
         }
         return subscription.getPendingAckManageLedger();
+    }
+
+    private CompletableFuture<Void> transactionBufferCleanupAndClose() {
+        return transactionBuffer.clearSnapshot().thenCompose(__ -> transactionBuffer.closeAsync());
     }
 
     public long getLastDataMessagePublishedTimestamp() {
