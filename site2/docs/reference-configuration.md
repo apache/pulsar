@@ -331,6 +331,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
+|maxActiveTransactionsPerCoordinator| Max number of active transactions per transaction coordinator.|0|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
