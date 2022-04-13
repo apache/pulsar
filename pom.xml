@@ -181,7 +181,6 @@ flexible messaging model and an intuitive client API.</description>
     <commons-io.version>2.8.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
-    <log4j.version>1.2.17</log4j.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
@@ -208,10 +207,12 @@ flexible messaging model and an intuitive client API.</description>
     <cron-utils.version>9.1.6</cron-utils.version>
     <spring-context.version>5.3.18</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
+    <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -244,7 +245,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-compiler-plugin.version>3.9.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.1.2</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.2.4</maven-shade-plugin>
+    <maven-shade-plugin>3.3.0</maven-shade-plugin>
     <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
     <properties-maven-plugin.version>1.0.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
@@ -792,18 +793,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <artifactId>log4j</artifactId>
-        <groupId>log4j</groupId>
-        <version>${log4j.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.sun.jmx</groupId>
-            <artifactId>jmxri</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
         <groupId>org.hdrhistogram</groupId>
         <artifactId>HdrHistogram</artifactId>
         <version>${hdrHistogram.version}</version>
@@ -1229,6 +1218,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
         <version>${apache-http-client.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpcore</artifactId>
+        <version>${apache-httpcomponents.version}</version>
       </dependency>
 
       <dependency>
