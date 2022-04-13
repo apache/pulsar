@@ -22,31 +22,31 @@ import org.apache.pulsar.client.api.RedeliveryBackoff;
 
 public class LogIndexBackoff implements RedeliveryBackoff {
 
-    private final long minDelayMs;
-    private final long maxDelayMs;
+    private final long minLag;
+    private final long maxLag;
 
-    public LogIndexBackoff(long minDelayMs, long maxDelayMs) {
-        this.minDelayMs = minDelayMs;
-        this.maxDelayMs = maxDelayMs;
+    public LogIndexBackoff(long minLag, long maxLag) {
+        this.minLag = minLag;
+        this.maxLag = maxLag;
     }
 
-    public long getMinDelayMs() {
-        return this.minDelayMs;
+    public long getMinLag() {
+        return this.minLag;
     }
 
-    public long getMaxDelayMs() {
-        return this.maxDelayMs;
+    public long getMaxLag() {
+        return this.maxLag;
     }
 
     @Override
-    public long next(int redeliveryCount) {
-        if (redeliveryCount <= 0 || minDelayMs <= 0) {
-            return this.minDelayMs;
+    public long next(int indexCount) {
+        if (indexCount <= 0 || minLag <= 0) {
+            return this.minLag;
         }
-        if (maxDelayMs != -1) {
-            return Math.min(this.maxDelayMs, minDelayMs * redeliveryCount);
+        if (maxLag != -1) {
+            return Math.min(this.maxLag, minLag * indexCount);
         } else {
-            return minDelayMs * redeliveryCount;
+            return minLag * indexCount;
         }
     }
 }
