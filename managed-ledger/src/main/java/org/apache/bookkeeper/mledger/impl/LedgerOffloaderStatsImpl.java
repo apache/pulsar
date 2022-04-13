@@ -221,7 +221,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             String topic = entry.getKey();
             long access = entry.getValue();
 
-            if(now - access >= timeout) {
+            if (now - access >= timeout) {
                 this.topic2Namespace.remove(topic);
                 this.offloadAndReadOffloadBytesMap.remove(topic);
                 String[] labelValues = this.labelValues(topic);
