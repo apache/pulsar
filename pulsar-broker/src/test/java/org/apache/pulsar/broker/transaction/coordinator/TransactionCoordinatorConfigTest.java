@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -60,9 +61,28 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
                 .enableTransaction(true).operationTimeout(3, TimeUnit.SECONDS).build();
 
-        // new two transaction will not reach max active txns
+        // new two txn will not reach max active txns
+        Transaction commitTxn =
+                pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        Transaction abortTxn =
+                pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        try {
+            // new the third txn will timeout, broker will return any response
+            pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
+        }
+
+        // release active txn
+        commitTxn.commit().get();
+        abortTxn.abort().get();
+
+        // two txn end, can continue new txn
         pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
         pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+
+        // reach max active txns again
         try {
             // new the third txn will timeout, broker will return any response
             pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
