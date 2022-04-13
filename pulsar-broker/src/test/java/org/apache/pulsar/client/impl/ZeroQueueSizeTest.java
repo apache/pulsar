@@ -320,7 +320,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
                 String.format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
                         consumer.getSubscription(), consumer.getConsumerName())));
         // zeroConsumerImpl will close when received batch message.
-        Assert.assertFalse(consumer.isConnected());
+        Awaitility.await().untilAsserted(()-> Assert.assertFalse(consumer.isConnected()));
 
         producer.close();
     }
