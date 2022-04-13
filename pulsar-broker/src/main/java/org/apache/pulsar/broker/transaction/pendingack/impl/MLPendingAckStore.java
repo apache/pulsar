@@ -277,7 +277,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     && subManagedCursor.getPersistentMarkDeletedPosition() != null
                     && pendingAckLogIndex.firstEntry().getKey()
                     .compareTo((PositionImpl) subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
-                deletePosition = pendingAckLogIndex.firstKey();
+                deletePosition = pendingAckLogIndex.firstEntry().getValue();
                 pendingAckLogIndex.remove(pendingAckLogIndex.firstKey());
             }
             upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
@@ -296,11 +296,9 @@ public class MLPendingAckStore implements PendingAckStore {
 
                             @Override
                             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                                if (log.isDebugEnabled()) {
-                                    log.error("[{}] Transaction pending ack store mark delete position : "
-                                                    + "[{}] fail!", managedLedger.getName(),
-                                            finalDeletePosition, exception);
-                                }
+                                log.error("[{}] Transaction pending ack store mark delete position : "
+                                                + "[{}] fail!", managedLedger.getName(),
+                                        finalDeletePosition, exception);
                             }
                         }, null);
             }

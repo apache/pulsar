@@ -195,6 +195,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     @Test
     public void cumulativePendingAckReplayTest() throws Exception {
         int messageCount = 1000;
+        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(4 * messageCount - 1);
+        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
         String subName = "cumulative-test";
 
         @Cleanup
