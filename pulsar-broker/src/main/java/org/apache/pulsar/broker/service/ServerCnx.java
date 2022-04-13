@@ -2647,7 +2647,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
             recordRateLimitMetrics(producers);
-            autoReadDisabledRateLimiting = isPublishRateExceeded;
+            autoReadDisabledRateLimiting = true;
             throttledConnections.inc();
         }
 
