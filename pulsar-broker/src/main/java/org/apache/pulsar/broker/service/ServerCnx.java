@@ -832,8 +832,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Authenticate role : {}", remoteAddress,
-                    authState != null ? authState.getAuthRole() : null);
+                String role = "";
+                if (authState != null && authState.isComplete()) {
+                    role = authState.getAuthRole();
+                } else {
+                    role = "authentication incomplete or null";
+                }
+                log.debug("[{}] Authenticate role : {}", remoteAddress, role);
             }
 
             state = doAuthentication(clientData, clientProtocolVersion, clientVersion);
