@@ -535,7 +535,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         try {
             toTest.readAsync(0, 0).get();
         } catch (Exception e) {
-            fail("Get unexpected exception when reading entries", e);
+            Assert.fail("Get unexpected exception when reading entries", e);
         }
     }
 

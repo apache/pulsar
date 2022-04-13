@@ -24,6 +24,10 @@ class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
 
     static final LedgerOffloaderStats INSTANCE = new LedgerOffloaderStatsDisable();
 
+    private LedgerOffloaderStatsDisable() {
+
+    }
+
     @Override
     public void recordOffloadError(String topic) {
 
