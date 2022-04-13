@@ -1834,7 +1834,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 && mdEntry.newPosition.compareTo(persistentMarkDeletePosition) < 0) {
             if (log.isInfoEnabled()) {
                 log.info("Skipping updating mark delete position to {}. The persisted mark delete position {} "
-                        + "is latest.", mdEntry.newPosition, persistentMarkDeletePosition);
+                        + "is later.", mdEntry.newPosition, persistentMarkDeletePosition);
             }
             mdEntry.triggerComplete();
             return;
@@ -1852,7 +1852,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (inProgressLatest != mdEntry.newPosition) {
             if (log.isInfoEnabled()) {
                 log.info("Skipping updating mark delete position to {}. The mark delete position update "
-                        + "in progress {} is latest.", mdEntry.newPosition, inProgressLatest);
+                        + "in progress {} is later.", mdEntry.newPosition, inProgressLatest);
             }
             mdEntry.triggerComplete();
             return;
