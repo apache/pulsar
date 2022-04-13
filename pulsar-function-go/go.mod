@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/apache/pulsar-client-go v0.8.1
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/prometheus/client_golang v1.11.1
 	github.com/prometheus/client_model v0.2.0
