@@ -19,26 +19,20 @@
 package org.apache.pulsar.broker.transaction.coordinator;
 
 
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import com.google.common.collect.Sets;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.AssertJUnit.assertTrue;
-import static org.testng.AssertJUnit.fail;
 
 @Test(groups = "broker")
 public class TransactionCoordinatorConfigTest extends BrokerTestBase {
