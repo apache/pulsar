@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.DefaultChannelPromise;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
@@ -29,7 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
@@ -48,16 +52,15 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -157,18 +160,13 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         completableFuture.complete(clientCnx);
         when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
+        Channel channel = new EmbeddedChannel(mock(ChannelHandler.class));
         when(clientCnx.ctx()).thenReturn(cnx);
-        Channel channel = mock(Channel.class);
         when(cnx.channel()).thenReturn(channel);
-        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
-
-            @Override
-            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
-                return mockClient;
-            }
-        });
-
-        when(channel.isActive()).thenReturn(true);
+        ChannelPromise promise = new DefaultChannelPromise(channel);
+        promise.setSuccess();
+        when(cnx.writeAndFlush(any())).thenReturn(promise);
+        when(pulsarService.getClient()).thenAnswer((Answer<PulsarClient>) invocation -> mockClient);
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
@@ -182,14 +180,10 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         ConcurrentSkipListMap<Long, Object> outstandingRequests =
                 (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
 
-        assertEquals(outstandingRequests.size(), 1);
+        Awaitility.await().untilAsserted(()-> assertEquals(outstandingRequests.size(), 1));
 
-        Awaitility.await().atLeast(2, TimeUnit.SECONDS).until(() -> {
-            if (outstandingRequests.size() == 0) {
-                return true;
-            }
-            return false;
-        });
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(outstandingRequests.size(), 0));
 
         try {
             endFuture.get();
@@ -213,13 +207,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         when(cnx.channel()).thenReturn(channel);
 
         when(channel.isActive()).thenReturn(false);
-        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
-
-            @Override
-            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
-                return mockClient;
-            }
-        });
+        when(pulsarService.getClient()).thenAnswer((Answer<PulsarClient>) invocation -> mockClient);
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
@@ -232,13 +220,58 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
         }
 
-        when(channel.isActive()).thenReturn(true);
+        channel = new EmbeddedChannel(mock(ChannelHandler.class));
+        when(cnx.channel()).thenReturn(channel);
+        ChannelPromise promise = new DefaultChannelPromise(channel);
+        promise.setSuccess();
+        when(cnx.writeAndFlush(any())).thenReturn(promise);
 
         try {
             transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1).get();
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionBufferClientException.RequestTimeoutException);
+        }
+    }
+
+    @Test
+    public void testTransactionBufferClientWriteAndFlushFail() throws Exception {
+        PulsarService pulsarService = pulsarServiceList.get(0);
+        PulsarClient mockClient = mock(PulsarClientImpl.class);
+        CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
+        ClientCnx clientCnx = mock(ClientCnx.class);
+        completableFuture.complete(clientCnx);
+        when(((PulsarClientImpl)mockClient).getConnection(anyString())).thenReturn(completableFuture);
+        ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
+        when(clientCnx.ctx()).thenReturn(cnx);
+        Channel channel = new EmbeddedChannel(mock(ChannelHandler.class));
+        when(cnx.channel()).thenReturn(channel);
+        ChannelPromise promise = new DefaultChannelPromise(channel);
+        promise.setFailure(new IllegalStateException("Illegal state"));
+        when(cnx.writeAndFlush(any())).thenReturn(promise);
+        when(pulsarService.getClient()).thenAnswer((Answer<PulsarClient>) invocation -> mockClient);
+
+        @Cleanup("stop")
+        HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
+        TransactionBufferHandlerImpl transactionBufferHandler =
+                new TransactionBufferHandlerImpl(pulsarServiceList.get(0),
+                        hashedWheelTimer, 1000, 3000);
+        CompletableFuture<TxnID> endFuture =
+                transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1);
+
+        Field field = TransactionBufferHandlerImpl.class.getDeclaredField("outstandingRequests");
+        field.setAccessible(true);
+        ConcurrentSkipListMap<Long, Object> outstandingRequests =
+                (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
+
+        assertEquals(outstandingRequests.size(), 0);
+
+        Awaitility.await().untilAsserted(()-> Assert.assertTrue(endFuture.isCompletedExceptionally()));
+        try {
+            endFuture.get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof IllegalStateException);
         }
     }
 

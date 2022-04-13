@@ -25,6 +25,7 @@ import io.netty.util.ReferenceCountUtil;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
@@ -74,6 +75,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         this.operationTimeoutInMills = operationTimeoutInMills;
         this.timer = timer;
         this.requestCredits = Math.max(100, maxConcurrentRequests);
+        timer.newTimeout(task -> loopCheckOutstandingRequestIfTimeout(), 100, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -134,16 +136,15 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 if (clientCnx.ctx().channel().isActive()) {
                     clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
                     outstandingRequests.put(op.requestId, op);
-                    timer.newTimeout(timeout -> {
-                        OpRequestSend peek = outstandingRequests.remove(op.requestId);
-                        if (peek != null && !peek.cb.isDone() && !peek.cb.isCompletedExceptionally()) {
-                            peek.cb.completeExceptionally(new TransactionBufferClientException
-                                    .RequestTimeoutException());
-                            onResponse(peek);
-                        }
-                    }, operationTimeoutInMills, TimeUnit.MILLISECONDS);
                     op.cmd.retain();
-                    clientCnx.ctx().writeAndFlush(op.cmd, clientCnx.ctx().voidPromise());
+                    clientCnx.ctx().writeAndFlush(op.cmd)
+                            .addListener(result -> {
+                                if (!result.isSuccess()) {
+                                    outstandingRequests.remove(op.requestId);
+                                    op.cb.completeExceptionally(result.cause());
+                                    onResponse(op);
+                                }
+                            });
                 } else {
                     op.cb.completeExceptionally(
                             new PulsarClientException.LookupException(op.topic + " endTxn channel is not active"));
@@ -166,7 +167,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     @Override
     public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
-        if (op == null) {
+        if (op == null || !op.tryOwnership()) {
             if (log.isDebugEnabled()) {
                 log.debug("Got end txn on topic response for timeout {} - {}", response.getTxnidMostBits(),
                         response.getTxnidLeastBits());
@@ -196,7 +197,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     public void handleEndTxnOnSubscriptionResponse(long requestId,
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
-        if (op == null) {
+        if (op == null || !op.tryOwnership()) {
             if (log.isDebugEnabled()) {
                 log.debug("Got end txn on subscription response for timeout {} - {}", response.getTxnidMostBits(),
                         response.getTxnidLeastBits());
@@ -218,6 +219,27 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                         response.getMessage()));
             }
         } finally {
+            onResponse(op);
+        }
+    }
+
+    private void loopCheckOutstandingRequestIfTimeout() {
+        while (true) {
+            Map.Entry<Long, OpRequestSend> entry = outstandingRequests.firstEntry();
+            if (entry == null) {
+                timer.newTimeout(task -> loopCheckOutstandingRequestIfTimeout(), 100, TimeUnit.MILLISECONDS);
+                return;
+            }
+            OpRequestSend op = entry.getValue();
+            if (op.cb.isDone() || (System.currentTimeMillis() - op.createdAt) < operationTimeoutInMills
+                    // when request satisfy timeout condition, we should try to acquire ownership
+                    || !op.tryOwnership()) {
+                timer.newTimeout(task -> loopCheckOutstandingRequestIfTimeout(), 100, TimeUnit.MILLISECONDS);
+                return;
+            }
+            outstandingRequests.remove(entry.getKey());
+            op.cb.completeExceptionally(new TransactionBufferClientException
+                    .RequestTimeoutException());
             onResponse(op);
         }
     }
@@ -264,6 +286,11 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         CompletableFuture<TxnID> cb;
         long createdAt;
         CompletableFuture<ClientCnx> cnx;
+        volatile int ownership;
+        private static final AtomicIntegerFieldUpdater<OpRequestSend> ADD_OP_COUNT_UPDATER = AtomicIntegerFieldUpdater
+                .newUpdater(OpRequestSend.class, "ownership");
+        private static final int NO_OWNER = 0;
+        private static final int EXIST_OWNER = 1;
 
         static OpRequestSend create(long requestId, String topic, ByteBuf cmd, CompletableFuture<TxnID> cb,
                 CompletableFuture<ClientCnx> cnx) {
@@ -274,11 +301,17 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             op.cb = cb;
             op.createdAt = System.currentTimeMillis();
             op.cnx = cnx;
+            op.ownership = NO_OWNER;
             return op;
+        }
+
+        boolean tryOwnership() {
+            return ADD_OP_COUNT_UPDATER.compareAndSet(this, NO_OWNER, EXIST_OWNER);
         }
 
         void recycle() {
             recyclerHandle.recycle(this);
+            ownership = NO_OWNER;
         }
 
         private OpRequestSend(Recycler.Handle<OpRequestSend> recyclerHandle) {

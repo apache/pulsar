@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
@@ -31,13 +26,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import io.netty.util.HashedWheelTimer;
+import lombok.Cleanup;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.testng.annotations.Test;
-
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -54,8 +55,12 @@ public class TransactionBufferHandlerImplTest {
         when(namespaceService.getBundleAsync(any())).thenReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class)));
         Optional<NamespaceEphemeralData> opData = Optional.empty();
         when(namespaceService.getOwnerAsync(any())).thenReturn(CompletableFuture.completedFuture(opData));
-        when(((PulsarClientImpl)pulsarClient).getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
-        TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarService, null, 1000, 3000));
+        when(((PulsarClientImpl)pulsarClient).getConnection(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));
+        @Cleanup("stop")
+        HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
+        TransactionBufferHandlerImpl handler = spy(
+                new TransactionBufferHandlerImpl(pulsarService, hashedWheelTimer, 1000, 3000));
         doNothing().when(handler).endTxn(any());
         doReturn(CompletableFuture.completedFuture(mock(ClientCnx.class))).when(handler).getClientCnx(anyString());
         for (int i = 0; i < 500; i++) {
@@ -78,7 +83,10 @@ public class TransactionBufferHandlerImplTest {
         PulsarClient pulsarClient = mock(PulsarClientImpl.class);
         PulsarService pulsarService = mock(PulsarService.class);
         when(pulsarService.getClient()).thenReturn(pulsarClient);
-        TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarService, null, 50, 3000));
+        @Cleanup("stop")
+        HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
+        TransactionBufferHandlerImpl handler = spy(new TransactionBufferHandlerImpl(pulsarService,
+                hashedWheelTimer, 50, 3000));
         assertEquals(handler.getAvailableRequestCredits(), 100);
     }
 }
