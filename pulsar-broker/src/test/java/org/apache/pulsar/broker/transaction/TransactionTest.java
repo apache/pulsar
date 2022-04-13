@@ -985,19 +985,20 @@ public class TransactionTest extends TransactionTestBase {
         int partitionCount = 20;
         admin.topics().createPartitionedTopic(topic, partitionCount);
 
+        Class<SystemTopicBaseTxnBufferSnapshotService> clazz = SystemTopicBaseTxnBufferSnapshotService.class;
+        Field field = clazz.getDeclaredField("writerMap");
+        field.setAccessible(true);
         // inject a failed counted writer
         CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> writerFuture = new CompletableFuture<>();
         for (PulsarService pulsarService : pulsarServiceList) {
             SystemTopicBaseTxnBufferSnapshotService snapshotService =
                     (SystemTopicBaseTxnBufferSnapshotService) pulsarService.getTransactionBufferSnapshotService();
-            ReferenceCountedWriter failedCountedWriter =
-                    new ReferenceCountedWriter(NamespaceName.get(namespace), snapshotService, writerFuture);
+            HashMap<NamespaceName, ReferenceCountedWriter> writerMap =
+                    ((HashMap<NamespaceName, ReferenceCountedWriter>) field.get(snapshotService));
 
-            Class<SystemTopicBaseTxnBufferSnapshotService> clazz = SystemTopicBaseTxnBufferSnapshotService.class;
-            Field field = clazz.getDeclaredField("writerMap");
-            field.setAccessible(true);
-            ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(snapshotService))
-                    .put(NamespaceName.get(namespace), failedCountedWriter);
+            ReferenceCountedWriter failedCountedWriter =
+                    new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, writerMap);
+            writerMap.put(NamespaceName.get(namespace), failedCountedWriter);
         }
 
         CompletableFuture<Producer<byte[]>> producerFuture = pulsarClient.newProducer()

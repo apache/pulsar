@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
@@ -44,7 +45,7 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
     private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
-    private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap;
+    private final HashMap<NamespaceName, ReferenceCountedWriter> writerMap;
     private final LinkedList<Writer<TransactionBufferSnapshot>> pendingCloseWriterList;
 
     // The class ReferenceCountedWriter will maintain the reference count,
@@ -53,19 +54,17 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
         private final AtomicLong referenceCount;
         private final NamespaceName namespaceName;
-        private final SystemTopicBaseTxnBufferSnapshotService service;
         private final CompletableFuture<Writer<TransactionBufferSnapshot>> future;
 
         public ReferenceCountedWriter(NamespaceName namespaceName,
-                                         SystemTopicBaseTxnBufferSnapshotService service,
-                                         CompletableFuture<Writer<TransactionBufferSnapshot>> future) {
+                                      CompletableFuture<Writer<TransactionBufferSnapshot>> future,
+                                      HashMap<NamespaceName, ReferenceCountedWriter> writerMap) {
             this.referenceCount = new AtomicLong(1);
             this.namespaceName = namespaceName;
-            this.service = service;
             this.future = future;
             this.future.exceptionally(t -> {
                 log.error("[{}] Failed to create transaction buffer snapshot writer.", namespaceName, t);
-                service.writerMap.remove(namespaceName, this);
+                writerMap.remove(namespaceName, this);
                 return null;
             });
         }
@@ -74,20 +73,12 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
             return future;
         }
 
-        public void retain() {
+        private void retain() {
             this.referenceCount.incrementAndGet();
         }
 
-        public void release() {
-            synchronized (service.writerMap) {
-                if (this.referenceCount.decrementAndGet() == 0) {
-                    service.writerMap.remove(namespaceName, this);
-                    this.future.thenAccept(writer -> {
-                        service.pendingCloseWriterList.add(writer);
-                        service.closePendingCloseWriter();
-                    });
-                }
-            }
+        private long release() {
+            return this.referenceCount.decrementAndGet();
         }
 
     }
@@ -95,7 +86,7 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
     public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client) {
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.clients = new ConcurrentHashMap<>();
-        this.writerMap = new ConcurrentHashMap<>();
+        this.writerMap = new HashMap<>();
         this.pendingCloseWriterList = new LinkedList<>();
     }
 
@@ -110,15 +101,26 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
     }
 
     @Override
-    public ReferenceCountedWriter getReferenceWriter(NamespaceName namespaceName) {
+    public synchronized ReferenceCountedWriter getReferenceWriter(NamespaceName namespaceName) {
         return writerMap.compute(namespaceName, (k, v) -> {
             if (v == null) {
-                return new ReferenceCountedWriter(namespaceName, this,
-                        getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync());
+                return new ReferenceCountedWriter(namespaceName,
+                        getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync(), writerMap);
             }
             v.retain();
             return v;
         });
+    }
+
+    @Override
+    public synchronized void releaseReferenceWriter(ReferenceCountedWriter referenceCountedWriter) {
+        if (referenceCountedWriter.release() == 0) {
+            writerMap.remove(referenceCountedWriter.namespaceName, referenceCountedWriter);
+            referenceCountedWriter.future.thenAccept(writer -> {
+                pendingCloseWriterList.add(writer);
+                closePendingCloseWriter();
+            });
+        }
     }
 
     private SystemTopicClient<TransactionBufferSnapshot> getTransactionBufferSystemTopicClient(

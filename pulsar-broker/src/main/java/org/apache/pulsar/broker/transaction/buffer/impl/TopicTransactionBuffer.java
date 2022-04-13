@@ -478,7 +478,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     public synchronized CompletableFuture<Void> closeAsync() {
         if (!checkIfClose()) {
             // make sure the snapshot counted writer only release one time.
-            this.takeSnapshotWriter.release();
+            this.topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService()
+                    .releaseReferenceWriter(this.takeSnapshotWriter);
         }
         changeToCloseState();
         return CompletableFuture.completedFuture(null);
