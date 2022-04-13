@@ -20,18 +20,19 @@ package org.apache.pulsar.broker.web;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.ThreadFactory;
+import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 
 public class WebExecutorThreadPool extends ExecutorThreadPool {
 
     private final ThreadFactory threadFactory;
 
-    public WebExecutorThreadPool(String namePrefix) {
-        this(Runtime.getRuntime().availableProcessors(), namePrefix);
+    public WebExecutorThreadPool(int maxThreads, String namePrefix) {
+        this(maxThreads, namePrefix, 8192);
     }
 
-    public WebExecutorThreadPool(int maxThreads, String namePrefix) {
-        super(maxThreads);
+    public WebExecutorThreadPool(int maxThreads, String namePrefix, int queueCapacity) {
+        super(maxThreads, Math.min(8, maxThreads), new BlockingArrayQueue<>(queueCapacity, queueCapacity));
         this.threadFactory = new DefaultThreadFactory(namePrefix);
     }
 
