@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -305,17 +306,23 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        try {
-            consumer.receiveAsync().handle((ok, e) -> {
-                if (e == null) {
-                    // as zero receiverQueueSize doesn't support batch message, must receive exception at callback.
-                    Assert.fail();
-                }
-                return null;
-            });
-        } finally {
-            consumer.close();
-        }
+        AtomicReference<Throwable> exceptionRef = new AtomicReference<>();
+
+        consumer.receiveAsync().handle((ok, e) -> {
+            // as zero receiverQueueSize doesn't support batch message, must receive exception at callback.
+            exceptionRef.set(e);
+            return null;
+        });
+        Awaitility.await().untilAsserted(() -> assertNotNull(exceptionRef.get()));
+        Awaitility.await().untilAsserted(() -> assertEquals(exceptionRef.get().getClass(),
+                PulsarClientException.InvalidMessageException.class));
+        Awaitility.await().untilAsserted(() -> assertEquals(exceptionRef.get().getMessage(),
+                String.format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
+                        consumer.getSubscription(), consumer.getConsumerName())));
+        // zeroConsumerImpl will close when received batch message.
+        Assert.assertFalse(consumer.isConnected());
+
+        producer.close();
     }
 
     @Test
