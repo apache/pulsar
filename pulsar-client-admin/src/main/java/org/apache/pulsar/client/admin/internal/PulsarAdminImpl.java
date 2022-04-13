@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
@@ -148,6 +149,8 @@ public class PulsarAdminImpl implements PulsarAdmin {
                        int autoCertRefreshTime,
                        TimeUnit autoCertRefreshTimeUnit,
                        ClassLoader clientBuilderClassLoader) throws PulsarClientException {
+        checkArgument(StringUtils.isNotBlank(serviceUrl), "Service URL needs to be specified");
+
         this.connectTimeout = connectTimeout;
         this.connectTimeoutUnit = connectTimeoutUnit;
         this.readTimeout = readTimeout;

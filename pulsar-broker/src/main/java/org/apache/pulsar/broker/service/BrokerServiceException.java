@@ -77,6 +77,7 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    @Deprecated
     public static class AddEntryMetadataException extends BrokerServiceException {
         public AddEntryMetadataException(Throwable t) {
             super(t);

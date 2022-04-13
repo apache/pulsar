@@ -39,8 +39,10 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         this.tbHandler = tbHandler;
     }
 
-    public static TransactionBufferClient create(PulsarClient pulsarClient, HashedWheelTimer timer) {
-        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarClient, timer);
+    public static TransactionBufferClient create(PulsarClient pulsarClient, HashedWheelTimer timer,
+             int maxConcurrentRequests, long operationTimeoutInMills) {
+        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarClient, timer,
+                maxConcurrentRequests, operationTimeoutInMills);
         return new TransactionBufferClientImpl(handler);
     }
 
@@ -73,5 +75,15 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
     @Override
     public void close() {
         tbHandler.close();
+    }
+
+    @Override
+    public int getAvailableRequestCredits() {
+        return tbHandler.getAvailableRequestCredits();
+    }
+
+    @Override
+    public int getPendingRequestsCount() {
+        return tbHandler.getPendingRequestsCount();
     }
 }

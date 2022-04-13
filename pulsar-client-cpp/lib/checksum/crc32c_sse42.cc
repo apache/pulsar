@@ -31,7 +31,8 @@
 #include "lib/checksum/crc32c_sw.h"
 #include "gf2.hpp"
 
-#if BOOST_ARCH_X86_64
+#if BOOST_ARCH_X86_64 && !defined(__arm64__)
+#define PULSAR_X86_64
 #include <nmmintrin.h>  // SSE4.2
 #include <wmmintrin.h>  // PCLMUL
 #else
@@ -44,7 +45,7 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
-#elif BOOST_ARCH_X86_64
+#elif defined(PULSAR_X86_64)
 #include <cpuid.h>
 #endif
 
@@ -79,7 +80,7 @@ bool crc32c_initialize() {
         __cpuid(CPUInfo, 1);
         has_sse42 = (CPUInfo[2] & cpuid_ecx_sse42) != 0;
         has_pclmulqdq = (CPUInfo[2] & cpuid_ecx_pclmulqdq) != 0;
-#elif BOOST_ARCH_X86_64
+#elif defined(PULSAR_X86_64)
         const uint32_t cpuid_ecx_sse42 = (1 << 20);
         const uint32_t cpuid_ecx_pclmulqdq = (1 << 1);
         unsigned int eax, ebx, ecx, edx;
@@ -116,7 +117,7 @@ void chunk_config::make_shift_table(size_t bytes, uint32_t table[256]) {
     for (unsigned int i = 0; i < 256; ++i) table[i] = (const bitvector<32>)mul(m, bitvector<32>(i));
 }
 
-#if BOOST_ARCH_X86_64
+#ifdef PULSAR_X86_64
 
 static uint32_t crc32c_chunk(uint32_t crc, const void *buf, const chunk_config &config) {
     DEBUG_PRINTF3("  crc32c_chunk(crc = 0x%08x, buf = %p, config.words = " SIZE_T_FORMAT ")", crc, buf,
@@ -259,7 +260,7 @@ uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *
     return crc;
 }
 
-#else  // ! BOOST_ARCH_X86_64
+#else  // ! PULSAR_X86_64
 
 uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *config) {
     // SSE 4.2 extension for hw implementation are not present

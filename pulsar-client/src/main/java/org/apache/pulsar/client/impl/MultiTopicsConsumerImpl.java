@@ -305,9 +305,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             notifyPendingBatchReceivedCallBack();
         }
 
-        if (listener != null) {
-            triggerListener();
-        }
+        tryTriggerListener();
     }
 
     @Override
@@ -360,7 +358,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
+    protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
 
         long callTime = System.nanoTime();
@@ -371,11 +369,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 checkArgument(message instanceof TopicMessageImpl);
                 if (!isValidConsumerEpoch(message)) {
                     long executionTime = System.nanoTime() - callTime;
-                    if (executionTime >= unit.toNanos(timeout)) {
+                    long timeoutInNanos = unit.toNanos(timeout);
+                    if (executionTime >= timeoutInNanos) {
                         return null;
                     } else {
                         resumeReceivingFromPausedConsumersIfNeeded();
-                        return internalReceive((int) (timeout - executionTime), TimeUnit.NANOSECONDS);
+                        return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
                     }
                 }
                 unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
@@ -1028,6 +1027,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     partitionIndex -> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
+                        configurationData.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                     configurationData, client.externalExecutorProvider(),
                                     partitionIndex, true, subFuture,
@@ -1036,6 +1036,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();
+                            } else {
+                                newConsumer.resume();
                             }
                             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         }
@@ -1055,6 +1057,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
                     return existingValue;
                 } else {
+                    internalConfig.setStartPaused(paused);
                     ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
                             client.externalExecutorProvider(), -1,
                             true, subFuture, startMessageId, schema, interceptors,
@@ -1063,6 +1066,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     synchronized (pauseMutex) {
                         if (paused) {
                             newConsumer.pause();
+                        } else {
+                            newConsumer.resume();
                         }
                     }
                     return newConsumer;
@@ -1355,6 +1360,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         int partitionIndex = TopicName.getPartitionIndex(partitionName);
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
+                        configurationData.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                                 client, partitionName, configurationData,
                                 client.externalExecutorProvider(),
@@ -1363,6 +1369,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();
+                            } else {
+                                newConsumer.resume();
                             }
                             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         }
@@ -1465,7 +1473,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     public void tryAcknowledgeMessage(Message<T> msg) {
         if (msg != null) {
-            acknowledgeCumulativeAsync(msg);
+            acknowledgeCumulativeAsync(msg)
+                    .exceptionally(ex -> {
+                        log.warn("[{}][{}] acknowledge message {} cumulative fail.", topic, subscription,
+                                msg.getMessageId(), ex);
+                        return null;
+                    });
         }
     }
 

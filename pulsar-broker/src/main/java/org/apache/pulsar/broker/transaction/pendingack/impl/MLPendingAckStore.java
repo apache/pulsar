@@ -241,8 +241,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 completableFuture.complete(null);
 
                 if (!metadataPositions.isEmpty()) {
-                    PositionImpl firstPosition = metadataPositions.firstEntry().getKey();
-                    PositionImpl deletePosition = metadataPositions.firstEntry().getKey();
+                    PositionImpl deletePosition = null;
                     while (!metadataPositions.isEmpty()
                             && metadataPositions.firstKey() != null
                             && subManagedCursor.getPersistentMarkDeletedPosition() != null
@@ -252,7 +251,7 @@ public class MLPendingAckStore implements PendingAckStore {
                         metadataPositions.remove(metadataPositions.firstKey());
                     }
 
-                    if (firstPosition != deletePosition) {
+                    if (deletePosition != null) {
                         PositionImpl finalDeletePosition = deletePosition;
                         cursor.asyncMarkDelete(deletePosition,
                                 new AsyncCallbacks.MarkDeleteCallback() {
@@ -398,7 +397,8 @@ public class MLPendingAckStore implements PendingAckStore {
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (managedLedger.getConfig().isAutoSkipNonRecoverableData()
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
-                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
             }
             log.error("MLPendingAckStore of topic [{}] stat reply fail!", managedLedger.getName(), exception);

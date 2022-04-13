@@ -52,7 +52,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     @Override
     public List<String> getClusters() throws PulsarAdminException {
-        return sync(() -> getClustersAsync());
+        return sync(this::getClustersAsync);
     }
 
     @Override

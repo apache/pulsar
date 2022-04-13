@@ -259,7 +259,7 @@ public class AbstractWebSocketHandlerTest {
             put("initialSequenceId", "1");
             put("hashingScheme", "Murmur3_32Hash");
             put("sendTimeoutMillis", "30001");
-            put("batchingEnabled", "false");
+            put("batchingEnabled", "true");
             put("batchingMaxMessages", "1001");
             put("maxPendingMessages", "1001");
             put("batchingMaxPublishDelay", "2");
@@ -287,14 +287,18 @@ public class AbstractWebSocketHandlerTest {
         assertEquals(conf.getInitialSequenceId().longValue(), 1L);
         assertEquals(conf.getHashingScheme(), HashingScheme.Murmur3_32Hash);
         assertEquals(conf.getSendTimeoutMs(), 30001);
-        assertFalse(conf.isBatchingEnabled() );
+        assertTrue(conf.isBatchingEnabled());
         assertEquals(conf.getBatchingMaxMessages(), 1001);
         assertEquals(conf.getMaxPendingMessages(), 1001);
+        assertEquals(conf.getBatchingMaxPublishDelayMicros(), 2000);
         assertEquals(conf.getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
         assertEquals(conf.getCompressionType(), CompressionType.LZ4);
 
         producerHandler.clearQueryParams();
         conf = producerHandler.getConf();
+        // By default batching is disabled, which is different with ProducerBuilder
+        assertFalse(conf.isBatchingEnabled());
+
         // The default message routing mode is SinglePartition, which is different with ProducerBuilder
         assertEquals(conf.getMessageRoutingMode(), MessageRoutingMode.SinglePartition);
 

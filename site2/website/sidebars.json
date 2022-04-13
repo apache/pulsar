@@ -2,8 +2,8 @@
   "docs": {
     "Get Started": [
       "standalone",
-      "standalone-docker",
-      "kubernetes-helm"
+      "getting-started-docker",
+      "getting-started-helm"
     ],
     "Concepts and Architecture": [
       "concepts-overview",
@@ -148,7 +148,7 @@
     ],
     "Development": [
       "develop-tools",
-      "develop-binary-protocol",
+      "developing-binary-protocol",
       "develop-schema",
       "develop-load-manager",
       "develop-plugin"

@@ -46,8 +46,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -84,6 +82,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -534,17 +533,24 @@ public class PulsarClientImpl implements PulsarClient {
         NamespaceName namespaceName = destination.getNamespaceObject();
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
-        lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode)
-            .thenAccept(topics -> {
+        lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode, regex, null)
+            .thenAccept(getTopicsResult -> {
                 if (log.isDebugEnabled()) {
-                    log.debug("Get topics under namespace {}, topics.size: {}", namespaceName, topics.size());
-                    topics.forEach(topicName ->
+                    log.debug("Get topics under namespace {}, topics.size: {},"
+                                    + " topicsHash: {}, changed: {}, filtered: {}",
+                            namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
+                            getTopicsResult.isChanged(), getTopicsResult.isFiltered());
+                    getTopicsResult.getTopics().forEach(topicName ->
                         log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
                 }
 
-                List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
+                List<String> topicsList = getTopicsResult.getTopics();
+                if (!getTopicsResult.isFiltered()) {
+                   topicsList = TopicList.filterTopics(getTopicsResult.getTopics(), conf.getTopicsPattern());
+                }
                 conf.getTopicNames().addAll(topicsList);
                 ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(conf.getTopicsPattern(),
+                        getTopicsResult.getTopicsHash(),
                         PulsarClientImpl.this,
                         conf,
                         externalExecutorProvider,
@@ -560,19 +566,6 @@ public class PulsarClientImpl implements PulsarClient {
             });
 
         return consumerSubscribedFuture;
-    }
-
-    // get topics that match 'topicsPattern' from original topics list
-    // return result should contain only topic names, without partition part
-    public static List<String> topicsPatternFilter(List<String> original, Pattern topicsPattern) {
-        final Pattern shortenedTopicsPattern = topicsPattern.toString().contains("://")
-            ? Pattern.compile(topicsPattern.toString().split("\\:\\/\\/")[1]) : topicsPattern;
-
-        return original.stream()
-            .map(TopicName::get)
-            .map(TopicName::toString)
-            .filter(topic -> shortenedTopicsPattern.matcher(topic.split("\\:\\/\\/")[1]).matches())
-            .collect(Collectors.toList());
     }
 
     public CompletableFuture<Reader<byte[]>> createReaderAsync(ReaderConfigurationData<byte[]> conf) {
