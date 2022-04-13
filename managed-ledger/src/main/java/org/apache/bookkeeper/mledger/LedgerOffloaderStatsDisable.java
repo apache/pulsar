@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
 
-    static LedgerOffloaderStats INSTANCE = new LedgerOffloaderStatsDisable();
+    static final LedgerOffloaderStats INSTANCE = new LedgerOffloaderStatsDisable();
 
     @Override
     public void recordOffloadError(String topic) {
