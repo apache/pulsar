@@ -205,7 +205,7 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateNamespaceName(property, cluster, namespace);
-            internalDeleteNamespace(asyncResponse, authoritative, force);
+            internalDeleteNamespace(asyncResponse, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -940,7 +940,7 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateNamespaceName(property, cluster, namespace);
-            internalClearNamespaceBacklog(asyncResponse, authoritative);
+            internalClearNamespaceBacklog(asyncResponse);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -975,7 +975,7 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateNamespaceName(property, cluster, namespace);
-            internalClearNamespaceBacklogForSubscription(asyncResponse, subscription, authoritative);
+            internalClearNamespaceBacklogForSubscription(asyncResponse, subscription);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1010,7 +1010,7 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateNamespaceName(property, cluster, namespace);
-            internalUnsubscribeNamespace(asyncResponse, subscription, authoritative);
+            internalUnsubscribeNamespace(asyncResponse, subscription);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

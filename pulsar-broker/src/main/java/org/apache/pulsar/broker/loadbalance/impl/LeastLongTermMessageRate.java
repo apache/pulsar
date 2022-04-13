@@ -42,7 +42,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // Maintain this list to reduce object creation.
     private ArrayList<String> bestBrokers;
 
-    public LeastLongTermMessageRate(final ServiceConfiguration conf) {
+    public LeastLongTermMessageRate() {
         bestBrokers = new ArrayList<>();
     }
 
@@ -82,8 +82,6 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      *
      * @param candidates
      *            The candidates for which the bundle may be assigned.
-     * @param bundleToAssign
-     *            The data for the bundle to assign.
      * @param loadData
      *            The load data from the leader broker.
      * @param conf
@@ -91,7 +89,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign,
+    public Optional<String> selectBroker(final Set<String> candidates,
                                          final LoadData loadData,
                                          final ServiceConfiguration conf) {
         bestBrokers.clear();

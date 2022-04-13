@@ -29,6 +29,6 @@ public class InMemTransactionBufferProvider implements TransactionBufferProvider
 
     @Override
     public TransactionBuffer newTransactionBuffer(Topic originTopic) {
-        return new InMemTransactionBuffer(originTopic);
+        return new InMemTransactionBuffer();
     }
 }

@@ -74,7 +74,6 @@ abstract class AbstractMetrics {
             String[] keys = new String[boundaries.length + 1];
             for (int i = 0; i < boundaries.length + 1; i++) {
                 String bucketKey;
-                double value;
 
                 // example of key : "<metric_key>_0.0_0.5"
                 if (i == 0 && boundaries.length > 0) {

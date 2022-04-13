@@ -83,7 +83,7 @@ public abstract class TransactionsBase extends AdminResource {
             asyncResponse.resume(transactionMetadataStore.getCoordinatorStats());
         } else {
             getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                    false, false).thenAccept(partitionMetadata -> {
+                    false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions == 0) {
                     asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
                             "Transaction coordinator not found"));
@@ -299,7 +299,7 @@ public abstract class TransactionsBase extends AdminResource {
                 });
             } else {
                 getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                        false, false).thenAccept(partitionMetadata -> {
+                        false).thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions == 0) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
                                 "Transaction coordinator not found"));

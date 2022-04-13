@@ -167,7 +167,7 @@ public class NamespaceService implements AutoCloseable {
         this.config = pulsar.getConfiguration();
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-        this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
+        this.ownershipCache = new OwnershipCache(pulsar, this);
         this.namespaceClients =
                 ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();

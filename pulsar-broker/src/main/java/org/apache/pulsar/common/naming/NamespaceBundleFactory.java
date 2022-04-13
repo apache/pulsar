@@ -41,7 +41,6 @@ import java.util.Optional;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -77,7 +76,7 @@ public class NamespaceBundleFactory {
 
         this.bundlesCache = Caffeine.newBuilder()
                 .recordStats()
-                .buildAsync(this::loadBundles);
+                .buildAsync((namespace, executor) -> loadBundles(namespace));
 
         CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
@@ -87,7 +86,7 @@ public class NamespaceBundleFactory {
         this.policiesCache = pulsar.getConfigurationMetadataStore().getMetadataCache(Policies.class);
     }
 
-    private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
+    private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Loading cache with bundles for {}", namespace);
         }

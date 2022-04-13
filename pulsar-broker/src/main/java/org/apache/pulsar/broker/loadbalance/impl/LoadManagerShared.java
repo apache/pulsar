@@ -477,7 +477,6 @@ public class LoadManagerShared {
      * by different broker.
      *
      * @param namespace
-     * @param bundle
      * @param currentBroker
      * @param pulsar
      * @param brokerToNamespaceToBundleRange
@@ -486,7 +485,7 @@ public class LoadManagerShared {
      * @throws Exception
      */
     public static boolean shouldAntiAffinityNamespaceUnload(
-            String namespace, String bundle, String currentBroker,
+            String namespace, String currentBroker,
             final PulsarService pulsar,
             final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
                     brokerToNamespaceToBundleRange,

@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.loadbalance.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,14 +108,12 @@ public class BrokerVersionFilter implements BrokerFilter {
      *
      * @param brokers
      *            The currently available brokers that have not already been filtered.
-     * @param bundleToAssign
-     *            The data for the bundle to assign.
      * @param loadData
      *            The load data from the leader broker.
      * @param conf
      *            The service configuration.
      */
-    public void filter(Set<String> brokers, BundleData bundleToAssign, LoadData loadData, ServiceConfiguration conf)
+    public void filter(Set<String> brokers, LoadData loadData, ServiceConfiguration conf)
             throws BrokerFilterBadVersionException {
 
         if (!conf.isPreferLaterVersions()) {

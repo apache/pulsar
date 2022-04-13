@@ -697,7 +697,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         .getBundle(namespace, bundle);
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                         getAvailableBrokers(), brokerTopicLoadingPredicate);
-                return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle, currentBroker, pulsar,
+                return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, currentBroker, pulsar,
                         brokerToNamespaceToBundleRange, brokerCandidateCache);
             }
 
@@ -825,7 +825,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 // Use the filter pipeline to finalize broker candidates.
                 try {
                     for (BrokerFilter filter : filterPipeline) {
-                        filter.filter(brokerCandidateCache, data, loadData, conf);
+                        filter.filter(brokerCandidateCache, loadData, conf);
                     }
                 } catch (BrokerFilterException x) {
                     // restore the list of brokers to the full set
@@ -842,7 +842,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 }
 
                 // Choose a broker among the potentially smaller filtered list, when possible
-                Optional<String> broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                Optional<String> broker = placementStrategy.selectBroker(brokerCandidateCache, loadData, conf);
                 if (log.isDebugEnabled()) {
                     log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
                 }
@@ -859,7 +859,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                             getAvailableBrokers(),
                             brokerTopicLoadingPredicate);
-                    broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                    broker = placementStrategy.selectBroker(brokerCandidateCache, loadData, conf);
                 }
 
                 // Add new bundle to preallocated.

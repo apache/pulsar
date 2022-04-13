@@ -29,8 +29,8 @@ public class PulsarServiceUnit extends ServiceUnit {
     private final PulsarServiceRequest srvRequest;
     private ResourceDescription resrcRequired;
 
-    public static PulsarServiceUnit parse(String suReqJson) {
-        return new PulsarServiceUnit(suReqJson);
+    public static PulsarServiceUnit parse() {
+        return new PulsarServiceUnit();
     }
 
     PulsarServiceUnit(String suId, PulsarServiceRequest srvRequest) {
@@ -38,7 +38,7 @@ public class PulsarServiceUnit extends ServiceUnit {
         this.srvRequest = srvRequest;
     }
 
-    PulsarServiceUnit(String suReqJson) {
+    PulsarServiceUnit() {
         // TODO add JSON parser here to get the following information
         this.serviceUnitId = null;
         this.srvRequest = null;

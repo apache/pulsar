@@ -488,17 +488,17 @@ public class AntiAffinityNamespaceGroupTest {
         // add ns-0 to broker-0
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-0", namespace + "0", assignedNamespace);
         String currentBroker = "broker-0";
-        boolean shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle,
+        boolean shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0",
                 currentBroker, pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-1 to broker-1
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-1", namespace + "1", assignedNamespace);
-        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-2 to broker-2
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-2", namespace + "2", assignedNamespace);
-        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertFalse(shouldUnload);
 

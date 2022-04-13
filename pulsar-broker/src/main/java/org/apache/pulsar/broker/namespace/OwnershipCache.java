@@ -35,7 +35,6 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
@@ -84,11 +83,6 @@ public class OwnershipCache {
     private final AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
 
     /**
-     * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>.
-     */
-    private final NamespaceBundleFactory bundleFactory;
-
-    /**
      * The <code>NamespaceService</code> which using <code>OwnershipCache</code>.
      */
     private final NamespaceService namespaceService;
@@ -119,7 +113,7 @@ public class OwnershipCache {
      *
      * the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
-    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory,
+    public OwnershipCache(PulsarService pulsar,
                           NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
@@ -131,7 +125,6 @@ public class OwnershipCache {
         this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 true, pulsar.getAdvertisedListeners());
-        this.bundleFactory = bundleFactory;
         this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
         this.locallyAcquiredLocks = new ConcurrentHashMap<>();
         // ownedBundlesCache contains all namespaces that are owned by the local broker

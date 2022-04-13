@@ -35,15 +35,13 @@ public interface ModularLoadManagerStrategy {
      *
      * @param candidates
      *            The candidates for which the bundle may be assigned.
-     * @param bundleToAssign
-     *            The data for the bundle to assign.
      * @param loadData
      *            The load data from the leader broker.
      * @param conf
      *            The service configuration.
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
-    Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
+    Optional<String> selectBroker(Set<String> candidates, LoadData loadData,
             ServiceConfiguration conf);
 
     /**
@@ -56,10 +54,10 @@ public interface ModularLoadManagerStrategy {
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
             // Only one strategy at the moment.
-            return new LeastLongTermMessageRate(conf);
+            return new LeastLongTermMessageRate();
         } catch (Exception e) {
             // Ignore
         }
-        return new LeastLongTermMessageRate(conf);
+        return new LeastLongTermMessageRate();
     }
 }

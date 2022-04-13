@@ -309,8 +309,8 @@ public class SimpleLoadManagerImplTest {
         assertTrue(rd1.calculateRank() > rd.calculateRank());
 
         SimpleLoadCalculatorImpl calc = new SimpleLoadCalculatorImpl();
-        calc.recalibrateResourceUsagePerServiceUnit(null);
-        assertNull(calc.getResourceDescription(null));
+        calc.recalibrateResourceUsagePerServiceUnit();
+        assertNull(calc.getResourceDescription());
 
     }
 

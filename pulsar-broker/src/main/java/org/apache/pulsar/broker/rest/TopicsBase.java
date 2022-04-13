@@ -325,7 +325,7 @@ public class TopicsBase extends PersistentTopicsBase {
     // Look up topic owner for given topic. Return if asyncResponse has been completed
     // which indicating redirect or exception.
     private boolean findOwnerBrokerForTopic(boolean authoritative, AsyncResponse asyncResponse) {
-        PartitionedTopicMetadata metadata = internalGetPartitionedMetadata(authoritative, false);
+        PartitionedTopicMetadata metadata = internalGetPartitionedMetadata(false);
         List<String> redirectAddresses = Collections.synchronizedList(new ArrayList<>());
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         List<CompletableFuture<Void>> lookupFutures = new ArrayList<>();

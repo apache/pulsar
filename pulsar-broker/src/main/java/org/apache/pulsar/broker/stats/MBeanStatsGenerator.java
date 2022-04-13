@@ -37,11 +37,11 @@ public class MBeanStatsGenerator {
     private MBeanServer mbs;
 
     public static Collection<Metrics> generate(PulsarService pulsar) {
-        return new MBeanStatsGenerator(pulsar).generate();
+        return new MBeanStatsGenerator().generate();
     }
 
     // hide
-    MBeanStatsGenerator(PulsarService pulsar) {
+    MBeanStatsGenerator() {
         this.mbs = ManagementFactory.getPlatformMBeanServer();
     }
 

@@ -86,7 +86,7 @@ public class NonPersistentTopics extends PersistentTopics {
                                                            @QueryParam("checkAllowAutoCreation") @DefaultValue("false")
                                                                        boolean checkAllowAutoCreation) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
+        return getPartitionedTopicMetadata(topicName, checkAllowAutoCreation);
     }
 
     @GET

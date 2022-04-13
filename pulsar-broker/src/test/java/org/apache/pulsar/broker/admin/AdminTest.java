@@ -782,7 +782,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .newArrayList(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, topic)));
 
         TopicName topicName = TopicName.get("persistent", property, cluster, namespace, topic);
-        assertEquals(persistentTopics.getPartitionedTopicMetadata(topicName, true, false).partitions, 5);
+        assertEquals(persistentTopics.getPartitionedTopicMetadata(topicName, false).partitions, 5);
 
         // grant permission
         final Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce);

@@ -159,16 +159,16 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalDeleteNamespace(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
+    protected void internalDeleteNamespace(AsyncResponse asyncResponse, boolean force) {
         if (force) {
-            internalDeleteNamespaceForcefully(asyncResponse, authoritative);
+            internalDeleteNamespaceForcefully(asyncResponse);
         } else {
-            internalDeleteNamespace(asyncResponse, authoritative);
+            internalDeleteNamespace(asyncResponse);
         }
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalDeleteNamespace(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalDeleteNamespace(AsyncResponse asyncResponse) {
         validateTenantOperation(namespaceName.getTenant(), TenantOperation.DELETE_NAMESPACE);
         validatePoliciesReadOnlyAccess();
 
@@ -334,7 +334,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalDeleteNamespaceForcefully(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalDeleteNamespaceForcefully(AsyncResponse asyncResponse) {
         validateTenantOperation(namespaceName.getTenant(), TenantOperation.DELETE_NAMESPACE);
         validatePoliciesReadOnlyAccess();
 
@@ -1574,7 +1574,7 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.persistence;
     }
 
-    protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
 
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -1637,8 +1637,7 @@ public abstract class NamespacesBase extends AdminResource {
                 bundleRange);
     }
 
-    protected void internalClearNamespaceBacklogForSubscription(AsyncResponse asyncResponse, String subscription,
-                                                                boolean authoritative) {
+    protected void internalClearNamespaceBacklogForSubscription(AsyncResponse asyncResponse, String subscription) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
         checkNotNull(subscription, "Subscription should not be null");
 
@@ -1704,8 +1703,7 @@ public abstract class NamespacesBase extends AdminResource {
                 subscription, namespaceName, bundleRange);
     }
 
-    protected void internalUnsubscribeNamespace(AsyncResponse asyncResponse, String subscription,
-                                                boolean authoritative) {
+    protected void internalUnsubscribeNamespace(AsyncResponse asyncResponse, String subscription) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.UNSUBSCRIBE);
         checkNotNull(subscription, "Subscription should not be null");
 

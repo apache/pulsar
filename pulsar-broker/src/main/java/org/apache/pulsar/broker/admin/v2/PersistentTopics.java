@@ -893,7 +893,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetPartitionedMetadata(authoritative, checkAllowAutoCreation);
+        return internalGetPartitionedMetadata(checkAllowAutoCreation);
     }
 
     @DELETE
@@ -1101,7 +1101,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic")
             @Encoded String encodedTopic, @Suspended AsyncResponse asyncResponse) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetManagedLedgerInfo(asyncResponse, authoritative);
+        internalGetManagedLedgerInfo(asyncResponse);
     }
 
     @GET
@@ -1137,7 +1137,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false") boolean getEarliestTimeInBacklog) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getPreciseBacklog,
+            internalGetPartitionedStats(asyncResponse, perPartition, getPreciseBacklog,
                     subscriptionBacklogSize, getEarliestTimeInBacklog);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
@@ -1169,7 +1169,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+            internalGetPartitionedStatsInternal(asyncResponse);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -1689,7 +1689,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalGetBacklog(authoritative);
+        return internalGetBacklog();
     }
 
     @PUT
@@ -2735,7 +2735,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @ApiParam(value = "Is authentication required to perform this operation")
                                           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalTerminatePartitionedTopic(asyncResponse, authoritative);
+        internalTerminatePartitionedTopic(asyncResponse);
     }
 
     @PUT

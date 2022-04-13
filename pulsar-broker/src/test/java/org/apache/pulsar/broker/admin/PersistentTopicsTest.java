@@ -494,7 +494,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             TopicName partitionedTopicname = invocation.getArgument(0, TopicName.class);
             assert(partitionedTopicname.getLocalName().equals("standard-topic"));
             return new PartitionedTopicMetadata(10);
-        }).when(persistentTopics).getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean());
+        }).when(persistentTopics).getPartitionedTopicMetadata(any(), anyBoolean());
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true, null);
     }
 

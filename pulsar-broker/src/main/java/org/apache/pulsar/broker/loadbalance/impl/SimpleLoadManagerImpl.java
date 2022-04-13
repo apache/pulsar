@@ -1186,7 +1186,6 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 // check number of bundles assigned, comparing with last LoadReport
                 long oldBundleCount = lastLoadReport.getNumBundles();
                 long newBundleCount = pulsar.getBrokerService().getNumberOfNamespaceBundles();
-                long bundleCountChange = Math.abs(oldBundleCount - newBundleCount);
                 if (newBundleCount != oldBundleCount) {
                     needUpdate = true;
                 }

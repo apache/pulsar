@@ -428,7 +428,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
-            TopicName topicName, boolean authoritative, boolean checkAllowAutoCreation) {
+            TopicName topicName, boolean checkAllowAutoCreation) {
         try {
             validateClusterOwnership(topicName.getCluster());
         } catch (Exception e) {
@@ -453,7 +453,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
-            boolean authoritative, boolean checkAllowAutoCreation) {
+                                                                   boolean checkAllowAutoCreation) {
         validateClusterOwnership(topicName.getCluster());
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
@@ -566,7 +566,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
+    protected List<String> getTopicPartitionList() {
         try {
             return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
                     .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
@@ -604,7 +604,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
             // new create check
             if (maxTopicsPerNamespace > 0 && !pulsar().getBrokerService().isSystemTopic(topicName)) {
-                List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
+                List<String> partitionedTopics = getTopicPartitionList();
                 // exclude created system topic
                 long topicsCount =
                         partitionedTopics.stream().filter(t ->
@@ -650,7 +650,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 return;
             }
 
-            provisionPartitionedTopicPath(asyncResponse, numPartitions, createLocalTopicOnly, properties)
+            provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties)
                     .thenCompose(ignored -> tryCreatePartitionsAsync(numPartitions))
                     .whenComplete((ignored, ex) -> {
                         if (ex != null) {
@@ -728,7 +728,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-    private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse, int numPartitions,
+    private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
                                                                   boolean createLocalTopicOnly,
                                                                   Map<String, String> properties) {
         CompletableFuture<Void> future = new CompletableFuture<>();

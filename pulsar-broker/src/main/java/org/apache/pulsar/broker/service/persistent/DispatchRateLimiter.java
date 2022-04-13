@@ -209,7 +209,7 @@ public class DispatchRateLimiter {
         }
 
         policies = policies.isPresent() ? policies : getPolicies(brokerService, topicName);
-        return isDispatchRateNeeded(serviceConfig, policies, topicName, type);
+        return isDispatchRateNeeded(serviceConfig, policies, type);
     }
 
     public static Optional<DispatchRate> getTopicPolicyDispatchRate(BrokerService brokerService,
@@ -248,7 +248,8 @@ public class DispatchRateLimiter {
     }
 
     public static boolean isDispatchRateNeeded(final ServiceConfiguration serviceConfig,
-            final Optional<Policies> policies, final String topicName, final Type type) {
+                                               final Optional<Policies> policies,
+                                               final Type type) {
         DispatchRate dispatchRate = getPoliciesDispatchRate(serviceConfig.getClusterName(), policies, type);
         if (dispatchRate == null) {
             switch (type) {

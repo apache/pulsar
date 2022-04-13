@@ -300,7 +300,7 @@ public class PersistentTopicsBase extends AdminResource {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessForTenantAsync(namespaceName.getTenant())
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync().thenCompose(unused1 ->
-             getPartitionedTopicMetadataAsync(topicName, true, false)
+             getPartitionedTopicMetadataAsync(topicName, false)
                   .thenCompose(metadata -> {
                       int numPartitions = metadata.partitions;
                       CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
@@ -365,7 +365,7 @@ public class PersistentTopicsBase extends AdminResource {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessForTenantAsync(namespaceName.getTenant())
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync().thenCompose(unused1 ->
-            getPartitionedTopicMetadataAsync(topicName, true, false)
+            getPartitionedTopicMetadataAsync(topicName, false)
                 .thenCompose(metadata -> {
                     int numPartitions = metadata.partitions;
                     CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
@@ -395,7 +395,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, authoritative);
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC);
 
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, false);
         if (partitionMetadata.partitions > 0) {
             log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
             throw new RestException(Status.CONFLICT, "This topic already exists");
@@ -492,7 +492,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
-        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+        getPartitionedTopicMetadataAsync(topicName, false).thenAccept(metadata -> {
             if (metadata != null) {
                 tryCreatePartitionsAsync(metadata.partitions).thenAccept(v -> {
                     asyncResponse.resume(Response.noContent().build());
@@ -544,10 +544,8 @@ public class PersistentTopicsBase extends AdminResource {
         return FutureUtil.waitForAll(results);
     }
 
-    protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative,
-                                                                      boolean checkAllowAutoCreation) {
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName,
-                authoritative, checkAllowAutoCreation);
+    protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean checkAllowAutoCreation) {
+        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, checkAllowAutoCreation);
         if (metadata.partitions == 0 && !checkAllowAutoCreation) {
             // The topic may be a non-partitioned topic, so check if it exists here.
             // However, when checkAllowAutoCreation is true, the client will create the topic if it doesn't exist.
@@ -706,7 +704,7 @@ public class PersistentTopicsBase extends AdminResource {
                    internalUnloadNonPartitionedTopicAsync(asyncResponse, authoritative);
                }
            } else {
-               getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+               getPartitionedTopicMetadataAsync(topicName, false)
                        .thenAccept(meta -> {
                            if (meta.partitions > 0) {
                                final List<CompletableFuture<Void>> futures =
@@ -1040,7 +1038,7 @@ public class PersistentTopicsBase extends AdminResource {
                     if (topicName.isPartitioned()) {
                         internalGetSubscriptionsForNonPartitionedTopic(asyncResponse);
                     } else {
-                        getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                        getPartitionedTopicMetadataAsync(topicName, false)
                                 .thenAccept(partitionMetadata -> {
                             if (partitionMetadata.partitions > 0) {
                                 try {
@@ -1194,7 +1192,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -1206,7 +1204,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (topicName.isPartitioned()) {
                 internalGetManagedLedgerInfoForNonPartitionedTopic(asyncResponse);
             } else {
-                getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                getPartitionedTopicMetadataAsync(topicName, false)
                         .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
                         final List<CompletableFuture<String>> futures =
@@ -1304,7 +1302,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative, boolean perPartition,
+    protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean perPartition,
                                                boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                                                boolean getEarliestTimeInBacklog) {
         CompletableFuture<Void> future;
@@ -1314,7 +1312,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
         future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
-                authoritative, false)).thenAccept(partitionMetadata -> {
+                false)).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions == 0) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
                 return;
@@ -1380,14 +1378,14 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalGetPartitionedStatsInternal(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalGetPartitionedStatsInternal(AsyncResponse asyncResponse) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
         } else {
             future = CompletableFuture.completedFuture(null);
         }
-        future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+        future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false))
                 .thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions == 0) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
@@ -1456,7 +1454,7 @@ public class PersistentTopicsBase extends AdminResource {
                 internalDeleteSubscriptionForNonPartitionedTopic(asyncResponse, subName, authoritative);
             } else {
                 getPartitionedTopicMetadataAsync(topicName,
-                        authoritative, false).thenAcceptAsync(partitionMetadata -> {
+                        false).thenAcceptAsync(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
                         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1562,7 +1560,7 @@ public class PersistentTopicsBase extends AdminResource {
                 internalDeleteSubscriptionForNonPartitionedTopicForcefully(asyncResponse, subName, authoritative);
             } else {
                 getPartitionedTopicMetadataAsync(topicName,
-                        authoritative, false).thenAccept(partitionMetadata -> {
+                        false).thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
                         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1663,7 +1661,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return internalSkipAllMessagesForNonPartitionedTopicAsync(asyncResponse, subName, authoritative);
                 } else {
                     return getPartitionedTopicMetadataAsync(topicName,
-                        authoritative, false).thenCompose(partitionMetadata -> {
+                            false).thenCompose(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
                             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -1769,7 +1767,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SKIP))
-                .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false)
                      .thenCompose(partitionMetadata -> {
                          if (partitionMetadata.partitions > 0) {
                              String msg = "Skip messages on a partitioned topic is not allowed";
@@ -1830,7 +1828,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
         future.thenCompose(__ ->
-            getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+            getPartitionedTopicMetadataAsync(topicName, false)
                 .thenAccept(partitionMetadata -> {
                     if (topicName.isPartitioned()) {
                         internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(asyncResponse,
@@ -1973,7 +1971,7 @@ public class PersistentTopicsBase extends AdminResource {
             internalResetCursorForNonPartitionedTopic(asyncResponse, subName, timestamp, authoritative);
         } else {
             getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
+                    false).thenAccept(partitionMetadata -> {
                 final int numPartitions = partitionMetadata.partitions;
                 if (numPartitions > 0) {
                     final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -2124,7 +2122,7 @@ public class PersistentTopicsBase extends AdminResource {
             } else {
                 boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
                 getPartitionedTopicMetadataAsync(topicName,
-                        authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
+                        allowAutoTopicCreation).thenAccept(partitionMetadata -> {
                     final int numPartitions = partitionMetadata.partitions;
                     if (numPartitions > 0) {
                         final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -2280,7 +2278,7 @@ public class PersistentTopicsBase extends AdminResource {
                     subName, messageId);
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (!topicName.isPartitioned()
-                    && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
+                    && getPartitionedTopicMetadata(topicName, false).partitions > 0) {
                 log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), topicName,
                         subName);
                 asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
@@ -2492,8 +2490,7 @@ public class PersistentTopicsBase extends AdminResource {
                 validateGlobalNamespaceOwnership(namespaceName);
             }
 
-            if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
-                    authoritative, false).partitions > 0) {
+            if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, false).partitions > 0) {
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Get message ID by timestamp on a partitioned topic is not allowed, "
                                 + "please try do it on specific topic partition");
@@ -2537,8 +2534,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected Response internalPeekNthMessage(String subName, int messagePosition, boolean authoritative) {
         // If the topic name is a partition name, no need to get partition topic metadata again
-        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
-                authoritative, false).partitions > 0) {
+        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, false).partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Peek messages on a partitioned topic is not allowed");
         }
 
@@ -2586,8 +2582,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateGlobalNamespaceOwnership(namespaceName);
         }
 
-        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
-                authoritative, false).partitions > 0) {
+        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, false).partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED,
                     "Examine messages on a partitioned topic is not allowed, "
                             + "please try examine message on specific topic partition");
@@ -2770,7 +2765,7 @@ public class PersistentTopicsBase extends AdminResource {
         return responseBuilder.entity(stream).build();
     }
 
-    protected PersistentOfflineTopicStats internalGetBacklog(boolean authoritative) {
+    protected PersistentOfflineTopicStats internalGetBacklog() {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -2845,7 +2840,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
         future.thenAccept(__ -> {
-            getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+            getPartitionedTopicMetadataAsync(topicName, false)
                     .thenAccept(partitionMetadata -> {
                         if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
                             log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
@@ -3263,7 +3258,7 @@ public class PersistentTopicsBase extends AdminResource {
                     if (!exist) {
                         throw new RestException(Status.NOT_FOUND, "Topic not found");
                     } else {
-                        return getPartitionedTopicMetadataAsync(topicName, false, false)
+                        return getPartitionedTopicMetadataAsync(topicName, false)
                             .thenCompose(metadata -> {
                                 if (metadata.partitions > 0) {
                                     return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
@@ -3331,7 +3326,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative, false);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, false);
         if (partitionMetadata.partitions > 0) {
             throw new RestException(Status.METHOD_NOT_ALLOWED, "Termination of a partitioned topic is not allowed");
         }
@@ -3346,7 +3341,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalTerminatePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalTerminatePartitionedTopic(AsyncResponse asyncResponse) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -3355,7 +3350,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         future.thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TERMINATE)
-                .thenCompose(unused -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                .thenCompose(unused -> getPartitionedTopicMetadataAsync(topicName, false))
                 .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions == 0) {
                         String msg = "Termination of a non-partitioned topic is not allowed using partitioned-terminate"
@@ -3434,7 +3429,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(unused -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
                 .thenCompose(unused2 ->
                         // If the topic name is a partition name, no need to get partition topic metadata again
-                        getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                        getPartitionedTopicMetadataAsync(topicName, false)
                                 .thenCompose(partitionMetadata -> {
                                     if (topicName.isPartitioned()) {
                                         return internalExpireMessagesByTimestampForSinglePartitionAsync
@@ -3445,7 +3440,6 @@ public class PersistentTopicsBase extends AdminResource {
                                         if (partitionMetadata.partitions > 0) {
                                             return CompletableFuture.completedFuture(null).thenAccept(unused -> {
                                                 final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
                                                 // expire messages for each partition topic
                                                 for (int i = 0; i < partitionMetadata.partitions; i++) {
                                                     TopicName topicNamePartition = topicName.getPartition(i);
@@ -3584,7 +3578,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> {
                     log.info("[{}][{}] received expire messages on subscription {} to position {}", clientAppId(),
                             topicName, subName, messageId);
-                    return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                    return getPartitionedTopicMetadataAsync(topicName, false)
                             .thenAccept(partitionMetadata -> {
                                 if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
                                     String msg = "Expire message at position is not supported for partitioned-topic";
@@ -3702,7 +3696,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (topicName.isPartitioned()) {
                 internalTriggerCompactionNonPartitionedTopic(asyncResponse, authoritative);
             } else {
-                getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                getPartitionedTopicMetadataAsync(topicName, false)
                         .thenAccept(partitionMetadata -> {
                     final int numPartitions = partitionMetadata.partitions;
                     if (numPartitions > 0) {
@@ -3952,7 +3946,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(
-                TopicName.get(topicName.getPartitionedTopicName()), false, false);
+                TopicName.get(topicName.getPartitionedTopicName()), false);
         if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
             final String topicErrorType = partitionedTopicMetadata
                     == null ? "has no metadata" : "has zero partitions";
@@ -3970,7 +3964,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         return getPartitionedTopicMetadataAsync(
-                TopicName.get(topicName.getPartitionedTopicName()), false, false)
+                TopicName.get(topicName.getPartitionedTopicName()), false)
                 .thenApply(partitionedTopicMetadata -> {
                     if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
                         final String topicErrorType = partitionedTopicMetadata
@@ -4027,7 +4021,7 @@ public class PersistentTopicsBase extends AdminResource {
                     .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions));
             future.exceptionally(ex -> {
                 // If the update operation fails, clean up the partitions that were created
-                getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                getPartitionedTopicMetadataAsync(topicName, false).thenAccept(metadata -> {
                     int oldPartition = metadata.partitions;
                     for (int i = oldPartition; i < numPartitions; i++) {
                         topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
@@ -4180,7 +4174,7 @@ public class PersistentTopicsBase extends AdminResource {
         return internalGetListAsync().thenCompose(existingTopicList -> {
             TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
             String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
-            return getPartitionedTopicMetadataAsync(partitionTopicName, false, false)
+            return getPartitionedTopicMetadataAsync(partitionTopicName, false)
                     .thenAccept(metadata -> {
                         int oldPartition = metadata.partitions;
                         for (String existingTopicName : existingTopicList) {
@@ -4236,7 +4230,7 @@ public class PersistentTopicsBase extends AdminResource {
                         + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
                 TopicName partitionTopicName = TopicName.get(domain(),
                         namespaceName, topicName.substring(0, partitionIndex));
-                PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
+                PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false);
 
                 // Partition topic index is 0 to (number of partition - 1)
                 if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
@@ -4587,7 +4581,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isPartitioned()) {
             internalTruncateNonPartitionedTopic(asyncResponse, authoritative);
         } else {
-            getPartitionedTopicMetadataAsync(topicName, authoritative, false).whenComplete((meta, t) -> {
+            getPartitionedTopicMetadataAsync(topicName, false).whenComplete((meta, t) -> {
                 if (meta.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = Lists.newArrayList();
                     for (int i = 0; i < meta.partitions; i++) {
@@ -4665,7 +4659,7 @@ public class PersistentTopicsBase extends AdminResource {
                             authoritative, enabled));
         } else {
             resultFuture = validateFuture.
-                    thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                    thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false))
                     .thenAccept(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
                             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -4800,7 +4794,7 @@ public class PersistentTopicsBase extends AdminResource {
                             subName, authoritative));
         } else {
             resultFuture = validateFuture
-                    .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                    .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false))
                     .thenAccept(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
                             final List<CompletableFuture<Map<String, Boolean>>> futures =

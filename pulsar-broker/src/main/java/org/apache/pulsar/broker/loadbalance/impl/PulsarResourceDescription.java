@@ -99,7 +99,7 @@ public class PulsarResourceDescription extends ResourceDescription {
             double resourceWeight = weight * percentageUsage;
             // any resource usage over 75% doubles the whole weight per resource
             if (percentageUsage > throttle) {
-                final int i = resourcesWithHighUsage++;
+                resourcesWithHighUsage++;
             }
             rank += resourceWeight;
         }

@@ -2283,7 +2283,8 @@ public class BrokerService implements Closeable {
         }
 
         // add listener to notify topic subscriptionTypesEnabled changed.
-        registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
+        registerConfigurationListener("subscriptionTypesEnabled",
+                subscriptionTypesEnabled -> updateBrokerSubscriptionTypesEnabled());
 
         // add more listeners here
     }
@@ -2358,7 +2359,7 @@ public class BrokerService implements Closeable {
         });
     }
 
-    private void updateBrokerSubscriptionTypesEnabled(Object subscriptionTypesEnabled) {
+    private void updateBrokerSubscriptionTypesEnabled() {
         this.pulsar().getExecutor().execute(() -> {
             // update subscriptionTypesEnabled
             forEachTopic(topic -> {

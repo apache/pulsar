@@ -289,7 +289,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetPartitionedMetadata(authoritative, checkAllowAutoCreation);
+        return internalGetPartitionedMetadata(checkAllowAutoCreation);
     }
 
     @DELETE
@@ -410,7 +410,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                      @Suspended AsyncResponse asyncResponse,
                                      @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalGetManagedLedgerInfo(asyncResponse, authoritative);
+        internalGetManagedLedgerInfo(asyncResponse);
     }
 
     @GET
@@ -428,7 +428,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, false, false, false);
+            internalGetPartitionedStats(asyncResponse, perPartition, false, false, false);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -452,7 +452,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+            internalGetPartitionedStatsInternal(asyncResponse);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -742,7 +742,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetBacklog(authoritative);
+        return internalGetBacklog();
     }
 
     @POST
@@ -775,7 +775,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalTerminatePartitionedTopic(asyncResponse, authoritative);
+        internalTerminatePartitionedTopic(asyncResponse);
     }
 
     @PUT

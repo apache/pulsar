@@ -256,7 +256,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 }
             }
             getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
+                    false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions == 0) {
                     asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
                     return;
@@ -532,11 +532,6 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
         asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED.getStatusCode(),
                 "unsupport truncate"));
-    }
-
-    protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
-        validateAdminAccessForTenant(topicName.getTenant());
-        validateTopicOwnership(topicName, authoritative);
     }
 
     private Topic getTopicReference(TopicName topicName) {

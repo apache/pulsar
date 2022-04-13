@@ -18,12 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.loadbalance.LoadReport;
-import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-import org.apache.pulsar.broker.loadbalance.ServiceUnit;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -38,7 +34,7 @@ public class SimpleResourceAllocationPolicies {
         this.pulsar = pulsar;
     }
 
-    public boolean canAssign(ServiceUnit srvUnit, ResourceUnit rescrUnit, Map<ResourceUnit, LoadReport> loadReports) {
+    public boolean canAssign() {
         // TODO: need to apply the policies to the assignment and decide whether it can be assigned or not
         return true;
     }

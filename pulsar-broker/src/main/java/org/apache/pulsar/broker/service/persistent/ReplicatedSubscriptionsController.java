@@ -86,8 +86,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     public void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
-        MarkerType m = null;
-
         try {
             switch (markerType) {
             case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:

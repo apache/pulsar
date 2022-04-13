@@ -274,7 +274,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 ctx.write(
                         cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,
                                 redeliveryCount, metadataAndPayload,
-                                batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName, epoch),
+                                batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), epoch),
                         ctx.voidPromise());
                 entry.release();
             }
