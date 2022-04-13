@@ -137,14 +137,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         }
                         this.stats.recordGetFailed(schemaId);
                     } else {
-                        if (v == null) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Schema not found", schemaId);
-                            }
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Schema is present", schemaId);
-                            }
+                        if (log.isDebugEnabled()) {
+                            log.debug(null == v ? "[{}] Schema not found" : "[{}] Schema is present", schemaId);
                         }
                         this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
                     }
