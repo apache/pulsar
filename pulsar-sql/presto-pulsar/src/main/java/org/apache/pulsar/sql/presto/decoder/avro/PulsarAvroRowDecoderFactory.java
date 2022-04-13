@@ -33,6 +33,7 @@ import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.ArrayType;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.BooleanType;
+import io.prestosql.spi.type.DecimalType;
 import io.prestosql.spi.type.DoubleType;
 import io.prestosql.spi.type.IntegerType;
 import io.prestosql.spi.type.RealType;
@@ -128,7 +129,10 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                                 + "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
-                //TODO: support decimal logicalType
+                if (logicalType instanceof LogicalTypes.Decimal) {
+                    LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType;
+                    return DecimalType.createDecimalType(decimal.getPrecision(), decimal.getScale());
+                }
                 return VarbinaryType.VARBINARY;
             case INT:
                 if (logicalType == LogicalTypes.timeMillis()) {

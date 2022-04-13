@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.sql.presto.decoder;
 
+import java.math.BigDecimal;
 import lombok.Data;
 
 import java.util.List;
@@ -45,6 +46,8 @@ public class DecoderTestMessage {
     public int dateField;
     public TestRow rowField;
     public TestEnum enumField;
+    @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
+    public BigDecimal decimalField;
 
     public List<String> arrayField;
     public Map<String, Long> mapField;
@@ -61,7 +64,6 @@ public class DecoderTestMessage {
         public String stringField;
         public long longField;
     }
-
 
     public static class CompositeRow {
         public String stringField;

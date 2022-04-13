@@ -23,9 +23,11 @@ import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.block.Block;
 import io.prestosql.spi.type.ArrayType;
+import io.prestosql.spi.type.DecimalType;
 import io.prestosql.spi.type.MapType;
 import io.prestosql.spi.type.RowType;
 import io.prestosql.spi.type.Type;
+import java.math.BigDecimal;
 import java.util.Map;
 
 import static io.prestosql.testing.TestingConnectorSession.SESSION;
@@ -111,6 +113,15 @@ public abstract class DecoderTestUtil {
         FieldValueProvider provider = decodedRow.get(handle);
         assertNotNull(provider);
         assertEquals(provider.getBoolean(), value);
+    }
+
+    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
+        FieldValueProvider provider = decodedRow.get(handle);
+        Type type = handle.getType();
+        DecimalType decimalType = (DecimalType) type;
+        BigDecimal actualDecimal = BigDecimal.valueOf(provider.getLong(), decimalType.getScale());
+        assertNotNull(provider);
+        assertEquals(actualDecimal, value);
     }
 
     public void checkIsNull(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle) {
