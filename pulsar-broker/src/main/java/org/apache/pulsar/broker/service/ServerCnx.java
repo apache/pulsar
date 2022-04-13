@@ -2211,11 +2211,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     commandSender.sendNewTxnResponse(requestId, txnID, command.getTcId());
                 } else {
-                    ex = handleTxnException(ex, BaseCommand.Type.NEW_TXN.name(), requestId);
+                    if (ex instanceof CoordinatorException.ReachMaxActiveTxnException) {
+                        // if new txn throw ReachMaxActiveTxnException, don't return any response to client,
+                        // otherwise client will retry, it will wast o lot of resources
+                        // link https://github.com/apache/pulsar/issues/15133
+                        log.warn("New txn op reach max active transactions! tcId : {}, requestId : {}",
+                                tcId.getId(), requestId, ex);
+                        // do-nothing
+                    } else {
+                        ex = handleTxnException(ex, BaseCommand.Type.NEW_TXN.name(), requestId);
 
-                    commandSender.sendNewTxnErrorResponse(requestId, tcId.getId(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-                    transactionMetadataStoreService.handleOpFail(ex, tcId);
+                        commandSender.sendNewTxnErrorResponse(requestId, tcId.getId(),
+                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+                        transactionMetadataStoreService.handleOpFail(ex, tcId);
+                    }
                 }
             }));
     }

@@ -68,5 +68,5 @@ public interface TransactionMetadataStoreProvider {
     CompletableFuture<TransactionMetadataStore> openStore(
             TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
             ManagedLedgerConfig managedLedgerConfig, TransactionTimeoutTracker timeoutTracker,
-            TransactionRecoverTracker recoverTracker);
+            TransactionRecoverTracker recoverTracker, long maxActiveTransactionsPerCoordinator);
 }

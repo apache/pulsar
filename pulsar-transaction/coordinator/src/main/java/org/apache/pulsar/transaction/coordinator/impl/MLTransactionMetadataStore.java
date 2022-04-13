@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,12 +76,14 @@ public class MLTransactionMetadataStore
     private final LongAdder appendLogCount;
     private final MLTransactionSequenceIdGenerator sequenceIdGenerator;
     private final ExecutorService internalPinnedExecutor;
+    private final long maxActiveTransactionsPerCoordinator;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
                                       TransactionTimeoutTracker timeoutTracker,
                                       TransactionRecoverTracker recoverTracker,
-                                      MLTransactionSequenceIdGenerator sequenceIdGenerator) {
+                                      MLTransactionSequenceIdGenerator sequenceIdGenerator,
+                                      long maxActiveTransactionsPerCoordinator) {
         super(State.None);
         this.sequenceIdGenerator = sequenceIdGenerator;
         this.tcID = tcID;
@@ -88,6 +91,7 @@ public class MLTransactionMetadataStore
         this.timeoutTracker = timeoutTracker;
         this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
 
+        this.maxActiveTransactionsPerCoordinator = maxActiveTransactionsPerCoordinator;
         this.createdTransactionCount = new LongAdder();
         this.committedTransactionCount = new LongAdder();
         this.abortedTransactionCount = new LongAdder();
@@ -207,44 +211,50 @@ public class MLTransactionMetadataStore
 
     @Override
     public CompletableFuture<TxnID> newTransaction(long timeOut) {
-        CompletableFuture<TxnID> completableFuture = new CompletableFuture<>();
-        internalPinnedExecutor.execute(() -> {
-            if (!checkIfReady()) {
-                completableFuture.completeExceptionally(new CoordinatorException
-                        .TransactionMetadataStoreStateException(tcID, State.Ready, getState(), "new Transaction"));
-                return;
-            }
+        if (this.maxActiveTransactionsPerCoordinator == 0
+                || this.maxActiveTransactionsPerCoordinator > txnMetaMap.size()) {
+            CompletableFuture<TxnID> completableFuture = new CompletableFuture<>();
+            internalPinnedExecutor.execute(() -> {
+                if (!checkIfReady()) {
+                    completableFuture.completeExceptionally(new CoordinatorException
+                            .TransactionMetadataStoreStateException(tcID, State.Ready, getState(), "new Transaction"));
+                    return;
+                }
 
-            long mostSigBits = tcID.getId();
-            long leastSigBits = sequenceIdGenerator.generateSequenceId();
-            TxnID txnID = new TxnID(mostSigBits, leastSigBits);
-            long currentTimeMillis = System.currentTimeMillis();
-            TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
-                    .setTxnidMostBits(mostSigBits)
-                    .setTxnidLeastBits(leastSigBits)
-                    .setStartTime(currentTimeMillis)
-                    .setTimeoutMs(timeOut)
-                    .setMetadataOp(TransactionMetadataEntry.TransactionMetadataOp.NEW)
-                    .setLastModificationTime(currentTimeMillis)
-                    .setMaxLocalTxnId(sequenceIdGenerator.getCurrentSequenceId());
-            transactionLog.append(transactionMetadataEntry)
-                    .whenComplete((position, throwable) -> {
-                        if (throwable != null) {
-                            completableFuture.completeExceptionally(throwable);
-                        } else {
-                            appendLogCount.increment();
-                            TxnMeta txn = new TxnMetaImpl(txnID, currentTimeMillis, timeOut);
-                            List<Position> positions = new ArrayList<>();
-                            positions.add(position);
-                            Pair<TxnMeta, List<Position>> pair = MutablePair.of(txn, positions);
-                            txnMetaMap.put(leastSigBits, pair);
-                            this.timeoutTracker.addTransaction(leastSigBits, timeOut);
-                            createdTransactionCount.increment();
-                            completableFuture.complete(txnID);
-                        }
-                    });
-        });
-        return completableFuture;
+                long mostSigBits = tcID.getId();
+                long leastSigBits = sequenceIdGenerator.generateSequenceId();
+                TxnID txnID = new TxnID(mostSigBits, leastSigBits);
+                long currentTimeMillis = System.currentTimeMillis();
+                TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
+                        .setTxnidMostBits(mostSigBits)
+                        .setTxnidLeastBits(leastSigBits)
+                        .setStartTime(currentTimeMillis)
+                        .setTimeoutMs(timeOut)
+                        .setMetadataOp(TransactionMetadataEntry.TransactionMetadataOp.NEW)
+                        .setLastModificationTime(currentTimeMillis)
+                        .setMaxLocalTxnId(sequenceIdGenerator.getCurrentSequenceId());
+                transactionLog.append(transactionMetadataEntry)
+                        .whenComplete((position, throwable) -> {
+                            if (throwable != null) {
+                                completableFuture.completeExceptionally(throwable);
+                            } else {
+                                appendLogCount.increment();
+                                TxnMeta txn = new TxnMetaImpl(txnID, currentTimeMillis, timeOut);
+                                List<Position> positions = new ArrayList<>();
+                                positions.add(position);
+                                Pair<TxnMeta, List<Position>> pair = MutablePair.of(txn, positions);
+                                txnMetaMap.put(leastSigBits, pair);
+                                this.timeoutTracker.addTransaction(leastSigBits, timeOut);
+                                createdTransactionCount.increment();
+                                completableFuture.complete(txnID);
+                            }
+                        });
+            });
+            return completableFuture;
+        } else {
+            return FutureUtil.failedFuture(new CoordinatorException.ReachMaxActiveTxnException("New txn op "
+                    + "reach max active txn! tcId : " + getTransactionCoordinatorID().getId()));
+        }
     }
 
     @Override

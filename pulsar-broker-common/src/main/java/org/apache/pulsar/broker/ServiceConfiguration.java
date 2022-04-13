@@ -2525,6 +2525,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long transactionBufferClientOperationTimeoutInMills = 3000L;
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The max active transactions per transaction coordinator."
+    )
+    private long maxActiveTransactionsPerCoordinator = 0L;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
