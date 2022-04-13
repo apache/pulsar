@@ -58,6 +58,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private final Summary readOffloadIndexLatency;
     private final Summary readOffloadDataLatency;
 
+    private final Map<String, Long> topicAccess;
     private final Map<String, String> topic2Namespace;
     private final Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
 
@@ -71,6 +72,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             scheduler.scheduleAtFixedRate(this, interval, interval, TimeUnit.SECONDS);
         }
 
+        this.topicAccess = new ConcurrentHashMap<>();
         this.topic2Namespace = new ConcurrentHashMap<>();
         this.offloadAndReadOffloadBytesMap = new ConcurrentHashMap<>();
 
@@ -117,6 +119,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     public void recordOffloadError(String topic) {
         String[] labelValues = this.labelValues(topic);
         this.offloadError.labels(labelValues).inc();
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
@@ -125,24 +128,28 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
                 .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
         pair.getLeft().add(size);
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordReadLedgerLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
         this.readLedgerLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordWriteToStorageError(String topic) {
         String[] labelValues = this.labelValues(topic);
         this.writeStorageError.labels(labelValues).inc();
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordReadOffloadError(String topic) {
         String[] labelValues = this.labelValues(topic);
         this.readOffloadError.labels(labelValues).inc();
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
@@ -151,18 +158,21 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
                 .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
         pair.getRight().add(size);
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
         this.readOffloadIndexLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
         this.readOffloadDataLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
@@ -170,8 +180,12 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         String status = succeed ? SUCCEED : FAILED;
         String[] labelValues = this.labelValues(topic, status);
         this.deleteOffloadOps.labels(labelValues).inc();
+        this.addOrUpdateTopicAccess(topic);
     }
 
+    private void addOrUpdateTopicAccess(String topic) {
+        this.topicAccess.put(topic, System.currentTimeMillis());
+    }
 
     private String[] labelValues(String topic, String status) {
         if (StringUtils.isBlank(topic)) {
@@ -193,14 +207,48 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         return this.topic2Namespace.computeIfAbsent(topic, t -> {
             try {
                 return TopicName.get(t).getNamespace();
-            } catch (Throwable th) {
+            } catch (IllegalArgumentException ex) {
                 return UNKNOWN;
             }
         });
     }
 
+    private void cleanExpiredTopicMetrics() {
+        long now = System.currentTimeMillis();
+        long timeout = TimeUnit.MINUTES.toMillis(2);
+
+        topicAccess.entrySet().removeIf(entry -> {
+            String topic = entry.getKey();
+            long access = entry.getValue();
+
+            if(now - access >= timeout) {
+                this.topic2Namespace.remove(topic);
+                this.offloadAndReadOffloadBytesMap.remove(topic);
+                String[] labelValues = this.labelValues(topic);
+                this.offloadError.remove(labelValues);
+                this.offloadRate.remove(labelValues);
+                this.readLedgerLatency.remove(labelValues);
+                this.writeStorageError.remove(labelValues);
+                this.readOffloadError.remove(labelValues);
+                this.readOffloadRate.remove(labelValues);
+                this.readOffloadIndexLatency.remove(labelValues);
+                this.readOffloadDataLatency.remove(labelValues);
+
+                labelValues = this.labelValues(topic, SUCCEED);
+                this.deleteOffloadOps.remove(labelValues);
+                labelValues = this.labelValues(topic, FAILED);
+                this.deleteOffloadOps.remove(labelValues);
+
+                return true;
+            }
+            return false;
+        });
+    }
+
     @Override
     public void run() {
+        this.cleanExpiredTopicMetrics();
+
         this.offloadAndReadOffloadBytesMap.forEach((topic, pair) -> {
             String[] labelValues = this.labelValues(topic);
 
