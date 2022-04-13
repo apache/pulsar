@@ -147,9 +147,9 @@ void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result
     }
 
     if (result != ResultOk) {
-        state_ = Failed;
         LOG_ERROR("Unable to create Producer for partition - " << partitionIndex << " Error - " << result);
         partitionedProducerCreatedPromise_.setFailed(result);
+        state_ = Failed;
         if (++numProducersCreated_ == numPartitions) {
             closeAsync(nullptr);
         }
