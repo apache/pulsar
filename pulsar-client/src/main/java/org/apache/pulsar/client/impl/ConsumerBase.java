@@ -1003,7 +1003,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                     ? ((TopicMessageImpl<T>) msg).receivedByconsumer : (ConsumerImpl) this;
             // Increase the permits here since we will not increase permits while receive messages from consumer
             // after enabled message listener.
-            receivedConsumer.increaseAvailablePermits(msg);
+            receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
+                                ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,

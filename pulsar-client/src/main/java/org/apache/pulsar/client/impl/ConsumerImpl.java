@@ -1584,9 +1584,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    void increaseAvailablePermits(Message<?> msg) {
+    void increaseAvailablePermits(MessageImpl<?> msg) {
         ClientCnx currentCnx = cnx();
-        ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
+        ClientCnx msgCnx = msg.getCnx();
         if (msgCnx == currentCnx) {
             increaseAvailablePermits(currentCnx);
         }
