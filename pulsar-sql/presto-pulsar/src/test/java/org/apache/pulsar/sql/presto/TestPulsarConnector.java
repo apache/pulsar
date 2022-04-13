@@ -317,7 +317,7 @@ public abstract class TestPulsarConnector {
                 LocalDate epoch = LocalDate.ofEpochDay(0);
                 return Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
             });
-            fooFunctions.put("decimal", integer -> BigDecimal.valueOf(integer * 100, 2));
+            fooFunctions.put("decimal", integer -> BigDecimal.valueOf(1234, 2));
             fooFunctions.put("bar.field1", integer -> integer % 3 == 0 ? null : integer + 1);
             fooFunctions.put("bar.field2", integer -> integer % 2 == 0 ? null : String.valueOf(integer + 2));
             fooFunctions.put("bar.field3", integer -> integer + 3.0f);
