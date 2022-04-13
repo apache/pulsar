@@ -176,11 +176,11 @@ TEST(AuthPluginToken, testNoAuth) {
 
     Producer producer;
     Result result = client.createProducer(topicName, producer);
-    ASSERT_EQ(ResultConnectError, result);
+    ASSERT_EQ(ResultAuthorizationError, result);
 
     Consumer consumer;
     result = client.subscribe(topicName, subName, consumer);
-    ASSERT_EQ(ResultConnectError, result);
+    ASSERT_EQ(ResultAuthorizationError, result);
 }
 
 TEST(AuthPluginToken, testNoAuthWithHttp) {

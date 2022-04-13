@@ -205,8 +205,11 @@ public abstract class RestClient implements Closeable {
         }).toArray(HttpHost[]::new);
     }
 
+    protected abstract void closeClient();
+
     @Override
     public void close() {
         executorService.shutdown();
+        closeClient();
     }
 }

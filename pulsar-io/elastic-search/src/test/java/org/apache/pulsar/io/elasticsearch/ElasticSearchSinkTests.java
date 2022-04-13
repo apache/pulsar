@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import co.elastic.clients.transport.ElasticsearchTransport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -28,6 +29,7 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,13 +42,18 @@ import java.util.Optional;
 
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
+import org.apache.pulsar.io.elasticsearch.client.RestClient;
 import org.apache.pulsar.io.elasticsearch.client.elastic.ElasticSearchJavaRestClient;
 import org.apache.pulsar.io.elasticsearch.client.opensearch.OpenSearchHighLevelRestClient;
 import org.apache.pulsar.io.elasticsearch.data.UserProfile;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.opensearch.client.Node;
+import org.opensearch.client.RestHighLevelClient;
+import org.powermock.reflect.Whitebox;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
@@ -54,6 +61,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+
 import static org.testng.Assert.assertNull;
 
 public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
@@ -99,6 +108,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
     @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
+        container = null;
     }
 
     @SuppressWarnings("unchecked")
@@ -357,5 +367,50 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.write(new MockRecordNullValue());
         assertEquals(sink.getElasticsearchClient().getRestClient().totalHits(index), action.equals(ElasticSearchConfig.NullValueAction.DELETE) ? 0L : 1L);
         assertNull(sink.getElasticsearchClient().irrecoverableError.get());
+    }
+
+    @Test
+    public void testCloseClient() throws Exception {
+        final ElasticSearchSink sink = new ElasticSearchSink();
+        map.put("bulkEnabled", true);
+        try {
+            sink.open(map, mockSinkContext);
+            final ElasticSearchClient elasticSearchClient = spy(sink.getElasticsearchClient());
+            final RestClient restClient = spy(elasticSearchClient.getRestClient());
+            if (restClient instanceof ElasticSearchJavaRestClient) {
+                ElasticSearchJavaRestClient client = (ElasticSearchJavaRestClient) restClient;
+                final BulkProcessor bulkProcessor = spy(restClient.getBulkProcessor());
+                final ElasticsearchTransport transport = spy(client.getTransport());
+
+                Whitebox.setInternalState(client, "transport", transport);
+                Whitebox.setInternalState(client, "bulkProcessor", bulkProcessor);
+                Whitebox.setInternalState(elasticSearchClient, "client", restClient);
+                Whitebox.setInternalState(sink, "elasticsearchClient", elasticSearchClient);
+                sink.close();
+                verify(transport).close();
+                verify(bulkProcessor).close();
+                verify(client).close();
+                verify(restClient).close();
+
+            } else {
+                OpenSearchHighLevelRestClient client = (OpenSearchHighLevelRestClient) restClient;
+
+                final org.opensearch.action.bulk.BulkProcessor internalBulkProcessor = spy(
+                        client.getInternalBulkProcessor());
+                final RestHighLevelClient restHighLevelClient = spy(client.getClient());
+
+                Whitebox.setInternalState(client, "client", restHighLevelClient);
+                Whitebox.setInternalState(client, "internalBulkProcessor", internalBulkProcessor);
+                Whitebox.setInternalState(elasticSearchClient, "client", restClient);
+                Whitebox.setInternalState(sink, "elasticsearchClient", elasticSearchClient);
+                sink.close();
+                verify(restHighLevelClient).close();
+                verify(internalBulkProcessor).awaitClose(Mockito.anyLong(), Mockito.any(TimeUnit.class));
+                verify(client).close();
+                verify(restClient).close();
+            }
+        } finally {
+            sink.close();
+        }
     }
 }

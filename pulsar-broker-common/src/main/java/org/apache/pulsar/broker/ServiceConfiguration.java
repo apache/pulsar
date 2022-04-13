@@ -296,6 +296,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Capacity for thread pool queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerThreadPoolQueueSize = 8192;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Capacity for accept queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
+            + "(0 to disable limiting)")
+    private int maxHttpServerConnections = 2048;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
@@ -913,6 +931,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
     )
     private int resourceUsageTransportPublishIntervalInSecs = 60;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables evaluating subscription pattern on broker side."
+    )
+    private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Max length of subscription pattern"
+    )
+    private int subscriptionPatternMaxLength = 50;
 
     // <-- dispatcher read settings -->
     @FieldContext(
@@ -2256,6 +2288,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Number of IO threads in Pulsar Client used in WebSocket proxy"
     )
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(category = CATEGORY_WEBSOCKET,
+            doc = "Number of threads used by Websocket service")
+    private int webSocketNumServiceThreads = 20;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
@@ -2422,6 +2459,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         )
     private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
+                    + "The default is to evict through readPosition."
+    )
+    private boolean cacheEvictionByMarkDeletedPosition = false;
+
     /**** --- Transaction config variables. --- ****/
     @FieldContext(
             category = CATEGORY_TRANSACTION,
@@ -2474,6 +2518,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The max concurrent requests for transaction buffer client."
     )
     private int transactionBufferClientMaxConcurrentRequests = 1000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The transaction buffer client's operation timeout in milliseconds."
+    )
+    private long transactionBufferClientOperationTimeoutInMills = 3000L;
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
