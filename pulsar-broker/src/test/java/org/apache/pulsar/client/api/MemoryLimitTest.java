@@ -76,6 +76,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
                 .topic(topic)
                 .blockIfQueueFull(false)
                 .sendTimeout(5, TimeUnit.SECONDS)
+                .enableBatching(false)
                 .create();
 
         // make sure all message pending at pendingMessages queue
@@ -124,6 +125,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
                 .topic(t1)
                 .blockIfQueueFull(false)
                 .sendTimeout(5, TimeUnit.SECONDS)
+                .enableBatching(false)
                 .create();
 
         @Cleanup
@@ -131,6 +133,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
                 .topic(t2)
                 .blockIfQueueFull(false)
                 .sendTimeout(5, TimeUnit.SECONDS)
+                .enableBatching(false)
                 .create();
 
         client.dropOpSendMessages();
