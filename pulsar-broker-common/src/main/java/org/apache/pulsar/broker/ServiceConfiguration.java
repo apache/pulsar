@@ -2735,7 +2735,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     }
 
     public int getManagedLedgerMaxUnackedRangesToPersistInMetadataStore() {
-        return managedLedgerMaxUnackedRangesToPersistInZooKeeper != 1000
+        return managedLedgerMaxUnackedRangesToPersistInZooKeeper > 0
                 ? managedLedgerMaxUnackedRangesToPersistInZooKeeper :
                 managedLedgerMaxUnackedRangesToPersistInMetadataStore;
     }
