@@ -120,7 +120,7 @@ public class PrometheusSummaryBuilder implements SummaryBuilder, MetricLabels {
         }
     }
 
-    // Implementing our own Histogram collector since Prometheus Summary marks its Child's constructor as private
+    // Implementing our own Summary collector since Prometheus Summary marks its Child's constructor as private
     static class SummaryCollector extends Collector {
         private final String metricName;
         private final String[] labelsNames;

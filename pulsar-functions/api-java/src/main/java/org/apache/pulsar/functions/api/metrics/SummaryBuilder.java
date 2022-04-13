@@ -34,7 +34,7 @@ public interface SummaryBuilder extends MetricBuilder<SummaryBuilder, Summary> {
     SummaryBuilder quantile(double quantile, double error);
 
     /**
-     * Optionally supply a summary metric to register. If no histogram is provided, a default implementation will be
+     * Optionally supply a summary metric to register. If no summary is provided, a default implementation will be
      * used. If a summary is provided, the quantiles and errors added will be ignored.
      * @param summary the summary metric to register
      * @return {@code SummaryBuilder}
