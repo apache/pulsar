@@ -1234,7 +1234,7 @@ class PulsarTest(TestCase):
             resource.setrlimit(resource.RLIMIT_NOFILE, (15, 15))
             for i in range(100):
                 client = pulsar.Client(service_url=self.serviceUrl)
-                con = client.subscribe(topic='mytopic', subscription_name=f'mysub-{i}')
+                con = client.subscribe(topic='mytopic', subscription_name='mysub-' + str(i))
         finally:
             resource.setrlimit(oldrlimit)
 
