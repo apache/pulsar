@@ -19,10 +19,16 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.netty.handler.ssl.SslContext;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.security.KeyManagementException;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Objects;
@@ -30,14 +36,24 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
+import org.apache.pulsar.common.tls.KeyStoreSslContextConf;
+import org.apache.pulsar.common.tls.KeyStoreSslContextSupplier;
+import org.apache.pulsar.common.tls.SslContextConf;
+import org.apache.pulsar.common.tls.SslContextSupplier;
+import org.apache.pulsar.common.util.SecurityUtility;
 
 /**
  * This is a simple holder of the client configuration values.
@@ -308,6 +324,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private int dnsLookupBindPort = 0;
 
+    @ApiModelProperty(
+            name = "tlsCertRefreshCheckDurationSec",
+            value = "Tls cert refresh duration in seconds (set 0 to check on every new connection) "
+    )
+    private long tlsCertRefreshCheckDurationSec = 300;
+
     // socks5
     @ApiModelProperty(
             name = "socks5ProxyAddress",
@@ -387,5 +409,99 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
+
+    public Supplier<SslContext> newKeyStoreSslContextSupplier() throws PulsarClientException {
+        AuthenticationDataProvider authData = authentication.getAuthData();
+        KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+        KeyStoreSslContextConf conf = KeyStoreSslContextConf.builder().forClient(true)
+                .refreshIntervalSeconds(tlsCertRefreshCheckDurationSec)
+                .sslProvider(sslProvider)
+                .keyStoreType(params != null ? params.getKeyStoreType() : null)
+                .keyStoreStreamSupplier(params != null ? () -> {
+                    try {
+                        return new FileInputStream(params.getKeyStorePath());
+                    } catch (FileNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                } : null)
+                .keyStorePassword(params != null ? params.getKeyStorePassword() : null)
+                .allowInsecureConnection(isTlsAllowInsecureConnection())
+                .trustStoreType(tlsTrustStoreType)
+                .trustStoreStreamSupplier(() -> {
+                    try {
+                        return new FileInputStream(tlsTrustStorePath);
+                    } catch (FileNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .trustStorePassword(tlsTrustStorePassword)
+                .ciphers(tlsCiphers)
+                .protocols(tlsProtocols)
+                .build();
+        return new KeyStoreSslContextSupplier(conf);
+    }
+
+    public Supplier<SslContext> newSslContextSupplier() throws PulsarClientException {
+        AuthenticationDataProvider authData = authentication.getAuthData();
+
+        SslContextConf conf = SslContextConf.builder().forClient(true)
+                .refreshIntervalSeconds(tlsCertRefreshCheckDurationSec)
+                .sslProvider(sslProvider)
+                .ciphers(tlsCiphers)
+                .allowInsecureConnection(tlsAllowInsecureConnection)
+                .protocols(tlsProtocols)
+                .keySupplier(() -> {
+                            PrivateKey privateKey = null;
+
+                            if (authData.hasDataForTls()) {
+                                if (StringUtils.isNotBlank(authData.getTlsPrivateKeyFilePath())) {
+                                    try {
+                                        privateKey = SecurityUtility.loadPrivateKeyFromPemFile(
+                                                authData.getTlsPrivateKeyFilePath());
+                                    } catch (KeyManagementException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                } else if (authData.getTlsPrivateKey() != null) {
+                                    privateKey = authData.getTlsPrivateKey();
+                                }
+                            }
+
+                            return privateKey;
+                        }
+                )
+                .certSupplier(() -> {
+                    X509Certificate[] certificates;
+
+                    if (StringUtils.isEmpty(authData.getTlsCerificateFilePath())) {
+                        certificates = (X509Certificate[]) authData.getTlsCertificates();
+                    } else {
+                        try {
+                            certificates =
+                                    SecurityUtility.loadCertificatesFromPemFile(authData.getTlsCerificateFilePath());
+                        } catch (KeyManagementException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    return certificates;
+                })
+                .trustCertSupplier(() -> {
+                    if (StringUtils.isEmpty(tlsTrustCertsFilePath)) {
+                        return null;
+                    }
+
+                    X509Certificate[] certificates;
+                    try {
+                        certificates = SecurityUtility.loadCertificatesFromPemFile(tlsTrustCertsFilePath);
+                    } catch (KeyManagementException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    return certificates;
+                })
+                .build();
+
+        return new SslContextSupplier(conf);
     }
 }

@@ -338,28 +338,32 @@ public class SecurityUtility {
         return sslCtx;
     }
 
-    private static KeyManager[] setupKeyManager(KeyStoreHolder ksh, PrivateKey privateKey, Certificate[] certificates)
+    private static TrustManagerFactory getTrustManagerFactory(Provider securityProvider)
+            throws NoSuchAlgorithmException {
+        return securityProvider != null
+                ? TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm(), securityProvider)
+                : TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+    }
+
+    public static KeyManager[] setupKeyManager(KeyStoreHolder ksh, PrivateKey privateKey, Certificate[] certificates)
             throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
         KeyManager[] keyManagers = null;
         if (certificates != null && privateKey != null) {
             ksh.setPrivateKey("private", privateKey, certificates);
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             kmf.init(ksh.getKeyStore(), "".toCharArray());
-            keyManagers = kmf.getKeyManagers();
         }
         return keyManagers;
     }
 
-    private static TrustManager[] setupTrustCerts(KeyStoreHolder ksh, boolean allowInsecureConnection,
+    public static TrustManager[] setupTrustCerts(KeyStoreHolder ksh, boolean allowInsecureConnection,
                                                   Certificate[] trustCertficates, Provider securityProvider)
             throws NoSuchAlgorithmException, KeyStoreException {
         TrustManager[] trustManagers;
         if (allowInsecureConnection) {
             trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
         } else {
-            TrustManagerFactory tmf = securityProvider != null
-                    ? TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm(), securityProvider)
-                    : TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            TrustManagerFactory tmf = getTrustManagerFactory(securityProvider);
 
             if (trustCertficates == null || trustCertficates.length == 0) {
                 tmf.init((KeyStore) null);
@@ -372,6 +376,48 @@ public class SecurityUtility {
 
             trustManagers = tmf.getTrustManagers();
 
+            for (TrustManager trustManager : trustManagers) {
+                processConscryptTrustManager(trustManager);
+            }
+        }
+        return trustManagers;
+    }
+
+    public static KeyManagerFactory newKeyManagerFactory(PrivateKey privateKey, Certificate[] certificates)
+            throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        if (certificates != null && privateKey != null) {
+            KeyStoreHolder ksh = new KeyStoreHolder();
+            ksh.setPrivateKey("private", privateKey, certificates);
+            kmf.init(ksh.getKeyStore(), "".toCharArray());
+        }
+        return kmf;
+    }
+
+    public static KeyManagerFactory newKeyManagerFactory(String keyStoreType, InputStream stream, char[] password)
+            throws CertificateException, IOException, NoSuchAlgorithmException, UnrecoverableKeyException,
+            KeyStoreException {
+        KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+        keyStore.load(stream, password == null ? new char[]{} : password);
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(keyStore, password);
+        return kmf;
+    }
+
+    public static TrustManager[] setupTrustCerts(String keyStoreType, boolean allowInsecureConnection,
+                                                 InputStream stream, char[] password,
+                                                 Provider securityProvider)
+            throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException {
+        TrustManager[] trustManagers;
+        if (allowInsecureConnection) {
+            trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
+        } else {
+            KeyStore keyStore =
+                    KeyStore.getInstance(StringUtils.isEmpty(keyStoreType) ? KeyStore.getDefaultType() : keyStoreType);
+            keyStore.load(stream, password == null ? new char[]{} : password);
+            TrustManagerFactory tmf = getTrustManagerFactory(securityProvider);
+            tmf.init(keyStore);
+            trustManagers = tmf.getTrustManagers();
             for (TrustManager trustManager : trustManagers) {
                 processConscryptTrustManager(trustManager);
             }
@@ -512,6 +558,22 @@ public class SecurityUtility {
             } else {
                 builder.trustManager((File) null);
             }
+        }
+    }
+
+    public static Provider getSslContextProvider(String name) {
+        if (StringUtils.isEmpty(name)) {
+            return CONSCRYPT_PROVIDER;
+        } else {
+            return Security.getProvider(name);
+        }
+    }
+
+    public static SslProvider getSslProvider(String name) {
+        if (StringUtils.isEmpty(name)) {
+            return null;
+        } else {
+            return SslProvider.valueOf(name);
         }
     }
 
