@@ -508,12 +508,12 @@ All the schema metrics are labelled with the following labels:
 |---|---|---|
 | pulsar_schema_del_ops_failed_count | Counter | Number of failed operations to delete schemas. |
 | pulsar_schema_get_ops_failed_count | Counter | Number of failed operations to get schemas. |
-| pulsar_schema_put_ops_failed_count | Counter | Number of failed operations to put schemas. |
-| pulsar_schema_compatible_count | Counter | Number of schema compatible. |
-| pulsar_schema_incompatible_count | Counter | Number of schema incompatible. |
+| pulsar_schema_put_ops_failed_count | Counter | Number of failed operations to send schemas. |
+| pulsar_schema_compatible_count | Counter | Number of compatible schemas. |
+| pulsar_schema_incompatible_count | Counter | Number of incompatible schemas. |
 | pulsar_schema_del_ops_latency | Summary | Latency of successful operations to delete schemas. |
-| pulsar_schema_get_ops_latency | Summary | Latency of successful operations to get schema. |
-| pulsar_schema_put_ops_latency | Summary | Latency of successful operations to put schema. |
+| pulsar_schema_get_ops_latency | Summary | Latency of successful operations to get schemas. |
+| pulsar_schema_put_ops_latency | Summary | Latency of successful operations to send schemas. |
 
 ## Pulsar Functions
 
