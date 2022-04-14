@@ -106,6 +106,10 @@ $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-4 \
                         --role "anonymous"
 $PULSAR_DIR/bin/pulsar-admin namespaces set-encryption-required public/default-4 -e
 
+# Create "public/test-backlog-quotas" to test backlog quotas policy
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/test-backlog-quotas \
+                        --clusters standalone
+
 # Create "private" tenant
 $PULSAR_DIR/bin/pulsar-admin tenants create private -r "" -c "standalone"
 
