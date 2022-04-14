@@ -186,7 +186,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final int maxNonPersistentPendingMessages;
     private String originalPrincipal = null;
     private Set<String> proxyRoles;
-    private boolean authenticateOriginalAuthData;
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
@@ -258,7 +257,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
-        this.authenticateOriginalAuthData = conf.isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = conf.isSchemaValidationEnforced();
         this.maxMessageSize = conf.getMaxMessageSize();
         this.maxPendingSendRequests = conf.getMaxPendingPublishRequestsPerConnection();
