@@ -60,7 +60,6 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.common.util.RateLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,8 +104,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
-
-    private final RateLogger rateLogger = new RateLogger(log, 1000);
 
     protected enum ReadType {
         Normal, Replay
@@ -263,8 +260,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     topic.getBrokerService().executor().execute(() -> readMoreEntries());
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
-                rateLogger.rateLimitLog("Dispatcher read is blocked due to topic [{}] reached " +
-                        "to max unackMessages", name);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
+                            totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
+                }
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
