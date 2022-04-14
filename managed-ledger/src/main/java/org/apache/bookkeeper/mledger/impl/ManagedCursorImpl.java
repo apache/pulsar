@@ -207,6 +207,31 @@ public class ManagedCursorImpl implements ManagedCursor {
             this.callback = callback;
             this.ctx = ctx;
         }
+
+        public void triggerComplete() {
+            // Trigger the final callback after having (eventually) triggered the switchin-ledger operation. This
+            // will ensure that no race condition will happen between the next mark-delete and the switching
+            // operation.
+            if (callbackGroup != null) {
+                // Trigger the callback for every request in the group
+                for (MarkDeleteEntry e : callbackGroup) {
+                    e.callback.markDeleteComplete(e.ctx);
+                }
+            } else if (callback != null) {
+                // Only trigger the callback for the current request
+                callback.markDeleteComplete(ctx);
+            }
+        }
+
+        public void triggerFailed(ManagedLedgerException exception) {
+            if (callbackGroup != null) {
+                for (MarkDeleteEntry e : callbackGroup) {
+                    e.callback.markDeleteFailed(exception, e.ctx);
+                }
+            } else if (callback != null) {
+                callback.markDeleteFailed(exception, ctx);
+            }
+        }
     }
 
     protected final ArrayDeque<MarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<>();
@@ -1058,6 +1083,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         };
 
+        lastMarkDeleteEntry = new MarkDeleteEntry(newPosition, getProperties(), null, null);
         internalAsyncMarkDelete(newPosition, Collections.emptyMap(), new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -1503,6 +1529,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     void initializeCursorPosition(Pair<PositionImpl, Long> lastPositionCounter) {
         readPosition = ledger.getNextValidPosition(lastPositionCounter.getLeft());
         markDeletePosition = lastPositionCounter.getLeft();
+        lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, getProperties(), null, null);
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is 0, to ensure the initial backlog count is 0.
@@ -1741,18 +1768,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 decrementPendingMarkDeleteCount();
 
-                // Trigger the final callback after having (eventually) triggered the switchin-ledger operation. This
-                // will ensure that no race condition will happen between the next mark-delete and the switching
-                // operation.
-                if (mdEntry.callbackGroup != null) {
-                    // Trigger the callback for every request in the group
-                    for (MarkDeleteEntry e : mdEntry.callbackGroup) {
-                        e.callback.markDeleteComplete(e.ctx);
-                    }
-                } else {
-                    // Only trigger the callback for the current request
-                    mdEntry.callback.markDeleteComplete(mdEntry.ctx);
-                }
+                mdEntry.triggerComplete();
             }
 
             @Override
@@ -1767,13 +1783,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 decrementPendingMarkDeleteCount();
 
-                if (mdEntry.callbackGroup != null) {
-                    for (MarkDeleteEntry e : mdEntry.callbackGroup) {
-                        e.callback.markDeleteFailed(exception, e.ctx);
-                    }
-                } else {
-                    mdEntry.callback.markDeleteFailed(exception, mdEntry.ctx);
-                }
+                mdEntry.triggerFailed(exception);
             }
         });
     }
