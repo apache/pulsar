@@ -482,13 +482,10 @@ public class TestCmdSinks {
             "-- Available sinks are: \\[\\]")
     public void testCmdSinkConfigFileInvalidSinkType() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
-        testSinkConfig.setArchive(null);
+        // sinkType is prior than archive
         testSinkConfig.setSinkType("foo");
 
-        SinkConfig expectedSinkConfig = getSinkConfig();
-        expectedSinkConfig.setArchive(null);
-        testSinkConfig.setSinkType("foo");
-        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
+        testCmdSinkConfigFile(testSinkConfig, null);
     }
 
     private void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
