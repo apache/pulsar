@@ -955,8 +955,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void triggerListener() {
-        // Use internalPinnedExecutor to maintain message ordering
+    protected void tryTriggerListener() {
+        if (listener != null) {
+            triggerListener();
+        }
+    }
+
+    private void triggerListener() {
         internalPinnedExecutor.execute(() -> {
             try {
                 // Listener should only have one pending/running executable to process a message

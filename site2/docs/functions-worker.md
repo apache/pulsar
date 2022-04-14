@@ -195,13 +195,13 @@ authenticationEnabled: true
 authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
 ```
 
-For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasBrokerSectionName`
+For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName`
 under `properties` if needed. 
 
 ```
 properties:
   saslJaasClientAllowedIds: .*pulsar.*
-  saslJaasBrokerSectionName: Broker
+  saslJaasServerSectionName: Broker
 ```
 
 For *Token Authentication* provider, add necessary settings for `properties` if needed.

@@ -373,7 +373,7 @@ public abstract class TransactionsBase extends AdminResource {
                         "Broker don't use MLTransactionMetadataStore!"));
             }
         } catch (Exception e) {
-            asyncResponse.resume(new RestException(e.getCause()));
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 

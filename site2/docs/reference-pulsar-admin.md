@@ -1,5 +1,5 @@
 ---
-id: pulsar-admin
+id: reference-pulsar-admin
 title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
 ---
