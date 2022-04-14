@@ -314,11 +314,10 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             return null;
         });
         Awaitility.await().untilAsserted(() -> assertNotNull(exceptionRef.get()));
-        Awaitility.await().untilAsserted(() -> assertEquals(exceptionRef.get().getClass(),
-                PulsarClientException.InvalidMessageException.class));
-        Awaitility.await().untilAsserted(() -> assertEquals(exceptionRef.get().getMessage(),
+        assertEquals(exceptionRef.get().getClass(), PulsarClientException.InvalidMessageException.class);
+        assertEquals(exceptionRef.get().getMessage(),
                 String.format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
-                        consumer.getSubscription(), consumer.getConsumerName())));
+                        consumer.getSubscription(), consumer.getConsumerName()));
         // zeroConsumerImpl will close when received batch message.
         Awaitility.await().untilAsserted(()-> Assert.assertFalse(consumer.isConnected()));
 
