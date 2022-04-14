@@ -135,28 +135,29 @@ void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result
                                                                    unsigned int partitionIndex) {
     // to indicate, we are doing cleanup using closeAsync after producer create
     // has failed and the invocation of closeAsync is not from client
-    CloseCallback closeCallback = NULL;
-    Lock lock(mutex_);
-    if (state_ == Failed) {
-        // Ignore, we have already informed client that producer creation failed
-        return;
-    }
     const auto numPartitions = getNumPartitionsWithLock();
-    assert(numProducersCreated_ <= numPartitions);
-    if (result != ResultOk) {
-        state_ = Failed;
-        lock.unlock();
-        closeAsync(closeCallback);
-        partitionedProducerCreatedPromise_.setFailed(result);
-        LOG_ERROR("Unable to create Producer for partition - " << partitionIndex << " Error - " << result);
+    assert(numProducersCreated_ <= numPartitions && partitionIndex <= numPartitions);
+
+    if (state_ == Failed) {
+        // We have already informed client that producer creation failed
+        if (++numProducersCreated_ == numPartitions) {
+            closeAsync(nullptr);
+        }
         return;
     }
 
-    assert(partitionIndex <= numPartitions);
-    numProducersCreated_++;
-    if (numProducersCreated_ == numPartitions) {
+    if (result != ResultOk) {
+        LOG_ERROR("Unable to create Producer for partition - " << partitionIndex << " Error - " << result);
+        partitionedProducerCreatedPromise_.setFailed(result);
+        state_ = Failed;
+        if (++numProducersCreated_ == numPartitions) {
+            closeAsync(nullptr);
+        }
+        return;
+    }
+
+    if (++numProducersCreated_ == numPartitions) {
         state_ = Ready;
-        lock.unlock();
         if (partitionsUpdateTimer_) {
             runPartitionUpdateTask();
         }
@@ -180,7 +181,7 @@ void PartitionedProducerImpl::createLazyPartitionProducer(unsigned int partition
 
 // override
 void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
-    if (!assertState(Ready)) {
+    if (state_ != Ready) {
         callback(ResultAlreadyClosed, msg.getMessageId());
         return;
     }
@@ -210,18 +211,7 @@ void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callbac
 }
 
 // override
-void PartitionedProducerImpl::shutdown() { setState(Closed); }
-
-void PartitionedProducerImpl::setState(const PartitionedProducerState state) {
-    Lock lock(mutex_);
-    state_ = state;
-    lock.unlock();
-}
-
-bool PartitionedProducerImpl::assertState(const PartitionedProducerState state) {
-    Lock lock(mutex_);
-    return state_ == state;
-}
+void PartitionedProducerImpl::shutdown() { state_ = Closed; }
 
 const std::string& PartitionedProducerImpl::getProducerName() const {
     Lock producersLock(producersMutex_);
@@ -250,7 +240,10 @@ int64_t PartitionedProducerImpl::getLastSequenceId() const {
  * create one or many producers for partitions. So, we have to notify with ERROR on createProducerFailure
  */
 void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
-    setState(Closing);
+    if (state_ == Closing || state_ == Closed) {
+        return;
+    }
+    state_ = Closing;
 
     unsigned int producerAlreadyClosed = 0;
 
@@ -279,7 +272,7 @@ void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
      * handleSinglePartitionProducerCreated
      */
     if (producerAlreadyClosed == numProducers && closeCallback) {
-        setState(Closed);
+        state_ = Closed;
         closeCallback(ResultOk);
     }
 }
@@ -287,14 +280,12 @@ void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
 void PartitionedProducerImpl::handleSinglePartitionProducerClose(Result result,
                                                                  const unsigned int partitionIndex,
                                                                  CloseCallback callback) {
-    Lock lock(mutex_);
     if (state_ == Failed) {
         // we should have already notified the client by callback
         return;
     }
     if (result != ResultOk) {
         state_ = Failed;
-        lock.unlock();
         LOG_ERROR("Closing the producer failed for partition - " << partitionIndex);
         if (callback) {
             callback(result);
@@ -308,7 +299,6 @@ void PartitionedProducerImpl::handleSinglePartitionProducerClose(Result result,
     // closed all successfully
     if (!numProducersCreated_) {
         state_ = Closed;
-        lock.unlock();
         // set the producerCreatedPromise to failure, if client called
         // closeAsync and it's not failure to create producer, the promise
         // is set second time here, first time it was successful. So check
@@ -394,7 +384,6 @@ void PartitionedProducerImpl::getPartitionMetadata() {
 
 void PartitionedProducerImpl::handleGetPartitions(Result result,
                                                   const LookupDataResultPtr& lookupDataResult) {
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
         return;
     }
@@ -427,11 +416,9 @@ void PartitionedProducerImpl::handleGetPartitions(Result result,
 }
 
 bool PartitionedProducerImpl::isConnected() const {
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
         return false;
     }
-    stateLock.unlock();
 
     Lock producersLock(producersMutex_);
     const auto producers = producers_;
