@@ -137,6 +137,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final int partitionIndex;
     private final boolean hasParentConsumer;
+    private final boolean parentConsumerHasListener;
 
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
@@ -208,7 +209,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                Schema<T> schema,
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist) {
-        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false,
                 subscribeFuture, startMessageId, schema, interceptors, createTopicIfDoesNotExist, 0);
     }
 
@@ -218,6 +219,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ExecutorProvider executorProvider,
                                                int partitionIndex,
                                                boolean hasParentConsumer,
+                                               boolean parentConsumerHasListener,
                                                CompletableFuture<Consumer<T>> subscribeFuture,
                                                MessageId startMessageId,
                                                Schema<T> schema,
@@ -231,6 +233,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     createTopicIfDoesNotExist);
         } else {
             return new ConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+                    parentConsumerHasListener,
                     subscribeFuture, startMessageId,
                     startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
                     schema, interceptors, createTopicIfDoesNotExist);
@@ -239,7 +242,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
            ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
-           CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
+           boolean parentConsumerHasListener, CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
            long startMessageRollbackDurationInSec, Schema<T> schema, ConsumerInterceptors<T> interceptors,
            boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
@@ -253,6 +256,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.hasParentConsumer = hasParentConsumer;
+        this.parentConsumerHasListener = parentConsumerHasListener;
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
@@ -1547,7 +1551,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
         } else {
-            if (listener == null) {
+            if (listener == null && !parentConsumerHasListener) {
                 increaseAvailablePermits(currentCnx);
             }
             stats.updateNumMsgsReceived(msg);
