@@ -18,24 +18,24 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
+import java.security.GeneralSecurityException;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.ssl.SslContext;
 import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -111,25 +111,33 @@ public class HttpClient implements Closeable {
                     JsseSslEngineFactory sslEngineFactory = new JsseSslEngineFactory(sslCtx);
                     confBuilder.setSslEngineFactory(sslEngineFactory);
                 } else {
+                    SslProvider sslProvider = null;
+                    if (conf.getSslProvider() != null) {
+                        sslProvider = SslProvider.valueOf(conf.getSslProvider());
+                    }
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
                         sslCtx = authData.getTlsTrustStoreStream() == null
-                                ? SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
-                                        authData.getTlsPrivateKey())
-                                : SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                        authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
-                                        authData.getTlsPrivateKey());
-                    }
-                    else {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(
+                                ? SecurityUtility.createNettySslContextForClient(sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath());
+                                conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(), conf.getTlsCiphers(), conf.getTlsProtocols())
+                                : SecurityUtility.createNettySslContextForClient(sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(), conf.getTlsCiphers(), conf.getTlsProtocols());
+                    } else {
+                        sslCtx = SecurityUtility.createNettySslContextForClient(
+                                sslProvider,
+                                conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath(), conf.getTlsCiphers(), conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
                 }
 
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
+            } catch (GeneralSecurityException e) {
+                throw new PulsarClientException.InvalidConfigurationException(e);
             } catch (Exception e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             }
