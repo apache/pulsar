@@ -23,6 +23,7 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.jclouds.ContextBuilder;
 import org.jclouds.http.apachehc.config.ApacheHCHttpCommandExecutorServiceModule;
+import org.jclouds.http.okhttp.config.OkHttpCommandExecutorServiceModule;
 import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
 
 import java.util.ArrayList;
@@ -42,9 +43,12 @@ public class ShadedJCloudsUtils {
      * Apache Http Client module should work well in all the environments.
      */
     private static final boolean ENABLE_APACHE_HC_MODULE = Boolean
-            .parseBoolean(System.getProperty("pulsar.jclouds.use_apache_hc", "true"));
+            .parseBoolean(System.getProperty("pulsar.jclouds.use_apache_hc", "false"));
+    private static final boolean ENABLE_OKHTTP_MODULE = Boolean
+            .parseBoolean(System.getProperty("pulsar.jclouds.use_okhttp", "false"));
     static {
         log.info("Considering -Dpulsar.jclouds.use_apache_hc=" + ENABLE_APACHE_HC_MODULE);
+        log.info("Considering -Dpulsar.jclouds.use_okhttp=" + ENABLE_OKHTTP_MODULE);
     }
 
     /**
@@ -54,7 +58,9 @@ public class ShadedJCloudsUtils {
     public static void addStandardModules(ContextBuilder builder) {
         List<AbstractModule> modules = new ArrayList<>();
         modules.add(new SLF4JLoggingModule());
-        if (ENABLE_APACHE_HC_MODULE) {
+        if (ENABLE_OKHTTP_MODULE) {
+            modules.add(new OkHttpCommandExecutorServiceModule());
+        } else if (ENABLE_APACHE_HC_MODULE) {
             modules.add(new ApacheHCHttpCommandExecutorServiceModule());
         }
         builder.modules(modules);
