@@ -1409,10 +1409,10 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
-                                            persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                                            persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
+                                                topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
-                                            });
+                                            }, pulsar.getExecutor());
                                             return null;
                                         });
                             } catch (PulsarServerException e) {

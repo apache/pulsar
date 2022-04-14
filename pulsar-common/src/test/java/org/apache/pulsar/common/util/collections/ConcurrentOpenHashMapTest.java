@@ -510,20 +510,6 @@ public class ConcurrentOpenHashMapTest {
 
     }
 
-    @Test
-    public void testRecursiveUpdate() {
-        ConcurrentOpenHashMap<String, String> map =
-            ConcurrentOpenHashMap.<String, String>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
-        assertThrows(IllegalStateException.class, () -> map.computeIfAbsent("key1", key -> {
-                map.remove("key1");
-                return "ok";
-            })
-        );
-    }
-
     static final int Iterations = 1;
     static final int ReadIterations = 1000;
     static final int N = 1_000_000;
