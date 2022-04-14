@@ -114,7 +114,8 @@ You can have 2 separate JAAS configuration files:
  - Set `authenticationProviders` to choose `AuthenticationProviderSasl`;
  - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker;
  - Set `saslJaasServerSectionName` that corresponds to the section in JAAS configuration file for broker;
- 
+ - Set `saslJaasServerRoleTokenSignerSecret` that corresponds to role token signer secret in JAAS configuration file for broker;
+
  To make Pulsar internal admin client work properly, you need to set the configuration in the `broker.conf` file as below: 
  - Set `brokerClientAuthenticationPlugin` to client plugin `AuthenticationSasl`;
  - Set `brokerClientAuthenticationParameters` to value in JSON string `{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}`, in which `PulsarClient` is the section name in the `pulsar_jaas.conf` file, and `"serverType":"broker"` indicates that the internal admin client connects to a Pulsar Broker;
@@ -126,6 +127,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasServerSectionName=PulsarBroker
+saslJaasServerRoleTokenSignerSecret=PulsarSecret
 
 ## Authentication settings of the broker itself. Used when the broker connects to other brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
@@ -307,6 +309,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasServerSectionName=PulsarProxy
+saslJaasServerRoleTokenSignerSecret=PulsarSecret
 
 ## related to be authenticated by broker
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
@@ -327,6 +330,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasServerSectionName=PulsarBroker
+saslJaasServerRoleTokenSignerSecret=PulsarSecret
 ```
 
 ## Regarding authorization and role token
