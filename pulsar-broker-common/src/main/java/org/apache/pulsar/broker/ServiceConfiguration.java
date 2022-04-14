@@ -1338,6 +1338,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /***** --- Authentication. --- ****/
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
+        dynamic = true,
         doc = "Enable authentication"
     )
     private boolean authenticationEnabled = false;
