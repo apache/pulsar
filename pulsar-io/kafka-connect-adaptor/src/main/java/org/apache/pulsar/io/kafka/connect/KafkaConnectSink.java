@@ -51,9 +51,9 @@ import org.apache.kafka.connect.sink.SinkTask;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.kafka.connect.schema.KafkaConnectData;
@@ -255,11 +255,21 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 && sourceRecord.getSchema().getSchemaInfo() != null
                 && sourceRecord.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) sourceRecord.getSchema();
-            KeyValue kv = (KeyValue) sourceRecord.getValue().getNativeObject();
             keySchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getKeySchema());
             valueSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getValueSchema());
-            key = kv.getKey();
-            value = kv.getValue();
+
+            Object nativeObject = sourceRecord.getValue().getNativeObject();
+
+            if (nativeObject instanceof KeyValue) {
+                KeyValue kv = (KeyValue) nativeObject;
+                key = KafkaConnectData.getKafkaConnectData(kv.getKey(), keySchema);
+                value = KafkaConnectData.getKafkaConnectData(kv.getValue(), valueSchema);
+            } else if (nativeObject != null) {
+                throw new IllegalStateException("Cannot extract KeyValue data from " + nativeObject.getClass());
+            } else {
+                key = null;
+                value = null;
+            }
         } else {
             if (sourceRecord.getMessage().get().hasBase64EncodedKey()) {
                 key = sourceRecord.getMessage().get().getKeyBytes();
