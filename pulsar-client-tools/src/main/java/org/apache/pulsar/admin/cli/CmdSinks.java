@@ -518,7 +518,7 @@ public class CmdSinks extends CmdBase {
 
             if (sinkType != null) {
                 sinkConfig.setArchive(validateSinkType(sinkType));
-            } else if(sinkConfig.getSinkType() != null) {
+            } else if (sinkConfig.getSinkType() != null) {
                 sinkConfig.setArchive(validateSinkType(sinkConfig.getSinkType()));
             }
 
