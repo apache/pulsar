@@ -37,7 +37,7 @@ abstract class AbstractMetrics {
 
     protected static final String METRICS_VERSION_SUFFIX = "v2";
 
-    protected static final Pattern V2_LEDGER_NAME_PATTERN = Pattern.compile("^(([^/]+)/([^/]+)/([^/]+))/(.*)$");
+    protected static final Pattern V2_LEDGER_NAME_PATTERN = Pattern.compile("^(([^/]+)/([^/]+))/(.*)$");
 
     protected static final double[] ENTRY_LATENCY_BUCKETS_MS =
             new double[ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC.length];

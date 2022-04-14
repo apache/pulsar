@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.stats;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -109,4 +111,14 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         metrics.generate();
     }
 
+    @Test
+    public void testMetricsLedgerNamePattern() throws Exception {
+        Pattern pattern = Pattern.compile("^(([^/]+)/([^/]+))/(.*)$");
+        String ledgerName1 = "public/default/persistent/source-topic-partition-0";
+        Matcher m1 = pattern.matcher(ledgerName1);
+        Assert.assertTrue(m1.matches());
+        String ledgerName2 = "pulsar/system/transaction-log-TransactionCoordinatorID(id=1)";
+        Matcher m2 = pattern.matcher(ledgerName1);
+        Assert.assertTrue(m2.matches());
+    }
 }
