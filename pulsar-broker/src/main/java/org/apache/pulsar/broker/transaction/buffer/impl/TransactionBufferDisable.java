@@ -114,7 +114,12 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public long getAbortTxnCount() {
+    public long getAbortedTxnCount() {
+        return 0;
+    }
+
+    @Override
+    public long getCommittedTxnCount() {
         return 0;
     }
 }

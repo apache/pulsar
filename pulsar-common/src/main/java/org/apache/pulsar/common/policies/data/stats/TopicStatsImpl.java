@@ -100,7 +100,8 @@ public class TopicStatsImpl implements TopicStats {
     public long lastOffloadFailureTimeStamp;
 
     public long ongoingTxnCount;
-    public long abortTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
 
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
@@ -225,7 +226,8 @@ public class TopicStatsImpl implements TopicStats {
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         this.ongoingTxnCount = stats.ongoingTxnCount;
-        this.abortTxnCount = stats.abortTxnCount;
+        this.abortedTxnCount = stats.abortedTxnCount;
+        this.committedTxnCount = stats.committedTxnCount;
 
         stats.getPublishers().forEach(s -> {
            if (s.isSupportsPartialProducer()) {

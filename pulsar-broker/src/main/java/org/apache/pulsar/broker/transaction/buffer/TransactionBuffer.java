@@ -181,5 +181,7 @@ public interface TransactionBuffer {
 
     long getOngoingTxnCount();
 
-    long getAbortTxnCount();
+    long getAbortedTxnCount();
+
+    long getCommittedTxnCount();
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientStatsImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 
 public interface TransactionBufferClientStats {
 
@@ -33,7 +34,7 @@ public interface TransactionBufferClientStats {
     void close();
 
 
-    static TransactionBufferClientStats create(boolean exposeTopicMetrics) {
-        return TransactionBufferClientStatsImpl.getInstance(exposeTopicMetrics);
+    static TransactionBufferClientStats create(boolean exposeTopicMetrics, TransactionBufferHandler handler) {
+        return TransactionBufferClientStatsImpl.getInstance(exposeTopicMetrics, handler);
     }
 }

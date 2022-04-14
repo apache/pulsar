@@ -182,8 +182,9 @@ public class NamespaceStatsAggregator {
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
-        stats.abortTxnCount = tStatus.abortTxnCount;
+        stats.abortedTxnCount = tStatus.abortedTxnCount;
         stats.ongoingTxnCount = tStatus.ongoingTxnCount;
+        stats.committedTxnCount = tStatus.committedTxnCount;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -326,8 +327,9 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_rate_out", stats.rateOut);
         metric(stream, cluster, namespace, "pulsar_throughput_in", stats.throughputIn);
         metric(stream, cluster, namespace, "pulsar_throughput_out", stats.throughputOut);
-        metric(stream, cluster, namespace, "pulsar_onging_transaction_count", stats.ongoingTxnCount);
-        metric(stream, cluster, namespace, "pulsar_abort_transaction_count", stats.abortTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_active_count", stats.ongoingTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_aborted_count", stats.abortedTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_committed_count", stats.committedTxnCount);
 
         metric(stream, cluster, namespace, "pulsar_in_bytes_total", stats.bytesInCounter);
         metric(stream, cluster, namespace, "pulsar_in_messages_total", stats.msgInCounter);

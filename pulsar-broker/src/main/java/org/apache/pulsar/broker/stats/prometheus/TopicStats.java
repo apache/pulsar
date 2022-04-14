@@ -43,7 +43,8 @@ class TopicStats {
     double averageMsgSize;
 
     long ongoingTxnCount;
-    long abortTxnCount;
+    long abortedTxnCount;
+    long committedTxnCount;
 
     public long msgBacklog;
     long publishRateLimitedTimes;
@@ -85,7 +86,8 @@ class TopicStats {
         msgOutCounter = 0;
 
         ongoingTxnCount = 0;
-        abortTxnCount = 0;
+        abortedTxnCount = 0;
+        committedTxnCount = 0;
 
         managedLedgerStats.reset();
         msgBacklog = 0;
@@ -133,9 +135,11 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize,
                 splitTopicAndPartitionIndexLabel);
 
-        metric(stream, cluster, namespace, topic, "pulsar_onging_transaction_count", stats.ongoingTxnCount,
+        metric(stream, cluster, namespace, topic, "pulsar_txn_ tb_active_count", stats.ongoingTxnCount,
                 splitTopicAndPartitionIndexLabel);
-        metric(stream, cluster, namespace, topic, "pulsar_abort_transaction_count", stats.abortTxnCount,
+        metric(stream, cluster, namespace, topic, "pulsar_txn_ tb_aborted_count", stats.abortedTxnCount,
+                splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_txn_ tb_committed_count", stats.committedTxnCount,
                 splitTopicAndPartitionIndexLabel);
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.managedLedgerStats.storageSize,

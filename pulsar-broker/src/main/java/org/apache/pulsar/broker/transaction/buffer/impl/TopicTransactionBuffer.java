@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -84,6 +85,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     // when add abort or change max read position, the count will +1. Take snapshot will set 0 into it.
     private final AtomicLong changeMaxReadPositionAndAddAbortTimes = new AtomicLong();
+
+    private final LongAdder txnCommittedCounter = new LongAdder();
 
     private final Timer timer;
 
@@ -242,10 +245,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public long getAbortTxnCount() {
+    public long getAbortedTxnCount() {
         return this.aborts.size();
     }
 
+    @Override
+    public long getCommittedTxnCount() {
+        return this.txnCommittedCounter.sum();
+    }
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
@@ -303,6 +310,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
                         }
+                        txnCommittedCounter.increment();
                         completableFuture.complete(null);
                     }
 

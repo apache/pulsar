@@ -20,9 +20,11 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferClientStats;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.naming.TopicName;
 
 public final class TransactionBufferClientStatsImpl implements TransactionBufferClientStats {
@@ -33,26 +35,37 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     private final Counter commitFailed;
     private final Summary abortLatency;
     private final Summary commitLatency;
+    private final Gauge pendingRequests;
 
     private final boolean exposeTopicLevelMetrics;
 
     private static TransactionBufferClientStats instance;
 
-    private TransactionBufferClientStatsImpl(boolean exposeTopicLevelMetrics) {
+    private TransactionBufferClientStatsImpl(boolean exposeTopicLevelMetrics,
+                                             TransactionBufferHandler handler) {
         this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
         String[] labelNames = exposeTopicLevelMetrics ?
                 new String[]{"namespace", "topic"} : new String[]{"namespace"};
 
-        this.abortFailed = Counter.build("pulsar_transaction_buffer_client_abort_failed", "-")
+        this.abortFailed = Counter.build("pulsar_txn_tb_client_abort_failed", "-")
                 .labelNames(labelNames)
                 .register();
-        this.commitFailed = Counter.build("pulsar_transaction_buffer_client_commit_failed", "-")
+        this.commitFailed = Counter.build("pulsar_txn_tb_client_commit_failed", "-")
                 .labelNames(labelNames)
                 .register();
         this.abortLatency =
-                this.buildSummary("pulsar_transaction_buffer_client_abort_latency", "-", labelNames);
+                this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
         this.commitLatency =
-                this.buildSummary("pulsar_transaction_buffer_client_commit_latency", "-", labelNames);
+                this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
+
+        this.pendingRequests = Gauge.build("pulsar_txn_tb_client_pending_requests", "-")
+                .register()
+                .setChild(new Gauge.Child() {
+                    @Override
+                    public double get() {
+                        return null == handler ? 0 : handler.getPendingRequestsCount();
+                    }
+                });
     }
 
     private Summary buildSummary(String name, String help, String[] labelNames) {
@@ -64,9 +77,10 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         return builder.register();
     }
 
-    public static synchronized TransactionBufferClientStats getInstance(boolean exposeTopicLevelMetrics) {
+    public static synchronized TransactionBufferClientStats getInstance(boolean exposeTopicLevelMetrics,
+                                                                        TransactionBufferHandler handler) {
         if (null == instance) {
-            instance = new TransactionBufferClientStatsImpl( exposeTopicLevelMetrics);
+            instance = new TransactionBufferClientStatsImpl(exposeTopicLevelMetrics, handler);
         }
 
         return instance;
@@ -110,6 +124,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
             CollectorRegistry.defaultRegistry.unregister(this.commitFailed);
             CollectorRegistry.defaultRegistry.unregister(this.abortLatency);
             CollectorRegistry.defaultRegistry.unregister(this.commitLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.pendingRequests);
         }
     }
 }

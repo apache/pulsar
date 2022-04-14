@@ -40,7 +40,7 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
 
     private TransactionBufferClientImpl(TransactionBufferHandler tbHandler, boolean exposeTopicLevelMetrics) {
         this.tbHandler = tbHandler;
-        this.stats = TransactionBufferClientStats.create(exposeTopicLevelMetrics);
+        this.stats = TransactionBufferClientStats.create(exposeTopicLevelMetrics, tbHandler);
     }
 
     public static TransactionBufferClient create(PulsarService pulsarService, HashedWheelTimer timer,
