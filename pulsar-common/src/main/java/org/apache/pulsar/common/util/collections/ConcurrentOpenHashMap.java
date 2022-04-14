@@ -307,6 +307,7 @@ public class ConcurrentOpenHashMap<K, V> {
         private final float expandFactor;
         private final float shrinkFactor;
         private final boolean autoShrink;
+        private volatile boolean computing;
 
         Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
                 float expandFactor, float shrinkFactor) {
@@ -379,6 +380,9 @@ public class ConcurrentOpenHashMap<K, V> {
             int firstDeletedKey = -1;
 
             try {
+                if (valueProvider != null) {
+                    computing = true;
+                }
                 while (true) {
                     K storedKey = (K) table[bucket];
                     V storedValue = (V) table[bucket + 1];
@@ -424,15 +428,21 @@ public class ConcurrentOpenHashMap<K, V> {
                         int newCapacity = alignToPowerOfTwo((int) (capacity * expandFactor));
                         rehash(newCapacity);
                     } finally {
+                        // Should be false no matter what value `computing` is
+                        computing = false;
                         unlockWrite(stamp);
                     }
                 } else {
+                    computing = false;
                     unlockWrite(stamp);
                 }
             }
         }
 
         private V remove(K key, Object value, int keyHash) {
+            if (computing) {
+                throw new IllegalStateException("Recursive update");
+            }
             long stamp = writeLock();
             int bucket = signSafeMod(keyHash, capacity);
 
@@ -496,6 +506,9 @@ public class ConcurrentOpenHashMap<K, V> {
         }
 
         void clear() {
+            if (computing) {
+                throw new IllegalStateException("Recursive update");
+            }
             long stamp = writeLock();
 
             try {
