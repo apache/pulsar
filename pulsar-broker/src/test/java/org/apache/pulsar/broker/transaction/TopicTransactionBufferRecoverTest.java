@@ -391,7 +391,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     public void clearTransactionBufferSnapshotTest() throws Exception {
         String topic = NAMESPACE1 + "/tb-snapshot-delete-" + RandomUtils.nextInt();
 
-        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
@@ -404,6 +403,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         txn.commit().get();
+        producer.close();
 
         // take snapshot
         PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
