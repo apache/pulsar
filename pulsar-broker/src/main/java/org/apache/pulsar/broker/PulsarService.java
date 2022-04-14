@@ -884,7 +884,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     ThreadDumpUtil.buildThreadDiagnosticString());
             shutdownNow();
         }
-        if (e == SessionEvent.SessionDeadlocked) {
+        if (e == SessionEvent.SessionDeadlocked
+            && config.isRestartOnMetadataStoreExecutorDeadlock()) {
             LOG.warn("Metadata service deadlocked. Shutting down");
             ThreadDumpUtil.getThreadDiagnostic(new ThreadDumpUtil.DiagnosticProcessor() {
                 @Override

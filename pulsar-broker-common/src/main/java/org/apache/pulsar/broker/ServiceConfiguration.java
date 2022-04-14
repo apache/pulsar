@@ -1188,6 +1188,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.reconnect;
 
     @FieldContext(
+      category = CATEGORY_SERVER,
+      doc = "Restart on metadata store executor deadlock"
+    )
+    private boolean restartOnMetadataStoreExecutorDeadlock = false;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "If a topic remains fenced for this number of seconds, it will be closed forcefully.\n"
                 + " If it is set to 0 or a negative number, the fenced topic will not be closed."
