@@ -2847,7 +2847,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         String cursorName = "c1";
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         // metaStore is allowed to store only up to 10 deleted entries range
-        managedLedgerConfig.setMaxUnackedRangesToPersistInZk(10);
+        managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(10);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
@@ -3237,7 +3237,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testBatchIndexesDeletionPersistAndRecover() throws ManagedLedgerException, InterruptedException {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         // Make sure the cursor metadata updated by the cursor ledger ID.
-        managedLedgerConfig.setMaxUnackedRangesToPersistInZk(-1);
+        managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(-1);
         ManagedLedger ledger = factory.open("test_batch_indexes_deletion_persistent", managedLedgerConfig);
         ManagedCursor cursor = ledger.openCursor("c1");
 
