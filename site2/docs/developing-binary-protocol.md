@@ -413,10 +413,11 @@ Parameters:
    the messages due to: `UncompressedSizeCorruption`,
    `DecompressionError`, `ChecksumMismatch`, `BatchDeSerializeError`
  * `properties` -> *(optional)* Reserved configuration items
- * `txnid_most_bits` -> *(optional)* Same as TC Id, uniquely identify a transaction with `txnid_least_bits`
- * `txnid_least_bits` -> *(optional)* The id of the transaction opened in a TC, 
-   uniquely identify a transaction with `txnid_most_bits`
- * `request_id` -> *(optional)* Id for handling response and timeout
+ * `txnid_most_bits` -> *(optional)* Same as TC Id, `txnid_most_bits` and `txnid_least_bits`
+   uniquely identify a transaction.
+ * `txnid_least_bits` -> *(optional)* The id of the transaction opened in a TC,
+   `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
+ * `request_id` -> *(optional)* Id for handling response and timeout.
    
 
 ##### Command CloseConsumer
