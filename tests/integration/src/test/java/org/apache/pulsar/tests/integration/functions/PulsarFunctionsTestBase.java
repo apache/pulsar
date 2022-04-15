@@ -42,6 +42,12 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String EXCEPTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.ExceptionFunction";
 
+    public static final String GENERIC_OBJECT_FUNCTION_JAVA_CLASS =
+            "org.apache.pulsar.tests.integration.functions.GenericObjectFunction";
+
+    public static final String REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS =
+            "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldFunction";
+
     public static final String SERDE_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
 

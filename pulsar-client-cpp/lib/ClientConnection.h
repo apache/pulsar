@@ -340,6 +340,9 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     friend class PulsarFriend;
 
     bool isTlsAllowInsecureConnection_ = false;
+
+    void closeSocket();
+    void checkServerError(const proto::ServerError& error);
 };
 }  // namespace pulsar
 

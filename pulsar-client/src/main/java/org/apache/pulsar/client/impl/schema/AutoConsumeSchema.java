@@ -299,6 +299,18 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     /**
+     * Get a specific schema version, fetching from the Registry if it is not loaded yet.
+     * This method is not intended to be used by applications.
+     * @param schemaVersion the version
+     * @return the Schema at the specific version
+     * @see #atSchemaVersion(byte[])
+     */
+    public Schema<?> unwrapInternalSchema(byte[] schemaVersion) {
+        fetchSchemaIfNeeded(BytesSchemaVersion.of(schemaVersion));
+        return getInternalSchema(schemaVersion);
+    }
+
+    /**
      * It may happen that the schema is not loaded but we need it, for instance in order to call getSchemaInfo()
      * We cannot call this method in getSchemaInfo, because getSchemaInfo is called in many
      * places and we will introduce lots of deadlocks.

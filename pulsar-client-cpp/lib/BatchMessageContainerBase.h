@@ -112,6 +112,9 @@ class BatchMessageContainerBase : public boost::noncopyable {
     bool hasEnoughSpace(const Message& msg) const noexcept;
     bool isEmpty() const noexcept;
 
+    void processAndClear(std::function<void(Result, const OpSendMsg&)> opSendMsgCallback,
+                         FlushCallback flushCallback);
+
    protected:
     // references to ProducerImpl's fields
     const std::string& topicName_;
@@ -155,6 +158,29 @@ inline void BatchMessageContainerBase::updateStats(const Message& msg) {
 inline void BatchMessageContainerBase::resetStats() {
     numMessages_ = 0;
     sizeInBytes_ = 0;
+}
+
+inline void BatchMessageContainerBase::processAndClear(
+    std::function<void(Result, const OpSendMsg&)> opSendMsgCallback, FlushCallback flushCallback) {
+    if (isEmpty()) {
+        if (flushCallback) {
+            flushCallback(ResultOk);
+        }
+    } else {
+        const auto numBatches = getNumBatches();
+        if (numBatches == 1) {
+            OpSendMsg opSendMsg;
+            Result result = createOpSendMsg(opSendMsg, flushCallback);
+            opSendMsgCallback(result, opSendMsg);
+        } else if (numBatches > 1) {
+            std::vector<OpSendMsg> opSendMsgs;
+            std::vector<Result> results = createOpSendMsgs(opSendMsgs, flushCallback);
+            for (size_t i = 0; i < results.size(); i++) {
+                opSendMsgCallback(results[i], opSendMsgs[i]);
+            }
+        }  // else numBatches is 0, do nothing
+    }
+    clear();
 }
 
 inline std::ostream& operator<<(std::ostream& os, const BatchMessageContainerBase& container) {

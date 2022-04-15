@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
+import static org.apache.pulsar.common.functions.Utils.hasPackageTypePrefix;
 import static org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
@@ -196,7 +197,7 @@ public class FunctionActioner {
     }
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData,
-                              int instanceId) throws FileNotFoundException, IOException {
+                              int instanceId) throws FileNotFoundException, IOException, PulsarAdminException {
 
         FunctionDetails details = functionMetaData.getFunctionDetails();
         File pkgDir = pkgFile.getParentFile();
@@ -215,12 +216,15 @@ public class FunctionActioner {
         } while (tempPkgFile.exists() || !tempPkgFile.createNewFile());
         String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
+        boolean downloadFromPackageManagementService = isPkgUrlProvided && hasPackageTypePrefix(pkgLocationPath);
         log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),
                 details.getNamespace(), details.getName(),
                 downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
 
         if (downloadFromHttp) {
             FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
+        } else if (downloadFromPackageManagementService) {
+            getPulsarAdmin().packages().download(pkgLocationPath, tempPkgFile.getPath());
         } else {
             FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile);
             WorkerUtils.downloadFromBookkeeper(

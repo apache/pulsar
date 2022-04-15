@@ -45,6 +45,7 @@ public class ManagedLedgerInfo {
         public Long size;
         public Long timestamp;
         public boolean isOffloaded;
+        public String offloadedContextUuid;
     }
 
     public static class CursorInfo {
