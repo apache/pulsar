@@ -19,13 +19,14 @@
 #
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-# VERSION=$(${ROOT_DIR}/src/get-project-version.py)
+VERSION=$(${ROOT_DIR}/src/get-project-version.py)
 
 function workaround_crowdin_problem_by_copying_files() {
   # TODO: remove this after figuring out why crowdin removed code tab when generating translated files
   # https://github.com/apache/pulsar/issues/5816
   node scripts/fix-tab.js 
 }
+
 
 set -x -e
 
