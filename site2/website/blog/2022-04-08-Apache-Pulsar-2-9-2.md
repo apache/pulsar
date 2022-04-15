@@ -45,13 +45,13 @@ Previously, chunked messages could not be queried through Pulsar SQL.
 
 #### Resolution
 
-Added a chunked map to support this enhancement.
+Add a chunked message map in `PulsarRecordCursor` to maintain incomplete chunked messages. If one chunked message was received completely, it would be offered in the message queue to wait for deserialization. 
 
 ### Support enable or disable schema upload at the broker level. [PR-12786](https://github.com/apache/pulsar/pull/12786)
 
 #### Issue
 
-Previously, schemas could be automatically uploaded only by changing namespace policies.
+Previously, Pulsar didn't support enabling or disabling schema upload at the broker level.
 
 #### Resolution
 
@@ -61,7 +61,7 @@ Added the configuration `isSchemaAutoUploadEnabled` on the broker side.
 
 #### Issue
 
-Previously, readers were not able to read the latest messages in compacted topics if readers enabled `readCompacted` and all the data of topics has been compacted to compacted legers.
+Previously, readers were not able to read the latest messages in compacted topics if readers enabled `readCompacted` and all the data of topics has been compacted to compacted ledgers.
 
 #### Resolution
 
@@ -87,11 +87,11 @@ Previously, it was hard to test transaction performance (such as the delay and r
 
 Added `PerformanceTransaction` class to support this enhancement.
 
-### No race condition exists in Pulsar proxy. [PR-14078](https://github.com/apache/pulsar/pull/14078)
+### Port exhaustion and connection issues no longer exist in Pulsar Proxy. [PR-14078](https://github.com/apache/pulsar/pull/14078)
 
 #### Issue
 
-Previously, proxy stopped working for proxying broker connections while Admin API proxying kept working.
+Previously, Pulsar proxy would get into a state where it stopped proxying broker connections while Admin API proxying kept working.
 
 #### Resolution
 
@@ -121,7 +121,7 @@ Changed context class loader through `Thread.currentThread().setContextClassLoad
 
 If you are interested in learning more about Pulsar 2.9.2, you can [download](https://pulsar.apache.org/en/versions/) and try it out now! 
 
-**Pulsar Summit San Francisco 2022** will take place on on August 18th, 2022. [Register now]((https://pulsar-summit.org/)) and help us make it an even bigger success by spreading the word on social media!
+**Pulsar Summit San Francisco 2022** will take place on August 18th, 2022. [Register now]((https://pulsar-summit.org/)) and help us make it an even bigger success by spreading the word on social media!
 
 For more information about the Apache Pulsar project and current progress, visit
 the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
