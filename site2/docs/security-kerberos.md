@@ -114,7 +114,7 @@ You can have 2 separate JAAS configuration files:
  - Set `authenticationProviders` to choose `AuthenticationProviderSasl`;
  - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker;
  - Set `saslJaasServerSectionName` that corresponds to the section in JAAS configuration file for broker;
- - Set `saslJaasServerRoleTokenSignerSecret` that corresponds to role token signer secret in JAAS configuration file for broker;
+ - Set `saslJaasServerRoleTokenSignerSecret` that corresponds to the secret of role token signer in JAAS configuration file for broker;
 
  To make Pulsar internal admin client work properly, you need to set the configuration in the `broker.conf` file as below: 
  - Set `brokerClientAuthenticationPlugin` to client plugin `AuthenticationSasl`;
