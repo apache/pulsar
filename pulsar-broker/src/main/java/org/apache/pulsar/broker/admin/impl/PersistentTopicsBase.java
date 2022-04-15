@@ -333,13 +333,6 @@ public class PersistentTopicsBase extends AdminResource {
                         return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                                 "Permissions are not set at the topic level"));
                     }
-                    if (!policies.auth_policies.getTopicAuthentication().containsKey(topicUri)
-                            || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
-                        log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
-                                clientAppId(), role, topicUri);
-                        return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                                "Permissions are not set at the topic level"));
-                    }
                     // Write the new policies to metadata store
                     return namespaceResources().setPoliciesAsync(namespaceName, p -> {
                         p.auth_policies.getTopicAuthentication().get(topicUri).remove(role);
