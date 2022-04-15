@@ -112,6 +112,7 @@ The following metrics are available for broker:
   - [Connection metrics](#connection-metrics)
   - [Jetty metrics](#jetty-metrics)
   - [Schema metrics](#schema-metrics)
+  - [Offload metrics](#offload-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -514,6 +515,27 @@ All the schema metrics are labelled with the following labels:
 | pulsar_schema_del_ops_latency | Summary | Latency of successful operations to delete schemas. |
 | pulsar_schema_get_ops_latency | Summary | Latency of successful operations to get schemas. |
 | pulsar_schema_put_ops_latency | Summary | Latency of successful operations to send schemas. |
+
+### Offload metrics
+
+All the offload metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+- *topic*: `topic=${pulsar_topic}`. `${pulsar_topic}` is the topic name.
+
+| Name                                          | Type    | Description                                                                     |
+|-----------------------------------------------|---------|---------------------------------------------------------------------------------|
+| brk_ledgeroffloader_offload_error             | Counter | The number of failed operations to offload.                                     |
+| brk_ledgeroffloader_offload_rate              | Gauge	  | The rate of offloading(bytes/s).                                                |
+| brk_ledgeroffloader_read_offload_error        | Counter	| The number of failed operations to read offload ledgers.                        |
+| brk_ledgeroffloader_read_offload_rate	        | Gauge	  | The rate of reading entries from offload ledgers(bytes/s).                      |
+| brk_ledgeroffloader_write_storage_error	      | Counter	| The number of failed operations to write to storage.                            |
+| brk_ledgeroffloader_read_offload_index_latency| Summary	| The latency of reading index from offload ledgers.                              |
+| brk_ledgeroffloader_read_offload_data_latency	| Summary	| The latency of reading data from offload ledgers.                               |
+| brk_ledgeroffloader_read_ledger_latency	      | Summary	| The latency of reading entries from BookKeeper.                                 |
+| brk_ledgeroffloader_delete_offload_ops	      | Counter	| The total number of successful and failed operations to delete offload ledgers. |
+
 
 ## Pulsar Functions
 
