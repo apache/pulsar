@@ -296,6 +296,70 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testDoCacheEviction() throws Throwable {
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setCacheEvictionByMarkDeletedPosition(true);
+        factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+                .toNanos(30000));
+        factory.asyncOpen("my_test_ledger", config, new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                ledger.asyncOpenCursor("test-cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                        ManagedLedger ledger = (ManagedLedger) ctx;
+                        String message1 = "test";
+                        ledger.asyncAddEntry(message1.getBytes(Encoding), new AddEntryCallback() {
+                            @Override
+                            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                                try {
+                                    @SuppressWarnings("unchecked")
+                                    Pair<ManagedLedger, ManagedCursor> pair = (Pair<ManagedLedger, ManagedCursor>) ctx;
+                                    ManagedLedger ledger = pair.getLeft();
+                                    ManagedCursor cursor = pair.getRight();
+                                    if (((ManagedLedgerImpl) ledger).getCacheSize() != message1.getBytes(Encoding).length) {
+                                        result.complete(false);
+                                        return;
+                                    }
+
+                                    ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
+                                    ledgerImpl.getActiveCursors().removeCursor(cursor.getName());
+                                    assertNull(ledgerImpl.getEvictionPosition());
+                                    assertTrue(ledgerImpl.getCacheSize() == message1.getBytes(Encoding).length);
+                                    ledgerImpl.doCacheEviction(System.nanoTime());
+                                    assertTrue(ledgerImpl.getCacheSize() <= 0);
+                                    result.complete(true);
+                                } catch (Throwable e) {
+                                    result.completeExceptionally(e);
+                                }
+                            }
+
+                            @Override
+                            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                                result.completeExceptionally(exception);
+                            }
+                        }, Pair.of(ledger, cursor));
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+                }, ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, null);
+        assertTrue(result.get());
+
+        log.info("Test completed");
+    }
+
+    @Test
     public void testCacheEvictionByMarkDeletedPosition() throws Throwable {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
