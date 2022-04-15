@@ -1821,7 +1821,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
-    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Max number of `acknowledgment holes` that can be stored in MetadataStore.\n\n"
