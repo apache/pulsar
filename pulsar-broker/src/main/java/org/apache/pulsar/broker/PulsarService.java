@@ -84,6 +84,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
+import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
@@ -644,6 +645,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
+            if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
+                    && config.isLoadBalancerEnabled()
+                    && LinuxInfoUtils.isLinux()
+                    && !LinuxInfoUtils.checkHasNicSpeeds()) {
+                throw new IllegalStateException("Unable to read VM NIC speed. You must set "
+                        + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
+            }
+
             localMetadataStore = createLocalMetadataStore();
             localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
 
@@ -751,7 +760,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
-                transactionBufferClient = TransactionBufferClientImpl.create(getClient(), transactionTimer,
+                transactionBufferClient = TransactionBufferClientImpl.create(this, transactionTimer,
                         config.getTransactionBufferClientMaxConcurrentRequests(),
                         config.getTransactionBufferClientOperationTimeoutInMills());
 

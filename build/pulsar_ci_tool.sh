@@ -20,6 +20,9 @@
 
 # shell function library for Pulsar CI builds
 
+set -e
+set -o pipefail
+
 ARTIFACT_RETENTION_DAYS="${ARTIFACT_RETENTION_DAYS:-3}"
 
 # lists all available functions in this tool
