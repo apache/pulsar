@@ -262,6 +262,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         op.cb.completeExceptionally(new TransactionBufferClientException
                 .RequestTimeoutException());
         onResponse(op);
+        continueCheckOutstandingRequestIfTimeout();
     }
 
     public void onResponse(OpRequestSend op) {
