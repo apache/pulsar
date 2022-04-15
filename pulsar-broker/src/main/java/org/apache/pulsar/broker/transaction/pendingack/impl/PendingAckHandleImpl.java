@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -117,6 +118,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Getter
     private final ExecutorService internalPinnedExecutor;
 
+    private final PendingAckHandleStats handleStats;
+
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
@@ -129,6 +132,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 .getPulsar()
                 .getTransactionExecutorProvider()
                 .getExecutor(this);
+        this.handleStats = PendingAckHandleStats.create(topicName, subName);
 
         this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
@@ -495,7 +499,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             }
             internalCommitTxn(txnID, properties, lowWaterMark, commitFuture);
         });
-        return commitFuture;
+        return commitFuture.whenComplete((__, t) -> this.handleStats.recordCommitTxn(t == null));
     }
 
     private void addAbortTxnRequest(TxnID txnId, Consumer consumer, long lowWaterMark,
@@ -562,7 +566,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             abortFuture.complete(null);
         }
-        return abortFuture;
+        return abortFuture.whenComplete((__, t) -> this.handleStats.recordAbortTxn(t == null));
     }
 
     @Override
