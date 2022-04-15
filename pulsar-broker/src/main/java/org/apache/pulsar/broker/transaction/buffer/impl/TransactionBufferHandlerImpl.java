@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +66,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     private static final AtomicIntegerFieldUpdater<TransactionBufferHandlerImpl> REQUEST_CREDITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(TransactionBufferHandlerImpl.class, "requestCredits");
     private volatile int requestCredits;
+    private final AtomicBoolean timoutCheckIsRunning = new AtomicBoolean(false);
 
     public TransactionBufferHandlerImpl(PulsarService pulsarService, HashedWheelTimer timer,
         int maxConcurrentRequests, long operationTimeoutInMills) throws PulsarServerException {
@@ -75,7 +77,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         this.operationTimeoutInMills = operationTimeoutInMills;
         this.timer = timer;
         this.requestCredits = Math.max(100, maxConcurrentRequests);
-        timer.newTimeout(task -> loopCheckOutstandingRequestIfTimeout(), 100, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -139,7 +140,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     op.cmd.retain();
                     clientCnx.ctx().writeAndFlush(op.cmd)
                             .addListener(result -> {
-                                if (!result.isSuccess()) {
+                                if (result.isSuccess()) {
+                                    if (timoutCheckIsRunning.compareAndSet(false, true)) {
+                                            timer.newTimeout(task -> continueCheckOutstandingRequestIfTimeout(),
+                                                op.getTimeoutMs(operationTimeoutInMills), TimeUnit.MILLISECONDS);
+                                    }
+                                } else {
                                     outstandingRequests.remove(op.requestId);
                                     op.cb.completeExceptionally(result.cause());
                                     onResponse(op);
@@ -223,25 +229,39 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         }
     }
 
-    private void loopCheckOutstandingRequestIfTimeout() {
-        while (true) {
-            Map.Entry<Long, OpRequestSend> entry = outstandingRequests.firstEntry();
-            if (entry == null) {
-                timer.newTimeout(task -> loopCheckOutstandingRequestIfTimeout(), 100, TimeUnit.MILLISECONDS);
-                return;
+    private void continueCheckOutstandingRequestIfTimeout() {
+        Map.Entry<Long, OpRequestSend> entry = outstandingRequests.firstEntry();
+        if (entry == null) {
+            timoutCheckIsRunning.set(false);
+            // To avoid race conditions, the scenarios are as follows.
+            // Thread A: after if(entry=null) => Thread B: put a new entry and then get timoutCheckIsRunning=true =>
+            // Thread A: set timoutCheckIsRunning = false
+            if (outstandingRequests.firstEntry() != null &&
+                    timoutCheckIsRunning.compareAndSet(false, true)) {
+                 continueCheckOutstandingRequestIfTimeout();
             }
-            OpRequestSend op = entry.getValue();
-            if (op.cb.isDone() || (System.currentTimeMillis() - op.createdAt) < operationTimeoutInMills
-                    // when request satisfy timeout condition, we should try to acquire ownership
-                    || !op.tryOwnership()) {
-                timer.newTimeout(task -> loopCheckOutstandingRequestIfTimeout(), 100, TimeUnit.MILLISECONDS);
-                return;
-            }
-            outstandingRequests.remove(entry.getKey());
-            op.cb.completeExceptionally(new TransactionBufferClientException
-                    .RequestTimeoutException());
-            onResponse(op);
+            return;
         }
+        OpRequestSend op = entry.getValue();
+        if (!op.tryOwnership() || op.cb.isDone()) {
+            // Just safe check to ensure endless loop cause StackOverFlow,
+            // because other operation will remove this request firstly.
+            outstandingRequests.remove(op.requestId);
+            // This operation already handle by other thread, we need to check next.
+            continueCheckOutstandingRequestIfTimeout();
+            return;
+        }
+        // When current opRequest is not exceeds operation timeout, we need to create a timeout
+        // to first entry timeout time.
+        if (!op.isTimeout(operationTimeoutInMills)) {
+            timer.newTimeout(task -> continueCheckOutstandingRequestIfTimeout(),
+                    op.getTimeoutMs(operationTimeoutInMills), TimeUnit.MILLISECONDS);
+            return;
+        }
+        outstandingRequests.remove(entry.getKey());
+        op.cb.completeExceptionally(new TransactionBufferClientException
+                .RequestTimeoutException());
+        onResponse(op);
     }
 
     public void onResponse(OpRequestSend op) {
@@ -312,6 +332,14 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         void recycle() {
             recyclerHandle.recycle(this);
             ownership = NO_OWNER;
+        }
+
+        private long getTimeoutMs(long operationTimeout) {
+            return operationTimeout - (System.currentTimeMillis() - createdAt);
+        }
+
+        private boolean isTimeout(long operationTimeout) {
+            return getTimeoutMs(operationTimeout) <= 0;
         }
 
         private OpRequestSend(Recycler.Handle<OpRequestSend> recyclerHandle) {
