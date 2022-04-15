@@ -44,8 +44,8 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     private TransactionBufferClientStatsImpl(boolean exposeTopicLevelMetrics,
                                              TransactionBufferHandler handler) {
         this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
-        String[] labelNames = exposeTopicLevelMetrics ?
-                new String[]{"namespace", "topic"} : new String[]{"namespace"};
+        String[] labelNames = exposeTopicLevelMetrics
+                ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
 
         this.abortFailed = Counter.build("pulsar_txn_tb_client_abort_failed", "-")
                 .labelNames(labelNames)
@@ -109,8 +109,8 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     private String[] labelValues(String topic) {
         try {
             TopicName topicName = TopicName.get(topic);
-            return exposeTopicLevelMetrics ?
-                    new String[]{topicName.getNamespace(), topic} : new String[]{topicName.getNamespace()};
+            return exposeTopicLevelMetrics
+                    ? new String[]{topicName.getNamespace(), topic} : new String[]{topicName.getNamespace()};
         } catch (Throwable t) {
             return exposeTopicLevelMetrics ? new String[]{"unknown", "unknown"} : new String[]{"unknown"};
         }
