@@ -121,7 +121,7 @@ Changed context class loader through `Thread.currentThread().setContextClassLoad
 
 If you are interested in learning more about Pulsar 2.9.2, you can [download](https://pulsar.apache.org/en/versions/) and try it out now! 
 
-**Pulsar Summit San Francisco 2022** will take place on August 18th, 2022. [Register now]((https://pulsar-summit.org/)) and help us make it an even bigger success by spreading the word on social media!
+**Pulsar Summit San Francisco 2022** will take place on August 18th, 2022. [Register now](https://pulsar-summit.org/) and help us make it an even bigger success by spreading the word on social media!
 
 For more information about the Apache Pulsar project and current progress, visit
 the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
