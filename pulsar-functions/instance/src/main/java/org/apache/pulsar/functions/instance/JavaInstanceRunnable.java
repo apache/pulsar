@@ -137,20 +137,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     // a read write lock for stats operations
     private final ReadWriteLock statsLock = new ReentrantReadWriteLock();
 
-//    public JavaInstanceRunnable(InstanceConfig instanceConfig,
-//                                ClientBuilder clientBuilder,
-//                                PulsarClient pulsarClient,
-//                                PulsarAdmin pulsarAdmin,
-//                                String stateStorageImplClass,
-//                                String stateStorageServiceUrl,
-//                                SecretsProvider secretsProvider,
-//                                FunctionCollectorRegistry collectorRegistry,
-//                                ClassLoader functionClassLoader) throws PulsarClientException {
-//        this(instanceConfig, clientBuilder, pulsarClient, pulsarAdmin, stateStorageImplClass,
-//                stateStorageServiceUrl, -1, -1, -1,
-//                secretsProvider, collectorRegistry, functionClassLoader);
-//    }
-
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 ClientBuilder clientBuilder,
                                 PulsarClient pulsarClient,
