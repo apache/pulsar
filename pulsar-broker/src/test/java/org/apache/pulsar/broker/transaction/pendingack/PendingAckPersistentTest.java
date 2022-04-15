@@ -380,8 +380,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
-        consumer.acknowledgeAsync(message.getMessageId(), transaction);
-        transaction.commit().get();
+        consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(topic, false).get().get();
@@ -405,6 +404,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         long upperLimitOfLogAppendTimes = (long) field4.get(pendingAckStore);
         Assert.assertEquals(pendingAckLogIndex.size(), 1);
         Assert.assertEquals(upperLimitOfLogAppendTimes, 5);
+        transaction.commit().get();
 
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
@@ -419,7 +419,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
         Assert.assertEquals(pendingAckLogIndex.size(), 0);
         upperLimitOfLogAppendTimes = (long) field4.get(pendingAckStore);
-        Assert.assertEquals(upperLimitOfLogAppendTimes, 5);
+        Assert.assertEquals(upperLimitOfLogAppendTimes, 0);
         //add new index
         for (int i = 0; i < 9; i++) {
             message0 = consumer.receive(5, TimeUnit.SECONDS);
@@ -446,7 +446,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Assert.assertEquals(pendingAckLogIndex.size(), 0);
         Awaitility.await().untilAsserted(() -> {
             long upperLimitOfLogAppendTimes1 = (long) field4.get(pendingAckStore);
-            Assert.assertEquals(upperLimitOfLogAppendTimes1, 5);
+            Assert.assertEquals(upperLimitOfLogAppendTimes1, 0);
         });
     }
 }

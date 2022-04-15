@@ -16,37 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction;
-
-import org.apache.pulsar.client.api.RedeliveryBackoff;
-
-public class LogIndexBackoff implements RedeliveryBackoff {
-
-    private final long minLag;
-    private final long maxLag;
-
-    public LogIndexBackoff(long minLag, long maxLag) {
-        this.minLag = minLag;
-        this.maxLag = maxLag;
-    }
-
-    public long getMinLag() {
-        return this.minLag;
-    }
-
-    public long getMaxLag() {
-        return this.maxLag;
-    }
-
-    @Override
-    public long next(int indexCount) {
-        if (indexCount <= 0 || minLag <= 0) {
-            return this.minLag;
-        }
-        if (maxLag != -1) {
-            return Math.min(this.maxLag, minLag * indexCount);
-        } else {
-            return minLag * indexCount;
-        }
-    }
-}
+/**
+ * Implementation of a transaction tools.
+ */
+package org.apache.pulsar.broker.transaction.util;

@@ -37,12 +37,12 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.transaction.LogIndexBackoff;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckOp;
+import org.apache.pulsar.broker.transaction.util.LogIndexBackoff;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -105,7 +105,7 @@ public class MLPendingAckStore implements PendingAckStore {
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
         this.pendingAckLogIndex = new ConcurrentSkipListMap<>();
         this.subManagedCursor = subManagedCursor;
-        this.logIndexBackoff = new LogIndexBackoff(transactionPendingAckLogIndexMinLag, -1);
+        this.logIndexBackoff = new LogIndexBackoff(transactionPendingAckLogIndexMinLag, -1, 1);
     }
 
     @Override
@@ -226,28 +226,8 @@ public class MLPendingAckStore implements PendingAckStore {
                     log.debug("[{}][{}] MLPendingAckStore message append success at {} txnId: {}, operation : {}",
                             managedLedger.getName(), ctx, position, txnID, pendingAckMetadataEntry.getPendingAckOp());
                 }
-                // store the persistent position in to memory
-                if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
-                        && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
-                    logAppendTimes.incrementAndGet();
-                    Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
-                            .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
-                                    o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
-                    optional.ifPresent(pendingAckMetadata -> {
-                        PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
-                                pendingAckMetadata.getEntryId());
-                        if (nowPosition.compareTo(maxAckPosition) > 0) {
-                            maxAckPosition = nowPosition;
-                        }
-                        if (logAppendTimes.get() >= upperLimitOfLogAppendTimes) {
-                            pendingAckLogIndex.compute(maxAckPosition,
-                                    (thisPosition, otherPosition) -> (PositionImpl) position);
-                            upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
-                            logAppendTimes.set(0);
-                        }
-                    });
-                }
-
+                logAppendTimes.incrementAndGet();
+                handleMetadataEntry((PositionImpl) position, pendingAckMetadataEntry);
                 buf.release();
                 completableFuture.complete(null);
 
@@ -269,6 +249,32 @@ public class MLPendingAckStore implements PendingAckStore {
         return completableFuture;
     }
 
+    private void handleMetadataEntry(PositionImpl logPosition, PendingAckMetadataEntry pendingAckMetadataEntry) {
+        // store the persistent position in to memory
+        // store the max position of this entry retain
+        if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
+                && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
+            Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
+                    .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
+                            o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
+
+            optional.ifPresent(pendingAckMetadata -> {
+                PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
+                        pendingAckMetadata.getEntryId());
+
+                if (nowPosition.compareTo(maxAckPosition) > 0) {
+                    maxAckPosition = nowPosition;
+                }
+                if (logAppendTimes.get() > upperLimitOfLogAppendTimes) {
+                    pendingAckLogIndex.compute(maxAckPosition,
+                            (thisPosition, otherPosition) -> logPosition);
+                    upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
+                    logAppendTimes.set(0);
+                }
+            });
+        }
+    }
+
     private void clearUselessLogData() {
         if (!pendingAckLogIndex.isEmpty()) {
             PositionImpl deletePosition = null;
@@ -280,8 +286,9 @@ public class MLPendingAckStore implements PendingAckStore {
                 deletePosition = pendingAckLogIndex.firstEntry().getValue();
                 pendingAckLogIndex.remove(pendingAckLogIndex.firstKey());
             }
-            upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
+
             if (deletePosition != null) {
+                upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
                 PositionImpl finalDeletePosition = deletePosition;
                 cursor.asyncMarkDelete(deletePosition,
                         new AsyncCallbacks.MarkDeleteCallback() {
@@ -332,31 +339,9 @@ public class MLPendingAckStore implements PendingAckStore {
                         currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
                         pendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
-                        // store the persistent position in to memory
-                        // store the max position of this entry retain
-                        if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
-                                && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
-                            logAppendTimes.incrementAndGet();
-                            Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
-                                    .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
-                                            o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
-
-                            optional.ifPresent(pendingAckMetadata -> {
-                                PositionImpl logPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                                PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
-                                                pendingAckMetadata.getEntryId());
-
-                                if (nowPosition.compareTo(maxAckPosition) > 0) {
-                                    maxAckPosition = nowPosition;
-                                }
-                                if (logAppendTimes.get() > upperLimitOfLogAppendTimes) {
-                                    pendingAckLogIndex.compute(maxAckPosition,
-                                            (thisPosition, otherPosition) -> logPosition);
-                                    upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
-                                    logAppendTimes.set(0);
-                                }
-                            });
-                        }
+                        logAppendTimes.incrementAndGet();
+                        handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()),
+                                pendingAckMetadataEntry);
                         pendingAckReplyCallBack.handleMetadataEntry(pendingAckMetadataEntry);
                         entry.release();
                         clearUselessLogData();
