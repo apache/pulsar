@@ -184,6 +184,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     }
 
     private void addOrUpdateTopicAccess(String topic) {
+        topic = StringUtils.isBlank(topic) ? UNKNOWN : topic;
         this.topicAccess.put(topic, System.currentTimeMillis());
     }
 
