@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -36,8 +36,6 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
@@ -52,18 +50,15 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public PulsarClient build() throws PulsarClientException {
-        if (StringUtils.isBlank(conf.getServiceUrl()) && conf.getServiceUrlProvider() == null) {
-            throw new IllegalArgumentException("service URL or service URL provider needs to be specified on the ClientBuilder object.");
-        }
-        if (StringUtils.isNotBlank(conf.getServiceUrl()) && conf.getServiceUrlProvider() != null) {
-            throw new IllegalArgumentException("Can only chose one way service URL or service URL provider.");
-        }
+        checkArgument(StringUtils.isNotBlank(conf.getServiceUrl()) || conf.getServiceUrlProvider() != null,
+                "service URL or service URL provider needs to be specified on the ClientBuilder object.");
+        checkArgument(StringUtils.isBlank(conf.getServiceUrl())  || conf.getServiceUrlProvider() == null,
+                "Can only chose one way service URL or service URL provider.");
+
         if (conf.getServiceUrlProvider() != null) {
-            if (StringUtils.isBlank(conf.getServiceUrlProvider().getServiceUrl())) {
-                throw new IllegalArgumentException("Cannot get service url from service url provider.");
-            } else {
-                conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
-            }
+            checkArgument(StringUtils.isNotBlank(conf.getServiceUrlProvider().getServiceUrl()),
+                    "Cannot get service url from service url provider.");
+            conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
         }
         PulsarClient client = new PulsarClientImpl(conf);
         if (conf.getServiceUrlProvider() != null) {
@@ -79,16 +74,13 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(
-            config, conf, ClientConfigurationData.class);
+        conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         return this;
     }
 
     @Override
     public ClientBuilder serviceUrl(String serviceUrl) {
-        if (StringUtils.isBlank(serviceUrl)) {
-            throw new IllegalArgumentException("Param serviceUrl must not be blank.");
-        }
+        checkArgument(StringUtils.isNotBlank(serviceUrl), "Param serviceUrl must not be blank.");
         conf.setServiceUrl(serviceUrl);
         if (!conf.isUseTls()) {
             enableTls(serviceUrl.startsWith("pulsar+ssl") || serviceUrl.startsWith("https"));
@@ -98,18 +90,14 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
-        if (serviceUrlProvider == null) {
-            throw new IllegalArgumentException("Param serviceUrlProvider must not be null.");
-        }
+        checkArgument(serviceUrlProvider != null, "Param serviceUrlProvider must not be null.");
         conf.setServiceUrlProvider(serviceUrlProvider);
         return this;
     }
 
     @Override
     public ClientBuilder listenerName(String listenerName) {
-        if (StringUtils.isBlank(listenerName)) {
-            throw new IllegalArgumentException("Param listenerName must not be blank.");
-        }
+        checkArgument(StringUtils.isNotBlank(listenerName), "Param listenerName must not be blank.");
         conf.setListenerName(StringUtils.trim(listenerName));
         return this;
     }
@@ -278,26 +266,26 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder keepAliveInterval(int keepAliveInterval, TimeUnit unit) {
-        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveInterval));
+        conf.setKeepAliveIntervalSeconds((int) unit.toSeconds(keepAliveInterval));
         return this;
     }
 
     @Override
     public ClientBuilder connectionTimeout(int duration, TimeUnit unit) {
-        conf.setConnectionTimeoutMs((int)unit.toMillis(duration));
+        conf.setConnectionTimeoutMs((int) unit.toMillis(duration));
         return this;
     }
 
     @Override
     public ClientBuilder startingBackoffInterval(long duration, TimeUnit unit) {
-    	conf.setInitialBackoffIntervalNanos(unit.toNanos(duration));
-    	return this;
+        conf.setInitialBackoffIntervalNanos(unit.toNanos(duration));
+        return this;
     }
 
     @Override
     public ClientBuilder maxBackoffInterval(long duration, TimeUnit unit) {
-    	conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
-    	return this;
+        conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
+        return this;
     }
 
     @Override
@@ -324,8 +312,8 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol) {
-        if (StringUtils.isNotBlank(proxyServiceUrl) && proxyProtocol == null) {
-            throw new IllegalArgumentException("proxyProtocol must be present with proxyServiceUrl");
+        if (StringUtils.isNotBlank(proxyServiceUrl)) {
+            checkArgument(proxyProtocol != null, "proxyProtocol must be present with proxyServiceUrl");
         }
         conf.setProxyServiceUrl(proxyServiceUrl);
         conf.setProxyProtocol(proxyProtocol);

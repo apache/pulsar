@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.customroute;
 
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

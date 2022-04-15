@@ -30,6 +30,7 @@ import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -50,6 +51,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,9 +104,14 @@ public class PulsarClusterMetadataSetup {
                 description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
         private String globalZookeeper;
 
-        @Parameter(names = { "-cs",
-            "--configuration-store" }, description = "Configuration Store connection string", required = true)
+        @Parameter(names = {"-cs",
+                "--configuration-store"}, description = "Configuration Store connection string", hidden = true)
         private String configurationStore;
+
+        @Parameter(names = {"-cms",
+                "--configuration-metadata-store"}, description = "Configuration Metadata Store connection string",
+                hidden = false)
+        private String configurationMetadataStore;
 
         @Parameter(names = {
             "--initial-num-stream-storage-containers"
@@ -194,25 +201,29 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
-        if (arguments.configurationStore == null && arguments.globalZookeeper == null) {
-            System.err.println("Configuration store address argument is required (--configuration-store)");
+        if (arguments.configurationMetadataStore == null && arguments.configurationStore == null
+                && arguments.globalZookeeper == null) {
+            System.err.println(
+                    "Configuration metadata store address argument is required (--configuration-metadata-store)");
             jcommander.usage();
             System.exit(1);
         }
 
-        if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
-            System.err.println("Configuration store argument (--configuration-store) "
-                    + "supersedes the deprecated (--global-zookeeper) argument");
+        if (arguments.configurationMetadataStore != null && (arguments.configurationStore != null
+                || arguments.globalZookeeper != null)) {
+            System.err.println("Configuration metadata store argument (--configuration-metadata-store) "
+                    + "supersedes the deprecated (--global-zookeeper and --configuration-store) argument");
             jcommander.usage();
             System.exit(1);
         }
 
-        if (arguments.configurationStore == null) {
-            arguments.configurationStore = arguments.globalZookeeper;
+        if (arguments.configurationMetadataStore == null) {
+            arguments.configurationMetadataStore = arguments.configurationStore == null ? arguments.globalZookeeper :
+                    arguments.configurationStore;
         }
 
         if (arguments.metadataStoreUrl == null) {
-            arguments.metadataStoreUrl = arguments.zookeeper;
+            arguments.metadataStoreUrl = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + arguments.zookeeper;
         }
 
         if (arguments.numTransactionCoordinators <= 0) {
@@ -220,20 +231,24 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
-        log.info("Setting up cluster {} with metadata-store={} configuration-store={}", arguments.cluster,
-                arguments.metadataStoreUrl, arguments.configurationStore);
+        log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
+                arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
         MetadataStoreExtended localStore =
                 initMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
-        MetadataStoreExtended configStore = initMetadataStore(arguments.configurationStore,
+        MetadataStoreExtended configStore = initMetadataStore(arguments.configurationMetadataStore,
                 arguments.zkSessionTimeoutMillis);
 
+        final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
+                .removeIdentifierFromMetadataURL(arguments.metadataStoreUrl);
         // Format BookKeeper ledger storage metadata
-        ServerConfiguration bkConf = new ServerConfiguration();
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
-            bkConf.setMetadataServiceUri("metadata-store:" + arguments.zookeeper);
+            ServerConfiguration bkConf = new ServerConfiguration();
+            bkConf.setDelimiterParsingDisabled(true);
+            bkConf.setMetadataServiceUri("metadata-store:" + arguments.metadataStoreUrl);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-            if (!localStore.exists("/ledgers").get() // only format if /ledgers doesn't exist
+            // only format if /ledgers doesn't exist
+            if (!localStore.exists(BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH).get()
                 && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
                 throw new IOException("Failed to initialize BookKeeper metadata");
             }
@@ -246,16 +261,16 @@ public class PulsarClusterMetadataSetup {
             } else if (arguments.bookieMetadataServiceUri != null) {
                 uriStr = arguments.bookieMetadataServiceUri;
             } else {
-                 uriStr = bkConf.getMetadataServiceUri().replace("metadata-store:", "zk://");
+                uriStr = "zk+null://" + metadataStoreUrlNoIdentifer + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
             }
-            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
 
             // initial distributed log metadata
-            initialDlogNamespaceMetadata(arguments.configurationStore, uriStr);
+            initialDlogNamespaceMetadata(arguments.configurationMetadataStore, uriStr);
 
+            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             // Format BookKeeper stream storage metadata
             if (arguments.numStreamStorageContainers > 0) {
-                ClusterInitializer initializer = new ZkClusterInitializer(arguments.metadataStoreUrl);
+                ClusterInitializer initializer = new ZkClusterInitializer(metadataStoreUrlNoIdentifer);
                 initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
             }
         }

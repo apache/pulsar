@@ -4,15 +4,15 @@ title: Pulsar Java client
 sidebar_label: Java
 ---
 
-You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), and [readers](#reader) of messages and to perform [administrative tasks](admin-api-overview.md). The current Java client version is **{{pulsar:version}}**.
+You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of messages and to perform [administrative tasks](admin-api-overview.md). The current Java client version is **{{pulsar:version}}**.
 
-All the methods in [producer](#producer), [consumer](#consumer), and [reader](#reader) of a Java client are thread-safe.
+All the methods in [producer](#producer), [consumer](#consumer), [readers](#reader) and [TableView](#tableview) of a Java client are thread-safe.
 
 Javadoc for the Pulsar client is divided into two domains by package as follows.
 
 Package | Description | Maven Artifact
 :-------|:------------|:--------------
-[`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{pulsar:version}}%7Cjar)
+[`org.apache.pulsar.client.api`](/api/client) | [The producer and consumer API](https://pulsar.apache.org/api/client/) | [org.apache.pulsar:pulsar-client:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{pulsar:version}}%7Cjar)
 [`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C{{pulsar:version}}%7Cjar)
 `org.apache.pulsar.client.all` |Include both `pulsar-client` and `pulsar-client-admin`<br /> Both `pulsar-client` and `pulsar-client-admin` are shaded packages and they shade dependencies independently. Consequently, the applications using both `pulsar-client` and `pulsar-client-admin` have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules. <br /> In this case, you can use `pulsar-client-all`, which shades dependencies only one time and reduces the size of dependencies.  |[org.apache.pulsar:pulsar-client-all:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C{{pulsar:version}}%7Cjar)
 
@@ -22,6 +22,11 @@ This document focuses only on the client API for producing and consuming message
 
 The latest version of the Pulsar Java client library is available via [Maven Central](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{pulsar:version}}%7Cjar). To use the latest version, add the `pulsar-client` library to your build configuration.
 
+> **Tip**
+>
+> - [`pulsar-client`](https://search.maven.org/artifact/org.apache.pulsar/pulsar-client) and [`pulsar-client-admin`](https://search.maven.org/artifact/org.apache.pulsar/pulsar-client-admin) shade dependencies via [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/) to avoid conflicts of the underlying dependency packages (such as Netty). If you do not want to manage dependency conflicts manually, you can use them.
+>
+> - [`pulsar-client-original`](https://search.maven.org/artifact/org.apache.pulsar/pulsar-client-original) and [`pulsar-client-admin-original`](https://search.maven.org/artifact/org.apache.pulsar/pulsar-client-admin-original) **does not** shade dependencies. If you want to manage dependencies manually, you can use them.
 ### Maven
 
 If you use Maven, add the following information to the `pom.xml` file.
@@ -148,6 +153,295 @@ You can set the client memory allocator configurations through Java properties.<
 -Dpulsar.allocator.out_of_memory_policy=ThrowException
 ```
 
+### Cluster-level failover
+
+This chapter describes the concept, benefits, use cases, constraints, usage, working principles, and more information about the cluster-level failover. It contains the following sections:
+
+- [What is cluster-level failover?](#what-is-cluster-level-failover)
+
+  * [Concept of cluster-level failover](#concept-of-cluster-level-failover)
+   
+  * [Why use cluster-level failover?](#why-use-cluster-level-failover)
+
+  * [When to use cluster-level failover?](#when-to-use-cluster-level-failover)
+
+  * [When cluster-level failover is triggered?](#when-cluster-level-failover-is-triggered)
+
+  * [Why does cluster-level failover fail?](#why-does-cluster-level-failover-fail)
+
+  * [What are the limitations of cluster-level failover?](#what-are-the-limitations-of-cluster-level-failover)
+
+  * [What are the relationships between cluster-level failover and geo-replication?](#what-are-the-relationships-between-cluster-level-failover-and-geo-replication)
+  
+- [How to use cluster-level failover?](#how-to-use-cluster-level-failover)
+
+- [How does cluster-level failover work?](#how-does-cluster-level-failover-work)
+  
+> #### What is cluster-level failover
+
+This chapter helps you better understand the concept of cluster-level failover.
+> ##### Concept of cluster-level failover
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+Automatic cluster-level failover supports Pulsar clients switching from a primary cluster to one or several backup clusters automatically and seamlessly when it detects a failover event based on the configured detecting policy set by **users**. 
+
+![Automatic cluster-level failover](assets/cluster-level-failover-1.png)
+
+<!--Controlled cluster-level failover-->
+
+Controlled cluster-level failover supports Pulsar clients switching from a primary cluster to one or several backup clusters. The switchover is manually set by **administrators**.
+
+![Controlled cluster-level failover](assets/cluster-level-failover-2.png)
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+Once the primary cluster functions again, Pulsar clients can switch back to the primary cluster. Most of the time users won’t even notice a thing. Users can keep using applications and services without interruptions or timeouts.
+
+> ##### Why use cluster-level failover?
+
+The cluster-level failover provides fault tolerance, continuous availability, and high availability together. It brings a number of benefits, including but not limited to:
+
+* Reduced cost: services can be switched and recovered automatically with no data loss.
+
+* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+
+* Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
+
+> ##### When to use cluster-level failover?
+
+The cluster-level failover protects your environment in a number of ways, including but not limited to:
+
+* Disaster recovery: cluster-level failover can automatically and seamlessly transfer the production workload on a primary cluster to one or several backup clusters, which ensures minimum data loss and reduced recovery time.
+
+* Planned migration: if you want to migrate production workloads from an old cluster to a new cluster, you can improve the migration efficiency with cluster-level failover. For example, you can test whether the data migration goes smoothly in case of a failover event, identify possible issues and risks before the migration.
+
+> ##### When cluster-level failover is triggered?
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+Automatic cluster-level failover is triggered when Pulsar clients cannot connect to the primary cluster for a prolonged period of time. This can be caused by any number of reasons including, but not limited to: 
+
+* Network failure: internet connection is lost.
+
+* Power failure: shutdown time of a primary cluster exceeds time limits.
+
+* Service error: errors occur on a primary cluster (for example, the primary cluster does not function because of time limits).
+
+* Crashed storage space: the primary cluster does not have enough storage space, but the corresponding storage space on the backup server functions normally. 
+
+<!--Controlled cluster-level failover-->
+
+Controlled cluster-level failover is triggered when administrators set the switchover manually. 
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+> ##### Why does cluster-level failover fail?
+
+Obviously, the cluster-level failover does not succeed if the backup cluster is unreachable by active Pulsar clients. This can happen for many reasons, including but not limited to:
+
+* Power failure: the backup cluster is shut down or does not function normally. 
+
+* Crashed storage space: primary and backup clusters do not have enough storage space. 
+
+* If the failover is initiated, but no cluster can assume the role of an available cluster due to errors, and the primary cluster is not able to provide service normally.
+
+* If you manually initiate a switchover, but services cannot be switched to the backup cluster server, then the system will attempt to switch services back to the primary cluster.
+
+* Fail to authenticate or authorize between 1) primary and backup clusters, or 2) between two backup clusters.
+
+> ##### What are the limitations of cluster-level failover?
+
+Currently, cluster-level failover can perform probes to prevent data loss, but it can not check the status of backup clusters. If backup clusters are not healthy, you cannot produce or consume data.
+
+> #### What are the relationships between cluster-level failover and geo-replication?
+
+The cluster-level failover is an extension of [geo-replication](concepts-replication.md) to improve stability and robustness. The cluster-level failover depends on geo-replication, and they have some **differences** as below.
+
+Influence |Cluster-level failover|Geo-replication
+|---|---|---
+Do administrators have heavy workloads?|No or maybe.<br /><br />- For the **automatic** cluster-level failover, the cluster switchover is triggered automatically based on the policies set by **users**.<br /><br />- For the **controlled** cluster-level failover, the switchover is triggered manually by **administrators**.|Yes.<br /><br />If a cluster fails, immediate administration intervention is required.|
+Result in data loss?|No.<br /><br />For both **automatic** and **controlled** cluster-level failover, if the failed primary cluster doesn't replicate messages immediately to the backup cluster, the Pulsar client can't consume the non-replicated messages. After the primary cluster is restored and the Pulsar client switches back, the non-replicated data can still be consumed by the Pulsar client. Consequently, the data is not lost.<br /><br />- For the **automatic** cluster-level failover, services can be switched and recovered automatically with no data loss.<br /><br />- For the **controlled** cluster-level failover, services can be switched and recovered manually and data loss may happen.|Yes.<br /><br />Pulsar clients and DNS systems have caches. When administrators switch the DNS from a primary cluster to a backup cluster, it takes some time for cache trigger timeout, which delays client recovery time and fails to produce or consume messages.
+Result in Pulsar client failure? |No or maybe.<br /><br />- For **automatic** cluster-level failover, services can be switched and recovered automatically and the Pulsar client does not fail. <br /><br />- For **controlled** cluster-level failover, services can be switched and recovered manually, but the Pulsar client fails before administrators can take action. |Same as above.
+
+> #### How to use cluster-level failover
+
+This section guides you through every step on how to configure cluster-level failover.
+
+**Tip**
+
+- You should configure cluster-level failover only when the cluster contains sufficient resources to handle all possible consequences. Workload intensity on the backup cluster may increase significantly.
+
+- Connect clusters to an uninterruptible power supply (UPS) unit to reduce the risk of unexpected power loss.
+
+**Requirements**
+
+* Pulsar client 2.10 or later versions.
+
+* For backup clusters:
+
+    * The number of BooKeeper nodes should be equal to or greater than the ensemble quorum.
+
+    * The number of ZooKeeper nodes should be equal to or greater than 3.
+
+* **Turn on geo-replication** between the primary cluster and any dependent cluster (primary to backup or backup to backup) to prevent data loss.
+
+* Set `replicateSubscriptionState` to `true` when creating consumers.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+This is an example of how to construct a Java Pulsar client to use automatic cluster-level failover. The switchover is triggered automatically.
+
+```
+  private PulsarClient getAutoFailoverClient() throws PulsarClientException {
+
+        ServiceUrlProvider failover = AutoClusterFailover.builder()
+                .primary("pulsar://localhost:6650")
+                .secondary(Collections.singletonList("pulsar://other1:6650","pulsar://other2:6650"))
+                .failoverDelay(30, TimeUnit.SECONDS)
+                .switchBackDelay(60, TimeUnit.SECONDS)
+                .checkInterval(1000, TimeUnit.MILLISECONDS)
+	    	    .secondaryTlsTrustCertsFilePath("/path/to/ca.cert.pem")
+    .secondaryAuthentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
+"tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
+
+                .build();
+
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .build();
+
+        failover.initialize(pulsarClient);
+        return pulsarClient;
+    }
+```
+
+Configure the following parameters:
+
+Parameter|Default value|Required?|Description
+|---|---|---|---
+`primary`|N/A|Yes|Service URL of the primary cluster.
+`secondary`|N/A|Yes|Service URL(s) of one or several backup clusters.<br /><br/>You can specify several backup clusters using a comma-separated list.<br /><br/> Note that:<br />- The backup cluster is chosen in the sequence shown in the list. <br />- If all backup clusters are available, the Pulsar client chooses the first backup cluster.
+`failoverDelay`|N/A|Yes|The delay before the Pulsar client switches from the primary cluster to the backup cluster.<br /><br/>Automatic failover is controlled by a probe task: <br />1) The probe task first checks the health status of the primary cluster. <br /> 2) If the probe task finds the continuous failure time of the primary cluster exceeds `failoverDelayMs`, it switches the Pulsar client to the backup cluster. 
+`switchBackDelay`|N/A|Yes|The delay before the Pulsar client switches from the backup cluster to the primary cluster.<br /><br/>Automatic failover switchover is controlled by a probe task: <br /> 1) After the Pulsar client switches from the primary cluster to the backup cluster, the probe task continues to check the status of the primary cluster. <br /> 2) If the primary cluster functions well and continuously remains active longer than `switchBackDelay`, the Pulsar client switches back to the primary cluster.
+`checkInterval`|30s|No|Frequency of performing a probe task (in seconds).
+`secondaryTlsTrustCertsFilePath`|N/A|No|Path to the trusted TLS certificate file of the backup cluster.
+`secondaryAuthentication`|N/A|No|Authentication of the backup cluster.
+
+<!--Controlled cluster-level failover-->
+
+This is an example of how to construct a Java Pulsar client to use controlled cluster-level failover. The switchover is triggered by administrators manually.
+
+**Note**: you can have one or several backup clusters but can only specify one.
+
+```
+ public PulsarClient getControlledFailoverClient() throws IOException {
+Map<String, String> header = new HashMap<>(); 
+  header.put(“service_user_id”, “my-user”);
+  header.put(“service_password”, “tiger”);
+  header.put(“clusterA”, “tokenA”);
+  header.put(“clusterB”, “tokenB”);
+
+  ServiceUrlProvider provider = 
+      ControlledClusterFailover.builder()
+        .defaultServiceUrl("pulsar://localhost:6650")
+        .checkInterval(1, TimeUnit.MINUTES)
+        .urlProvider("http://localhost:8080/test")
+        .urlProviderHeader(header)
+        .build();
+
+  PulsarClient pulsarClient = 
+     PulsarClient.builder()
+      .build();
+
+  provider.initialize(pulsarClient);
+  return pulsarClient;
+}
+
+```
+
+Parameter|Default value|Required?|Description
+|---|---|---|---
+`defaultServiceUrl`|N/A|Yes|Pulsar service URL.
+`checkInterval`|30s|No|Frequency of performing a probe task (in seconds).
+`urlProvider`|N/A|Yes|URL provider service.
+`urlProviderHeader`|N/A|No|`urlProviderHeader` is a map containing tokens and credentials. <br /><br />If you enable authentication or authorization between Pulsar clients and primary and backup clusters, you need to provide `urlProviderHeader`.
+
+Here is an example of how `urlProviderHeader` works.
+
+![How urlProviderHeader works](assets/cluster-level-failover-3.png)
+
+Assume that you want to connect Pulsar client 1 to cluster A.
+
+1. Pulsar client 1 sends the token *t1* to the URL provider service.
+
+2. The URL provider service returns the credential *c1* and the cluster A URL to the Pulsar client.
+   
+    The URL provider service manages all tokens and credentials. It returns different credentials based on different tokens and different target cluster URLs to different Pulsar clients.
+
+    **Note**: **the credential must be in a JSON file and contain parameters as shown**.
+
+    ```
+    {
+    "serviceUrl": "pulsar+ssl://target:6651", 
+    "tlsTrustCertsFilePath": "/security/ca.cert.pem",
+    "authPluginClassName":"org.apache.pulsar.client.impl.auth.AuthenticationTls",
+    "authParamsString": " \"tlsCertFile\": \"/security/client.cert.pem\" 
+        \"tlsKeyFile\": \"/security/client-pk8.pem\" "
+    }
+    ```
+
+3. Pulsar client 1 connects to cluster A using credential *c1*.
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+>#### How does cluster-level failover work?
+
+This chapter explains the working process of cluster-level failover. For more implementation details, see [PIP-121](https://github.com/apache/pulsar/issues/13315).
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Automatic cluster-level failover-->
+
+In automatic failover cluster, the primary cluster and backup cluster are aware of each other's availability. The automatic failover cluster performs the following actions without administrator intervention:
+
+1. The Pulsar client runs a probe task at intervals defined in `checkInterval`.
+   
+2. If the probe task finds the failure time of the primary cluster exceeds the time set in the `failoverDelay` parameter, it searches backup clusters for an available healthy cluster.
+
+    2a) If there are healthy backup clusters, the Pulsar client switches to a backup cluster in the order defined in `secondary`.
+
+    2b) If there is no healthy backup cluster, the Pulsar client does not perform the switchover, and the probe task continues to look  for an available backup cluster.
+
+3. The probe task checks whether the primary cluster functions well or not. 
+
+    3a) If the primary cluster comes back and the continuous healthy time exceeds the time set in `switchBackDelay`, the Pulsar client switches back to the primary cluster.
+
+    3b) If the primary cluster does not come back, the Pulsar client does not perform the switchover. 
+
+![Workflow of automatic failover cluster](assets/cluster-level-failover-4.png)
+
+<!--Controlled cluster-level failover-->
+
+1. The Pulsar client runs a probe task at intervals defined in `checkInterval`.
+
+2. The probe task fetches the service URL configuration from the URL provider service, which is configured by `urlProvider`.
+
+    2a) If the service URL configuration is changed, the probe task  switches to the target cluster without checking the health status of the target cluster.
+
+    2b) If the service URL configuration is not changed, the Pulsar client does not perform the switchover.
+
+3. If the Pulsar client switches to the target cluster, the probe task continues to fetch service URL configuration from the URL provider service at intervals defined in `checkInterval`. 
+
+    3a) If the service URL configuration is changed, the probe task  switches to the target cluster without checking the health status of the target cluster.
+
+    3b) If the service URL configuration is not changed, it does not perform the switchover.
+
+![Workflow of controlled failover cluster](assets/cluster-level-failover-5.png)
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ## Producer
 
 In Pulsar, producers write messages to topics. Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object (as in the section [above](#client-configuration)), you can create a {@inject: javadoc:Producer:/client/org/apache/pulsar/client/api/Producer} for a specific Pulsar [topic](reference-terminology.md#topic).
@@ -207,7 +501,9 @@ Name| Type |  <div style="width:300px">Description</div>|  Default
 `batchingMaxPublishDelayMicros`| long|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1)
 `batchingMaxMessages` |int|The maximum number of messages permitted in a batch.|1000
 `batchingEnabled`| boolean|Enable batching of messages. |true
+`chunkingEnabled` | boolean | Enable chunking of messages. |false
 `compressionType`|CompressionType|Message data compression type used by a producer. <br />Available options:<li>[`LZ4`](https://github.com/lz4/lz4)</li><li>[`ZLIB`](https://zlib.net/)<br /><li>[`ZSTD`](https://facebook.github.io/zstd/)</li><li>[`SNAPPY`](https://google.github.io/snappy/)</li>| No compression
+`initialSubscriptionName`|string|Use this configuration to automatically create an initial subscription when creating a topic. If this field is not set, the initial subscription is not created.|null
 
 You can configure parameters if you do not want to use the default configuration.
 
@@ -254,6 +550,23 @@ producer.newMessage()
 ```
 
 You can terminate the builder chain with `sendAsync()` and get a future return.
+
+### Enable chunking
+
+Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side. 
+
+The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.
+
+```java
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .enableChunking(true)
+        .enableBatching(false)
+        .create();
+```
+
+By default, producer chunks the large message based on max message size (`maxMessageSize`) configured at broker (eg: 5MB). However, client can also configure max chunked size using producer configuration `chunkMaxMessageSize`.
+> **Note:** To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
 
 ## Consumer
 
@@ -336,7 +649,11 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `deadLetterPolicy`|DeadLetterPolicy|Dead letter policy for consumers.<br /><br />By default, some messages are probably redelivered many times, even to the extent that it never stops.<br /><br />By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.<br /><br />You can enable the dead letter mechanism by setting `deadLetterPolicy`.<br /><br />**Example**<br /><br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())<br />.subscribe();</code><br /><br />Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.<br /><br />To set a custom dead letter topic name:<br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)<br />.deadLetterTopic("your-topic-name").build())<br />.subscribe();</code><br /><br />When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None
 `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.<br /><br />**Note**: this is only for partitioned consumers.|true
 `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
-`negativeAckRedeliveryBackoff`|NegativeAckRedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `NegativeAckRedeliveryBackoff` for a consumer.| `NegativeAckRedeliveryExponentialBackoff`
+`negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
+`ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
+`autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true
+`maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10
+`expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
 
@@ -403,24 +720,69 @@ consumer.acknowledge(messages)
 >     .build();
 > ```
 
+### Configure chunking
+
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `maxPendingChunkedMessage` and `autoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. The `expireTimeOfIncompleteChunkedMessage` parameter decides the time interval to expire incomplete chunks if the consumer fails to receive all chunks of a message within the specified time period.
+
+The following is an example of how to configure message chunking.
+
+```java
+Consumer<byte[]> consumer = client.newConsumer()
+        .topic(topic)
+        .subscriptionName("test")
+        .autoAckOldestChunkedMessageOnQueueFull(true)
+        .maxPendingChunkedMessage(100)
+        .expireTimeOfIncompleteChunkedMessage(10, TimeUnit.MINUTES)
+        .subscribe();
+```
+
 ### Negative acknowledgment redelivery backoff
 
-The `NegativeAckRedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount ` of messages. 
+The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount ` of messages. 
 
 ```java
 Consumer consumer =  client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
-        .negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
-                .minNackTimeMs(1000)
-                .maxNackTimeMs(60 * 1000)
+        .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(60 * 1000)
                 .build())
         .subscribe();
 ```
+### Acknowledgement timeout redelivery backoff
+
+The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can redeliver messages with different delays by setting the number
+of times the messages is retried.
+
+```java
+Consumer consumer =  client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .ackTimeout(10, TimeUnit.SECOND)
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+                .minDelayMs(1000)
+                .maxDelayMs(60000)
+                .multiplier(2)
+                .build())
+        .subscribe();
+```
+The message redelivery behavior should be as follows.
+
+Redelivery count | Redelivery delay
+:--------------------|:-----------
+1 | 10 + 1 seconds
+2 | 10 + 2 seconds
+3 | 10 + 4 seconds
+4 | 10 + 8 seconds
+5 | 10 + 16 seconds
+6 | 10 + 32 seconds
+7 | 10 + 60 seconds
+8 | 10 + 60 seconds
 
 > **Note** 
 >   - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID.
->   - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `NegativeAckRedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
+>   - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `RedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
 
 ### Multi-topic subscriptions
 
@@ -759,6 +1121,49 @@ pulsarClient.newReader()
 ```
 
 Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+
+
+## TableView
+
+The TableView interface serves an encapsulated access pattern, providing a continuously updated key-value map view of the compacted topic data. Messages without keys will be ignored.
+
+With TableView, Pulsar clients can fetch all the message updates from a topic and construct a map with the latest values of each key. These values can then be used to build a local cache of data. In addition, you can register consumers with the TableView by specifying a listener to perform a scan of the map and then receive notifications when new messages are received. Consequently, event handling can be triggered to serve use cases, such as event-driven applications and message monitoring.
+
+> **Note:** Each TableView uses one Reader instance per partition, and reads the topic starting from the compacted view by default. It is highly recommended to enable automatic compaction by [configuring the topic compaction policies](cookbooks-compaction.md#configuring-compaction-to-run-automatically) for the given topic or namespace. More frequent compaction results in shorter startup times because less data is replayed to reconstruct the TableView of the topic.
+
+The following figure illustrates the dynamic construction of a TableView updated with newer values of each key.
+![TableView](assets/tableview.png)
+
+### Configure TableView
+ 
+The following is an example of how to configure a TableView.
+
+```java
+TableView<String> tv = client.newTableViewBuilder(Schema.STRING)
+  .topic("my-tableview")
+  .create()
+```
+
+You can use the available parameters in the `loadConf` configuration or related [API](https://pulsar.apache.org/api/client/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
+
+| Name | Type| Required? |  <div style="width:300px">Description</div> | Default
+|---|---|---|---|---
+| `topic` | string | yes | The topic name of the TableView. | N/A
+| `autoUpdatePartitionInterval` | int | no | The interval to check for newly added partitions. | 60 (seconds)
+
+### Register listeners
+ 
+You can register listeners for both existing messages on a topic and new messages coming into the topic by using `forEachAndListen`, and specify to perform operations for all existing messages by using `forEach`.
+
+The following is an example of how to register listeners with TableView.
+
+```java
+// Register listeners for all existing and incoming messages
+tv.forEachAndListen((key, value) -> /*operations on all existing and incoming messages*/)
+
+// Register action for all existing messages
+tv.forEach((key, value) -> /*operations on all existing messages*/)
+```
 
 ## Schema
 

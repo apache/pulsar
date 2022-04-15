@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.util;
 
-import org.apache.pulsar.client.impl.Backoff;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.pulsar.client.impl.Backoff;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RetryUtil {
     private static final Logger log = LoggerFactory.getLogger(RetryUtil.class);

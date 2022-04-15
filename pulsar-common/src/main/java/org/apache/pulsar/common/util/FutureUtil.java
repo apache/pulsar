@@ -99,11 +99,13 @@ public class FutureUtil {
         return future;
     }
 
-    public static Throwable unwrapCompletionException(Throwable t) {
-        if (t instanceof CompletionException) {
-            return unwrapCompletionException(t.getCause());
+    public static Throwable unwrapCompletionException(Throwable ex) {
+        if (ex instanceof CompletionException) {
+            return ex.getCause();
+        } else if (ex instanceof ExecutionException) {
+            return ex.getCause();
         } else {
-            return t;
+            return ex;
         }
     }
 
@@ -185,5 +187,19 @@ public class FutureUtil {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Wrap throwable exception to CompletionException if that exception is not an instance of CompletionException.
+     *
+     * @param throwable Exception
+     * @return CompletionException
+     */
+    public static CompletionException wrapToCompletionException(Throwable throwable) {
+        if (throwable instanceof CompletionException) {
+            return (CompletionException) throwable;
+        } else {
+            return new CompletionException(throwable);
+        }
     }
 }

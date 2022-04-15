@@ -78,7 +78,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             store.delete("/non-existing-key", Optional.of(1L)).join();
             fail("Should have failed");
         } catch (CompletionException e) {
-            assertException(e, NotFoundException.class);
+            assertTrue(NotFoundException.class.isInstance(e.getCause()) || BadVersionException.class.isInstance(
+                    e.getCause()));
         }
     }
 
@@ -388,18 +389,16 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testPersistent(String provider, Supplier<String> urlSupplier) throws Exception {
-        if (provider.equals("Memory")) {
-            // Memory is not persistent.
-            return;
-        }
         String metadataUrl = urlSupplier.get();
         MetadataStore store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
         byte[] data = "testPersistent".getBytes(StandardCharsets.UTF_8);
-        store.put("/a/b/c", data, Optional.of(-1L)).join();
+
+        String key = newKey() + "/a/b/c";
+        store.put(key, data, Optional.of(-1L)).join();
         store.close();
 
         store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
-        Optional<GetResult> result = store.get("/a/b/c").get();
+        Optional<GetResult> result = store.get(key).get();
         assertTrue(result.isPresent());
         assertEquals(result.get().getValue(), data);
         store.close();

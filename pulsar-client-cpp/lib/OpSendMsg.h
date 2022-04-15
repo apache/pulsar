@@ -29,7 +29,8 @@
 namespace pulsar {
 
 struct OpSendMsg {
-    Message msg_;
+    proto::MessageMetadata metadata_;
+    SharedBuffer payload_;
     SendCallback sendCallback_;
     uint64_t producerId_;
     uint64_t sequenceId_;
@@ -39,15 +40,24 @@ struct OpSendMsg {
 
     OpSendMsg() = default;
 
-    OpSendMsg(const Message& msg, const SendCallback& sendCallback, uint64_t producerId, uint64_t sequenceId,
-              int sendTimeoutMs, uint32_t messagesCount, uint64_t messagesSize)
-        : msg_(msg),
+    OpSendMsg(const proto::MessageMetadata& metadata, const SharedBuffer& payload,
+              const SendCallback& sendCallback, uint64_t producerId, uint64_t sequenceId, int sendTimeoutMs,
+              uint32_t messagesCount, uint64_t messagesSize)
+        : metadata_(metadata),  // the copy happens here because OpSendMsg of chunks are constructed with the
+                                // a shared metadata object
+          payload_(payload),
           sendCallback_(sendCallback),
           producerId_(producerId),
           sequenceId_(sequenceId),
           timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)),
           messagesCount_(messagesCount),
           messagesSize_(messagesSize) {}
+
+    void complete(Result result, const MessageId& messageId) const {
+        if (sendCallback_) {
+            sendCallback_(result, messageId);
+        }
+    }
 };
 
 }  // namespace pulsar

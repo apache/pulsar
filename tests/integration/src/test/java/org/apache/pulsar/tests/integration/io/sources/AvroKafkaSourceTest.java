@@ -22,8 +22,6 @@ import com.google.gson.Gson;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.Failsafe;
-import net.jodah.failsafe.RetryPolicy;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
@@ -40,6 +38,7 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.awaitility.Awaitility;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
@@ -74,14 +73,6 @@ import static org.testng.Assert.*;
 public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
 
     private static final String SOURCE_TYPE = "kafka";
-
-    final Duration ONE_MINUTE = Duration.ofMinutes(1);
-    final Duration TEN_SECONDS = Duration.ofSeconds(10);
-
-    final RetryPolicy statusRetryPolicy = new RetryPolicy()
-            .withMaxDuration(ONE_MINUTE)
-            .withDelay(TEN_SECONDS)
-            .onRetry(e -> log.error("Retry ... "));
 
     private final String kafkaTopicName = "kafkasourcetopic";
 
@@ -221,14 +212,34 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         getSourceInfoSuccess(tenant, namespace, sourceName);
 
         // get source status
-        Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
-
+        Awaitility.with()
+                .timeout(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofSeconds(10))
+                .until(() -> {
+                    try {
+                        getSourceStatus(tenant, namespace, sourceName);
+                        return true;
+                    } catch (Throwable ex) {
+                        log.error("Error while getting source status, will retry", ex);
+                        return false;
+                    }
+                });
         // produce messages
         List<MyBean> messages = produceSourceMessages(numMessages);
 
         // wait for source to process messages
-        Failsafe.with(statusRetryPolicy).run(() ->
-                waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
+        Awaitility.with()
+                .timeout(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofSeconds(10))
+                .until(() -> {
+                    try {
+                        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+                        return true;
+                    } catch (Throwable ex) {
+                        log.error("Error while processing source messages, will retry", ex);
+                        return false;
+                    }
+                });
 
         // validate the source result
        validateSourceResultAvro(consumer, messages);

@@ -30,10 +30,11 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.annotations.Test;
 
 public class UnAckedMessageTrackerTest  {
@@ -48,8 +49,10 @@ public class UnAckedMessageTrackerTest  {
         ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
         doNothing().when(consumer).onAckTimeoutSend(any());
         doNothing().when(consumer).redeliverUnacknowledgedMessages(any());
-
-        UnAckedMessageTracker tracker = new UnAckedMessageTracker(client, consumer, 1000000, 100000);
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAckTimeoutMillis(1000000);
+        conf.setTickDurationMillis(100000);
+        UnAckedMessageTracker tracker = new UnAckedMessageTracker(client, consumer, conf);
         tracker.close();
 
         assertTrue(tracker.isEmpty());
@@ -60,7 +63,7 @@ public class UnAckedMessageTrackerTest  {
         assertFalse(tracker.add(mid));
         assertEquals(tracker.size(), 1);
 
-        ConcurrentOpenHashSet<MessageId> headPartition = tracker.timePartitions.removeFirst();
+        HashSet<MessageId> headPartition = tracker.timePartitions.removeFirst();
         headPartition.clear();
         tracker.timePartitions.addLast(headPartition);
 

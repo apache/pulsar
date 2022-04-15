@@ -100,8 +100,7 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
-    public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy =
-        SchemaAutoUpdateCompatibilityStrategy.Full;
+    public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public SchemaCompatibilityStrategy schema_compatibility_strategy = SchemaCompatibilityStrategy.UNDEFINED;

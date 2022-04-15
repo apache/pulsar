@@ -130,8 +130,9 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
         proxyConfig.setProxyExtensions(Collections.singleton("test"));
         buildMockNarFile(tempDirectory);
         proxyConfig.setServicePort(Optional.ofNullable(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig))));

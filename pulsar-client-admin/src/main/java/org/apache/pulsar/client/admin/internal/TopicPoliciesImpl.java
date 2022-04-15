@@ -21,9 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -45,6 +42,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 
 public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
@@ -80,18 +78,6 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         } catch (Exception e) {
             throw getApiException(e);
         }
-    }
-
-
-    @Override
-    public void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
-        TopicPolicies.super.setBacklogQuota(topic, backlogQuota);
-    }
-
-
-    @Override
-    public void removeBacklogQuota(String topic) throws PulsarAdminException {
-        TopicPolicies.super.removeBacklogQuota(topic);
     }
 
     @Override
@@ -1236,17 +1222,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException {
-        try {
-            removeSubscriptionTypesEnabledAsync(topic)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscriptionTypesEnabledAsync(topic));
     }
 
     @Override
@@ -1373,6 +1349,62 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "replicatorDispatchRate");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String topic, boolean applied)
+            throws PulsarAdminException {
+        return sync(() -> getSchemaCompatibilityStrategyAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String topic,
+                                                                                              boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<SchemaCompatibilityStrategy> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<SchemaCompatibilityStrategy>() {
+                    @Override
+                    public void completed(SchemaCompatibilityStrategy schemaCompatibilityStrategy) {
+                        future.complete(schemaCompatibilityStrategy);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+
+        return future;
+    }
+
+    @Override
+    public void setSchemaCompatibilityStrategy(String topic, SchemaCompatibilityStrategy strategy)
+            throws PulsarAdminException {
+        sync(() -> setSchemaCompatibilityStrategyAsync(topic, strategy));
+    }
+
+    @Override
+    public CompletableFuture<Void> setSchemaCompatibilityStrategyAsync(String topic,
+                                                                       SchemaCompatibilityStrategy strategy) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        return asyncPutRequest(path, Entity.entity(strategy, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeSchemaCompatibilityStrategy(String topic)
+            throws PulsarAdminException {
+        sync(()->removeSchemaCompatibilityStrategyAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
         return asyncDeleteRequest(path);
     }
 

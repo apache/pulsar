@@ -51,6 +51,15 @@ import org.apache.pulsar.common.policies.data.TopicStats;
  */
 public interface Topics {
 
+    enum QueryParam {
+        Bundle("bundle");
+
+        public final String value;
+
+        private QueryParam(String value) {
+            this.value = value;
+        }
+    }
     /**
      * Get the both persistent and non-persistent topics under a namespace.
      * <p/>
@@ -104,6 +113,39 @@ public interface Topics {
     List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException;
 
     /**
+     * Get the list of topics under a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["topic://my-tenant/my-namespace/topic-1",
+     *  "topic://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
+     *
+     * @param params
+     *            params to filter the results
+     *
+     * @return a list of topics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getList(String namespace, TopicDomain topicDomain, Map<QueryParam, Object> params)
+            throws PulsarAdminException;
+
+    /**
      * Get both persistent and non-persistent topics under a namespace asynchronously.
      * <p/>
      * Response example:
@@ -140,6 +182,33 @@ public interface Topics {
      * @return a list of topics
      */
     CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain);
+
+
+    /**
+     * Get the list of topics under a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["topic://my-tenant/my-namespace/topic-1",
+     *  "topic://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
+     *
+     * @param params
+     *            params to filter the results
+     *
+     * @return a list of topics
+     */
+    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain,
+            Map<QueryParam, Object> params);
 
     /**
      * Get the list of partitioned topics under a namespace.
@@ -344,7 +413,26 @@ public interface Topics {
      *            Number of partitions to create of the topic
      * @throws PulsarAdminException
      */
-    void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
+    default void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
+        createPartitionedTopic(topic, numPartitions, null);
+    }
+
+    /**
+     * Create a partitioned topic.
+     * <p/>
+     * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     * @param numPartitions
+     *            Number of partitions to create of the topic
+     * @param properties
+     *            topic properties
+     * @throws PulsarAdminException
+     */
+    void createPartitionedTopic(String topic, int numPartitions, Map<String, String> properties)
+            throws PulsarAdminException;
 
     /**
      * Create a partitioned topic asynchronously.
@@ -359,7 +447,27 @@ public interface Topics {
      *            Number of partitions to create of the topic
      * @return a future that can be used to track when the partitioned topic is created
      */
-    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions);
+    default CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
+        return createPartitionedTopicAsync(topic, numPartitions, null);
+    }
+
+    /**
+     * Create a partitioned topic asynchronously.
+     * <p/>
+     * Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
+     * topic.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     * @param numPartitions
+     *            Number of partitions to create of the topic
+     * @param properties
+     *            Topic properties
+     * @return a future that can be used to track when the partitioned topic is created
+     */
+    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions,
+                                                        Map<String, String> properties);
 
     /**
      * Create a non-partitioned topic.
@@ -370,14 +478,38 @@ public interface Topics {
      * @param topic Topic name
      * @throws PulsarAdminException
      */
-    void createNonPartitionedTopic(String topic) throws PulsarAdminException;
+    default void createNonPartitionedTopic(String topic) throws PulsarAdminException {
+        createNonPartitionedTopic(topic, null);
+    }
+
+    /**
+     * Create a non-partitioned topic.
+     * <p/>
+     * Create a non-partitioned topic.
+     * <p/>
+     *
+     * @param topic Topic name
+     * @param properties Topic properties
+     * @throws PulsarAdminException
+     */
+    void createNonPartitionedTopic(String topic, Map<String, String> properties) throws PulsarAdminException;
 
     /**
      * Create a non-partitioned topic asynchronously.
      *
      * @param topic Topic name
      */
-    CompletableFuture<Void> createNonPartitionedTopicAsync(String topic);
+    default CompletableFuture<Void> createNonPartitionedTopicAsync(String topic) {
+        return createNonPartitionedTopicAsync(topic, null);
+    }
+
+    /**
+     * Create a non-partitioned topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param properties Topic properties
+     */
+    CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties);
 
     /**
      * Create missed partitions for partitioned topic.
@@ -1463,8 +1595,10 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createSubscription(String topic, String subscriptionName, MessageId messageId)
-            throws PulsarAdminException;
+    default void createSubscription(String topic, String subscriptionName, MessageId messageId)
+            throws PulsarAdminException {
+        createSubscription(topic, subscriptionName, messageId, false);
+    };
 
     /**
      * Create a new subscription on a topic.
@@ -1477,7 +1611,51 @@ public interface Topics {
      *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
      *            {@link MessageId#earliest} or a specific message id.
      */
-    CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId);
+    default CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
+                                                            MessageId messageId) {
+        return createSubscriptionAsync(topic, subscriptionName, messageId, false);
+    }
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     * @param replicated
+     *            replicated subscriptions.
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws ConflictException
+     *             Subscription already exists
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated)
+            throws PulsarAdminException;
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     *
+     * @param replicated
+     *           replicated subscriptions.
+     */
+    CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId,
+                                                    boolean replicated);
 
     /**
      * Reset cursor position on a topic subscription.

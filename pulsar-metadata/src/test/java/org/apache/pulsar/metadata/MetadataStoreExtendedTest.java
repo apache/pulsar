@@ -36,7 +36,7 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void sequentialKeys(String provider, Supplier<String> urlSupplier) throws Exception {
-        final String basePath = "/my/path";
+        final String basePath = newKey();
 
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),

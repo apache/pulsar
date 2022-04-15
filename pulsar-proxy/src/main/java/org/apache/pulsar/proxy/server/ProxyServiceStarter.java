@@ -32,17 +32,18 @@ import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
-import io.prometheus.client.exporter.MetricsServlet;
 import io.prometheus.client.hotspot.DefaultExports;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import lombok.Getter;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -70,16 +71,26 @@ public class ProxyServiceStarter {
     @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
     private String configFile;
 
-    @Parameter(names = { "-zk", "--zookeeper-servers" }, description = "Local zookeeper connection string")
+    @Deprecated
+    @Parameter(names = { "-zk", "--zookeeper-servers" },
+            description = "Local zookeeper connection string, please use --metadata-store instead")
     private String zookeeperServers = "";
+    @Parameter(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
+    private String metadataStoreUrl = "";
 
     @Deprecated
-    @Parameter(names = { "-gzk", "--global-zookeeper-servers" }, description = "Global zookeeper connection string")
+    @Parameter(names = { "-gzk", "--global-zookeeper-servers" },
+            description = "Global zookeeper connection string, please use --configuration-metadata-store instead")
     private String globalZookeeperServers = "";
 
+    @Deprecated
     @Parameter(names = { "-cs", "--configuration-store-servers" },
-        description = "Configuration store connection string")
+                    description = "Configuration store connection string, "
+                            + "please use --configuration-metadata-store instead")
     private String configurationStoreServers = "";
+    @Parameter(names = { "-cms", "--configuration-metadata-store" },
+            description = "The metadata store URL for the configuration data")
+    private String configurationMetadataStoreUrl = "";
 
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
@@ -89,6 +100,7 @@ public class ProxyServiceStarter {
 
     private ProxyConfiguration config;
 
+    @Getter
     private ProxyService proxyService;
 
     private WebServer server;
@@ -131,30 +143,45 @@ public class ProxyServiceStarter {
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
-            if (!isBlank(zookeeperServers)) {
-                // Use zookeeperServers from command line
-                config.setZookeeperServers(zookeeperServers);
+            if (isBlank(metadataStoreUrl)) {
+                // Use zookeeperServers from command line if metadataStoreUrl is empty;
+                config.setMetadataStoreUrl(zookeeperServers);
+            } else {
+                // Use metadataStoreUrl from command line
+                config.setMetadataStoreUrl(metadataStoreUrl);
             }
 
             if (!isBlank(globalZookeeperServers)) {
-                // Use globalZookeeperServers from command line
-                config.setConfigurationStoreServers(globalZookeeperServers);
+                config.setConfigurationMetadataStoreUrl(globalZookeeperServers);
             }
             if (!isBlank(configurationStoreServers)) {
-                // Use configurationStoreServers from command line
-                config.setConfigurationStoreServers(configurationStoreServers);
+                // Use configurationMetadataStoreUrl from command line
+                config.setConfigurationMetadataStoreUrl(configurationStoreServers);
+            }
+            if (!isBlank(configurationMetadataStoreUrl)) {
+                config.setConfigurationMetadataStoreUrl(configurationMetadataStoreUrl);
+            }
+
+            if (isNotBlank(config.getBrokerServiceURL())) {
+                checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
+                        "brokerServiceURL must start with pulsar://");
+            }
+
+            if (isNotBlank(config.getBrokerServiceURLTLS())) {
+                checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
+                        "brokerServiceURLTLS must start with pulsar+ssl://");
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                     || config.isAuthorizationEnabled()) {
-                checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-                checkArgument(!isEmpty(config.getConfigurationStoreServers()),
-                        "configurationStoreServers must be provided");
+                checkArgument(!isEmpty(config.getMetadataStoreUrl()), "metadataStoreUrl must be provided");
+                checkArgument(!isEmpty(config.getConfigurationMetadataStoreUrl()),
+                        "configurationMetadataStoreUrl must be provided");
             }
 
             if ((!config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURL()))
                     || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
-                checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
+                checkArgument(!isEmpty(config.getMetadataStoreUrl()), "metadataStoreUrl must be provided");
             }
 
         } catch (Exception e) {
@@ -165,7 +192,12 @@ public class ProxyServiceStarter {
 
     public static void main(String[] args) throws Exception {
         ProxyServiceStarter serviceStarter = new ProxyServiceStarter(args);
-        serviceStarter.start();
+        try {
+            serviceStarter.start();
+        } catch (Throwable t) {
+            log.error("Failed to start proxy.", t);
+            Runtime.getRuntime().halt(1);
+        }
     }
 
     public void start() throws Exception {
@@ -176,9 +208,7 @@ public class ProxyServiceStarter {
         // create a web-service
         server = new WebServer(config, authenticationService);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            close();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
 
         proxyService.start();
 
@@ -223,8 +253,13 @@ public class ProxyServiceStarter {
                                      ProxyConfiguration config,
                                      ProxyService service,
                                      BrokerDiscoveryProvider discoveryProvider) throws Exception {
-        server.addServlet("/metrics", new ServletHolder(MetricsServlet.class),
-                Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+        if (service != null) {
+            PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
+            if (metricsServlet != null) {
+                server.addServlet("/metrics", new ServletHolder(metricsServlet),
+                        Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+            }
+        }
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
         server.addRestResources("/proxy-stats", ProxyStats.class.getPackage().getName(),

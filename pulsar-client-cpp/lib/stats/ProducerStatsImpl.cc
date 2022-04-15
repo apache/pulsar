@@ -26,7 +26,7 @@
 namespace pulsar {
 DECLARE_LOG_OBJECT();
 
-static const std::array<double, 4> probs = {0.5, 0.9, 0.99, 0.999};
+static const std::array<double, 4> probs = {{0.5, 0.9, 0.99, 0.999}};
 
 std::string ProducerStatsImpl::latencyToString(const LatencyAccumulator& obj) {
     boost::accumulators::detail::extractor_result<
@@ -93,7 +93,7 @@ void ProducerStatsImpl::messageSent(const Message& msg) {
     totalBytesSent_ += msg.getLength();
 }
 
-void ProducerStatsImpl::messageReceived(Result& res, boost::posix_time::ptime& publishTime) {
+void ProducerStatsImpl::messageReceived(Result res, const boost::posix_time::ptime& publishTime) {
     boost::posix_time::ptime currentTime = boost::posix_time::microsec_clock::universal_time();
     double diffInMicros = (currentTime - publishTime).total_microseconds();
     Lock lock(mutex_);

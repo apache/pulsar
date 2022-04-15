@@ -2,6 +2,7 @@
   "docs": [
     { "filename": "broker-stats.md" },
     { "filename": "brokers.md" },
+    { "filename": "bookies.md" },
     { "filename": "clusters.md" },
     { "filename": "functions-worker.md" },
     { "filename": "functions.md" },

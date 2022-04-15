@@ -19,12 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -36,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Default batch message container
+ * Default batch message container.
  *
  * incoming single messages:
  * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
@@ -115,8 +113,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             MessageImpl<?> msg = messages.get(i);
             msg.getDataBuffer().markReaderIndex();
             try {
-                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msg.getMessageBuilder(),
-                        msg.getDataBuffer(), batchedMessageMetadataAndPayload);
+                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(
+                        msg.getMessageBuilder(), msg.getDataBuffer(), batchedMessageMetadataAndPayload);
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
                 // next iteration doesn't send corrupt message to broker.

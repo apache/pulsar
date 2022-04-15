@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.ComparisonChain;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,7 +28,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
@@ -42,7 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Key based batch message container
+ * Key based batch message container.
  *
  * incoming single messages:
  * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
@@ -119,7 +116,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
-        ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata, keyedBatch.getCompressedBatchMetadataAndPayload());
+        ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata,
+                keyedBatch.getCompressedBatchMetadataAndPayload());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             keyedBatch.discard(new PulsarClientException.InvalidMessageException(
                     "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
@@ -141,7 +139,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
                 keyedBatch.messageMetadata, encryptedPayload);
 
-        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
+                keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
 
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
@@ -203,8 +202,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
         private ByteBuf getCompressedBatchMetadataAndPayload() {
             for (MessageImpl<?> msg : messages) {
-                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msg.getMessageBuilder(),
-                        msg.getDataBuffer(), batchedMessageMetadataAndPayload);
+                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(
+                        msg.getMessageBuilder(), msg.getDataBuffer(), batchedMessageMetadataAndPayload);
             }
             int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
             ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);

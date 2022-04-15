@@ -32,6 +32,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,6 +51,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import io.netty.channel.EventLoopGroup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -70,17 +72,11 @@ import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.mockito.ArgumentCaptor;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.mockito.MockedStatic;
 import org.testng.Assert;
-import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-@PrepareForTest({ DispatchRateLimiter.class })
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
 @Test(groups = "broker")
 public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
@@ -98,11 +94,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     final String topicName = "persistent://public/default/testTopic";
     final String subscriptionName = "testSubscription";
 
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
-
     @BeforeMethod
     public void setup() throws Exception {
         configMock = mock(ServiceConfiguration.class);
@@ -119,6 +110,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
+
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        doReturn(eventLoopGroup).when(brokerMock).executor();
+        doAnswer(invocation -> {
+            ((Runnable)invocation.getArguments()[0]).run();
+            return null;
+        }).when(eventLoopGroup).execute(any(Runnable.class));
 
         topicMock = mock(PersistentTopic.class);
         doReturn(brokerMock).when(topicMock).getBrokerService();
@@ -145,18 +143,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
 
         subscriptionMock = mock(PersistentSubscription.class);
-
-        PowerMockito.mockStatic(DispatchRateLimiter.class);
-        PowerMockito.when(DispatchRateLimiter.isDispatchRateNeeded(
-                any(BrokerService.class),
-                any(Optional.class),
-                anyString(),
-                any(DispatchRateLimiter.Type.class))
-        ).thenReturn(false);
-
-        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, configMock,
-                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+        try (MockedStatic<DispatchRateLimiter> rateLimiterMockedStatic = mockStatic(DispatchRateLimiter.class);) {
+            rateLimiterMockedStatic.when(() -> DispatchRateLimiter.isDispatchRateNeeded(
+                            any(BrokerService.class),
+                            any(Optional.class),
+                            anyString(),
+                            any(DispatchRateLimiter.Type.class)))
+                    .thenReturn(false);
+            persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+        }
     }
 
     @Test
@@ -200,31 +197,40 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
     @Test(timeOut = 10000)
     public void testSendMessage() {
-        KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
-        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, configMock, keySharedMeta);
-        try {
-            keySharedMeta.addHashRange()
-                    .setStart(0)
-                    .setEnd(9);
+        try (MockedStatic<DispatchRateLimiter> rateLimiterMockedStatic = mockStatic(DispatchRateLimiter.class);) {
+            rateLimiterMockedStatic.when(() -> DispatchRateLimiter.isDispatchRateNeeded(
+                            any(BrokerService.class),
+                            any(Optional.class),
+                            anyString(),
+                            any(DispatchRateLimiter.Type.class)))
+                    .thenReturn(false);
+            KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
+            DispatchRateLimiter.isDispatchRateNeeded(brokerMock, Optional.empty(), "hello", DispatchRateLimiter.Type.SUBSCRIPTION);
+            PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock, keySharedMeta);
+            try {
+                keySharedMeta.addHashRange()
+                        .setStart(0)
+                        .setEnd(9);
 
-            Consumer consumerMock = mock(Consumer.class);
-            doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
-            persistentDispatcher.addConsumer(consumerMock);
-            persistentDispatcher.consumerFlow(consumerMock, 1000);
-        } catch (Exception e) {
-            fail("Failed to add mock consumer", e);
-        }
+                Consumer consumerMock = mock(Consumer.class);
+                doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
+                persistentDispatcher.addConsumer(consumerMock);
+                persistentDispatcher.consumerFlow(consumerMock, 1000);
+            } catch (Exception e) {
+                fail("Failed to add mock consumer", e);
+            }
 
-        List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
+            List<Entry> entries = new ArrayList<>();
+            entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
+            entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
 
-        try {
-            //Should success,see issue #8960
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
-        } catch (Exception e) {
-            fail("Failed to readEntriesComplete.", e);
+            try {
+                //Should success,see issue #8960
+                persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            } catch (Exception e) {
+                fail("Failed to readEntriesComplete.", e);
+            }
         }
     }
 

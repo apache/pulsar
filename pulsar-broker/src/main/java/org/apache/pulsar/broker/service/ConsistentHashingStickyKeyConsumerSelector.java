@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,7 +90,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     if (v == null) {
                         return null;
                     } else {
-                        v.removeIf(c -> c.consumerName().equals(consumer.consumerName()));
+                        v.removeIf(c -> c.equals(consumer));
                         if (v.isEmpty()) {
                             v = null;
                         }
@@ -143,9 +142,5 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             rwLock.readLock().unlock();
         }
         return result;
-    }
-
-    Map<Integer, List<Consumer>> getRangeConsumer() {
-        return Collections.unmodifiableMap(hashRing);
     }
 }

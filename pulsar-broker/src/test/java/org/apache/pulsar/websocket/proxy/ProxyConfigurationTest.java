@@ -46,7 +46,7 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         config = new WebSocketProxyConfiguration();
         config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
-        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
     }
 
     @AfterMethod(alwaysRun = true)

@@ -33,6 +33,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -45,11 +46,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.Topics.QueryParam;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -367,10 +370,15 @@ public class CmdTopics extends CmdBase {
                 description = "Allowed topic domain (persistent, non_persistent).")
         private TopicDomain topicDomain;
 
+        @Parameter(names = { "-b",
+                "--bundle" }, description = "Namespace bundle to get list of topics")
+        private String bundle;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getList(namespace, topicDomain));
+            print(getTopics().getList(namespace, topicDomain,
+                    StringUtils.isNotBlank(bundle) ? Collections.singletonMap(QueryParam.Bundle, bundle) : null));
         }
     }
 
@@ -391,10 +399,10 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks,"
+        @Parameter(names = {"-a", "--actions"}, description = "Actions to be granted (produce,consume,sources,sinks,"
                 + "functions,packages)", required = true)
         private List<String> actions;
 
@@ -413,7 +421,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
+        @Parameter(names = {"-r", "--role"}, description = "Client role to which revoke permissions", required = true)
         private String role;
 
         @Override
@@ -503,10 +511,30 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = {"--metadata", "-m"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> metadata;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().createPartitionedTopic(topic, numPartitions);
+            Map<String, String> map = null;
+            if (metadata != null && !metadata.isEmpty()) {
+                map = new HashMap<>();
+                for (String property : metadata) {
+                    if (!property.contains("=")) {
+                        throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                + "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                    + "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
+                    }
+                }
+            }
+            getTopics().createPartitionedTopic(topic, numPartitions, map);
         }
     }
 
@@ -531,10 +559,29 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"--metadata", "-m"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> metadata;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().createNonPartitionedTopic(topic);
+            Map<String, String> map = new HashMap<>();
+            if (metadata != null) {
+                for (String property : metadata) {
+                    if (!property.contains("=")) {
+                        throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                + "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                    + "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
+                    }
+                }
+            }
+            getTopics().createNonPartitionedTopic(topic, map);
         }
     }
 
@@ -878,10 +925,12 @@ public class CmdTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to reset position on", required = true)
         private String subscriptionName;
 
-        @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId where to create the subscription. "
+        @Parameter(names = { "-m" , "--messageId" }, description = "messageId where to create the subscription. "
                 + "It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
         private String messageIdStr = "latest";
+
+        @Parameter(names = { "-r", "--replicated" }, description = "replicated subscriptions", required = false)
+        private boolean replicated = false;
 
         @Override
         void run() throws PulsarAdminException {
@@ -895,7 +944,7 @@ public class CmdTopics extends CmdBase {
                 messageId = validateMessageIdString(messageIdStr);
             }
 
-            getTopics().createSubscription(topic, subscriptionName, messageId);
+            getTopics().createSubscription(topic, subscriptionName, messageId, replicated);
         }
     }
 

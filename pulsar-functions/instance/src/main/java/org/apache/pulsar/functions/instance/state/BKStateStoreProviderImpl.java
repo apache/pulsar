@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.instance.state;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
-
 import com.google.common.base.Stopwatch;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
@@ -28,7 +27,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
@@ -101,8 +99,7 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                                   String name) throws Exception {
         final String tableNs = FunctionCommon.getStateNamespace(tenant, namespace);
         final String tableName = name;
-
-    	try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
+        try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
              StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
              ClientResources.create().scheduler())){
             StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
@@ -146,12 +143,15 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                         log.warn("Encountered exception when creating table {}/{}", tableNs, tableName, e);
                     }
                 } catch (ClientException ce) {
-                    log.warn("Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
-                        ce.getMessage());
+                    log.warn(
+                            "Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
+                            ce.getMessage());
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             }
-            throw new IOException(String.format("Failed to setup / verify state table for function %s/%s/%s within timeout", tenant, name, name), lastException);
+            throw new IOException(
+                    String.format("Failed to setup / verify state table for function %s/%s/%s within timeout", tenant,
+                            name, name), lastException);
         }
     }
 
@@ -168,22 +168,26 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
             try {
                 return result(client.openTable(name), 1, TimeUnit.MINUTES);
             } catch (InternalServerException ise) {
-                log.warn("Encountered internal server on opening state table '{}/{}/{}', re-attempt in 100 milliseconds : {}",
-                    tenant, namespace, name, ise.getMessage());
+                log.warn(
+                        "Encountered internal server on opening state table '{}/{}/{}', "
+                                + " re-attempt in 100 milliseconds : {}",
+                        tenant, namespace, name, ise.getMessage());
                 TimeUnit.MILLISECONDS.sleep(100);
             } catch (TimeoutException e) {
-                throw new RuntimeException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name + " within timeout period", e);
+                throw new RuntimeException(
+                        "Failed to open state table for function " + tenant + "/" + namespace + "/" + name
+                                + " within timeout period", e);
             }
         }
         throw new IOException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name);
     }
 
     @Override
-    public <S extends StateStore> S getStateStore(String tenant, String namespace, String name) throws Exception {
+    public <T extends StateStore> T getStateStore(String tenant, String namespace, String name) throws Exception {
         // we defer creation of the state table until a java instance is running here.
         createStateTable(stateStorageServiceUrl, tenant, namespace, name);
         Table<ByteBuf, ByteBuf> table = openStateTable(tenant, namespace, name);
-        return (S) new BKStateStoreImpl(tenant, namespace, name, table);
+        return (T) new BKStateStoreImpl(tenant, namespace, name, table);
     }
 
     @Override

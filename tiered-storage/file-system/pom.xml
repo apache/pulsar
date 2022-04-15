@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>tiered-storage-parent</artifactId>
-        <version>2.10.0-SNAPSHOT</version>
+        <version>2.11.0-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -141,16 +141,6 @@
         </dependency>
     </dependencies>
 
-    <dependencyManagement>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-          <version>21.0</version>
-        </dependency>
-      </dependencies>
-    </dependencyManagement>
-
     <build>
         <plugins>
             <plugin>
@@ -189,4 +179,31 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <!--
+        The only working way for OWASP dependency checker plugin
+        to exclude module when failBuildOnCVSS is used
+        in the root pom's plugin.
+        -->
+        <profile>
+            <id>owasp-dependency-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>${dependency-check-maven.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

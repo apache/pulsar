@@ -18,15 +18,17 @@
  */
 #include <pulsar/Client.h>
 #include <pulsar/Reader.h>
-#include "ReaderTest.h"
 #include "HttpHelper.h"
+#include "PulsarFriend.h"
 
 #include <gtest/gtest.h>
 
 #include <time.h>
 #include <string>
 
+#include <lib/Latch.h>
 #include <lib/LogUtils.h>
+#include <lib/ReaderImpl.h>
 DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
@@ -422,50 +424,6 @@ TEST(ReaderTest, testReaderReachEndOfTopicMessageWithoutBatches) {
     client.close();
 }
 
-TEST(ReaderTest, testReferenceLeak) {
-    Client client(serviceUrl);
-
-    std::string topicName = "persistent://public/default/testReferenceLeak";
-
-    Producer producer;
-    ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
-
-    for (int i = 0; i < 10; i++) {
-        std::string content = "my-message-" + std::to_string(i);
-        Message msg = MessageBuilder().setContent(content).build();
-        ASSERT_EQ(ResultOk, producer.send(msg));
-    }
-
-    ReaderConfiguration readerConf;
-    Reader reader;
-    ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf, reader));
-
-    ConsumerImplBaseWeakPtr consumerPtr = ReaderTest::getConsumer(reader);
-    ReaderImplWeakPtr readerPtr = ReaderTest::getReaderImplWeakPtr(reader);
-
-    LOG_INFO("1 consumer use count " << consumerPtr.use_count());
-    LOG_INFO("1 reader use count " << readerPtr.use_count());
-
-    for (int i = 0; i < 10; i++) {
-        Message msg;
-        ASSERT_EQ(ResultOk, reader.readNext(msg));
-
-        std::string content = msg.getDataAsString();
-        std::string expected = "my-message-" + std::to_string(i);
-        ASSERT_EQ(expected, content);
-    }
-
-    producer.close();
-    reader.close();
-    // will be released after exit this method.
-    ASSERT_EQ(1, consumerPtr.use_count());
-    ASSERT_EQ(1, readerPtr.use_count());
-    client.close();
-    // will be released after exit this method.
-    ASSERT_EQ(1, consumerPtr.use_count());
-    ASSERT_EQ(1, readerPtr.use_count());
-}
-
 TEST(ReaderTest, testPartitionIndex) {
     Client client(serviceUrl);
 
@@ -518,7 +476,7 @@ TEST(ReaderTest, testSubscriptionNameSetting) {
     Reader reader;
     ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf, reader));
 
-    ASSERT_EQ(subName, ReaderTest::getConsumer(reader)->getSubscriptionName());
+    ASSERT_EQ(subName, PulsarFriend::getConsumer(reader)->getSubscriptionName());
 
     reader.close();
     client.close();
@@ -536,7 +494,7 @@ TEST(ReaderTest, testSetSubscriptionNameAndPrefix) {
     Reader reader;
     ASSERT_EQ(ResultOk, client.createReader(topicName, MessageId::earliest(), readerConf, reader));
 
-    ASSERT_EQ(subName, ReaderTest::getConsumer(reader)->getSubscriptionName());
+    ASSERT_EQ(subName, PulsarFriend::getConsumer(reader)->getSubscriptionName());
 
     reader.close();
     client.close();
@@ -576,4 +534,48 @@ TEST(ReaderTest, testIsConnected) {
 
     ASSERT_EQ(ResultOk, reader.close());
     ASSERT_FALSE(reader.isConnected());
+}
+
+TEST(ReaderTest, testHasMessageAvailableWhenCreated) {
+    const std::string topic = "testHasMessageAvailableWhenCreated-" + std::to_string(time(nullptr));
+    Client client(serviceUrl);
+
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingMaxMessages(3);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producerConf, producer));
+
+    std::vector<MessageId> messageIds;
+    constexpr int numMessages = 7;
+    Latch latch(numMessages);
+    for (int i = 0; i < numMessages; i++) {
+        producer.sendAsync(MessageBuilder().setContent("msg-" + std::to_string(i)).build(),
+                           [i, &messageIds, &latch](Result result, const MessageId& messageId) {
+                               if (result == ResultOk) {
+                                   LOG_INFO("Send " << i << " to " << messageId);
+                                   messageIds.emplace_back(messageId);
+                               } else {
+                                   LOG_ERROR("Failed to send " << i << ": " << messageId);
+                               }
+                               latch.countdown();
+                           });
+    }
+    latch.wait(std::chrono::seconds(3));
+    ASSERT_EQ(messageIds.size(), numMessages);
+
+    Reader reader;
+    bool hasMessageAvailable;
+
+    for (size_t i = 0; i < messageIds.size() - 1; i++) {
+        ASSERT_EQ(ResultOk, client.createReader(topic, messageIds[i], {}, reader));
+        ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+        EXPECT_TRUE(hasMessageAvailable);
+    }
+
+    // The start message ID is exclusive by default, so when we start at the last message, there should be no
+    // message available.
+    ASSERT_EQ(ResultOk, client.createReader(topic, messageIds.back(), {}, reader));
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+    EXPECT_FALSE(hasMessageAvailable);
+    client.close();
 }

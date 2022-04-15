@@ -80,13 +80,15 @@ class Commands {
                                   const std::string& listenerName);
 
     static PairSharedBuffer newSend(SharedBuffer& headers, proto::BaseCommand& cmd, uint64_t producerId,
-                                    uint64_t sequenceId, ChecksumType checksumType, const Message& msg);
+                                    uint64_t sequenceId, ChecksumType checksumType,
+                                    const proto::MessageMetadata& metadata, const SharedBuffer& payload);
 
     static SharedBuffer newSubscribe(const std::string& topic, const std::string& subscription,
                                      uint64_t consumerId, uint64_t requestId,
                                      proto::CommandSubscribe_SubType subType, const std::string& consumerName,
                                      SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
                                      bool readCompacted, const std::map<std::string, std::string>& metadata,
+                                     const std::map<std::string, std::string>& subscriptionProperties,
                                      const SchemaInfo& schemaInfo,
                                      proto::CommandSubscribe_InitialPosition subscriptionInitialPosition,
                                      bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,

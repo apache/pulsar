@@ -27,8 +27,8 @@ import lombok.ToString;
 @ToString
 public class InternalConfigurationData {
 
-    private String zookeeperServers;
-    private String configurationStoreServers;
+    private String metadataStoreUrl;
+    private String configurationMetadataStoreUrl;
     @Deprecated
     private String ledgersRootPath;
     private String bookkeeperMetadataServiceUri;
@@ -38,23 +38,23 @@ public class InternalConfigurationData {
     }
 
     public InternalConfigurationData(String zookeeperServers,
-                                     String configurationStoreServers,
+                                     String configurationMetadataStoreUrl,
                                      String ledgersRootPath,
                                      String bookkeeperMetadataServiceUri,
                                      String stateStorageServiceUrl) {
-        this.zookeeperServers = zookeeperServers;
-        this.configurationStoreServers = configurationStoreServers;
+        this.metadataStoreUrl = zookeeperServers;
+        this.configurationMetadataStoreUrl = configurationMetadataStoreUrl;
         this.ledgersRootPath = ledgersRootPath;
         this.bookkeeperMetadataServiceUri = bookkeeperMetadataServiceUri;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
     }
 
-    public String getZookeeperServers() {
-        return zookeeperServers;
+    public String getMetadataStoreUrl() {
+        return metadataStoreUrl;
     }
 
-    public String getConfigurationStoreServers() {
-        return configurationStoreServers;
+    public String getConfigurationMetadataStoreUrl() {
+        return configurationMetadataStoreUrl;
     }
 
     /** @deprecated */
@@ -77,8 +77,8 @@ public class InternalConfigurationData {
             return false;
         }
         InternalConfigurationData other = (InternalConfigurationData) obj;
-        return Objects.equals(zookeeperServers, other.zookeeperServers)
-            && Objects.equals(configurationStoreServers, other.configurationStoreServers)
+        return Objects.equals(metadataStoreUrl, other.metadataStoreUrl)
+            && Objects.equals(configurationMetadataStoreUrl, other.configurationMetadataStoreUrl)
             && Objects.equals(ledgersRootPath, other.ledgersRootPath)
             && Objects.equals(bookkeeperMetadataServiceUri, other.bookkeeperMetadataServiceUri)
             && Objects.equals(stateStorageServiceUrl, other.stateStorageServiceUrl);
@@ -86,8 +86,8 @@ public class InternalConfigurationData {
 
     @Override
     public int hashCode() {
-        return Objects.hash(zookeeperServers,
-                configurationStoreServers,
+        return Objects.hash(metadataStoreUrl,
+                configurationMetadataStoreUrl,
                 ledgersRootPath,
                 bookkeeperMetadataServiceUri,
                 stateStorageServiceUrl);

@@ -425,6 +425,21 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
 
     /**
+     * Get all the subscription properties attached to this subscription.
+     */
+    std::map<std::string, std::string>& getSubscriptionProperties() const;
+
+    /**
+     * Sets a new subscription properties for this subscription.
+     * Notice: SubscriptionProperties are immutable, and consumers under the same subscription will fail to
+     * create a subscription if they use different properties.
+     *
+     * @param subscriptionProperties all the subscription properties in the provided map
+     */
+    ConsumerConfiguration& setSubscriptionProperties(
+        const std::map<std::string, std::string>& subscriptionProperties);
+
+    /**
      * Set the Priority Level for consumer (0 is the default value and means the highest priority).
      *
      * @param priorityLevel the priority of this consumer
@@ -436,6 +451,52 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @return the configured priority for the consumer
      */
     int getPriorityLevel() const;
+
+    /**
+     * Consumer buffers chunk messages into memory until it receives all the chunks of the original message.
+     * While consuming chunk-messages, chunks from same message might not be contiguous in the stream and they
+     * might be mixed with other messages' chunks. so, consumer has to maintain multiple buffers to manage
+     * chunks coming from different messages. This mainly happens when multiple publishers are publishing
+     * messages on the topic concurrently or publisher failed to publish all chunks of the messages.
+     *
+     * eg: M1-C1, M2-C1, M1-C2, M2-C2
+     * Here, Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 belong to M2 message.
+     *
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it
+     * can be guarded by providing this maxPendingChunkedMessage threshold. Once, consumer reaches this
+     * threshold, it drops the outstanding unchunked-messages by silently acking or asking broker to redeliver
+     * later by marking it unacked. See setAutoAckOldestChunkedMessageOnQueueFull.
+     *
+     * If it's zero, the pending chunked messages will not be limited.
+     *
+     * Default: 10
+     *
+     * @param maxPendingChunkedMessage the number of max pending chunked messages
+     */
+    ConsumerConfiguration& setMaxPendingChunkedMessage(size_t maxPendingChunkedMessage);
+
+    /**
+     * The associated getter of setMaxPendingChunkedMessage
+     */
+    size_t getMaxPendingChunkedMessage() const;
+
+    /**
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it
+     * can be guarded by providing the maxPendingChunkedMessage threshold. See setMaxPendingChunkedMessage.
+     * Once, consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acking
+     * if autoAckOldestChunkedMessageOnQueueFull is true else it marks them for redelivery.
+     *
+     * Default: false
+     *
+     * @param autoAckOldestChunkedMessageOnQueueFull whether to ack the discarded chunked message
+     */
+    ConsumerConfiguration& setAutoAckOldestChunkedMessageOnQueueFull(
+        bool autoAckOldestChunkedMessageOnQueueFull);
+
+    /**
+     * The associated getter of setAutoAckOldestChunkedMessageOnQueueFull
+     */
+    bool isAutoAckOldestChunkedMessageOnQueueFull() const;
 
     friend class PulsarWrapper;
 

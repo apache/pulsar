@@ -18,6 +18,20 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
@@ -34,23 +48,7 @@ import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.SchedulerManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 import org.apache.pulsar.functions.worker.service.api.Workers;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public class WorkerImpl implements Workers<PulsarWorkerService> {
@@ -171,7 +169,8 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
 
             if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
-                Function.FunctionDetails functionDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
+                Function.FunctionDetails functionDetails =
+                        functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
                 int parallelism = functionDetails.getParallelism();
                 for (int i = 0; i < parallelism; ++i) {
                     FunctionInstanceStatsImpl functionInstanceStats =
@@ -230,7 +229,11 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             }
         } else {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
-            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            if (workerInfo == null) {
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Leader cannot be determined");
+            }
+            URI redirect =
+                    UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
     }
@@ -283,7 +286,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
     @Override
     public LongRunningProcessStatus getDrainStatus(final URI uri, final String inWorkerId, final String clientRole,
-                                                                                        boolean calledOnLeaderUri) {
+                                                   boolean calledOnLeaderUri) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -293,7 +296,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         if (log.isDebugEnabled()) {
             log.debug("getDrainStatus called with uri={}, inWorkerId={}, workerId={}, clientRole={}, "
-                    + " calledOnLeaderUri={}, on actual workerId={}",
+                            + " calledOnLeaderUri={}, on actual workerId={}",
                     uri, inWorkerId, workerId, clientRole, calledOnLeaderUri, actualWorkerId);
         }
 
@@ -337,6 +340,9 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         // Use the leader-URI path in both cases for the redirect to the leader.
         String leaderPath = "admin/v2/worker/leader/drain";
         WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
+        if (workerInfo == null) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Leader cannot be determined");
+        }
         URI redirect = UriBuilder.fromUri(uri)
                 .host(workerInfo.getWorkerHostname())
                 .port(workerInfo.getPort())

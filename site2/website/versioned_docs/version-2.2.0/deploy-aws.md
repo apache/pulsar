@@ -31,7 +31,7 @@ You can install Ansible on Linux or macOS using pip.
 $ pip install ansible
 ```
 
-You can install Terraform using the instructions [here](https://www.terraform.io/intro/getting-started/install.html).
+You can install Terraform using the instructions [here](https://learn.hashicorp.com/tutorials/terraform/install-cli).
 
 You'll also need to have the Terraform and Ansible configurations for Pulsar locally on your machine. They're contained in Pulsar's [GitHub repository](https://github.com/apache/pulsar), which you can fetch using Git:
 

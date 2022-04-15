@@ -23,14 +23,14 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
+import java.util.concurrent.TimeUnit;
+import lombok.Data;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
-
-import lombok.Data;
 
 @Data
 public class ReaderConfigurationData<T> implements Serializable, Cloneable {
@@ -62,6 +62,18 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private transient List<Range> keyHashRanges;
 
     private boolean poolMessages = false;
+
+    private boolean autoUpdatePartitions = true;
+    private long autoUpdatePartitionsIntervalSeconds = 60;
+
+    private transient List<ReaderInterceptor<T>> readerInterceptorList;
+
+    // max pending chunked message to avoid sending incomplete message into the queue and memory
+    private int maxPendingChunkedMessage = 10;
+
+    private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+    private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.MINUTES.toMillis(1);
 
     @JsonIgnore
     public String getTopicName() {

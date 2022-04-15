@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io-debezium</artifactId>
-    <version>2.10.0-SNAPSHOT</version>
+    <version>2.11.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-debezium-postgres</artifactId>
@@ -42,6 +42,13 @@
       <groupId>io.debezium</groupId>
       <artifactId>debezium-connector-postgres</artifactId>
       <version>${debezium.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${debezium.postgresql.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
   </dependencies>

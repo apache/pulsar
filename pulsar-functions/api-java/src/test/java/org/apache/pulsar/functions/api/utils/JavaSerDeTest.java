@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.api.utils;
 
 import static org.testng.Assert.assertEquals;
-
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.eclipse.jetty.server.Response;
 
 
@@ -55,6 +56,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     int messageCount = 0;
     int messageDispatchCount = 0;
     int messageAckCount = 0;
+    int handleAckCount = 0;
+    int txnCount = 0;
+    int committedTxnCount = 0;
+    int abortedTxnCount = 0;
 
     private List<ResponseEvent> responseList = new ArrayList<>();
 
@@ -138,6 +143,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         if (log.isDebugEnabled()) {
             log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
         }
+        if (command.getType().equals(BaseCommand.Type.ACK)) {
+            handleAckCount++;
+        }
         count ++;
     }
 
@@ -174,6 +182,20 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
+    public void txnOpened(long tcId, String txnID) {
+        txnCount ++;
+    }
+
+    @Override
+    public void txnEnded(String txnID, long txnAction) {
+        if(txnAction == TxnAction.COMMIT_VALUE) {
+            committedTxnCount ++;
+        } else {
+            abortedTxnCount ++;
+        }
+    }
+
+    @Override
     public void initialize(PulsarService pulsarService) throws Exception {
 
     }
@@ -181,6 +203,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void close() {
 
+    }
+
+    public int getHandleAckCount() {
+        return handleAckCount;
     }
 
     public int getCount() {
@@ -221,5 +247,17 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public List<ResponseEvent> getResponseList() {
         return responseList;
+    }
+
+    public int getTxnCount() {
+        return txnCount;
+    }
+
+    public int getCommittedTxnCount() {
+        return committedTxnCount;
+    }
+
+    public int getAbortedTxnCount() {
+        return abortedTxnCount;
     }
 }

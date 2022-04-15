@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -65,7 +66,9 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.common.naming.BundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -164,7 +167,8 @@ public class NamespaceService implements AutoCloseable {
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
-        this.namespaceClients = new ConcurrentOpenHashMap<>();
+        this.namespaceClients =
+                ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
         this.localPoliciesCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalPolicies.class);
@@ -259,7 +263,7 @@ public class NamespaceService implements AutoCloseable {
      */
     public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
         return getWebServiceUrlAsync(suName, options)
-                .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
     }
 
     private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, LookupOptions options) {
@@ -283,7 +287,6 @@ public class NamespaceService implements AutoCloseable {
     /**
      * Register all the bootstrap name spaces including the heartbeat namespace.
      *
-     * @return
      * @throws PulsarServerException
      */
     public void registerBootstrapNamespaces() throws PulsarServerException {
@@ -354,9 +357,15 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
-            findingBundlesAuthoritative = new ConcurrentOpenHashMap<>();
+            findingBundlesAuthoritative =
+            ConcurrentOpenHashMap.<NamespaceBundle,
+                    CompletableFuture<Optional<LookupResult>>>newBuilder()
+                    .build();
     private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
-            findingBundlesNotAuthoritative = new ConcurrentOpenHashMap<>();
+            findingBundlesNotAuthoritative =
+            ConcurrentOpenHashMap.<NamespaceBundle,
+                    CompletableFuture<Optional<LookupResult>>>newBuilder()
+                    .build();
 
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker.
@@ -703,12 +712,18 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
+        return unloadNamespaceBundle(bundle, timeout, timeoutUnit, true);
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout,
+                                                         TimeUnit timeoutUnit,
+                                                         boolean closeWithoutWaitingClientDisconnect) {
         // unload namespace bundle
         OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
         if (ob == null) {
             return FutureUtil.failedFuture(new IllegalStateException("Bundle " + bundle + " is not currently owned"));
         } else {
-            return ob.handleUnloadRequest(pulsar, timeout, timeoutUnit);
+            return ob.handleUnloadRequest(pulsar, timeout, timeoutUnit, closeWithoutWaitingClientDisconnect);
         }
     }
 
@@ -790,11 +805,12 @@ public class NamespaceService implements AutoCloseable {
      * @throws Exception
      */
     public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload,
-                                                     NamespaceBundleSplitAlgorithm splitAlgorithm) {
+                                                     NamespaceBundleSplitAlgorithm splitAlgorithm,
+                                                     List<Long> boundaries) {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
-        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm);
+        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm, boundaries);
 
         return unloadFuture;
     }
@@ -803,13 +819,20 @@ public class NamespaceService implements AutoCloseable {
                                        boolean unload,
                                        AtomicInteger counter,
                                        CompletableFuture<Void> completionFuture,
-                                       NamespaceBundleSplitAlgorithm splitAlgorithm) {
-        splitAlgorithm.getSplitBoundary(this, bundle).whenComplete((splitBoundary, ex) -> {
+                                       NamespaceBundleSplitAlgorithm splitAlgorithm,
+                                       List<Long> boundaries) {
+        BundleSplitOption bundleSplitOption = new BundleSplitOption(this, bundle, boundaries);
+        splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
             if (ex == null) {
+                if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                    LOG.info("[{}] No valid boundary found in {} to split bundle {}",
+                            bundle.getNamespaceObject().toString(), boundaries, bundle.getBundleRange());
+                    completionFuture.complete(null);
+                    return;
+                }
                 try {
-                    bundleFactory.splitBundles(bundle,
-                        2 /* by default split into 2 */, splitBoundary)
+                    bundleFactory.splitBundles(bundle, splitBoundaries.size() + 1, splitBoundaries)
                             .thenAccept(splittedBundles -> {
                                 // Split and updateNamespaceBundles. Update may fail because of concurrent write to
                                 // Zookeeper.
@@ -822,14 +845,13 @@ public class NamespaceService implements AutoCloseable {
 
                                 checkNotNull(splittedBundles.getLeft());
                                 checkNotNull(splittedBundles.getRight());
-                                checkArgument(splittedBundles.getRight().size() == 2,
-                                        "bundle has to be split in two bundles");
+                                checkArgument(splittedBundles.getRight().size() == splitBoundaries.size() + 1,
+                                        "bundle has to be split in " + (splitBoundaries.size() + 1) + " bundles");
                                 NamespaceName nsname = bundle.getNamespaceObject();
                                 if (LOG.isDebugEnabled()) {
-                                    LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
+                                    LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {}, bundles: {}",
                                             nsname.toString(), bundle.getBundleRange(), counter.get(),
-                                            splittedBundles.getRight().get(0).getBundleRange(),
-                                            splittedBundles.getRight().get(1).getBundleRange());
+                                            splittedBundles.getRight());
                                 }
                                 try {
                                     // take ownership of newly split bundles
@@ -873,7 +895,7 @@ public class NamespaceService implements AutoCloseable {
                             && (counter.decrementAndGet() >= 0)) {
                         pulsar.getOrderedExecutor()
                                 .execute(() -> splitAndOwnBundleOnceAndRetry(
-                                        bundle, unload, counter, completionFuture, splitAlgorithm));
+                                        bundle, unload, counter, completionFuture, splitAlgorithm, boundaries));
                     } else if (t instanceof IllegalArgumentException) {
                         completionFuture.completeExceptionally(t);
                     } else {
@@ -1007,12 +1029,12 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         return getBundleAsync(topicName)
-                .thenApply(ownershipCache::checkOwnership);
+                .thenCompose(ownershipCache::checkOwnershipAsync);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
-        ownershipCache.removeOwnership(nsBundle).get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(),
-                SECONDS);
+        ownershipCache.removeOwnership(nsBundle).get(
+                pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject());
     }
 
@@ -1098,9 +1120,25 @@ public class NamespaceService implements AutoCloseable {
         if (topic.isPersistent()) {
             return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
         } else {
-            return pulsar.getBrokerService()
-                    .getTopicIfExists(topic.toString())
-                    .thenApply(optTopic -> optTopic.isPresent());
+            if (topic.isPartitioned()) {
+                final TopicName partitionedTopicName = TopicName.get(topic.getPartitionedTopicName());
+                return pulsar.getBrokerService()
+                        .fetchPartitionedTopicMetadataAsync(partitionedTopicName)
+                        .thenApply((metadata) -> topic.getPartitionIndex() < metadata.partitions);
+            } else {
+                // only checks and don't do any topic creating and loading.
+                CompletableFuture<Optional<Topic>> topicFuture =
+                        pulsar.getBrokerService().getTopics().get(topic.toString());
+                if (topicFuture == null) {
+                    return CompletableFuture.completedFuture(false);
+                } else {
+                    return topicFuture.thenApply(Optional::isPresent).exceptionally(throwable -> {
+                        LOG.warn("[{}] topicFuture completed with exception when checkTopicExists, {}",
+                                topic, throwable.getMessage());
+                        return false;
+                    });
+                }
+            }
         }
     }
 
@@ -1204,7 +1242,8 @@ public class NamespaceService implements AutoCloseable {
     private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterDataImpl peerClusterData,
                                                                                   NamespaceName namespace) {
         PulsarClientImpl client = getNamespaceClient(peerClusterData);
-        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT);
+        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT, null, null)
+                .thenApply(GetTopicsResult::getTopics);
     }
 
     public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {
@@ -1247,7 +1286,7 @@ public class NamespaceService implements AutoCloseable {
 
     public Optional<NamespaceEphemeralData> getOwner(NamespaceBundle bundle) throws Exception {
         // if there is no znode for the service unit, it is not owned by any broker
-        return getOwnerAsync(bundle).get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        return getOwnerAsync(bundle).get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
     }
 
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle bundle) {

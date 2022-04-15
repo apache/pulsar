@@ -47,6 +47,9 @@ Clusters can replicate amongst themselves using [geo-replication](concepts-repli
 
 The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses [Apache ZooKeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and [BookKeeper metadata store](https://bookkeeper.apache.org/docs/latest/getting-started/concepts/#metadata-storage). If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.
 
+> Pulsar also supports more metadata backend services, including [ETCD](https://etcd.io/) and [RocksDB](http://rocksdb.org/) (for standalone Pulsar only). 
+
+
 In a Pulsar instance:
 
 * A configuration store quorum stores configuration for tenants, namespaces, and other entities that need to be globally consistent.
@@ -122,12 +125,13 @@ The **Pulsar proxy** provides a solution to this problem by acting as a single g
 
 > For the sake of performance and fault tolerance, you can run as many instances of the Pulsar proxy as you'd like.
 
-Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and instance-wide configuration store clusters. Here's an example:
+Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide metadata store connection strings for the cluster-specific and instance-wide configuration store clusters. Here's an example:
 
 ```bash
+$ cd /path/to/pulsar/directory
 $ bin/pulsar proxy \
-  --zookeeper-servers zk-0,zk-1,zk-2 \
-  --configuration-store-servers zk-0,zk-1,zk-2
+  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 > #### Pulsar proxy docs

@@ -1,8 +1,8 @@
 ---
-id: version-2.9.1-pulsar-admin
+id: version-2.9.1-reference-pulsar-admin
 title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
-original_id: pulsar-admin
+original_id: reference-pulsar-admin
 ---
 
 > **Important**

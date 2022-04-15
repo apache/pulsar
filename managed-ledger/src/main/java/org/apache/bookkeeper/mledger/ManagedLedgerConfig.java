@@ -24,6 +24,8 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -69,10 +71,15 @@ public class ManagedLedgerConfig {
     private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
-    private LedgerOffloader ledgerOffloader = NullLedgerOffloader.instance_;
+    private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private Map<String, String> properties;
+    private int inactiveLedgerRollOverTimeMs = 0;
+    @Getter
+    @Setter
+    private boolean cacheEvictionByMarkDeletedPosition = false;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -619,6 +626,16 @@ public class ManagedLedgerConfig {
         this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
     }
 
+
+    public Map<String, String> getProperties() {
+        return properties;
+    }
+
+
+    public void setProperties(Map<String, String> properties) {
+        this.properties = properties;
+    }
+
     public boolean isDeletionAtBatchIndexLevelEnabled() {
         return deletionAtBatchIndexLevelEnabled;
     }
@@ -642,4 +659,19 @@ public class ManagedLedgerConfig {
     public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
         this.managedLedgerInterceptor = managedLedgerInterceptor;
     }
+
+    public int getInactiveLedgerRollOverTimeMs() {
+        return inactiveLedgerRollOverTimeMs;
+    }
+
+    /**
+     * Set rollOver time for inactive ledgers.
+     *
+     * @param inactiveLedgerRollOverTimeMs
+     * @param unit
+     */
+    public void setInactiveLedgerRollOverTime(int inactiveLedgerRollOverTimeMs, TimeUnit unit) {
+        this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
+    }
+
 }

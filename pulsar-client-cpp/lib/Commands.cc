@@ -141,16 +141,17 @@ SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId)
 }
 
 PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint64_t producerId,
-                                   uint64_t sequenceId, ChecksumType checksumType, const Message& msg) {
-    const proto::MessageMetadata& metadata = msg.impl_->metadata;
-    SharedBuffer& payload = msg.impl_->payload;
-
+                                   uint64_t sequenceId, ChecksumType checksumType,
+                                   const proto::MessageMetadata& metadata, const SharedBuffer& payload) {
     cmd.set_type(BaseCommand::SEND);
     CommandSend* send = cmd.mutable_send();
     send->set_producer_id(producerId);
     send->set_sequence_id(sequenceId);
     if (metadata.has_num_messages_in_batch()) {
         send->set_num_messages(metadata.num_messages_in_batch());
+    }
+    if (metadata.has_chunk_id()) {
+        send->set_is_chunk(true);
     }
 
     // / Wire format
@@ -199,7 +200,8 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
         int metadataStartIndex = checksumReaderIndex + checksumSize;
         uint32_t metadataChecksum =
             computeChecksum(0, headers.data() + metadataStartIndex, (writeIndex - metadataStartIndex));
-        uint32_t computedChecksum = computeChecksum(metadataChecksum, payload.data(), payload.writerIndex());
+        uint32_t computedChecksum =
+            computeChecksum(metadataChecksum, payload.data(), payload.readableBytes());
         // set computed checksum
         headers.setWriterIndex(checksumReaderIndex);
         headers.writeUnsignedInt(computedChecksum);
@@ -266,6 +268,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
                                     Optional<MessageId> startMessageId, bool readCompacted,
                                     const std::map<std::string, std::string>& metadata,
+                                    const std::map<std::string, std::string>& subscriptionProperties,
                                     const SchemaInfo& schemaInfo,
                                     CommandSubscribe_InitialPosition subscriptionInitialPosition,
                                     bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
@@ -304,6 +307,13 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
         keyValue->set_key(it->first);
         keyValue->set_value(it->second);
         subscribe->mutable_metadata()->AddAllocated(keyValue);
+    }
+
+    for (const auto& subscriptionProperty : subscriptionProperties) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
+        keyValue->set_key(subscriptionProperty.first);
+        keyValue->set_value(subscriptionProperty.second);
+        subscribe->mutable_subscription_properties()->AddAllocated(keyValue);
     }
 
     if (subType == CommandSubscribe_SubType_Key_Shared) {
@@ -687,26 +697,35 @@ void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::Messa
             batchMetadata.add_replicate_to(metadata.replicate_to(i));
         }
     }
-    // TODO: set other optional fields
+    if (metadata.has_schema_version()) {
+        batchMetadata.set_schema_version(metadata.schema_version());
+    }
 }
 
 uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
                                                             unsigned long maxMessageSizeInBytes) {
+    const auto& msgMetadata = msg.impl_->metadata;
     SingleMessageMetadata metadata;
-    if (msg.impl_->hasPartitionKey()) {
-        metadata.set_partition_key(msg.impl_->getPartitionKey());
+    if (msgMetadata.has_partition_key()) {
+        metadata.set_partition_key(msgMetadata.partition_key());
+    }
+    if (msgMetadata.has_ordering_key()) {
+        metadata.set_ordering_key(msgMetadata.ordering_key());
     }
 
-    for (MessageBuilder::StringMap::const_iterator it = msg.impl_->properties().begin();
-         it != msg.impl_->properties().end(); it++) {
-        proto::KeyValue* keyValue = proto::KeyValue().New();
-        keyValue->set_key(it->first);
-        keyValue->set_value(it->second);
+    metadata.mutable_properties()->Reserve(msgMetadata.properties_size());
+    for (int i = 0; i < msgMetadata.properties_size(); i++) {
+        auto keyValue = proto::KeyValue().New();
+        *keyValue = msgMetadata.properties(i);
         metadata.mutable_properties()->AddAllocated(keyValue);
     }
 
-    if (msg.impl_->getEventTimestamp() != 0) {
-        metadata.set_event_time(msg.impl_->getEventTimestamp());
+    if (msgMetadata.has_event_time()) {
+        metadata.set_event_time(msgMetadata.event_time());
+    }
+
+    if (msgMetadata.has_sequence_id()) {
+        metadata.set_sequence_id(msgMetadata.sequence_id());
     }
 
     // Format of batch message
@@ -736,7 +755,7 @@ uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, 
     batchPayLoad.bytesWritten(msgMetadataSize);
     batchPayLoad.write(msg.impl_->payload.data(), payloadSize);
 
-    return msg.impl_->metadata.sequence_id();
+    return msgMetadata.sequence_id();
 }
 
 Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex) {

@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.SerDe;
-
 import java.nio.ByteBuffer;
+import org.apache.pulsar.functions.api.SerDe;
 
 /**
  * Simple ByteBuffer Serializer and Deserializer.

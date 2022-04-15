@@ -36,8 +36,8 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
  *
  * <p>When committing transaction starts, the broker will append a `COMMITTED`
  * marker to the data partition first to mark the transaction is committed.
- * The broker knows the data ledger of the commit marker and calls {@link #commitTxn(TxnID, long, long)}
- * to commit and seal the buffer.
+ * The broker knows the data ledger of the commit marker and calls
+ * {@link TransactionBuffer#commitTxn(TxnID, long)} to commit and seal the buffer.
  *
  * <p>When the marker is appended to the data partition, all the entries are visible
  * to the consumers. So a transaction reader {@link TransactionBufferReader} will be

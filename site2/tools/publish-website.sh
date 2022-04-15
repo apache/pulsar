@@ -36,11 +36,10 @@ PULSAR_SITE_TMP=/tmp/pulsar-site
   mkdir $PULSAR_SITE_TMP
   cd $PULSAR_SITE_TMP
 
-  git clone "https://$GH_TOKEN@$ORIGIN_REPO" .
+  git clone --depth 1 -b asf-site "https://$GH_TOKEN@$ORIGIN_REPO" .
   git config user.name "Pulsar Site Updater"
-  git config user.email "dev@pulsar.incubator.apache.org"
-  git checkout asf-site
-
+  git config user.email "dev@pulsar.apache.org"
+  
   # copy the apache generated dir
   cp -r $GENERATED_SITE_DIR/content/* $PULSAR_SITE_TMP/content
 

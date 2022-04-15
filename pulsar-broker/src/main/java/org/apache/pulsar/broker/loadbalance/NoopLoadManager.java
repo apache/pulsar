@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -130,6 +131,11 @@ public class NoopLoadManager implements LoadManager {
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
         return Collections.singleton(lookupServiceAddress);
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        return CompletableFuture.completedFuture(Collections.singleton(lookupServiceAddress));
     }
 
     @Override

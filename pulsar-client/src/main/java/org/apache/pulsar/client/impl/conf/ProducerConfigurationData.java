@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
-
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -38,13 +41,6 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Sets;
-
-import lombok.Data;
-
-import static com.google.common.base.Preconditions.checkArgument;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -53,8 +49,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     public static final int DEFAULT_BATCHING_MAX_MESSAGES = 1000;
-    public static final int DEFAULT_MAX_PENDING_MESSAGES = 1000;
-    public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES = 0;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 0;
 
     private String topicName = null;
     private String producerName = null;
@@ -78,6 +74,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
     private boolean chunkingEnabled = false;
+    private int chunkMaxMessageSize = -1;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;
@@ -105,9 +102,11 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private SortedMap<String, String> properties = new TreeMap<>();
 
+    private String initialSubscriptionName = null;
+
     /**
      *
-     * Returns true if encryption keys are added
+     * Returns true if encryption keys are added.
      *
      */
     @JsonIgnore

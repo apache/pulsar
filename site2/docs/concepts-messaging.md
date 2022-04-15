@@ -20,10 +20,12 @@ Value / data payload | The data carried by the message. All Pulsar messages cont
 Key | Messages are optionally tagged with keys, which is useful for things like [topic compaction](concepts-topic-compaction.md).
 Properties | An optional key/value map of user-defined properties.
 Producer name | The name of the producer who produces the message. If you do not specify a producer name, the default name is used. 
-Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of the message is its order in that sequence.
+Topic name | The name of the topic that the message is published to.
+Schema version | The version number of the schema that the message is produced with.
+Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of a message is initially assigned by its producer, indicating its order in that sequence, and can also be customized.<br />Sequence ID can be used for message deduplication. If `brokerDeduplicationEnabled` is set to `true`, the sequence ID of each message is unique within a producer of a topic (non-partitioned) or a partition.  
+Message ID | The message ID of a message is assigned by bookies as soon as the message is persistently stored. Message ID indicates a message’s specific position in a ledger and is unique within a Pulsar cluster.
 Publish time | The timestamp of when the message is published. The timestamp is automatically applied by the producer.
 Event time | An optional timestamp attached to a message by applications. For example, applications attach a timestamp on when the message is processed. If nothing is set to event time, the value is `0`. 
-TypedMessageBuilder | It is used to construct a message. You can set message properties such as the message key, message value with `TypedMessageBuilder`. </br> When you set `TypedMessageBuilder`, set the key as a string. If you set the key as other types, for example, an AVRO object, the key is sent as bytes, and it is difficult to get the AVRO object back on the consumer.
 
 The default size of a message is 5 MB. You can configure the max size of a message with the following configurations.
 
@@ -96,28 +98,43 @@ To avoid redelivering acknowledged messages in a batch to the consumer, Pulsar i
 By default, batch index acknowledgement is disabled (`acknowledgmentAtBatchIndexLevelEnabled=false`). You can enable batch index acknowledgement by setting the `acknowledgmentAtBatchIndexLevelEnabled` parameter to `true` at the broker side. Enabling batch index acknowledgement results in more memory overheads. 
 
 ### Chunking
-Before you enable chunking, read the following instructions.
-- Batching and chunking cannot be enabled simultaneously. To enable chunking, you must disable batching in advance.
-- Chunking is only supported for persisted topics.
-- Chunking is only supported for Exclusive and Failover subscription types.
+Message chunking enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.
 
-When chunking is enabled (`chunkingEnabled=true`), if the message size is greater than the allowed maximum publish-payload size, the producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. At the broker side, the chunked messages are stored in the managed-ledger in the same way as that of ordinary messages. The only difference is that the consumer needs to buffer the chunked messages and combines them into the real message when all chunked messages have been collected. The chunked messages in the managed-ledger can be interwoven with ordinary messages. If producer fails to publish all the chunks of a message, the consumer can expire incomplete chunks if consumer fail to receive all chunks in expire time. By default, the expire time is set to one hour.
+With message chunking enabled, when the size of a message exceeds the allowed maximum payload size (the `maxMessageSize` parameter of broker), the workflow of messaging is as follows:
+1. The producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. 
+2. The broker stores the chunked messages in one managed-ledger in the same way as that of ordinary messages, and it uses the `chunkedMessageRate` parameter to record chunked message rate on the topic.
+3. The consumer buffers the chunked messages and aggregates them into the receiver queue when it receives all the chunks of a message.
+4. The client consumes the aggregated message from the receiver queue. 
 
-The consumer consumes the chunked messages and buffers them until the consumer receives all the chunks of a message. And then the consumer stitches chunked messages together and places them into the receiver-queue. Clients consume messages from the receiver-queue. Once the consumer consumes the entire large message and acknowledges it, the consumer internally sends acknowledgement of all the chunk messages associated to that large message. You can set the `maxPendingChunkedMessage` parameter on the consumer. When the threshold is reached, the consumer drops the unchunked messages by silently acknowledging them or asking the broker to redeliver them later by marking them unacknowledged.
+**Limitations:** 
+- Chunking is only available for persisted topics.
+- Chunking is only available for the exclusive and failover subscription types.
+- Chunking cannot be enabled simultaneously with batching.
 
-The broker does not require any changes to support chunking for non-shared subscription. The broker only uses `chunkedMessageRate` to record chunked message rate on the topic.
+#### Handle consecutive chunked messages with one ordered consumer
 
-#### Handle chunked messages with one producer and one ordered consumer
-
-As shown in the following figure, when a topic has one producer which publishes large message payload in chunked messages along with regular non-chunked messages. The producer publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. The broker stores all the three chunked messages in the managed-ledger and dispatches to the ordered (exclusive/failover) consumer in the same order. The consumer buffers all the chunked messages in memory until it receives all the chunked messages, combines them into one message and then hands over the original message M1 to the client.
+The following figure shows a topic with one producer which publishes a large message payload in chunked messages along with regular non-chunked messages. The producer publishes message M1 in three chunks labeled M1-C1, M1-C2 and M1-C3. The broker stores all the three chunked messages in the managed-ledger and dispatches them to the ordered (exclusive/failover) consumer in the same order. The consumer buffers all the chunked messages in memory until it receives all the chunked messages, aggregates them into one message and then hands over the original message M1 to the client.
 
 ![](assets/chunking-01.png)
 
-#### Handle chunked messages with multiple producers and one ordered consumer
+#### Handle interwoven chunked messages with one ordered consumer
 
-When multiple publishers publish chunked messages into a single topic, the broker stores all the chunked messages coming from different publishers in the same managed-ledger. As shown below, Producer 1 publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. Producer 2 publishes message M2 in three chunks M2-C1, M2-C2 and M2-C3. All chunked messages of the specific message are still in order but might not be consecutive in the managed-ledger. This brings some memory pressure to the consumer because the consumer keeps separate buffer for each large message to aggregate all chunks of the large message and combine them into one message.
+When multiple producers publish chunked messages into a single topic, the broker stores all the chunked messages coming from different producers in the same managed-ledger. The chunked messages in the managed-ledger can be interwoven with each other. As shown below, Producer 1 publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. Producer 2 publishes message M2 in three chunks M2-C1, M2-C2 and M2-C3. All chunked messages of the specific message are still in order but might not be consecutive in the managed-ledger.
 
 ![](assets/chunking-02.png)
+
+> **Note**  
+> In this case, interwoven chunked messages may bring some memory pressure to the consumer because the consumer keeps a separate buffer for each large message to aggregate all its chunks in one message. You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `maxPendingChunkedMessage` parameter. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later, optimizing memory utilization.
+
+#### Enable Message Chunking
+
+**Prerequisite:** Disable batching by setting the `enableBatching` parameter to `false`.
+
+The message chunking feature is OFF by default. 
+To enable message chunking, set the `chunkingEnabled` parameter to `true` when creating a producer.
+
+> **Note**  
+> If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default value is 1 minute. For more information about the `expireTimeOfIncompleteChunkedMessage` parameter, refer to [org.apache.pulsar.client.api](https://pulsar.apache.org/api/client/).
 
 ## Consumers
 
@@ -175,6 +192,8 @@ In Shared and Key_Shared subscription types, consumers can negatively acknowledg
 
 Be aware that negative acknowledgments on ordered subscription types, such as Exclusive, Failover and Key_Shared, might cause failed messages being sent to consumers out of the original order.
 
+If you are going to use negative acknowledgment on a message, make sure it is negatively acknowledged before the acknowledgment timeout.
+
 Use the following API to negatively acknowledge message consumption.
 
 ```java
@@ -194,29 +213,65 @@ message = consumer.receive();
 consumer.acknowledge(message);
 ```
 
-> **Note**  
-> If batching is enabled, all messages in one batch are redelivered to the consumer.
-
-### Negative redelivery backoff
-
-It happens sometimes that consumers fail to process messages successfully. In this case, you can use [negative acknowledgement](#negative-acknowledgement) to redeliver the messages after consumption failures. For the Shared subscription type, the messages are redelivered to other consumers; for other subscription types, the messages are redelivered to the same consumer.
-
-But this is not flexible enough. A better way is to use the **redelivery backoff mechanism**. You can redeliver messages with different delays by setting the number of times the messages are retried.
-
+To redeliver messages with different delays, you can use the **redelivery backoff mechanism** by setting the number of retries to deliver the messages.
 Use the following API to enable `Negative Redelivery Backoff`.
 
 ```java
-consumer.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
-        .minNackTimeMs(1000)
-        .maxNackTimeMs(60 * 1000)
-        .build())
+Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        .topic(topic)
+        .subscriptionName("sub-negative-ack")
+        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+        .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+            .minDelayMs(1000)
+            .maxDelayMs(60 * 1000)
+            .build())
+        .subscribe();
 ```
+The message redelivery behavior should be as follows.
+
+Redelivery count | Redelivery delay
+:--------------------|:-----------
+1 | 10 + 1 seconds
+2 | 10 + 2 seconds
+3 | 10 + 4 seconds
+4 | 10 + 8 seconds
+5 | 10 + 16 seconds
+6 | 10 + 32 seconds
+7 | 10 + 60 seconds
+8 | 10 + 60 seconds
+> **Note**  
+> If batching is enabled, all messages in one batch are redelivered to the consumer.
 
 ### Acknowledgement timeout
 
 The acknowledgement timeout mechanism allows you to set a time range during which the client tracks the unacknowledged messages. After this acknowledgement timeout (`ackTimeout`) period, the client sends `redeliver unacknowledged messages` request to the broker, thus the broker resends the unacknowledged messages to the consumer.
 
 You can configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after `ackTimeout` or to execute a timer task to check the acknowledgement timeout messages during every `ackTimeoutTickTime` period.
+
+You can also use the redelivery backoff mechanism, redeliver messages with different delays by setting the number 
+of times the messages is retried.
+
+If you want to use redelivery backoff, you can use the following API.
+```java
+consumer.ackTimeout(10, TimeUnit.SECOND)
+        .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+        .minDelayMs(1000)
+        .maxDelayMs(60000)
+        .multiplier(2).build())
+```
+
+The message redelivery behavior should be as follows.
+
+Redelivery count | Redelivery delay
+:--------------------|:-----------
+1 | 10 + 1 seconds
+2 | 10 + 2 seconds
+3 | 10 + 4 seconds
+4 | 10 + 8 seconds
+5 | 10 + 16 seconds
+6 | 10 + 32 seconds
+7 | 10 + 60 seconds
+8 | 10 + 60 seconds
 
 > **Note**  
 > - If batching is enabled, all messages in one batch are redelivered to the consumer.  
@@ -240,6 +295,82 @@ message = consumer.receive();
 consumer.acknowledge(message);
 ```
 
+### Retry letter topic
+
+The retry letter topic allows you to store the messages that failed to be consumed and retry consuming them later. With this method, you can customize the interval at which the messages are redelivered. Consumers on the original topic are automatically subscribed to the retry letter topic as well. Once the maximum number of retries has been reached, the unconsumed messages are moved to a [dead letter topic](#dead-letter-topic) for manual processing.
+
+The diagram below illustrates the concept of the retry letter topic.
+![](assets/retry-letter-topic.svg)
+
+The intention of using retry letter topic is different from using [delayed message delivery](#delayed-message-delivery), even though both are aiming to consume a message later. Retry letter topic serves failure handling through message redelivery to ensure critical data is not lost, while delayed message delivery is intended to deliver a message with a specified time of delay.
+
+By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
+
+Use the following API to consume messages from a retry letter topic. When the value of `maxRedeliverCount` is reached, the unconsumed messages are moved to a dead letter topic.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic("my-topic")
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .build())
+                .subscribe();
+```
+The default retry letter topic uses this format:
+```
+<topicname>-<subscriptionname>-RETRY
+```
+Use the Java client to specify the name of the retry letter topic.
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .subscriptionType(SubscriptionType.Shared)
+        .enableRetry(true)
+        .deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(maxRedeliveryCount)
+                .retryLetterTopic("my-retry-letter-topic-name")
+                .build())
+        .subscribe();
+```
+
+The messages in the retry letter topic contain some special properties that are automatically created by the client.
+
+Special property | Description
+:--------------------|:-----------
+`REAL_TOPIC` | The real topic name.
+`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
+`RECONSUMETIMES`   | The number of retries to consume messages.
+`DELAY_TIME`      | Message retry interval in milliseconds.
+**Example**
+```
+REAL_TOPIC = persistent://public/default/my-topic
+ORIGIN_MESSAGE_ID = 1:0:-1:0
+RECONSUMETIMES = 6
+DELAY_TIME = 3000
+```
+
+Use the following API to store the messages in a retrial queue.
+
+```java
+consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
+```
+
+Use the following API to add custom properties for the `reconsumeLater` function. In the next attempt to consume, custom properties can be get from message#getProperty.
+
+```java
+Map<String, String> customProperties = new HashMap<String, String>();
+customProperties.put("custom-key-1", "custom-value-1");
+customProperties.put("custom-key-2", "custom-value-2");
+consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
+```
+> **Note**    
+> *  Currently, retry letter topic is enabled in Shared subscription types.
+> *  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval. Because messages in the retry letter topic are persisted to BookKeeper, while messages that need to be retried due to negative acknowledgment are cached on the client side.
+
 ### Dead letter topic
 
 Dead letter topic allows you to continue message consumption even some messages are not consumed successfully. The messages that are failed to be consumed are stored in a specific topic, which is called dead letter topic. You can decide how to handle the messages in the dead letter topic.
@@ -248,7 +379,7 @@ Enable dead letter topic in a Java client using the default dead letter topic.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
@@ -266,75 +397,36 @@ Use the Java client to specify the name of the dead letter topic.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                       .maxRedeliverCount(maxRedeliveryCount)
-                      .deadLetterTopic("your-topic-name")
+                      .deadLetterTopic("my-dead-letter-topic-name")
                       .build())
                 .subscribe();
                 
 ```
 
-Dead letter topic depends on message redelivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
-
-> **Note**    
-> Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
-
-### Retry letter topic
-
-For many online business systems, a message is re-consumed when exception occurs in the business logic processing. To configure the delay time for re-consuming the failed messages, you can configure the producer to send messages to both the business topic and the retry letter topic, and enable automatic retry on the consumer. With this setting, the messages that are not consumed will be stored in the retry letter topic. After the specified delay time, the consumer automatically consumes these messages from the retry letter topic.
-
-By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
-
-Use the following API to consume messages from a retry letter topic.
+By default, there is no subscription during a DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create an initial subscription for the DLQ, you can specify the `initialSubscriptionName` parameter. If this parameter is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail to be created.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
-                .enableRetry(true)
-                .receiverQueueSize(100)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
-                        .maxRedeliverCount(maxRedeliveryCount)
-                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
-                        .build())
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                      .maxRedeliverCount(maxRedeliveryCount)
+                      .deadLetterTopic("my-dead-letter-topic-name")
+                      .initialSubscriptionName("init-sub")
+                      .build())
                 .subscribe();
+                
 ```
 
-The messages in the retry letter topic contain some special properties that are automatically created by the client.
-
-Special property | Description
-:--------------------|:-----------
-`REAL_TOPIC` | The real topic name.
-`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
-`RECONSUMETIMES`   | The retry consume times.
-`DELAY_TIME`      | Message delay timeMs.
-**Example**
-```
-REAL_TOPIC = persistent://public/default/my-topic
-ORIGIN_MESSAGE_ID = 1:0:-1:0
-RECONSUMETIMES = 6
-DELAY_TIME = 3000
-```
-
-Use the following API to store the messages in a retrial queue.
-
-```java
-consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
-```
-
-Use the following API to add custom properties for the `reconsumeLater` function.
-
-```java
-Map<String, String> customProperties = new HashMap<String, String>();
-customProperties.put("custom-key-1", "custom-value-1");
-customProperties.put("custom-key-2", "custom-value-2");
-consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
-```
+Dead letter topic serves message redelivery, which is triggered by [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [retry letter topic](#retry-letter-topic) . 
+> **Note**    
+>  * Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
 
 ## Topics
 
@@ -464,10 +556,10 @@ The subscription mode indicates the cursor type.
 
 Subscription mode | Description | Note
 |---|---|---
-`Durable`|The cursor is durable, which retains messages and persists the current position. <br></br>If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
-`NonDurable`|The cursor is non-durable. <br></br>Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
+`Durable`|The cursor is durable, which retains messages and persists the current position. <br />If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
+`NonDurable`|The cursor is non-durable. <br />Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
 
-A [subscription](#concepts-messaging.md/#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription which does not exist before, the subscription is automatically created.
+A [subscription](#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription which does not exist before, the subscription is automatically created.
 
 #### When to use
 

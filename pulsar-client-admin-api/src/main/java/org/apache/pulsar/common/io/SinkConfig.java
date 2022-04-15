@@ -72,6 +72,7 @@ public class SinkConfig {
     private Integer parallelism;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Boolean retainOrdering;
+    private Boolean retainKeyOrdering;
     private Resources resources;
     private Boolean autoAck;
     private Long timeoutMs;

@@ -40,8 +40,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -65,8 +67,10 @@ import org.apache.pulsar.broker.admin.v2.SchemasResource;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -77,6 +81,7 @@ import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -626,6 +631,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void brokers() throws Exception {
         clusters.createCluster("use", ClusterDataImpl.builder()
                 .serviceUrl("http://broker.messaging.use.example.com")
@@ -639,12 +645,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
         uriField.set(brokers, mockUri);
-
-        Set<String> activeBrokers = brokers.getActiveBrokers("use");
+        Object res = asynRequests(ctx -> brokers.getActiveBrokers(ctx, "use"));
+        assertTrue(res instanceof Set);
+        Set<String> activeBrokers = (Set<String>) res;
         assertEquals(activeBrokers.size(), 1);
         assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
-
-        BrokerInfo leaderBroker = brokers.getLeaderBroker();
+        Object leaderBrokerRes = asynRequests(ctx -> brokers.getLeaderBroker(ctx));
+        assertTrue(leaderBrokerRes instanceof BrokerInfo);
+        BrokerInfo leaderBroker = (BrokerInfo)leaderBrokerRes;
         assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
     }
 
@@ -754,7 +762,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .createPolicies(NamespaceName.get(property, cluster, namespace), new Policies());
 
         AsyncResponse response = mock(AsyncResponse.class);
-        persistentTopics.getList(response, property, cluster, namespace);
+        persistentTopics.getList(response, property, cluster, namespace, null);
         verify(response, times(1)).resume(Lists.newArrayList());
         // create topic
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
@@ -823,6 +831,28 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         persistentTopics.updatePartitionedTopic(property, cluster, namespace, partitionedTopicName2, false, false,
                 false, 10);
+    }
+
+    @Test
+    public void test500Error() throws Exception {
+        final String property = "prop-xyz";
+        final String cluster = "use";
+        final String namespace = "ns";
+        final String partitionedTopicName = "error-500-topic";
+        AsyncResponse response1 = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
+        NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
+        NamespaceService ns = spy(pulsar.getNamespaceService());
+        Field namespaceField = pulsar.getClass().getDeclaredField("nsService");
+        namespaceField.setAccessible(true);
+        namespaceField.set(pulsar, ns);
+        CompletableFuture<List<String>> future = new CompletableFuture();
+        future.completeExceptionally(new RuntimeException("500 error contains error message"));
+        doReturn(future).when(ns).getListOfTopics(namespaceName, CommandGetTopicsOfNamespace.Mode.ALL);
+        persistentTopics.createPartitionedTopic(response1, property, cluster, namespace, partitionedTopicName, 5, false);
+        verify(response1, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
+        Assert.assertTrue(((ErrorData)responseCaptor.getValue().getResponse().getEntity()).reason.contains("500 error contains error message"));
     }
 
 

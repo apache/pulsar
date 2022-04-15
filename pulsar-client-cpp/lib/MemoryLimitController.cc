@@ -25,6 +25,10 @@ MemoryLimitController::MemoryLimitController(uint64_t memoryLimit)
     : memoryLimit_(memoryLimit), currentUsage_(0), mutex_(), condition_() {}
 
 bool MemoryLimitController::tryReserveMemory(uint64_t size) {
+    // Avoid CAS operation when size is 0
+    if (size == 0) {
+        return true;
+    }
     while (true) {
         uint64_t current = currentUsage_;
         uint64_t newUsage = current + size;

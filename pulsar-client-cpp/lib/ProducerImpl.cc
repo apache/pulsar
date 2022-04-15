@@ -37,15 +37,15 @@ struct ProducerImpl::PendingCallbacks {
 
     void complete(Result result) {
         for (const auto& opSendMsg : opSendMsgs) {
-            opSendMsg.sendCallback_(result, opSendMsg.msg_.getMessageId());
+            opSendMsg.complete(result, {});
         }
     }
 };
 
-ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf,
-                           int32_t partition)
+ProducerImpl::ProducerImpl(ClientImplPtr client, const TopicName& topicName,
+                           const ProducerConfiguration& conf, int32_t partition)
     : HandlerBase(
-          client, topic,
+          client, (partition < 0) ? topicName.toString() : topicName.getTopicPartitionName(partition),
           Backoff(milliseconds(100), seconds(60), milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
       conf_(conf),
       semaphore_(),
@@ -57,7 +57,8 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
       producerId_(client->newProducerId()),
       msgSequenceGenerator_(0),
       dataKeyGenIntervalSec_(4 * 60 * 60),
-      memoryLimitController_(client->getMemoryLimitController()) {
+      memoryLimitController_(client->getMemoryLimitController()),
+      chunkingEnabled_(conf_.isChunkingEnabled() && topicName.isPersistent() && !conf_.getBatchingEnabled()) {
     LOG_DEBUG("ProducerName - " << producerName_ << " Created producer on topic " << topic_
                                 << " id: " << producerId_);
 
@@ -268,13 +269,14 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
     }
 
     if (batchMessageContainer_) {
-        OpSendMsg opSendMsg;
-        if (batchMessageContainer_->createOpSendMsg(opSendMsg) == ResultOk) {
-            callbacks->opSendMsgs.emplace_back(opSendMsg);
-        }
-
-        releaseSemaphoreForSendOp(opSendMsg);
-        batchMessageContainer_->clear();
+        batchMessageContainer_->processAndClear(
+            [this, &callbacks](Result result, const OpSendMsg& opSendMsg) {
+                if (result == ResultOk) {
+                    callbacks->opSendMsgs.emplace_back(opSendMsg);
+                }
+                releaseSemaphoreForSendOp(opSendMsg);
+            },
+            nullptr);
     }
     pendingMessagesQueue_.clear();
 
@@ -323,14 +325,6 @@ void ProducerImpl::setMessageMetadata(const Message& msg, const uint64_t& sequen
     }
 }
 
-void ProducerImpl::statsCallBackHandler(Result res, const MessageId& msgId, SendCallback callback,
-                                        boost::posix_time::ptime publishTime) {
-    producerStatsBasePtr_->messageReceived(res, publishTime);
-    if (callback) {
-        callback(res, msgId);
-    }
-}
-
 void ProducerImpl::flushAsync(FlushCallback callback) {
     if (batchMessageContainer_) {
         Lock lock(mutex_);
@@ -358,44 +352,61 @@ void ProducerImpl::triggerFlush() {
     }
 }
 
+bool ProducerImpl::isValidProducerState(const SendCallback& callback) const {
+    Lock lock(mutex_);
+    const auto state = state_;
+    lock.unlock();
+    switch (state) {
+        case HandlerBase::Ready:
+            // OK
+        case HandlerBase::Pending:
+            // We are OK to queue the messages on the client, it will be sent to the broker once we get the
+            // connection
+            return true;
+        case HandlerBase::Closing:
+        case HandlerBase::Closed:
+            callback(ResultAlreadyClosed, {});
+            return false;
+        case HandlerBase::NotStarted:
+        case HandlerBase::Failed:
+        default:
+            callback(ResultNotConnected, {});
+            return false;
+    }
+}
+
+bool ProducerImpl::canAddToBatch(const Message& msg) const {
+    // If a message has a delayed delivery time, we'll always send it individually
+    return batchMessageContainer_.get() && !msg.impl_->metadata.has_deliver_at_time();
+}
+
+static SharedBuffer applyCompression(const SharedBuffer& uncompressedPayload,
+                                     CompressionType compressionType) {
+    return CompressionCodecProvider::getCodec(compressionType).encode(uncompressedPayload);
+}
+
 void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     producerStatsBasePtr_->messageSent(msg);
-    SendCallback cb =
-        std::bind(&ProducerImpl::statsCallBackHandler, shared_from_this(), std::placeholders::_1,
-                  std::placeholders::_2, callback, boost::posix_time::microsec_clock::universal_time());
 
-    // Compress the payload if required
-    SharedBuffer& payload = msg.impl_->payload;
-
-    uint32_t uncompressedSize = payload.readableBytes();
-    uint32_t payloadSize = uncompressedSize;
-    ClientConnectionPtr cnx = getCnx().lock();
-    if (!batchMessageContainer_) {
-        // If batching is enabled we compress all the payloads together before sending the batch
-        payload = CompressionCodecProvider::getCodec(conf_.getCompressionType()).encode(payload);
-        payloadSize = payload.readableBytes();
-
-        // Encrypt the payload if enabled
-        SharedBuffer encryptedPayload;
-        if (!encryptMessage(msg.impl_->metadata, payload, encryptedPayload)) {
-            cb(ResultCryptoError, msg.getMessageId());
-            return;
+    const auto now = boost::posix_time::microsec_clock::universal_time();
+    auto self = shared_from_this();
+    sendAsyncWithStatsUpdate(msg, [this, self, now, callback](Result result, const MessageId& messageId) {
+        producerStatsBasePtr_->messageReceived(result, now);
+        if (callback) {
+            callback(result, messageId);
         }
-        payload = encryptedPayload;
+    });
+}
 
-        if (payloadSize > ClientConnection::getMaxMessageSize()) {
-            LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
-                                << ClientConnection::getMaxMessageSize() << " bytes");
-            cb(ResultMessageTooBig, msg.getMessageId());
-            return;
-        }
+void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallback& callback) {
+    if (!isValidProducerState(callback)) {
+        return;
     }
 
-    // Reserve a spot in the messages queue before acquiring the ProducerImpl
-    // mutex. When the queue is full, this call will block until a spot is
-    // available.
-    Result res = canEnqueueRequest(payloadSize);
-    if (res != ResultOk) {
+    const auto& uncompressedPayload = msg.impl_->payload;
+    const uint32_t uncompressedSize = uncompressedPayload.readableBytes();
+    const auto result = canEnqueueRequest(uncompressedSize);
+    if (result != ResultOk) {
         // If queue is full sending the batch immediately, no point waiting till batchMessagetimeout
         if (batchMessageContainer_) {
             LOG_DEBUG(getName() << " - sending batch message immediately");
@@ -405,43 +416,64 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
             failures.complete();
         }
 
-        cb(res, msg.getMessageId());
+        callback(result, {});
         return;
+    }
+
+    // We have already reserved a spot, so if we need to early return for failed result, we should release the
+    // semaphore and memory first.
+    const auto handleFailedResult = [this, uncompressedSize, callback](Result result) {
+        releaseSemaphore(uncompressedSize);  // it releases the memory as well
+        callback(result, {});
+    };
+
+    const bool compressed = !canAddToBatch(msg);
+    const auto payload =
+        compressed ? applyCompression(uncompressedPayload, conf_.getCompressionType()) : uncompressedPayload;
+    const auto compressedSize = static_cast<uint32_t>(payload.readableBytes());
+    const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
+
+    if (compressed && compressedSize > ClientConnection::getMaxMessageSize() && !chunkingEnabled_) {
+        LOG_WARN(getName() << " - compressed Message payload size " << payload.readableBytes()
+                           << " cannot exceed " << ClientConnection::getMaxMessageSize()
+                           << " bytes unless chunking is enabled");
+        handleFailedResult(ResultMessageTooBig);
+        return;
+    }
+
+    auto& msgMetadata = msg.impl_->metadata;
+    if (!msgMetadata.has_replicated_from() && msgMetadata.has_producer_name()) {
+        handleFailedResult(ResultInvalidMessage);
+        return;
+    }
+
+    const int totalChunks =
+        canAddToBatch(msg) ? 1 : getNumOfChunks(compressedSize, ClientConnection::getMaxMessageSize());
+    // Each chunk should be sent individually, so try to acquire extra permits for chunks.
+    for (int i = 0; i < (totalChunks - 1); i++) {
+        const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved
+        if (result != ResultOk) {
+            handleFailedResult(result);
+            return;
+        }
     }
 
     Lock lock(mutex_);
-    // producers may be lazily starting and be in the pending state
-    if (state_ != Ready && state_ != Pending) {
-        lock.unlock();
-        releaseSemaphore(payloadSize);
-        cb(ResultAlreadyClosed, msg.getMessageId());
-        return;
-    }
-
-    if (msg.impl_->metadata.has_producer_name()) {
-        // Message had already been sent before
-        lock.unlock();
-        releaseSemaphore(payloadSize);
-        cb(ResultInvalidMessage, msg.getMessageId());
-        return;
-    }
-
     uint64_t sequenceId;
-    if (!msg.impl_->metadata.has_sequence_id()) {
+    if (!msgMetadata.has_sequence_id()) {
         sequenceId = msgSequenceGenerator_++;
     } else {
-        sequenceId = msg.impl_->metadata.sequence_id();
+        sequenceId = msgMetadata.sequence_id();
     }
     setMessageMetadata(msg, sequenceId, uncompressedSize);
 
-    // If we reach this point then you have a reserved spot on the queue
-    if (batchMessageContainer_ && !msg.impl_->metadata.has_deliver_at_time()) {
+    if (canAddToBatch(msg)) {
         // Batching is enabled and the message is not delayed
         if (!batchMessageContainer_->hasEnoughSpace(msg)) {
             batchMessageAndSend().complete();
         }
         bool isFirstMessage = batchMessageContainer_->isFirstMessageToAdd(msg);
-        bool isFull = batchMessageContainer_->add(msg, cb);
+        bool isFull = batchMessageContainer_->add(msg, callback);
         if (isFirstMessage) {
             batchTimer_->expires_from_now(
                 boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
@@ -455,8 +487,40 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
             failures.complete();
         }
     } else {
-        sendMessage(OpSendMsg{msg, cb, producerId_, sequenceId, conf_.getSendTimeout(), 1, payloadSize});
+        const bool sendChunks = (totalChunks > 1);
+        if (sendChunks) {
+            msgMetadata.set_uuid(producerName_ + "-" + std::to_string(sequenceId));
+            msgMetadata.set_num_chunks_from_msg(totalChunks);
+            msgMetadata.set_total_chunk_msg_size(compressedSize);
+        }
+
+        int beginIndex = 0;
+        for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
+            if (sendChunks) {
+                msgMetadata.set_chunk_id(chunkId);
+            }
+            const uint32_t endIndex = std::min(compressedSize, beginIndex + maxMessageSize);
+            auto chunkedPayload = payload.slice(beginIndex, endIndex - beginIndex);
+            beginIndex = endIndex;
+
+            SharedBuffer encryptedPayload;
+            if (!encryptMessage(msgMetadata, chunkedPayload, encryptedPayload)) {
+                handleFailedResult(ResultCryptoError);
+                return;
+            }
+
+            sendMessage(OpSendMsg{msgMetadata, encryptedPayload,
+                                  (chunkId == totalChunks - 1) ? callback : nullptr, producerId_, sequenceId,
+                                  conf_.getSendTimeout(), 1, uncompressedSize});
+        }
     }
+}
+
+int ProducerImpl::getNumOfChunks(uint32_t size, uint32_t maxMessageSize) {
+    if (size >= maxMessageSize && maxMessageSize != 0) {
+        return size / maxMessageSize + ((size % maxMessageSize == 0) ? 0 : 1);
+    }
+    return 1;
 }
 
 Result ProducerImpl::canEnqueueRequest(uint32_t payloadSize) {
@@ -507,15 +571,8 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
     LOG_DEBUG("batchMessageAndSend " << *batchMessageContainer_);
     batchTimer_->cancel();
 
-    if (PULSAR_UNLIKELY(batchMessageContainer_->isEmpty())) {
-        if (flushCallback) {
-            flushCallback(ResultOk);
-        }
-    } else {
-        const size_t numBatches = batchMessageContainer_->getNumBatches();
-        if (numBatches == 1) {
-            OpSendMsg opSendMsg;
-            Result result = batchMessageContainer_->createOpSendMsg(opSendMsg, flushCallback);
+    batchMessageContainer_->processAndClear(
+        [this, &failures](Result result, const OpSendMsg& opSendMsg) {
             if (result == ResultOk) {
                 sendMessage(opSendMsg);
             } else {
@@ -523,27 +580,10 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
                 // we need to release the spot manually
                 LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsg: " << result);
                 releaseSemaphoreForSendOp(opSendMsg);
-                failures.add(std::bind(opSendMsg.sendCallback_, result, MessageId{}));
+                failures.add([opSendMsg, result] { opSendMsg.complete(result, {}); });
             }
-        } else if (numBatches > 1) {
-            std::vector<OpSendMsg> opSendMsgs;
-            std::vector<Result> results = batchMessageContainer_->createOpSendMsgs(opSendMsgs, flushCallback);
-            for (size_t i = 0; i < results.size(); i++) {
-                if (results[i] == ResultOk) {
-                    sendMessage(opSendMsgs[i]);
-                } else {
-                    // A spot has been reserved for this batch, but the batch failed to be pushed to the
-                    // queue, so we need to release the spot manually
-                    LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsgs[" << i
-                                                                                  << "]: " << results[i]);
-                    releaseSemaphoreForSendOp(opSendMsgs[i]);
-                    failures.add(std::bind(opSendMsgs[i].sendCallback_, results[i], MessageId{}));
-                }
-            }
-        }  // else numBatches is 0, do nothing
-    }
-
-    batchMessageContainer_->clear();
+        },
+        flushCallback);
     return failures;
 }
 
@@ -551,7 +591,7 @@ PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCall
 // a. we have a reserved spot on the queue
 // b. call this function after acquiring the ProducerImpl mutex_
 void ProducerImpl::sendMessage(const OpSendMsg& op) {
-    const auto sequenceId = op.msg_.impl_->metadata.sequence_id();
+    const auto sequenceId = op.metadata_.sequence_id();
     LOG_DEBUG("Inserting data to pendingMessagesQueue_");
     pendingMessagesQueue_.push_back(op);
 
@@ -698,8 +738,8 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
     std::shared_ptr<PendingCallbacks> pendingCallbacks;
     if (pendingMessagesQueue_.empty()) {
         // If there are no pending messages, reset the timeout to the configured value.
-        sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
         LOG_DEBUG(getName() << "Producer timeout triggered on empty pending message queue");
+        asyncWaitSendTimeout(milliseconds(conf_.getSendTimeout()));
     } else {
         // If there is at least one message, calculate the diff between the message timeout and
         // the current time.
@@ -709,17 +749,14 @@ void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
             LOG_DEBUG(getName() << "Timer expired. Calling timeout callbacks.");
             pendingCallbacks = getPendingCallbacksWhenFailed();
             // Since the pending queue is cleared now, set timer to expire after configured value.
-            sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
+            asyncWaitSendTimeout(milliseconds(conf_.getSendTimeout()));
         } else {
             // The diff is greater than zero, set the timeout to the diff value
             LOG_DEBUG(getName() << "Timer hasn't expired yet, setting new timeout " << diff);
-            sendTimer_->expires_from_now(diff);
+            asyncWaitSendTimeout(diff);
         }
     }
 
-    // Asynchronously wait for the timeout to trigger
-    sendTimer_->async_wait(
-        std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
     lock.unlock();
     if (pendingCallbacks) {
         pendingCallbacks->complete(ResultTimeout);
@@ -748,13 +785,11 @@ bool ProducerImpl::removeCorruptMessage(uint64_t sequenceId) {
         LOG_DEBUG(getName() << "Remove corrupt message from queue " << sequenceId);
         pendingMessagesQueue_.pop_front();
         lock.unlock();
-        if (op.sendCallback_) {
+        try {
             // to protect from client callback exception
-            try {
-                op.sendCallback_(ResultChecksumError, op.msg_.getMessageId());
-            } catch (const std::exception& e) {
-                LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
-            }
+            op.complete(ResultChecksumError, {});
+        } catch (const std::exception& e) {
+            LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
         }
         releaseSemaphoreForSendOp(op);
         return true;
@@ -795,12 +830,10 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId, MessageId& rawMessageId) {
         pendingMessagesQueue_.pop_front();
 
         lock.unlock();
-        if (op.sendCallback_) {
-            try {
-                op.sendCallback_(ResultOk, messageId);
-            } catch (const std::exception& e) {
-                LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
-            }
+        try {
+            op.complete(ResultOk, messageId);
+        } catch (const std::exception& e) {
+            LOG_ERROR(getName() << "Exception thrown from callback " << e.what());
         }
         return true;
     }
@@ -885,10 +918,20 @@ void ProducerImpl::startSendTimeoutTimer() {
     // timeout to happen.
     if (!sendTimer_ && conf_.getSendTimeout() > 0) {
         sendTimer_ = executor_->createDeadlineTimer();
-        sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
-        sendTimer_->async_wait(
-            std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
+        asyncWaitSendTimeout(milliseconds(conf_.getSendTimeout()));
     }
+}
+
+void ProducerImpl::asyncWaitSendTimeout(DurationType expiryTime) {
+    sendTimer_->expires_from_now(expiryTime);
+
+    ProducerImplBaseWeakPtr weakSelf = shared_from_this();
+    sendTimer_->async_wait([weakSelf](const boost::system::error_code& err) {
+        auto self = weakSelf.lock();
+        if (self) {
+            std::static_pointer_cast<ProducerImpl>(self)->handleSendTimeout(err);
+        }
+    });
 }
 
 }  // namespace pulsar

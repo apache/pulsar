@@ -8,19 +8,9 @@ Pulsar proxy is an optional gateway. Pulsar proxy is used when direct connection
 
 ## Configure the proxy
 
-Before using the proxy, you need to configure it with the brokers addresses in the cluster. You can configure the proxy to connect directly to service discovery, or specify a broker URL in the configuration. 
+Before using the proxy, you need to configure it with the brokers addresses in the cluster. You can configure the broker URL in the proxy configuration, or the proxy to connect directly using service discovery.
 
-### Use service discovery
-
-Pulsar uses [ZooKeeper](https://zookeeper.apache.org) for service discovery. To connect the proxy to ZooKeeper, specify the following in `conf/proxy.conf`.
-```properties
-zookeeperServers=zk-0,zk-1,zk-2
-configurationStoreServers=zk-0:2184,zk-remote:2184
-```
-
-> To use service discovery, you need to open the network ACLs, so the proxy can connects to the ZooKeeper nodes through the ZooKeeper client port (port `2181`) and the configuration store client port (port `2184`).
-
-> However, it is not secure to use service discovery. Because if the network ACL is open, when someone compromises a proxy, they have full access to ZooKeeper. 
+> In a production environment service discovery is not recommended.
 
 ### Use broker URLs
 
@@ -49,13 +39,27 @@ The ports to connect to the brokers (6650 and 8080, or in the case of TLS, 6651 
 
 Note that if you do not use functions, you do not need to configure `functionWorkerWebServiceURL`.
 
+### Use service discovery
+
+Pulsar uses [ZooKeeper](https://zookeeper.apache.org) for service discovery. To connect the proxy to ZooKeeper, specify the following in `conf/proxy.conf`.
+```properties
+metadataStoreUrl=my-zk-0:2181,my-zk-1:2181,my-zk-2:2181
+configurationMetadataStoreUrl=my-zk-0:2184,my-zk-remote:2184
+```
+
+> To use service discovery, you need to open the network ACLs, so the proxy can connects to the ZooKeeper nodes through the ZooKeeper client port (port `2181`) and the configuration store client port (port `2184`).
+
+> However, it is not secure to use service discovery. Because if the network ACL is open, when someone compromises a proxy, they have full access to ZooKeeper. 
+
 ## Start the proxy
 
 To start the proxy:
 
 ```bash
 $ cd /path/to/pulsar/directory
-$ bin/pulsar proxy
+$ bin/pulsar proxy \
+  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 > You can run multiple instances of the Pulsar proxy in a cluster.

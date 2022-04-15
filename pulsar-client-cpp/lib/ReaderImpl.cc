@@ -90,10 +90,7 @@ const std::string& ReaderImpl::getTopic() const { return consumer_->getTopic(); 
 void ReaderImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer) {
     auto self = shared_from_this();
     readerCreatedCallback_(result, Reader(self));
-    readerImplWeakPtr_ = self;
 }
-
-ConsumerImplPtr ReaderImpl::getConsumer() { return consumer_; }
 
 Result ReaderImpl::readNext(Message& msg) {
     Result res = consumer_->receive(msg);
@@ -139,10 +136,10 @@ void ReaderImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
 }
 
 void ReaderImpl::getLastMessageIdAsync(GetLastMessageIdCallback callback) {
-    consumer_->getLastMessageIdAsync(callback);
+    consumer_->getLastMessageIdAsync([callback](Result result, const GetLastMessageIdResponse& response) {
+        callback(result, response.getLastMessageId());
+    });
 }
-
-ReaderImplWeakPtr ReaderImpl::getReaderImplWeakPtr() { return readerImplWeakPtr_; }
 
 bool ReaderImpl::isConnected() const { return consumer_->isConnected(); }
 

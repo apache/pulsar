@@ -46,6 +46,7 @@ TEST(ProducerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.isEncryptionEnabled(), false);
     ASSERT_EQ(conf.getEncryptionKeys(), std::set<std::string>{});
     ASSERT_EQ(conf.getProperties().empty(), true);
+    ASSERT_EQ(conf.isChunkingEnabled(), false);
 }
 
 class MockMessageRoutingPolicy : public MessageRoutingPolicy {
@@ -129,4 +130,7 @@ TEST(ProducerConfigurationTest, testCustomConfig) {
     conf.setProperty("k1", "v1");
     ASSERT_EQ(conf.getProperties()["k1"], "v1");
     ASSERT_EQ(conf.hasProperty("k1"), true);
+
+    conf.setChunkingEnabled(true);
+    ASSERT_EQ(conf.isChunkingEnabled(), true);
 }

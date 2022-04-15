@@ -47,7 +47,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getMetrics() throws PulsarAdminException {
-        return sync(() -> getMetricsAsync());
+        return sync(this::getMetricsAsync);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getMBeans() throws PulsarAdminException {
-        return sync(() -> getMBeansAsync());
+        return sync(this::getMBeansAsync);
     }
 
     @Override
@@ -119,7 +119,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getTopics() throws PulsarAdminException {
-        return sync(() -> getTopicsAsync());
+        return sync(this::getTopicsAsync);
     }
 
     @Override
@@ -143,7 +143,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public LoadManagerReport getLoadReport() throws PulsarAdminException {
-        return sync(() -> getLoadReportAsync());
+        return sync(this::getLoadReportAsync);
     }
 
     @Override
@@ -167,7 +167,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getPendingBookieOpsStats() throws PulsarAdminException {
-        return sync(() -> getPendingBookieOpsStatsAsync());
+        return sync(this::getPendingBookieOpsStatsAsync);
     }
 
     @Override

@@ -65,6 +65,7 @@ public class TestZKServer implements AutoCloseable {
 
     public void start() throws Exception {
         this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, TICK_TIME);
+        this.zks.setMaxSessionTimeout(300_000);
         this.serverFactory = new NIOServerCnxnFactory();
         this.serverFactory.configure(new InetSocketAddress(zkPort), 1000);
         this.serverFactory.startup(zks, true);

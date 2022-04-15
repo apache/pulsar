@@ -25,11 +25,13 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Sets;
+import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -351,13 +353,15 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         Field field = TransactionMetadataStoreState.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.None);
-
+        CompletableFuture<Void> completableFuture = null;
         try {
-            pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(), false).get();
+            completableFuture = pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(),
+                    false);
+            completableFuture.get(5, TimeUnit.SECONDS);
             fail();
         } catch (Exception e) {
             if (txnStatus == TxnStatus.OPEN || txnStatus == TxnStatus.COMMITTING) {
-                assertTrue(e.getCause() instanceof CoordinatorException.TransactionMetadataStoreStateException);
+                assertTrue(e instanceof TimeoutException);
             } else if (txnStatus == TxnStatus.ABORTING) {
                 assertTrue(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException);
             } else {
@@ -370,9 +374,9 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         field = TransactionMetadataStoreState.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.Ready);
-
         if (txnStatus == TxnStatus.ABORTING) {
-            pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.ABORT.getValue(), false).get();
+            pulsar.getTransactionMetadataStoreService()
+                    .endTransaction(txnID, TxnAction.ABORT.getValue(), false).get();
         }
         Awaitility.await().atMost(timeOut, TimeUnit.MILLISECONDS).until(() -> {
             try {
