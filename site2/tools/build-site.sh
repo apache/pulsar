@@ -30,10 +30,7 @@ function workaround_crowdin_problem_by_copying_files() {
   cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/zh-CN/version-2.5.1/functions-develop.md
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/zh-CN/version-2.5.2/functions-develop.md
   cp versioned_docs/version-2.5.1/client-libraries-java.md translated_docs/zh-CN/version-2.5.1/client-libraries-java.md
-<<<<<<< HEAD
   cp versioned_docs/version-2.5.0/client-libraries-java.md translated_docs/zh-CN/version-2.5.0/client-libraries-java.md
-=======
->>>>>>> up/master
   cp versioned_docs/version-2.5.1/security-jwt.md translated_docs/zh-CN/version-2.5.1/security-jwt.md
 
   cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/ja/version-2.4.2/functions-develop.md
@@ -42,10 +39,7 @@ function workaround_crowdin_problem_by_copying_files() {
   cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/ja/version-2.5.1/functions-develop.md
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/ja/version-2.5.2/functions-develop.md
   cp versioned_docs/version-2.5.1/client-libraries-java.md translated_docs/ja/version-2.5.1/client-libraries-java.md
-<<<<<<< HEAD
   cp versioned_docs/version-2.5.0/client-libraries-java.md translated_docs/ja/version-2.5.0/client-libraries-java.md
-=======
->>>>>>> up/master
   cp versioned_docs/version-2.5.1/security-jwt.md translated_docs/ja/version-2.5.1/security-jwt.md
 
   cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/fr/version-2.4.2/functions-develop.md
@@ -54,10 +48,7 @@ function workaround_crowdin_problem_by_copying_files() {
   cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/fr/version-2.5.1/functions-develop.md
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/fr/version-2.5.2/functions-develop.md
   cp versioned_docs/version-2.5.1/client-libraries-java.md translated_docs/fr/version-2.5.1/client-libraries-java.md
-<<<<<<< HEAD
   cp versioned_docs/version-2.5.0/client-libraries-java.md translated_docs/fr/version-2.5.0/client-libraries-java.md
-=======
->>>>>>> up/master
   cp versioned_docs/version-2.5.1/security-jwt.md translated_docs/fr/version-2.5.1/security-jwt.md
 
   cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/zh-TW/version-2.4.2/functions-develop.md
@@ -66,10 +57,7 @@ function workaround_crowdin_problem_by_copying_files() {
   cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/zh-TW/version-2.5.1/functions-develop.md
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/zh-TW/version-2.5.2/functions-develop.md
   cp versioned_docs/version-2.5.1/client-libraries-java.md translated_docs/zh-TW/version-2.5.1/client-libraries-java.md
-<<<<<<< HEAD
   cp versioned_docs/version-2.5.0/client-libraries-java.md translated_docs/zh-TW/version-2.5.0/client-libraries-java.md
-=======
->>>>>>> up/master
   cp versioned_docs/version-2.5.1/security-jwt.md translated_docs/zh-TW/version-2.5.1/security-jwt.md
 
   cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/ko/version-2.4.2/functions-develop.md
@@ -78,10 +66,7 @@ function workaround_crowdin_problem_by_copying_files() {
   cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/ko/version-2.5.1/functions-develop.md
   cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/ko/version-2.5.2/functions-develop.md
   cp versioned_docs/version-2.5.1/client-libraries-java.md translated_docs/ko/version-2.5.1/client-libraries-java.md
-<<<<<<< HEAD
   cp versioned_docs/version-2.5.0/client-libraries-java.md translated_docs/ko/version-2.5.0/client-libraries-java.md
-=======
->>>>>>> up/master
   cp versioned_docs/version-2.5.1/security-jwt.md translated_docs/ko/version-2.5.1/security-jwt.md
 
   cp ../docs/client-libraries-java.md translated_docs/zh-CN/client-libraries-java.md
