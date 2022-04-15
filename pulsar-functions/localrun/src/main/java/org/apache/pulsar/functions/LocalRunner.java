@@ -156,6 +156,15 @@ public class LocalRunner implements AutoCloseable {
     @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service "
             + "(by default Apache BookKeeper)", hidden = true)
     protected String stateStorageServiceUrl;
+    @Parameter(names = "--stateStorageBackoffPolicyStartMs", description = "The startMs backoff for accessing table "
+            + "service of state storage (by default 100)", hidden = true)
+    protected long stateStorageBackoffPolicyStartMs = 100;
+    @Parameter(names = "--stateStorageBackoffPolicyMaxMs", description = "The maxMs backoff for accessing table service"
+            + " of state storage (by default 2000)", hidden = true)
+    protected long stateStorageBackoffPolicyMaxMs = 2000;
+    @Parameter(names = "--stateStorageBackoffPolicyLimit", description = "The limit backoff for accessing table service"
+            + " of state storage (by default 60)", hidden = true)
+    protected long stateStorageBackoffPolicyLimit = 60;
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
     protected String brokerServiceUrl;
     @Parameter(names = "--webServiceUrl", description = "The URL for the Pulsar web service", hidden = true)
@@ -635,6 +644,9 @@ public class LocalRunner implements AutoCloseable {
                     serviceUrl,
                     stateStorageImplClass,
                     stateStorageServiceUrl,
+                    stateStorageBackoffPolicyStartMs,
+                    stateStorageBackoffPolicyMaxMs,
+                    stateStorageBackoffPolicyLimit,
                     authConfig,
                     secretsProvider,
                     collectorRegistry, narExtractionDirectory,

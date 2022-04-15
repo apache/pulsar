@@ -299,6 +299,22 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The service URL of state storage"
     )
     private String stateStorageServiceUrl;
+    @FieldContext(
+            category = CATEGORY_STATE,
+            doc = "The startMs backoff for accessing table service of state storage"
+    )
+    private long stateStorageBackoffPolicyStartMs = 100;
+    @FieldContext(
+            category = CATEGORY_STATE,
+            doc = "The maxMs backoff for accessing table service of state storage"
+    )
+    private long stateStorageBackoffPolicyMaxMs = 2000;
+
+    @FieldContext(
+            category = CATEGORY_STATE,
+            doc = "The limit backoff for accessing table service of state storage"
+    )
+    private long stateStorageBackoffPolicyLimit = 60;
 
     @FieldContext(
             category = CATEGORY_STATE,

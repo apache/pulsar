@@ -55,11 +55,19 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 public class BKStateStoreProviderImpl implements StateStoreProvider {
 
     private String stateStorageServiceUrl;
+    private long stateStorageBackoffPolicyStartMs;
+    private long stateStorageBackoffPolicyMaxMs;
+    private long stateStorageBackoffPolicyLimit;
+
     private Map<String, StorageClient> clients;
 
     @Override
     public void init(Map<String, Object> config, FunctionDetails functionDetails) throws Exception {
         stateStorageServiceUrl = (String) config.get(STATE_STORAGE_SERVICE_URL);
+        stateStorageBackoffPolicyStartMs = (long) config.getOrDefault(STATE_STORAGE_BACKOFF_POLICY_STARTMS, 100);
+        stateStorageBackoffPolicyMaxMs = (long) config.getOrDefault(STATE_STORAGE_BACKOFF_POLICY_MAXMS, 2000);
+        stateStorageBackoffPolicyLimit = (long) config.getOrDefault(STATE_STORAGE_BACKOFF_POLICY_LIMIT, 60);
+
         clients = new HashMap<>();
     }
 
@@ -78,9 +86,9 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
             // configure a maximum 2 minutes jitter backoff for accessing table service
             .backoffPolicy(Jitter.of(
                 Type.EXPONENTIAL,
-                100,
-                2000,
-                60
+                stateStorageBackoffPolicyStartMs,
+                stateStorageBackoffPolicyMaxMs,
+                stateStorageBackoffPolicyLimit
             ))
             .build();
 

@@ -59,6 +59,9 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private PulsarAdmin pulsarAdmin;
     private String stateStorageImplClass;
     private String storageServiceUrl;
+    private long stateStorageBackoffPolicyStartMs;
+    private long stateStorageBackoffPolicyMaxMs;
+    private long stateStorageBackoffPolicyLimit;
     private SecretsProvider defaultSecretsProvider;
     private FunctionCollectorRegistry collectorRegistry;
     private String narExtractionDirectory;
@@ -75,12 +78,19 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl,
                                 String stateStorageImplClass,
                                 String storageServiceUrl,
+                                long stateStorageBackoffPolicyStartMs,
+                                long stateStorageBackoffPolicyMaxMs,
+                                long stateStorageBackoffPolicyLimit,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
                                 String pulsarWebServiceUrl) throws Exception {
         initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
-                stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
+                stateStorageImplClass, storageServiceUrl,
+                stateStorageBackoffPolicyStartMs,
+                stateStorageBackoffPolicyMaxMs,
+                stateStorageBackoffPolicyLimit,
+                null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty());
     }
@@ -88,6 +98,9 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private void initialize(String threadGroupName, Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit,
                             String pulsarServiceUrl, AuthenticationConfig authConfig, String stateStorageImplClass,
                             String storageServiceUrl,
+                            long stateStorageBackoffPolicyStartMs,
+                            long stateStorageBackoffPolicyMaxMs,
+                            long stateStorageBackoffPolicyLimit,
                             SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
                             FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                             ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
@@ -111,6 +124,9 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.pulsarClient = this.clientBuilder.build();
         this.stateStorageImplClass = stateStorageImplClass;
         this.storageServiceUrl = storageServiceUrl;
+        this.stateStorageBackoffPolicyStartMs = stateStorageBackoffPolicyStartMs;
+        this.stateStorageBackoffPolicyMaxMs = stateStorageBackoffPolicyMaxMs;
+        this.stateStorageBackoffPolicyLimit = stateStorageBackoffPolicyLimit;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
         this.connectorsManager = connectorsManager;
@@ -161,7 +177,11 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         initialize(factoryConfig.getThreadGroupName(), Optional.ofNullable(factoryConfig.getPulsarClientMemoryLimit()),
                 workerConfig.getPulsarServiceUrl(), authenticationConfig,
                 workerConfig.getStateStorageProviderImplementation(),
-                workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
+                workerConfig.getStateStorageServiceUrl(),
+                workerConfig.getStateStorageBackoffPolicyStartMs(),
+                workerConfig.getStateStorageBackoffPolicyMaxMs(),
+                workerConfig.getStateStorageBackoffPolicyLimit(),
+                secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null,
                 workerConfig.isExposeAdminClientEnabled(),
                 workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager));
@@ -194,6 +214,9 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             pulsarAdmin,
             stateStorageImplClass,
             storageServiceUrl,
+            stateStorageBackoffPolicyStartMs,
+            stateStorageBackoffPolicyMaxMs,
+            stateStorageBackoffPolicyLimit,
             secretsProvider,
             collectorRegistry,
             narExtractionDirectory,

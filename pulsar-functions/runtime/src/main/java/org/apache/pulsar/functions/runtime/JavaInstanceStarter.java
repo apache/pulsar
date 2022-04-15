@@ -98,6 +98,20 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = false)
     public String stateStorageServiceUrl;
 
+    @Parameter(names = "--state_storage_backoff_policy_start_ms", description = "The startMs backoff for accessing "
+            + "table service of state storage\n", required = false)
+    public long stateStorageBackoffPolicyStartMs = 100;
+
+    @Parameter(names = "--state_storage_backoff_policy_max_ms", description = "The maxMs backoff for accessing table "
+            + "service of state storage\n",
+            required = false)
+    public long stateStorageBackoffPolicyMaxMs = 2000;
+
+    @Parameter(names = "--state_storage_backoff_policy_limit", description = "The limit backoff for accessing table "
+            + "service of state storage\n",
+            required = false)
+    public long stateStorageBackoffPolicyLimit = 60;
+
     @Parameter(names = "--port", description = "Port to listen on\n", required = true)
     public int port;
 
@@ -209,6 +223,9 @@ public class JavaInstanceStarter implements AutoCloseable {
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageImplClass,
                 stateStorageServiceUrl,
+                stateStorageBackoffPolicyStartMs,
+                stateStorageBackoffPolicyMaxMs,
+                stateStorageBackoffPolicyLimit,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
