@@ -20,7 +20,7 @@
 PYTHON_VERSIONS=(
    '2.7  cp27-cp27mu manylinux1    x86_64'
    '2.7  cp27-cp27m  manylinux1    x86_64'
-   '3.5  cp35-cp35m  manylinux2014 x86_64'
+   '3.5  cp35-cp35m  manylinux1    x86_64'
    '3.6  cp36-cp36m  manylinux2014 x86_64'
    '3.7  cp37-cp37m  manylinux2014 x86_64'
    '3.8  cp38-cp38   manylinux2014 x86_64'
