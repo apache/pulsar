@@ -100,6 +100,7 @@ var searchData=
   ['getstickyranges',['getStickyRanges',['../classpulsar_1_1_key_shared_policy.html#abbe1cd27d9c4287393a811335c749aeb',1,'pulsar::KeySharedPolicy']]],
   ['getsubscriptioninitialposition',['getSubscriptionInitialPosition',['../classpulsar_1_1_consumer_configuration.html#a2ebdd798b5464e104ca34fe9a7ddab17',1,'pulsar::ConsumerConfiguration']]],
   ['getsubscriptionname',['getSubscriptionName',['../classpulsar_1_1_consumer.html#aa1b448ec43ed76b85e0136c93bc7fe74',1,'pulsar::Consumer']]],
+  ['getsubscriptionproperties',['getSubscriptionProperties',['../classpulsar_1_1_consumer_configuration.html#aff92bccdbe54330c09197ee7a7a3c693',1,'pulsar::ConsumerConfiguration']]],
   ['getsubscriptionroleprefix',['getSubscriptionRolePrefix',['../classpulsar_1_1_reader_configuration.html#ae3f5aa93a66d946fc6a11a7a2ba7ba20',1,'pulsar::ReaderConfiguration']]],
   ['gettickdurationinms',['getTickDurationInMs',['../classpulsar_1_1_consumer_configuration.html#a48d5037280916c93aa59e71fc6665b5a',1,'pulsar::ConsumerConfiguration::getTickDurationInMs()'],['../classpulsar_1_1_reader_configuration.html#a8ed171faab038b5aa1a3afb81edf5864',1,'pulsar::ReaderConfiguration::getTickDurationInMs()']]],
   ['gettlscertificates',['getTlsCertificates',['../classpulsar_1_1_authentication_data_provider.html#af2694d6a80dfe8af67c16ef45f3e9645',1,'pulsar::AuthenticationDataProvider']]],

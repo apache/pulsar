@@ -93,7 +93,7 @@ if no other mechanism is provided</p>
 <ol start="3">
 <li>Add the Java system properties <em>aws.accessKeyId</em> and <em>aws.secretKey</em> to <strong>PULSAR_EXTRA_OPTS</strong> in <code>conf/pulsar_env.sh</code>.</li>
 </ol>
-<pre><code class="hljs css language-bash">PULSAR_EXTRA_OPTS=<span class="hljs-string">"<span class="hljs-variable">${PULSAR_EXTRA_OPTS}</span> <span class="hljs-variable">${PULSAR_MEM}</span> <span class="hljs-variable">${PULSAR_GC}</span> -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"</span>
+<pre><code class="hljs css language-bash">PULSAR_EXTRA_OPTS=<span class="hljs-string">"<span class="hljs-variable">${PULSAR_EXTRA_OPTS}</span> <span class="hljs-variable">${PULSAR_MEM}</span> <span class="hljs-variable">${PULSAR_GC}</span> -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacityPerThread=4096"</span>
 </code></pre>
 <ol start="4">
 <li>Set the access credentials in <code>~/.aws/credentials</code>.</li>

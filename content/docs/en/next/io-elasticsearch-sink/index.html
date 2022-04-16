@@ -84,6 +84,7 @@ values.</p>
 <tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The username used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
 <tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The password used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
 <tr><td><code>ssl</code></td><td>ElasticSearchSslConfig</td><td>false</td><td></td><td>Configuration for TLS encrypted communication</td></tr>
+<tr><td><code>compatibilityMode</code></td><td>enum (AUTO,ELASTICSEARCH,ELASTICSEARCH_7,OPENSEARCH)</td><td>AUTO</td><td></td><td>Specify compatibility mode with the ElasticSearch cluster. <code>AUTO</code> value will try to auto detect the correct compatibility mode to use. Use <code>ELASTICSEARCH_7</code> if the target cluster is running ElasticSearch 7 or prior. Use <code>ELASTICSEARCH</code> if the target cluster is running ElasticSearch 8 or higher. Use <code>OPENSEARCH</code> if the target cluster is running OpenSearch.</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="definition-of-elasticsearchsslconfig-structure"></a><a href="#definition-of-elasticsearchsslconfig-structure" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Definition of ElasticSearchSslConfig structure:</h3>
@@ -155,12 +156,12 @@ values.</p>
 <li><p>Start a Pulsar service locally in standalone mode.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>Make sure the NAR file is available at <code>connectors/pulsar-io-elastic-search-2.9.1.nar</code>.</p></li>
+<p>Make sure the NAR file is available at <code>connectors/pulsar-io-elastic-search-2.9.2.nar</code>.</p></li>
 <li><p>Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.9.1.nar \
+    --archive connectors/pulsar-io-elastic-search-2.9.2.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
@@ -169,7 +170,7 @@ values.</p>
 </code></pre></li>
 <li><p>Use the <strong>YAML</strong> configuration file as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.9.1.nar \
+    --archive connectors/pulsar-io-elastic-search-2.9.2.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \

@@ -31,12 +31,12 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
 <tr><th>Name</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>userName</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The username used to connect to the database specified by <code>jdbcUrl</code>.<br><br><strong>Note: <code>userName</code> is case-sensitive.</strong></td></tr>
-<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The password used to connect to the database specified by <code>jdbcUrl</code>. <br><br><strong>Note: <code>password</code> is case-sensitive.</strong></td></tr>
-<tr><td><code>jdbcUrl</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The JDBC URL of the database to which the connector connects.</td></tr>
-<tr><td><code>tableName</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The name of the table to which the connector writes.</td></tr>
-<tr><td><code>nonKey</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>A comma-separated list contains the fields used in updating events.</td></tr>
-<tr><td><code>key</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>A comma-separated list contains the fields used in <code>where</code> condition of updating and deleting events.</td></tr>
+<tr><td><code>userName</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The username used to connect to the database specified by <code>jdbcUrl</code>.<br /><br /><strong>Note: <code>userName</code> is case-sensitive.</strong></td></tr>
+<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>The password used to connect to the database specified by <code>jdbcUrl</code>. <br /><br /><strong>Note: <code>password</code> is case-sensitive.</strong></td></tr>
+<tr><td><code>jdbcUrl</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The JDBC URL of the database that the connector connects to.</td></tr>
+<tr><td><code>tableName</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The name of the table that the connector writes to.</td></tr>
+<tr><td><code>nonKey</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>A comma-separated list containing the fields used in updating events.</td></tr>
+<tr><td><code>key</code></td><td>String</td><td>false</td><td>&quot; &quot; (empty string)</td><td>A comma-separated list containing the fields used in <code>where</code> condition of updating and deleting events.</td></tr>
 <tr><td><code>timeoutMs</code></td><td>int</td><td>false</td><td>500</td><td>The JDBC operation timeout in milliseconds.</td></tr>
 <tr><td><code>batchSize</code></td><td>int</td><td>false</td><td>200</td><td>The batch size of updates made to the database.</td></tr>
 </tbody>
@@ -91,6 +91,30 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
     <span class="hljs-attr">tableName:</span> <span class="hljs-string">"pulsar_mariadb_jdbc_sink"</span>
 </code></pre></li>
 </ul>
+<h3><a class="anchor" aria-hidden="true" id="example-for-openmldb"></a><a href="#example-for-openmldb" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example for OpenMLDB</h3>
+<blockquote>
+<p>OpenMLDB does not support DELETE and UPDATE operations</p>
+</blockquote>
+<ul>
+<li><p>JSON</p>
+<pre><code class="hljs css language-json">{
+   <span class="hljs-attr">"configs"</span>: {
+      <span class="hljs-attr">"jdbcUrl"</span>: <span class="hljs-string">"jdbc:openmldb:///pulsar_openmldb_db?zk=localhost:6181&amp;zkPath=/openmldb"</span>,
+      <span class="hljs-attr">"tableName"</span>: <span class="hljs-string">"pulsar_openmldb_jdbc_sink"</span>
+   }
+}
+</code></pre></li>
+<li><p>YAML</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
+<span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
+<span class="hljs-attr">name:</span> <span class="hljs-string">"jdbc-openmldb-sink"</span>
+<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://public/default/jdbc-openmldb-topic"</span>
+<span class="hljs-attr">sinkType:</span> <span class="hljs-string">"jdbc-openmldb"</span>    
+<span class="hljs-attr">configs:</span>
+    <span class="hljs-attr">jdbcUrl:</span> <span class="hljs-string">"jdbc:openmldb:///pulsar_openmldb_db?zk=localhost:6181&amp;zkPath=/openmldb"</span>
+    <span class="hljs-attr">tableName:</span> <span class="hljs-string">"pulsar_openmldb_jdbc_sink"</span>
+</code></pre></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="example-for-postgresql"></a><a href="#example-for-postgresql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example for PostgreSQL</h3>
 <p>Before using the JDBC PostgreSQL sink connector, you need to create a configuration file through one of the following methods.</p>
 <ul>
@@ -139,7 +163,7 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
     <span class="hljs-attr">tableName:</span> <span class="hljs-string">"pulsar_sqlite_jdbc_sink"</span>
 </code></pre></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#property">Property</a></li><li><a href="#example-for-clickhouse">Example for ClickHouse</a></li><li><a href="#example-for-mariadb">Example for MariaDB</a></li><li><a href="#example-for-postgresql">Example for PostgreSQL</a></li><li><a href="#example-for-sqlite">Example for SQLite</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#property">Property</a></li><li><a href="#example-for-clickhouse">Example for ClickHouse</a></li><li><a href="#example-for-mariadb">Example for MariaDB</a></li><li><a href="#example-for-openmldb">Example for OpenMLDB</a></li><li><a href="#example-for-postgresql">Example for PostgreSQL</a></li><li><a href="#example-for-sqlite">Example for SQLite</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Docs</title>
+<link rel="shortcut icon" href="favicon.ico" type="image/vnd.microsoft.icon">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="node_modules/font-awesome/css/font-awesome.min.css" type="text/css">
+<link rel="stylesheet" href="node_modules/highlight.js/styles/default.css" type="text/css">
+<link rel="stylesheet" href="stylesheet.css" type="text/css">
+</head>
+<body>
+<div id="sidebar-wrapper" class="side-nav side-bar-nav"><ul><li class="nav-level-1"><a href="#broker" class="nav-item">broker</a></li></ul><ul><li class="nav-level-1"><a href="#broker-tool" class="nav-item">broker-tool</a></li><ul id="broker-tool-nav" style="display: none;"><li class="nav-level-2"><a href="#-em-load-report-em-" class="nav-item"><em>load-report</em></a></li></ul></ul><ul><li class="nav-level-1"><a href="#compact-topic" class="nav-item">compact-topic</a></li></ul><ul><li class="nav-level-1"><a href="#tokens" class="nav-item">tokens</a></li><ul id="tokens-nav" style="display: none;"><li class="nav-level-2"><a href="#-em-create-secret-key-em-" class="nav-item"><em>create-secret-key</em></a></li><li class="nav-level-2"><a href="#-em-create-key-pair-em-" class="nav-item"><em>create-key-pair</em></a></li><li class="nav-level-2"><a href="#-em-create-em-" class="nav-item"><em>create</em></a></li><li class="nav-level-2"><a href="#-em-show-em-" class="nav-item"><em>show</em></a></li><li class="nav-level-2"><a href="#-em-validate-em-" class="nav-item"><em>validate</em></a></li></ul></ul><ul><li class="nav-level-1"><a href="#proxy" class="nav-item">proxy</a></li></ul><ul><li class="nav-level-1"><a href="#websocket" class="nav-item">websocket</a></li></ul><ul><li class="nav-level-1"><a href="#functions-worker" class="nav-item">functions-worker</a></li></ul><ul><li class="nav-level-1"><a href="#standalone" class="nav-item">standalone</a></li></ul><ul><li class="nav-level-1"><a href="#initialize-cluster-metadata" class="nav-item">initialize-cluster-metadata</a></li></ul><ul><li class="nav-level-1"><a href="#delete-cluster-metadata" class="nav-item">delete-cluster-metadata</a></li></ul><ul><li class="nav-level-1"><a href="#initialize-transaction-coordinator-metadata" class="nav-item">initialize-transaction-coordinator-metadata</a></li></ul><ul><li class="nav-level-1"><a href="#initialize-namespace" class="nav-item">initialize-namespace</a></li></ul><ul><li class="nav-level-1"><a href="#version" class="nav-item">version</a></li></ul><br/><div class="copyright"><a href='http://pulsar.apache.org/'>Apache Pulsar</a></div></div>
+<div id="wrapper">
+<div id="code-tabs-wrapper" class="code-tabs"><ul class="code-tab-list"><li class="code-tab" id="example">example</li></ul></div>
+<div id="page-content-wrapper" class="body-content container-fluid"><hr>
+<h1 id="broker">broker</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$broker</code></p>
+<hr>
+<p>Options</p>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar broker <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-ra, --run-bookie-autorecovery</code></td>
+<td>Run Bookie Autorecovery together with broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-rfw, --run-functions-worker</code></td>
+<td>Run functions worker with Broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-c, --broker-conf</code></td>
+<td>Configuration file for Broker</td>
+<td>/pulsar/conf/broker.conf</td>
+</tr>
+<tr>
+<td><code>-rb, --run-bookie</code></td>
+<td>Run Bookie together with Broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-bc, --bookie-conf</code></td>
+<td>Configuration file for Bookie</td>
+<td>/pulsar/conf/bookkeeper.conf</td>
+</tr>
+<tr>
+<td><code>-fwc, --functions-worker-conf</code></td>
+<td>Configuration file for Functions Worker</td>
+<td>/pulsar/conf/functions_worker.yml</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="broker-tool">broker-tool</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$broker-tool</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ pulsar <span class="hljs-keyword">broker-tool </span><span class="hljs-keyword">subcommand</span>
+</code></pre>
+<ul>
+<li><code>load-report</code></li>
+</ul>
+<h2 id="-em-load-report-em-"><em>load-report</em></h2>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ pulsar broker-tool load-re<span class="hljs-keyword">port</span> options
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Display help information</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-i, --interval-ms</code></td>
+<td>Interval to collect load report, in milliseconds</td>
+<td>100</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="compact-topic">compact-topic</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$compact-topic</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar compact-topic <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-c, --broker-conf</code></td>
+<td>Configuration file for Broker</td>
+<td>/pulsar/conf/broker.conf</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-t, --topic</code></td>
+<td>Topic to compact</td>
+<td>tmp</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="tokens">tokens</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$tokens</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-variable">$ </span>pulsar tokens subcommand
+</code></pre>
+<ul>
+<li><code>create-secret-key</code></li>
+<li><code>create-key-pair</code></li>
+<li><code>create</code></li>
+<li><code>show</code></li>
+<li><code>validate</code></li>
+</ul>
+<h2 id="-em-create-secret-key-em-"><em>create-secret-key</em></h2>
+<p>Create a new secret key</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar </span><span class="hljs-string">tokens </span><span class="hljs-built_in">create-secret-key</span> <span class="hljs-string">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the new secret key.</td>
+<td>HS256</td>
+</tr>
+<tr>
+<td><code>-o, --output</code></td>
+<td>Write the secret key to a file instead of stdout</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-b, --base64</code></td>
+<td>Encode the key in base64</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-create-key-pair-em-"><em>create-key-pair</em></h2>
+<p>Create a new or pair of keys public/private</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar </span><span class="hljs-string">tokens </span><span class="hljs-built_in">create-key-pair</span> <span class="hljs-string">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the new key pair.</td>
+<td>RS256</td>
+</tr>
+<tr>
+<td><code>--output-private-key</code></td>
+<td>File where to write the private key</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--output-public-key</code></td>
+<td>File where to write the public key</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-create-em-"><em>create</em></h2>
+<p>Create a new token</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar tokens create <span class="hljs-keyword">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-s, --subject</code></td>
+<td>Specify the &#39;subject&#39; or &#39;principal&#39; associate with this token</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-pk, --private-key</code></td>
+<td>Pass the private key for signing the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-e, --expiry-time</code></td>
+<td>Relative expiry time for the token (eg: 1h, 3d, 10y). (m=minutes) Default: no expiration</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-sk, --secret-key</code></td>
+<td>Pass the secret key for signing the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the new key pair.</td>
+<td>RS256</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-show-em-"><em>show</em></h2>
+<p>Show the content of token</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar tokens show <span class="hljs-keyword">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i, --stdin</code></td>
+<td>Read token from standard input</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-f, --token-file</code></td>
+<td>Read token from a file</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
+<h2 id="-em-validate-em-"><em>validate</em></h2>
+<p>Validate a token against a key</p>
+<h3 id="usage">Usage</h3>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar tokens validate <span class="hljs-keyword">options</span>
+</code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-f, --token-file</code></td>
+<td>Read token from a file</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-pk, --public-key</code></td>
+<td>Pass the public key for validating the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-i, --stdin</code></td>
+<td>Read token from standard input</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-sk, --secret-key</code></td>
+<td>Pass the secret key for validating the token. This can either be: data:, file:, etc..</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-a, --signature-algorithm</code></td>
+<td>The signature algorithm for the key pair if using public key.</td>
+<td>RS256</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="proxy">proxy</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$proxy</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ pulsar<span class="hljs-built_in"> proxy </span>options
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-md, --metadata-store</code></td>
+<td>Metadata Store service url. eg: zk:my-zk:2181</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-c, --config</code></td>
+<td>Configuration file path</td>
+<td>/pulsar/conf/proxy.conf</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-zk, --zookeeper-servers</code></td>
+<td>Local zookeeper connection string, please use --metadata-store instead</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-cms, --configuration-metadata-store</code></td>
+<td>The metadata store URL for the configuration data</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-cs, --configuration-store-servers</code></td>
+<td>Configuration store connection string, please use --configuration-metadata-store instead</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-gzk, --global-zookeeper-servers</code></td>
+<td>Global zookeeper connection string, please use --configuration-metadata-store instead</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="websocket">websocket</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$websocket</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar websocket <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="functions-worker">functions-worker</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$functions-worker</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar functions-worker <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-c, --conf</code></td>
+<td>Configuration File for Function Worker</td>
+<td>/pulsar/conf/functions_worker.yml</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="standalone">standalone</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$standalone</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar standalone <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--num-bookies</code></td>
+<td>Number of local Bookies</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--wipe-data</code></td>
+<td>Clean up previous ZK/BK data</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-fwc, --functions-worker-conf</code></td>
+<td>Configuration file for Functions Worker</td>
+<td>/pulsar/conf/functions_worker.yml</td>
+</tr>
+<tr>
+<td><code>-nss, --no-stream-storage</code></td>
+<td>Disable stream storage</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--no-broker</code></td>
+<td>Only start ZK and BK services, no broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--zookeeper-dir</code></td>
+<td>Local zooKeeper&#39;s data directory</td>
+<td>data/standalone/zookeeper</td>
+</tr>
+<tr>
+<td><code>--only-broker</code></td>
+<td>Only start Pulsar broker service (no ZK, BK)</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-nfw, --no-functions-worker</code></td>
+<td>Run functions worker with Broker</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--stream-storage-port</code></td>
+<td>Local bookies stream storage port</td>
+<td>4181</td>
+</tr>
+<tr>
+<td><code>-a, --advertised-address</code></td>
+<td>Standalone broker advertised address</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-c, --config</code></td>
+<td>Configuration file path</td>
+<td>/pulsar/conf/standalone.conf</td>
+</tr>
+<tr>
+<td><code>--zookeeper-port</code></td>
+<td>Local zookeeper&#39;s port</td>
+<td>2181</td>
+</tr>
+<tr>
+<td><code>--bookkeeper-port</code></td>
+<td>Local bookies base port</td>
+<td>3181</td>
+</tr>
+<tr>
+<td><code>--bookkeeper-dir</code></td>
+<td>Local bookies base data directory</td>
+<td>data/standalone/bookkeeper</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="initialize-cluster-metadata">initialize-cluster-metadata</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$initialize-cluster-metadata</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar initialize-cluster-metadata <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-tb, --broker-service-url-tls</code></td>
+<td>Broker-service URL for new cluster with TLS encryption</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-cs, --configuration-store</code></td>
+<td>Configuration Store connection string</td>
+<td>cs</td>
+</tr>
+<tr>
+<td><code>--initial-num-transaction-coordinators</code></td>
+<td>Num transaction coordinators will assigned in cluster</td>
+<td>16</td>
+</tr>
+<tr>
+<td><code>-uw, --web-service-url</code></td>
+<td>Web-service URL for new cluster</td>
+<td>uw</td>
+</tr>
+<tr>
+<td><code>--bookkeeper-metadata-service-uri</code></td>
+<td>The metadata service URI of the existing BookKeeper cluster that you want to use</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--existing-bk-metadata-service-uri</code></td>
+<td>The metadata service URI of the existing BookKeeper cluster that you want to use</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-ub, --broker-service-url</code></td>
+<td>Broker-service URL for new cluster</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-cms, --configuration-metadata-store</code></td>
+<td>Configuration Metadata Store connection string</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-gzk, --global-zookeeper</code></td>
+<td>Global ZooKeeper quorum connection string</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-tw, --web-service-url-tls</code></td>
+<td>Web-service URL for new cluster with TLS encryption</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-md, --metadata-store</code></td>
+<td>Metadata Store service url. eg: zk:my-zk:2181</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--zookeeper-session-timeout-ms</code></td>
+<td>Local zookeeper session timeout ms</td>
+<td>30000</td>
+</tr>
+<tr>
+<td><code>-zk, --zookeeper</code></td>
+<td>Local ZooKeeper quorum connection string</td>
+<td>zk</td>
+</tr>
+<tr>
+<td><code>-c, --cluster</code></td>
+<td>Cluster name</td>
+<td>c</td>
+</tr>
+<tr>
+<td><code>--initial-num-stream-storage-containers</code></td>
+<td>Num storage containers of BookKeeper stream storage</td>
+<td>16</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="delete-cluster-metadata">delete-cluster-metadata</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$delete-cluster-metadata</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar </span><span class="hljs-built_in">delete-cluster-metadata</span> <span class="hljs-string">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-cs, --configuration-store</code></td>
+<td>Configuration Store connection string</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-zk, --zookeeper</code></td>
+<td>Local ZooKeeper quorum connection string</td>
+<td>zk</td>
+</tr>
+<tr>
+<td><code>-c, -cluster, --cluster</code></td>
+<td>Cluster name</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>--zookeeper-session-timeout-ms</code></td>
+<td>Local zookeeper session timeout ms</td>
+<td>30000</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>--bookkeeper-metadata-service-uri</code></td>
+<td>Metadata service uri of BookKeeper</td>
+<td>null</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="initialize-transaction-coordinator-metadata">initialize-transaction-coordinator-metadata</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$initialize-transaction-coordinator-metadata</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar initialize-transaction-coordinator-metadata <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-cs, --configuration-store</code></td>
+<td>Configuration Store connection string</td>
+<td>cs</td>
+</tr>
+<tr>
+<td><code>--zookeeper-session-timeout-ms</code></td>
+<td>Local zookeeper session timeout ms</td>
+<td>30000</td>
+</tr>
+<tr>
+<td><code>--initial-num-transaction-coordinators</code></td>
+<td>Num transaction coordinators will assigned in cluster</td>
+<td>16</td>
+</tr>
+<tr>
+<td><code>-c, --cluster</code></td>
+<td>Cluster name</td>
+<td>c</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="initialize-namespace">initialize-namespace</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$initialize-namespace</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell">$ pulsar initialize-<span class="hljs-keyword">namespace</span> <span class="hljs-symbol">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-cs, --configuration-store</code></td>
+<td>Configuration Store connection string</td>
+<td>cs</td>
+</tr>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>-c, --cluster</code></td>
+<td>Cluster name</td>
+<td>c</td>
+</tr>
+<tr>
+<td><code>--zookeeper-session-timeout-ms</code></td>
+<td>Local zookeeper session timeout ms</td>
+<td>30000</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="version">version</h1>
+<h3 id="usage">Usage</h3>
+<p><code>$version</code></p>
+<hr>
+<pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar version <span class="hljs-keyword">options</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h, --help</code></td>
+<td>Show this help message</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-g, --generate-docs</code></td>
+<td>Generate docs</td>
+<td>true</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<script src="node_modules/jquery/dist/jquery.min.js"></script>
+<script src="node_modules/jquery.scrollto/jquery.scrollTo.min.js"></script>
+<script src="navData.js"></script>
+<script src="scroll.js"></script>
+<!--<script src="actions.js"></script>-->
+<script src="tabvisibility.js"></script>
+</body>
+</html>
