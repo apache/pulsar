@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -173,7 +174,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     @Override
     public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
-        if (op == null || !op.tryOwnership()) {
+        if (op == null || !op.tryOwnership(op.requestId)) {
             if (log.isDebugEnabled()) {
                 log.debug("Got end txn on topic response for timeout {} - {}", response.getTxnidMostBits(),
                         response.getTxnidLeastBits());
@@ -203,7 +204,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     public void handleEndTxnOnSubscriptionResponse(long requestId,
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
-        if (op == null || !op.tryOwnership()) {
+        if (op == null || !op.tryOwnership(op.requestId)) {
             if (log.isDebugEnabled()) {
                 log.debug("Got end txn on subscription response for timeout {} - {}", response.getTxnidMostBits(),
                         response.getTxnidLeastBits());
@@ -243,19 +244,21 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             return;
         }
         OpRequestSend op = entry.getValue();
-        if (!op.tryOwnership() || op.cb.isDone()) {
-            // Just safe check to ensure endless loop cause StackOverFlow,
-            // because other operation will remove this request firstly.
-            outstandingRequests.remove(op.requestId);
-            // This operation already handle by other thread, we need to check next.
-            continueCheckOutstandingRequestIfTimeout();
-            return;
-        }
+        final long finalRequestId = op.requestId;
         // When current opRequest is not exceeds operation timeout, we need to create a timeout
         // to first entry timeout time.
         if (!op.isTimeout(operationTimeoutInMills)) {
             timer.newTimeout(task -> continueCheckOutstandingRequestIfTimeout(),
-                    op.getTimeoutMs(operationTimeoutInMills), TimeUnit.MILLISECONDS);
+                    outstandingRequests.firstEntry().getValue()
+                            .getTimeoutMs(operationTimeoutInMills), TimeUnit.MILLISECONDS);
+            return;
+        }
+        if (!op.tryOwnership(finalRequestId)) {
+            // Just safe check to ensure endless loop cause StackOverFlow,
+            // because other operation will remove this request firstly.
+            outstandingRequests.remove(finalRequestId);
+            // This operation already handle by other thread, we need to check next.
+            continueCheckOutstandingRequestIfTimeout();
             return;
         }
         outstandingRequests.remove(entry.getKey());
@@ -307,32 +310,29 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         CompletableFuture<TxnID> cb;
         long createdAt;
         CompletableFuture<ClientCnx> cnx;
-        volatile int ownership;
-        private static final AtomicIntegerFieldUpdater<OpRequestSend> ADD_OP_COUNT_UPDATER = AtomicIntegerFieldUpdater
+        volatile long ownership;
+        private static final AtomicLongFieldUpdater<OpRequestSend> ADD_OP_COUNT_UPDATER = AtomicLongFieldUpdater
                 .newUpdater(OpRequestSend.class, "ownership");
-        private static final int NO_OWNER = 0;
-        private static final int EXIST_OWNER = 1;
 
         static OpRequestSend create(long requestId, String topic, ByteBuf cmd, CompletableFuture<TxnID> cb,
                 CompletableFuture<ClientCnx> cnx) {
             OpRequestSend op = RECYCLER.get();
             op.requestId = requestId;
+            op.ownership = requestId;
             op.topic = topic;
             op.cmd = cmd;
             op.cb = cb;
             op.createdAt = System.currentTimeMillis();
             op.cnx = cnx;
-            op.ownership = NO_OWNER;
             return op;
         }
 
-        boolean tryOwnership() {
-            return ADD_OP_COUNT_UPDATER.compareAndSet(this, NO_OWNER, EXIST_OWNER);
+        boolean tryOwnership(long requestId) {
+            return ADD_OP_COUNT_UPDATER.compareAndSet(this, requestId, -1);
         }
 
         void recycle() {
             recyclerHandle.recycle(this);
-            ownership = NO_OWNER;
         }
 
         private long getTimeoutMs(long operationTimeout) {
