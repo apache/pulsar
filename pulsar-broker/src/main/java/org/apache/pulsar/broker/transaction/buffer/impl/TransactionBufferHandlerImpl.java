@@ -237,8 +237,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             // To avoid race conditions, the scenarios are as follows.
             // Thread A: after if(entry=null) => Thread B: put a new entry and then get timoutCheckIsRunning=true =>
             // Thread A: set timoutCheckIsRunning = false
-            if (outstandingRequests.firstEntry() != null &&
-                    timoutCheckIsRunning.compareAndSet(false, true)) {
+            if (outstandingRequests.firstEntry() != null
+                    && timoutCheckIsRunning.compareAndSet(false, true)) {
                  continueCheckOutstandingRequestIfTimeout();
             }
             return;
