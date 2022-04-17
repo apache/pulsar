@@ -100,7 +100,6 @@ To install the Python bindings:
 """
 
 import logging
-from abc import ABC
 from weakref import WeakSet
 
 import _pulsar
@@ -347,7 +346,7 @@ class AuthenticationOauth2(Authentication):
         self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
 
 
-class _ClientHandle(ABC):
+class _ClientHandle:  # TODO use ABC as parent class once Python 2 support is dropped
     def __init__(self, handle, schema, ref_tracker):
         self._handle = handle
         self._schema = schema
