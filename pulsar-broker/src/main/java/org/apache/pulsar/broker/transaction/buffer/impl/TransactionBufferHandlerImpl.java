@@ -137,7 +137,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             if (ex == null) {
                 if (clientCnx.ctx().channel().isActive()) {
                     clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
-                    outstandingRequests.put(op.requestId, op);
+                    final long requestId = op.requestId;
+                    outstandingRequests.put(requestId, op);
                     op.cmd.retain();
                     clientCnx.ctx().writeAndFlush(op.cmd)
                             .addListener(result -> {
@@ -147,9 +148,11 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                                                 op.getTimeoutMs(operationTimeoutInMills), TimeUnit.MILLISECONDS);
                                     }
                                 } else {
-                                    outstandingRequests.remove(op.requestId);
-                                    op.cb.completeExceptionally(result.cause());
-                                    onResponse(op);
+                                    if (op.tryOwnership(requestId)) {
+                                        outstandingRequests.remove(requestId);
+                                        op.cb.completeExceptionally(result.cause());
+                                        onResponse(op);
+                                    }
                                 }
                             });
                 } else {
@@ -308,15 +311,16 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         CompletableFuture<TxnID> cb;
         long createdAt;
         CompletableFuture<ClientCnx> cnx;
-        volatile long ownership;
-        private static final AtomicLongFieldUpdater<OpRequestSend> ADD_OP_COUNT_UPDATER = AtomicLongFieldUpdater
-                .newUpdater(OpRequestSend.class, "ownership");
+        // The initialization is the current request id, if it is -1, it means it is held by someone else.
+        volatile long requestOwnership;
+        private static final AtomicLongFieldUpdater<OpRequestSend> REQUEST_OWNERSHIP_UPDATER = AtomicLongFieldUpdater
+                .newUpdater(OpRequestSend.class, "requestOwnership");
 
         static OpRequestSend create(long requestId, String topic, ByteBuf cmd, CompletableFuture<TxnID> cb,
                 CompletableFuture<ClientCnx> cnx) {
             OpRequestSend op = RECYCLER.get();
             op.requestId = requestId;
-            op.ownership = requestId;
+            op.requestOwnership = requestId;
             op.topic = topic;
             op.cmd = cmd;
             op.cb = cb;
@@ -326,7 +330,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         }
 
         boolean tryOwnership(long requestId) {
-            return ADD_OP_COUNT_UPDATER.compareAndSet(this, requestId, -1);
+            return REQUEST_OWNERSHIP_UPDATER.compareAndSet(this, requestId, -1);
         }
 
         void recycle() {
