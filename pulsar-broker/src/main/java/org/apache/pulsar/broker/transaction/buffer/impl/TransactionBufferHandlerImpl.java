@@ -245,8 +245,6 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
         }
         OpRequestSend op = entry.getValue();
         final long finalRequestId = op.requestId;
-        // When current opRequest is not exceeds operation timeout, we need to create a timeout
-        // to first entry timeout time.
         if (!op.isTimeout(operationTimeoutInMills)) {
             timer.newTimeout(task -> continueCheckOutstandingRequestIfTimeout(),
                     outstandingRequests.firstEntry().getValue()
