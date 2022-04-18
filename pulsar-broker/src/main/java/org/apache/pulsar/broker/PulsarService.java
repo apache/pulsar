@@ -73,6 +73,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
@@ -84,6 +85,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
+import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
@@ -203,6 +205,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OrderedScheduler offloaderScheduler;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
+    private final LedgerOffloaderStats offloaderStats;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
@@ -335,6 +338,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new ExecutorProvider(1, "broker-client-shared-external-executor");
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
+
+        int interval = config.getManagedLedgerStatsPeriodSeconds();
+        boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+        this.offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
+                exposeTopicMetrics, this.getOffloaderScheduler(), interval);
     }
 
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
@@ -529,6 +537,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (transactionExecutorProvider != null) {
                 transactionExecutorProvider.shutdownNow();
             }
+            if (this.offloaderStats != null) {
+                this.offloaderStats.close();
+            }
 
             brokerClientSharedExternalExecutorProvider.shutdownNow();
             brokerClientSharedInternalExecutorProvider.shutdownNow();
@@ -644,6 +655,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
+            if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
+                    && config.isLoadBalancerEnabled()
+                    && LinuxInfoUtils.isLinux()
+                    && !LinuxInfoUtils.checkHasNicSpeeds()) {
+                throw new IllegalStateException("Unable to read VM NIC speed. You must set "
+                        + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
+            }
+
             localMetadataStore = createLocalMetadataStore();
             localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
 
@@ -751,8 +770,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
-                transactionBufferClient = TransactionBufferClientImpl.create(getClient(), transactionTimer,
-                        config.getTransactionBufferClientMaxConcurrentRequests());
+                transactionBufferClient = TransactionBufferClientImpl.create(this, transactionTimer,
+                        config.getTransactionBufferClientMaxConcurrentRequests(),
+                        config.getTransactionBufferClientOperationTimeoutInMills());
 
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
@@ -1249,6 +1269,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
+
                 Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
                         offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
 
@@ -1262,8 +1283,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha(),
                             LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME.toLowerCase(), config.getClusterName()
                         ),
-                        schemaStorage,
-                        getOffloaderScheduler(offloadPolicies));
+                        schemaStorage, getOffloaderScheduler(offloadPolicies), this.offloaderStats);
                 } catch (IOException ioe) {
                     throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                 }

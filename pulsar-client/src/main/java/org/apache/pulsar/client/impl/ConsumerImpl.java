@@ -413,9 +413,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public void initReceiverQueueSize() {
+        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            // turn on autoScaledReceiverQueueSize
+            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+            if (batchReceivePolicy.getMaxNumMessages() > 0) {
+                // consumerImpl may store (half-1) permits locally.
+                size = Math.max(size, 2 * batchReceivePolicy.getMaxNumMessages() - 2);
+            }
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
+        } else {
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+        }
+    }
+
+    @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         Message<T> message;
         try {
+            if (incomingMessages.isEmpty()) {
+                expectMoreIncomingMessages();
+            }
             message = incomingMessages.take();
             messageProcessed(message);
             if (!isValidConsumerEpoch(message)) {
@@ -439,6 +457,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         internalPinnedExecutor.execute(() -> {
             Message<T> message = incomingMessages.poll();
             if (message == null) {
+                expectMoreIncomingMessages();
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
@@ -456,10 +475,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException {
+    protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
         long callTime = System.nanoTime();
         try {
+            if (incomingMessages.isEmpty()) {
+                expectMoreIncomingMessages();
+            }
             message = incomingMessages.poll(timeout, unit);
             if (message == null) {
                 return null;
@@ -467,10 +489,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageProcessed(message);
             if (!isValidConsumerEpoch(message)) {
                 long executionTime = System.nanoTime() - callTime;
-                if (executionTime >= unit.toNanos(timeout)) {
+                long timeoutInNanos = unit.toNanos(timeout);
+                if (executionTime >= timeoutInNanos) {
                     return null;
                 } else {
-                    return internalReceive((int) (timeout - executionTime), TimeUnit.NANOSECONDS);
+                    return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
                 }
             }
             return beforeConsume(message);
@@ -523,6 +546,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 result.complete(messages);
             } else {
+                expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
                 pendingBatchReceives.add(opBatchReceive);
                 cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
@@ -666,8 +690,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         typedMessageBuilderNew.key(message.getKey());
                     }
                     typedMessageBuilderNew.sendAsync()
-                            .thenAccept(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null)
-                                    .thenAccept(v -> result.complete(null)))
+                            .thenCompose(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
+                            .thenAccept(v -> result.complete(null))
                             .exceptionally(ex -> {
                                 result.completeExceptionally(ex);
                                 return null;
@@ -1342,12 +1366,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     }
 
-    private void tryTriggerListener() {
-        if (listener != null) {
-            triggerListener();
-        }
-    }
-
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
             MessageIdData messageId, ClientCnx cnx) {
 
@@ -1614,7 +1632,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
         int delta = newSize - oldSize;
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] update maxReceiverQueueSize from {} to {}, increaseAvailablePermits by {}",
+            log.debug("[{}][{}] update currentReceiverQueueSize from {} to {}, increaseAvailablePermits by {}",
                     topic, subscription, oldSize, newSize, delta);
         }
         increaseAvailablePermits(delta);
@@ -1905,6 +1923,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
         }
+    }
+
+    @Override
+    protected void updateAutoScaleReceiverQueueHint() {
+        scaleReceiverQueueHint.set(getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
     }
 
     @Override

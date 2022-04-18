@@ -27,7 +27,7 @@ USER root
 RUN rm -rf /var/lib/apt/lists/* && apt-get update
 RUN apt-get install -y procps curl git build-essential
 
-ENV GOLANG_VERSION 1.13.3
+ENV GOLANG_VERSION 1.15.8
 
 RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz \
 		| tar -C /usr/local -xz
@@ -42,6 +42,7 @@ RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 ENV PATH /go/bin:$PATH
+ENV GO111MODULE=on
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...

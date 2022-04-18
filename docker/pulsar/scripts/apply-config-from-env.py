@@ -62,7 +62,7 @@ for conf_filename in conf_files:
         v = os.environ[k].strip()
 
         # Hide the value in logs if is password.
-        if "password" in k:
+        if "password" in k.lower():
             displayValue = "********"
         else:
             displayValue = v
@@ -86,7 +86,7 @@ for conf_filename in conf_files:
             continue
 
         # Hide the value in logs if is password.
-        if "password" in k:
+        if "password" in k.lower():
             displayValue = "********"
         else:
             displayValue = v

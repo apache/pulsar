@@ -57,6 +57,16 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     @Override
+    public void initReceiverQueueSize() {
+        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            throw new NotImplementedException("AutoScaledReceiverQueueSize is not supported in ZeroQueueConsumerImpl");
+        } else {
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, 0);
+        }
+
+    }
+
+    @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         zeroQueueLock.lock();
         try {
@@ -171,7 +181,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     @Override
-    protected void triggerListener() {
+    protected void tryTriggerListener() {
         // Ignore since it was already triggered in the triggerZeroQueueSizeListener() call
     }
 

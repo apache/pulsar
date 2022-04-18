@@ -113,7 +113,7 @@ You can have 2 separate JAAS configuration files:
  - Set `authenticationEnabled` to `true`;
  - Set `authenticationProviders` to choose `AuthenticationProviderSasl`;
  - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker;
- - Set `saslJaasBrokerSectionName` that corresponds to the section in JAAS configuration file for broker;
+ - Set `saslJaasServerSectionName` that corresponds to the section in JAAS configuration file for broker;
  
  To make Pulsar internal admin client work properly, you need to set the configuration in the `broker.conf` file as below: 
  - Set `brokerClientAuthenticationPlugin` to client plugin `AuthenticationSasl`;
@@ -125,7 +125,7 @@ You can have 2 separate JAAS configuration files:
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
-saslJaasBrokerSectionName=PulsarBroker
+saslJaasServerSectionName=PulsarBroker
 
 ## Authentication settings of the broker itself. Used when the broker connects to other brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
@@ -306,7 +306,7 @@ In the `proxy.conf` file, set Kerberos related configuration. Here is an example
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
-saslJaasBrokerSectionName=PulsarProxy
+saslJaasServerSectionName=PulsarProxy
 
 ## related to be authenticated by broker
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
@@ -326,7 +326,7 @@ The broker side configuration file is the same with the above `broker.conf`, you
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
-saslJaasBrokerSectionName=PulsarBroker
+saslJaasServerSectionName=PulsarBroker
 ```
 
 ## Regarding authorization and role token

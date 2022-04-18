@@ -35,7 +35,6 @@ import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -89,6 +88,7 @@ import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -793,7 +793,7 @@ public class ClientCnx extends PulsarHandler {
         return future;
     }
 
-    public CompletableFuture<List<String>> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
+    public CompletableFuture<GetTopicsResult> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.GetTopics, true);
     }
 
@@ -811,20 +811,21 @@ public class ClientCnx extends PulsarHandler {
         checkArgument(state == State.Ready);
 
         long requestId = success.getRequestId();
-        List<String> topics = new ArrayList<String>(success.getTopicsCount());
-        for (int i = 0; i < success.getTopicsCount(); i++) {
-            topics.add(success.getTopicAt(i));
-        }
+        List<String> topics = success.getTopicsList();
+
 
         if (log.isDebugEnabled()) {
             log.debug("{} Received get topics of namespace success response from server: {} - topics.size: {}",
                 ctx.channel(), success.getRequestId(), topics.size());
         }
 
-        CompletableFuture<List<String>> requestFuture =
-                (CompletableFuture<List<String>>) pendingRequests.remove(requestId);
+        CompletableFuture<GetTopicsResult> requestFuture =
+                (CompletableFuture<GetTopicsResult>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(topics);
+            requestFuture.complete(new GetTopicsResult(topics,
+                    success.hasTopicsHash() ? success.getTopicsHash() : null,
+                    success.isFiltered(),
+                    success.isChanged()));
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }

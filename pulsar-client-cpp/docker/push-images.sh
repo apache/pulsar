@@ -23,24 +23,18 @@
 
 set -e
 
-DOCKER_ORG=apachepulsar
+source python-versions.sh
 
-PYTHON_VERSIONS=(
-   '2.7 cp27-cp27mu'
-   '2.7 cp27-cp27m'
-   '3.5 cp35-cp35m'
-   '3.6 cp36-cp36m'
-   '3.7 cp37-cp37m'
-   '3.8 cp38-cp38'
-   '3.9 cp39-cp39'
-)
+DOCKER_ORG=apachepulsar
 
 for line in "${PYTHON_VERSIONS[@]}"; do
     read -r -a PY <<< "$line"
     PYTHON_VERSION=${PY[0]}
     PYTHON_SPEC=${PY[1]}
-    
-    IMAGE_NAME=pulsar-build:manylinux-$PYTHON_SPEC
+    BASE_IMAGE=${PY[2]}
+    ARCH=${PY[3]}
+
+    IMAGE_NAME=pulsar-build:$BASE_IMAGE-$PYTHON_SPEC-$ARCH
     FULL_NAME=$DOCKER_ORG/$IMAGE_NAME
 
     echo "IMAGE_NAME: $IMAGE_NAME"
