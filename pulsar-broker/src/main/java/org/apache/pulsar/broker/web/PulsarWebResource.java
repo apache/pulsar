@@ -328,7 +328,7 @@ public abstract class PulsarWebResource {
                                                                  log.debug(debugMsg, originalPrincipal, clientAppId,
                                                                          tenant);
                                                              }
-                                                             return true;
+                                                             return null;
                                                          }
                                                      });
                                     } else {
@@ -349,23 +349,18 @@ public abstract class PulsarWebResource {
                                         } else {
                                             return CompletableFuture.completedFuture(true);
                                         }
-                                    }).thenCompose(authorized -> {
+                                    }).thenAccept(authorized -> {
                                         if (!authorized) {
                                             throw new RestException(Status.UNAUTHORIZED,
                                                     "Don't have permission to administrate resources on this tenant");
                                         } else {
                                             log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
-                                            return CompletableFuture.completedFuture(null);
                                         }
                                     });
                         }
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }
-                }).exceptionally(ex -> {
-                    throw new RestException(Status.INTERNAL_SERVER_ERROR, ex.getMessage());
-                }).thenCompose(__ -> {
-                    return CompletableFuture.completedFuture(null);
                 });
     }
 
