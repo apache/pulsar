@@ -352,6 +352,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><a href="org/apache/pulsar/client/api/AutoClusterFailoverBuilder.FailoverPolicy.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">AutoClusterFailoverBuilder.FailoverPolicy</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#autoScaledReceiverQueueSizeEnabled(boolean)">autoScaledReceiverQueueSizeEnabled(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">If this is enabled, consumer receiver queue size is init as a very small value, 1 by default,
+ and it will double itself until it reaches the value set by <a href="org/apache/pulsar/client/api/ConsumerBuilder.html#receiverQueueSize(int)"><code>ConsumerBuilder.receiverQueueSize(int)</code></a>, if and only if
+ 1) User calls receive() and there is no messages in receiver queue.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/KeySharedPolicy.html#autoSplitHashRange()">autoSplitHashRange()</a></span> - Static method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/KeySharedPolicy.html" title="class in org.apache.pulsar.client.api">KeySharedPolicy</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#autoUpdatePartitions(boolean)">autoUpdatePartitions(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
