@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -74,11 +75,21 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
         }
 
         private void retain() {
+            operationValidate(true);
             this.referenceCount.incrementAndGet();
         }
 
         private long release() {
+            operationValidate(false);
             return this.referenceCount.decrementAndGet();
+        }
+
+        private void operationValidate(boolean isRetain) {
+            if (this.referenceCount.get() == 0) {
+                throw new RuntimeException(
+                        "[" + namespaceName + "] The reference counted transaction buffer snapshot writer couldn't "
+                                + "be " + (isRetain ? "retained" : "released") + ", refCnt is 0.");
+            }
         }
 
     }
@@ -102,14 +113,19 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
 
     @Override
     public synchronized ReferenceCountedWriter getReferenceWriter(NamespaceName namespaceName) {
-        return writerMap.compute(namespaceName, (k, v) -> {
+        AtomicBoolean exitingFlag = new AtomicBoolean(false);
+        ReferenceCountedWriter referenceCountedWriter = writerMap.compute(namespaceName, (k, v) -> {
             if (v == null) {
                 return new ReferenceCountedWriter(namespaceName,
                         getTransactionBufferSystemTopicClient(namespaceName).newWriterAsync(), writerMap);
             }
-            v.retain();
+            exitingFlag.set(true);
             return v;
         });
+        if (exitingFlag.get()) {
+            referenceCountedWriter.retain();
+        }
+        return referenceCountedWriter;
     }
 
     @Override
