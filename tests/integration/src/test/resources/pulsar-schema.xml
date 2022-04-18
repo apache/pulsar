@@ -22,6 +22,7 @@
 <suite name="Pulsar Schema Integration Tests" verbose="2" annotations="JDK">
     <test name="pulsar-schema-test-suite" preserve-order="true" >
         <classes>
+            <class name="org.apache.pulsar.tests.integration.schema.SchemaRegistryTest" />
             <class name="org.apache.pulsar.tests.integration.schema.SchemaTest" />
             <class name="org.apache.pulsar.tests.integration.schema.JodaTimeTest" />
             <class name="org.apache.pulsar.tests.integration.python.PythonSchemaTest" />
