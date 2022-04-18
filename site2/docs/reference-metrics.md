@@ -143,16 +143,16 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_subscriptions_count | Gauge | The number of Pulsar subscriptions of the namespace served by this broker. |
 | pulsar_producers_count | Gauge | The number of active producers of the namespace connected to this broker. |
 | pulsar_consumers_count | Gauge | The number of active consumers of the namespace connected to this broker. |
-| pulsar_rate_in | Gauge | The total message rate of the namespace coming into this broker (messages/second). |
-| pulsar_rate_out | Gauge | The total message rate of the namespace going out from this broker (messages/second). |
-| pulsar_throughput_in | Gauge | The total throughput of the namespace coming into this broker (bytes/second). |
-| pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (bytes/second). |
+| pulsar_rate_in | Gauge | The total message rate of the namespace coming into this broker (message per second). |
+| pulsar_rate_out | Gauge | The total message rate of the namespace going out from this broker (message per second). |
+| pulsar_throughput_in | Gauge | The total throughput of the namespace coming into this broker (byte per second). |
+| pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (byte per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (messages). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this namespace offloaded to the tiered storage (bytes). |
-| pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this namespace (message batches / second). |
-| pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this namespace (message batches / second). |
+| pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this namespace (message batch per second). |
+| pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this namespace (message batch per second). |
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
@@ -165,12 +165,12 @@ All the replication metrics are also labelled with `remoteCluster=${pulsar_remot
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_replication_rate_in | Gauge | The total message rate of the namespace replicating from remote cluster (messages/second). |
-| pulsar_replication_rate_out | Gauge | The total message rate of the namespace replicating to remote cluster (messages/second). |
-| pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (bytes/second). |
-| pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (bytes/second). |
+| pulsar_replication_rate_in | Gauge | The total message rate of the namespace replicating from remote cluster (message per second). |
+| pulsar_replication_rate_out | Gauge | The total message rate of the namespace replicating to remote cluster (message per second). |
+| pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (byte per second). |
+| pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (byte per second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the namespace replicating to remote cluster (messages). |
-| pulsar_replication_rate_expired | Gauge | Total rate of messages expired (messages/second). |
+| pulsar_replication_rate_expired | Gauge | Total rate of messages expired (message per second). |
 | pulsar_replication_connected_count | Gauge | The count of replication-subscriber up and running to replicate to remote cluster. |
 | pulsar_replication_delay_in_seconds | Gauge | Time in seconds from the time a message was produced to the time when it is about to be replicated. |
 
@@ -190,18 +190,18 @@ All the topic metrics are labelled with the following labels:
 | pulsar_subscriptions_count | Gauge | The number of Pulsar subscriptions of the topic served by this broker. |
 | pulsar_producers_count | Gauge | The number of active producers of the topic connected to this broker. |
 | pulsar_consumers_count | Gauge | The number of active consumers of the topic connected to this broker. |
-| pulsar_rate_in | Gauge | The total message rate of the topic coming into this broker (messages/second). |
-| pulsar_rate_out | Gauge | The total message rate of the topic going out from this broker (messages/second). |
+| pulsar_rate_in | Gauge | The total message rate of the topic coming into this broker (message per second). |
+| pulsar_rate_out | Gauge | The total message rate of the topic going out from this broker (message per second). |
 | pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered. |
-| pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (bytes/second). |
-| pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (bytes/second). |
+| pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (byte per second). |
+| pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (byte per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (messages). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this topic offloaded to the tiered storage (bytes). |
 | pulsar_storage_backlog_quota_limit | Gauge | The total amount of the data in this topic that limit the backlog quota (bytes). |
-| pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this topic (message batches / second). |
-| pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this topic (message batches / second). |
+| pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this topic (message batch per second). |
+| pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this topic (message batch per second). |
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
@@ -227,10 +227,10 @@ All the replication metrics are labelled with `remoteCluster=${pulsar_remote_clu
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_replication_rate_in | Gauge | The total message rate of the topic replicating from remote cluster (messages/second). |
-| pulsar_replication_rate_out | Gauge | The total message rate of the topic replicating to remote cluster (messages/second). |
-| pulsar_replication_throughput_in | Gauge | The total throughput of the topic replicating from remote cluster (bytes/second). |
-| pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (bytes/second). |
+| pulsar_replication_rate_in | Gauge | The total message rate of the topic replicating from remote cluster (message per second). |
+| pulsar_replication_rate_out | Gauge | The total message rate of the topic replicating to remote cluster (message per second). |
+| pulsar_replication_throughput_in | Gauge | The total throughput of the topic replicating from remote cluster (byte per second). |
+| pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (byte per second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
 
 #### Topic lookup metrics
@@ -273,8 +273,8 @@ All the managedLedger metrics are labelled with the following labels:
 
 | Name | Type | Description |
 | --- | --- | --- |
-| pulsar_ml_AddEntryBytesRate | Gauge | The bytes/s rate of messages added |
-| pulsar_ml_AddEntryWithReplicasBytesRate | Gauge | The bytes/s rate of messages added with replicas |
+| pulsar_ml_AddEntryBytesRate | Gauge | The B/s rate of messages added |
+| pulsar_ml_AddEntryWithReplicasBytesRate | Gauge | The B/s rate of messages added with replicas |
 | pulsar_ml_AddEntryErrors | Gauge | The number of addEntry requests that failed |
 | pulsar_ml_AddEntryLatencyBuckets | Histogram | The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side.<br> Available quantile: <br><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
 | pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The number of times the AddEntryLatency is longer than 1 second |
@@ -288,7 +288,7 @@ All the managedLedger metrics are labelled with the following labels:
 | pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW | Gauge | The number of times the LedgerAddEntryLatency is longer than 1 second |
 | pulsar_ml_MarkDeleteRate | Gauge | The rate of mark-delete ops/s |
 | pulsar_ml_NumberOfMessagesInBacklog | Gauge | The number of backlog messages for all the consumers |
-| pulsar_ml_ReadEntriesBytesRate | Gauge | The bytes/s rate of messages read |
+| pulsar_ml_ReadEntriesBytesRate | Gauge | The B/s rate of messages read |
 | pulsar_ml_ReadEntriesErrors | Gauge | The number of readEntries requests that failed |
 | pulsar_ml_ReadEntriesRate | Gauge | The msg/s rate of messages read |
 | pulsar_ml_ReadEntriesSucceeded | Gauge | The number of readEntries requests that succeeded |
@@ -359,13 +359,13 @@ All the bundle metrics are labelled with the following labels:
 
 | Name | Type | Description |
 | --- | --- | --- |
-| pulsar_bundle_msg_rate_in | Gauge | The total message rate coming into the topics in this bundle  (messages/second). |
-| pulsar_bundle_msg_rate_out | Gauge | The total message rate going out from the topics in this bundle  (messages/second).  |
+| pulsar_bundle_msg_rate_in | Gauge | The total message rate coming into the topics in this bundle  (message per second). |
+| pulsar_bundle_msg_rate_out | Gauge | The total message rate going out from the topics in this bundle  (message per second).  |
 | pulsar_bundle_topics_count | Gauge | The topic count in this bundle.  |
 | pulsar_bundle_consumer_count | Gauge | The consumer count of the topics in this bundle. |
 | pulsar_bundle_producer_count | Gauge | The producer count of the topics in this bundle. |
-| pulsar_bundle_msg_throughput_in | Gauge | The total throughput coming into the topics in this bundle (bytes/second). |
-| pulsar_bundle_msg_throughput_out | Gauge | The total throughput going out from the topics in this bundle (bytes/second). |
+| pulsar_bundle_msg_throughput_in | Gauge | The total throughput coming into the topics in this bundle (byte per second). |
+| pulsar_bundle_msg_throughput_out | Gauge | The total throughput going out from the topics in this bundle (byte per second). |
 
 ### Subscription metrics
 
@@ -383,11 +383,11 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_back_log | Gauge | The total backlog of a subscription (entries). |
 | pulsar_subscription_back_log_no_delayed | Gauge | The backlog of a subscription that do not contain the delay messages (entries). |
 | pulsar_subscription_delayed | Gauge | The total number of messages are delayed to be dispatched for a subscription (messages). |
-| pulsar_subscription_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (messages/second). |
+| pulsar_subscription_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (message per second). |
 | pulsar_subscription_unacked_messages | Gauge | The total number of unacknowledged messages of a subscription (messages). |
 | pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
-| pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (messages/second). |
-| pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (bytes/second). |
+| pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (message per second). |
+| pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (byte per second). |
 
 ### Consumer metrics
 
@@ -404,11 +404,11 @@ All the consumer metrics are labelled with the following labels:
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_consumer_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (messages/second). |
+| pulsar_consumer_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (message per second). |
 | pulsar_consumer_unacked_messages | Gauge | The total number of unacknowledged messages of a consumer (messages). |
 | pulsar_consumer_blocked_on_unacked_messages | Gauge | Indicate whether a consumer is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
-| pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). |
-| pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
+| pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (message per second). |
+| pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (byte per second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
 
 ### Managed ledger bookie client metrics
@@ -527,9 +527,9 @@ All the offload metrics are labelled with the following labels:
 | Name                                           | Type    | Description                                                                     |
 |------------------------------------------------|---------|---------------------------------------------------------------------------------|
 | brk_ledgeroffloader_offload_error              | Counter | The number of failed operations to offload.                                     |
-| brk_ledgeroffloader_offload_rate               | Gauge   | The rate of offloading(bytes/s).                                                |
+| brk_ledgeroffloader_offload_rate               | Gauge   | The rate of offloading(byte per second).                                        |
 | brk_ledgeroffloader_read_offload_error         | Counter | The number of failed operations to read offload ledgers.                        |
-| brk_ledgeroffloader_read_offload_rate          | Gauge   | The rate of reading entries from offload ledgers(bytes/s).                      |
+| brk_ledgeroffloader_read_offload_rate          | Gauge   | The rate of reading entries from offload ledgers(byte per second).              |
 | brk_ledgeroffloader_write_storage_error        | Counter | The number of failed operations to write to storage.                            |
 | brk_ledgeroffloader_read_offload_index_latency | Summary | The latency of reading index from offload ledgers.                              |
 | brk_ledgeroffloader_read_offload_data_latency  | Summary | The latency of reading data from offload ledgers.                               |
