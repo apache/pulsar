@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
 public class DefaultSchemaRegistryService implements SchemaRegistryService {
@@ -100,7 +101,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
 
     @Override
     public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
-          throws PulsarServerException {}
+            throws PulsarServerException {}
 
     @Override
     public void close() throws Exception {

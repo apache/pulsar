@@ -27,8 +27,6 @@ import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
@@ -75,6 +73,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @VisibleForTesting
     SchemaRegistryServiceImpl(Clock clock) {
         this.clock = clock;
+        this.stats = SchemaRegistryStats.getInstance();
     }
 
     @VisibleForTesting
@@ -86,12 +85,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
         return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
-                if (schema != null && schema.schema.isDeleted()) {
-                    return null;
-                } else {
-                    return schema;
-                }
-            });
+            if (schema != null && schema.schema.isDeleted()) {
+                return null;
+            } else {
+                return schema;
+            }
+        });
     }
 
     @Override
