@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Tue, 14 Dec 2021 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Fri, 08 Apr 2022 06:00:00 GMT</lastBuildDate>
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,13 @@
             <link>https://pulsar.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[What’s New in Apache Pulsar 2.9.2]]></title>
+            <link>https://pulsar.apache.org/blog/2022/04/08/Apache-Pulsar-2-9-2.html</link>
+            <guid>https://pulsar.apache.org/blog/2022/04/08/Apache-Pulsar-2-9-2.html</guid>
+            <pubDate>Fri, 08 Apr 2022 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>The Apache Pulsar community releases version 2.9.2! 60 contributors provided improvements and bug fixes that delivered 317 commits.</p> <p>Highlights of this release are as below:</p> <ul> <li><p>Transactions performance test tool is available. <a href="https://github.com/apache/pulsar/pull/11933">PR-11933</a></p></li> <li><p>Brokers decrease t...</p></li></ul>]]></description>
+        </item>
         <item>
             <title><![CDATA[What’s New in Apache Pulsar 2.7.4]]></title>
             <link>https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4.html</link>

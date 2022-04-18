@@ -2,12 +2,22 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2021-12-14T06:00:00.000Z</updated>
+    <updated>2022-04-08T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[What’s New in Apache Pulsar 2.9.2]]></title>
+        <id>https://pulsar.apache.org/blog/2022/04/08/Apache-Pulsar-2-9-2.html</id>
+        <link href="https://pulsar.apache.org/blog/2022/04/08/Apache-Pulsar-2-9-2.html"/>
+        <updated>2022-04-08T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>The Apache Pulsar community releases version 2.9.2! 60 contributors provided improvements and bug fixes that delivered 317 commits.</p> <p>Highlights of this release are as below:</p> <ul> <li><p>Transactions performance test tool is available. <a href="https://github.com/apache/pulsar/pull/11933">PR-11933</a></p></li> <li><p>Brokers decrease t...</p></li></ul>]]></summary>
+        <author>
+            <name>gaoran10, Anonymitaet</name>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[What’s New in Apache Pulsar 2.7.4]]></title>
         <id>https://pulsar.apache.org/blog/2021/12/14/Apache-Pulsar-2-7-4.html</id>
