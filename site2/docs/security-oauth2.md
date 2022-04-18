@@ -200,7 +200,6 @@ To configure brokers to authenticate clients, add the following parameters to br
 ```properties
 # Configuration to enable authentication and authorization
 authenticationEnabled=true
-authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 tokenPublicKey=/path/to/publicKey
 superUserRoles=[my-super-user-1,my-super-user-2]
