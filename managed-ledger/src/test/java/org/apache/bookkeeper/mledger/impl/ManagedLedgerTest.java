@@ -362,7 +362,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                                         result.completeExceptionally(exception);
                                     }
-                                }, cursor, PositionImpl.LATEST);
+                                }, cursor, false);
                             }
 
                             @Override
@@ -460,7 +460,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                                         result.completeExceptionally(exception);
                                     }
-                                }, cursor, PositionImpl.LATEST);
+                                }, cursor, false);
                             }
 
                             @Override
