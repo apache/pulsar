@@ -21,7 +21,7 @@ name: CI - Unit - Brokers - Other
 on:
   pull_request:
     branches:
-      - master
+      - branch-*
   push:
     branches:
       - branch-*

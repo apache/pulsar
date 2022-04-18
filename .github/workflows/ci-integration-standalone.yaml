@@ -21,7 +21,7 @@ name: CI - Integration - Standalone
 on:
   pull_request:
     branches:
-      - master
+      - branch-*
   push:
     branches:
       - branch-*

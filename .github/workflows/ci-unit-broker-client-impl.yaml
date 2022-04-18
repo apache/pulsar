@@ -21,7 +21,7 @@ name: CI - Unit - Brokers - Client Impl
 on:
   pull_request:
     branches:
-      - master
+      - branch-*
   push:
     branches:
       - branch-*

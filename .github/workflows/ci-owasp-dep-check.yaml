@@ -21,7 +21,7 @@ name: CI - Misc - OWASP Dependency Check
 on:
   pull_request:
     branches:
-      - master
+      - branch-*
   push:
     branches:
       - branch-*
