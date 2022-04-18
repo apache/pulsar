@@ -54,7 +54,7 @@ public class BrokerVersionFilterTest {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setPreferLaterVersions(true);
         try {
-            filter.filter(brokers, loadData, configuration);
+            filter.filter(brokers, null, loadData, configuration);
             // Only one broker is running the latest version
             Assert.assertEquals(brokers.size(), 1);
         } catch (BrokerFilterBadVersionException bad) {

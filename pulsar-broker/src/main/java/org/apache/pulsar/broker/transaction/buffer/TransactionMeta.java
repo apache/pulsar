@@ -85,16 +85,21 @@ public interface TransactionMeta {
     /**
      * Read the entries from start sequence id.
      *
+     * @param num the entries number need to read
+     * @param startSequenceId the start position of the entries
      * @return
      */
-    CompletableFuture<SortedMap<Long, Position>> readEntries();
+    CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId);
 
     /**
      * Add transaction entry into the transaction.
      *
+     * @param sequenceId the message sequence id
+     * @param position the position of transaction log
+     * @param batchSize
      * @return
      */
-    CompletableFuture<Position> appendEntry();
+    CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize);
 
     /**
      * Mark the transaction status is committing.

@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -102,12 +103,12 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
-        public CompletableFuture<SortedMap<Long, Position>> readEntries() {
+        public CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId) {
             return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
         @Override
-        public CompletableFuture<Position> appendEntry() {
+        public CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize) {
             return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
@@ -210,7 +211,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
-    public InMemTransactionBuffer() {
+    public InMemTransactionBuffer(Topic topic) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
     }

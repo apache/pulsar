@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * Placement strategy which selects a broker based on which one has the least long term message rate.
  */
 public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
-    private static Logger log = LoggerFactory.getLogger(LeastLongTermMessageRate.class);
+    private static final Logger log = LoggerFactory.getLogger(LeastLongTermMessageRate.class);
 
     // Maintain this list to reduce object creation.
     private ArrayList<String> bestBrokers;
@@ -82,6 +82,8 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      *
      * @param candidates
      *            The candidates for which the bundle may be assigned.
+     * @param bundleToAssign
+     *            The data for the bundle to assign.
      * @param loadData
      *            The load data from the leader broker.
      * @param conf
@@ -89,7 +91,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(final Set<String> candidates,
+    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign,
                                          final LoadData loadData,
                                          final ServiceConfiguration conf) {
         bestBrokers.clear();

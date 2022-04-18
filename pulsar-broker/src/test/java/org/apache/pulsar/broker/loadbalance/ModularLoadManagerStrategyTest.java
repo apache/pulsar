@@ -23,11 +23,13 @@ import static org.testng.Assert.assertEquals;
 import java.util.Map;
 import java.util.Optional;
 
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.testng.annotations.Test;
 
@@ -36,6 +38,7 @@ public class ModularLoadManagerStrategyTest {
 
     // Test that least long term message rate works correctly.
     public void testLeastLongTermMessageRate() {
+        BundleData bundleData = new BundleData();
         BrokerData brokerData1 = initBrokerData();
         BrokerData brokerData2 = initBrokerData();
         BrokerData brokerData3 = initBrokerData();
@@ -48,12 +51,12 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         ServiceConfiguration conf = new ServiceConfiguration();
-        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate();
-        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), loadData, conf), Optional.of("1"));
+        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate(conf);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
         brokerData1.getTimeAverageData().setLongTermMsgRateIn(400);
-        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), loadData, conf), Optional.of("2"));
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
-        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), loadData, conf), Optional.of("3"));
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
     }
 
     private BrokerData initBrokerData() {
