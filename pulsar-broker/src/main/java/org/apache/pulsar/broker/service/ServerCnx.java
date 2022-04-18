@@ -967,6 +967,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
               : emptyKeySharedMeta;
 
+        if (log.isDebugEnabled()) {
+            log.debug("Topic name = {}, subscription name = {}, schema is {}", topicName, subscriptionName,
+                    schema == null ? "absent" : "present");
+        }
+
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
                 topicName,
                 subscriptionName,
@@ -1245,7 +1250,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
 
-            log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
+            log.info("[{}][{}] Creating producer. producerId={}, schema is {}", remoteAddress, topicName, producerId,
+                    schema == null ? "absent" : "present");
 
             service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
                 // Before creating producer, check if backlog quota exceeded
@@ -1280,6 +1286,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     BrokerServiceException.getClientErrorCode(exception),
                                     message);
                         }
+                        log.error("Try add schema failed, remote address {}, topic {}, producerId {}", remoteAddress,
+                                topicName, producerId, exception);
                         producers.remove(producerId, producerFuture);
                         return null;
                     });

@@ -153,6 +153,7 @@ flexible messaging model and an intuitive client API.</description>
     <postgresql-jdbc.version>42.3.3</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
+    <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
@@ -180,7 +181,6 @@ flexible messaging model and an intuitive client API.</description>
     <commons-io.version>2.8.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
-    <log4j.version>1.2.17</log4j.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
@@ -790,18 +790,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
         <version>${jackson.databind.version}</version>
-      </dependency>
-
-      <dependency>
-        <artifactId>log4j</artifactId>
-        <groupId>log4j</groupId>
-        <version>${log4j.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.sun.jmx</groupId>
-            <artifactId>jmxri</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
