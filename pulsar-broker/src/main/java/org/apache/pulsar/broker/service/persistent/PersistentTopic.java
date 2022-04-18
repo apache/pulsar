@@ -1309,6 +1309,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                                 unregisterTopicPolicyListener();
                                 log.info("[{}] Topic closed", topic);
+                                unfence();
                                 closeFuture.complete(null);
                             })
                     .exceptionally(ex -> {
