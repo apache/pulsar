@@ -73,7 +73,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @VisibleForTesting
     SchemaRegistryServiceImpl(Clock clock) {
         this.clock = clock;
-        this.stats = SchemaRegistryStats.getInstance();
     }
 
     @VisibleForTesting
