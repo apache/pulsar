@@ -26,10 +26,12 @@ import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +39,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
@@ -44,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
@@ -61,36 +65,31 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Slf4j
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private static HashFunction hashFunction = Hashing.sha256();
-    private final Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
-    private final SchemaStorage schemaStorage;
-    private final Clock clock;
-    private final SchemaRegistryStats stats;
+    private Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
+    private SchemaStorage schemaStorage;
+    private Clock clock;
+    private SchemaRegistryStats stats;
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
-                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock) {
-        this.schemaStorage = schemaStorage;
-        this.compatibilityChecks = compatibilityChecks;
+    SchemaRegistryServiceImpl(Clock clock) {
         this.clock = clock;
-        this.stats = SchemaRegistryStats.getInstance();
     }
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
-                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks) {
-        this(schemaStorage, compatibilityChecks, Clock.systemUTC());
+    SchemaRegistryServiceImpl() {
+        this(Clock.systemUTC());
     }
 
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
         return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
-            if (schema != null && schema.schema.isDeleted()) {
-                return null;
-            } else {
-                return schema;
-            }
-        });
+                if (schema != null && schema.schema.isDeleted()) {
+                    return null;
+                } else {
+                    return schema;
+                }
+            });
     }
 
     @Override
@@ -232,11 +231,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
+    public CompletableFuture<SchemaVersion> putEmptySchema(String schemaId, String user, boolean force) {
         long start = this.clock.millis();
 
         if (force) {
-            return deleteSchemaStorage(schemaId, true);
+            return deleteSchemaFromStorage(schemaId, true);
         }
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
         return schemaStorage
@@ -260,7 +259,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId, boolean forcefully) {
         long start = this.clock.millis();
 
         return schemaStorage.delete(schemaId, forcefully)
@@ -311,15 +310,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
-          throws PulsarServerException {
+            throws PulsarServerException {
         try {
             Map<SchemaType, SchemaCompatibilityCheck> checkers =
-                  getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
+                    getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
+            checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
             this.schemaStorage = schemaStorage;
             this.compatibilityChecks = checkers;
             this.clock = Clock.systemUTC();
-        } catch (ClassNotFoundException | NoSuchMethodException
-              | IllegalAccessException | InvocationTargetException | InstantiationException e) {
+            this.stats = SchemaRegistryStats.getInstance();
+        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException
+                | InstantiationException e) {
             throw new PulsarServerException("cannot initialize schema compatibility checkers", e);
         }
     }

@@ -29,40 +29,19 @@ public interface SchemaRegistryService extends SchemaRegistry {
     Logger LOG = LoggerFactory.getLogger(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
 
-    static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
-        Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
-        for (String className : checkerClasses) {
-            final Class<?> checkerClass = Class.forName(className);
-            SchemaCompatibilityCheck instance = (SchemaCompatibilityCheck) checkerClass
-                    .getDeclaredConstructor().newInstance();
-            checkers.put(instance.getSchemaType(), instance);
-        }
-        return checkers;
-    }
+    static SchemaRegistryService create(String schemaRegistryClassName) {
+        try {
+            SchemaRegistryService schemaRegistryService = (SchemaRegistryService) Class.forName(schemaRegistryClassName)
+                  .getDeclaredConstructor().newInstance();
 
-    static SchemaRegistryService create(String schemaRegistryName, SchemaStorage schemaStorage,
-          Set<String> schemaRegistryCompatibilityCheckers) {
-        if (schemaStorage != null) {
-            try {
-                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
-                checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
-
-                if (schemaRegistryName == null) {
-                return SchemaRegistryServiceWithSchemaDataValidator
-                      .of(new SchemaRegistryServiceImpl(schemaStorage, checkers));
-                } else {
-                    return (SchemaRegistryService) Class.forName(schemaRegistryName)
-                          .getDeclaredConstructor(SchemaStorage.class, Map.class)
-                          .newInstance(schemaStorage, checkers);
-                }
-            } catch (Exception e) {
-                LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
-            }
+            return SchemaRegistryServiceWithSchemaDataValidator.of(schemaRegistryService);
+        } catch (Exception e) {
+            LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
         }
         return new DefaultSchemaRegistryService();
     }
 
-    void initialize(ServiceConfiguration configuration);
+    void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage) throws PulsarServerException;
 
     void close() throws Exception;
 }

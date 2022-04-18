@@ -50,11 +50,11 @@ public class SchemaRegistryServiceTest {
    @Test
    void createEmptyRegistry() {
       SchemaRegistryService actual = SchemaRegistryService.create(null);
-      Assert.assertSame(actual.getClass(), SchemaRegistryServiceDisabled.class);
+      Assert.assertSame(actual.getClass(), DefaultSchemaRegistryService.class);
    }
 
 }
 
-class TestSchemaRegistryService extends SchemaRegistryServiceDisabled {
+class TestSchemaRegistryService extends DefaultSchemaRegistryService {
    public TestSchemaRegistryService() {}
 }
