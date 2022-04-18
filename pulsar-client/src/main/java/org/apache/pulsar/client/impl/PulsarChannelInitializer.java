@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -142,7 +143,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                 Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
-        ch.pipeline().addLast("handler", clientCnxSupplier.get());
+        ch.pipeline().addLast("handler", (ChannelHandler) clientCnxSupplier.get());
     }
 
    /**

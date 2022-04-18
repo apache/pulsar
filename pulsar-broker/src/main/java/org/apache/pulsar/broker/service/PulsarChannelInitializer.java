@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -144,7 +145,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
         ServerCnx cnx = newServerCnx(pulsar, listenerName);
-        ch.pipeline().addLast("handler", cnx);
+        ch.pipeline().addLast("handler", (ChannelHandler) cnx);
 
         connections.put(ch.remoteAddress(), cnx);
     }

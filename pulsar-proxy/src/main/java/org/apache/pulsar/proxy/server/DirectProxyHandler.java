@@ -130,7 +130,7 @@ public class DirectProxyHandler {
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                     Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
                 ch.pipeline().addLast("proxyOutboundHandler",
-                        new ProxyBackendHandler(config, protocolVersion, remoteHost));
+                        (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost));
             }
         });
 
