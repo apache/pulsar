@@ -20,11 +20,17 @@ This section provides an example of how to use the transaction API to send and r
 
 2. Enable transaction. 
 
-    Change the configuration in the `broker.conf` file.
+    Change the configuration in the `broker.conf` or `standalone.conf` file.
 
     ```
+    //mandatory configuration, used to enable transaction coordinator
     transactionCoordinatorEnabled=true
+   
+    //mandtory configuration, used to create systemTopic used for transaction buffer snapshot
     systemTopicEnabled=true
+   
+    //It is a mandatory configuration, if need to guanrantee exactly-once semantics.
+    brokerDeduplicationEnabled=true
     ```
 
     If you want to enable batch messages in transactions, follow the steps below.
@@ -33,12 +39,6 @@ This section provides an example of how to use the transaction API to send and r
 
       ```
       acknowledgmentAtBatchIndexLevelEnabled=true
-      ```
-    If you want to enable deduplication for transaction, follow the steps below.
-   
-    Set `brokerDeduplicationEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
-      ```
-      brokerDeduplicationEnabled=true
       ```
 
 3. Initialize transaction coordinator metadata.
