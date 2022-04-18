@@ -34,6 +34,12 @@ This section provides an example of how to use the transaction API to send and r
       ```
       acknowledgmentAtBatchIndexLevelEnabled=true
       ```
+    If you want to enable deduplication for transaction, follow the steps below.
+   
+    Set `brokerDeduplicationEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
+      ```
+      brokerDeduplicationEnabled=true
+      ```
 
 3. Initialize transaction coordinator metadata.
 
