@@ -401,8 +401,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     initializeBookKeeper(callback);
                                 }
                             } else if (isNoSuchLedgerExistsException(rc)) {
-                                log.warn("[{}] Ledger not found: {}", name, ledgers.lastKey());
-                                ledgers.remove(ledgers.lastKey());
+                                log.warn("[{}] Ledger not found: {}", name, id);
+                                ledgers.remove(id);
                                 initializeBookKeeper(callback);
                             } else {
                                 log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
@@ -2178,10 +2178,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (entryCache.getSize() <= 0) {
             return;
         }
-        // Always remove all entries already read by active cursors
-        PositionImpl slowestReaderPos = getEarlierReadPositionForActiveCursors();
-        if (slowestReaderPos != null) {
-            entryCache.invalidateEntries(slowestReaderPos);
+        PositionImpl evictionPos;
+        if (config.isCacheEvictionByMarkDeletedPosition()) {
+            evictionPos = getEarlierMarkDeletedPositionForActiveCursors().getNext();
+        } else {
+            // Always remove all entries already read by active cursors
+            evictionPos = getEarlierReadPositionForActiveCursors();
+        }
+        if (evictionPos != null) {
+            entryCache.invalidateEntries(evictionPos);
         }
 
         // Remove entries older than the cutoff threshold
@@ -2191,6 +2196,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private PositionImpl getEarlierReadPositionForActiveCursors() {
         PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestReadPositionForActiveCursors();
         PositionImpl durablePosition = activeCursors.getSlowestReadPositionForActiveCursors();
+        if (nonDurablePosition == null) {
+            return durablePosition;
+        }
+        if (durablePosition == null) {
+            return nonDurablePosition;
+        }
+        return durablePosition.compareTo(nonDurablePosition) > 0 ? nonDurablePosition : durablePosition;
+    }
+
+    private PositionImpl getEarlierMarkDeletedPositionForActiveCursors() {
+        PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestMarkDeletedPositionForActiveCursors();
+        PositionImpl durablePosition = activeCursors.getSlowestMarkDeletedPositionForActiveCursors();
         if (nonDurablePosition == null) {
             return durablePosition;
         }
@@ -2870,6 +2887,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
+        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE) {
+            callback.offloadFailed(new ManagedLedgerException("NullLedgerOffloader"), ctx);
+            return;
+        }
         PositionImpl requestOffloadTo = (PositionImpl) pos;
         if (!isValidPosition(requestOffloadTo)
                 // Also consider the case where the last ledger is currently

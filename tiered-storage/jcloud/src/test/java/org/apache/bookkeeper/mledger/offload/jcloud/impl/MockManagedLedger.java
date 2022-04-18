@@ -339,7 +339,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -360,7 +360,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -79,12 +79,38 @@ Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, S
     impl_->metadata.mutable_properties()->CopyFrom(singleMetadata.properties());
     impl_->topicName_ = &topicName;
 
+    impl_->metadata.clear_properties();
+    if (singleMetadata.properties_size() > 0) {
+        impl_->metadata.mutable_properties()->Reserve(singleMetadata.properties_size());
+        for (int i = 0; i < singleMetadata.properties_size(); i++) {
+            auto keyValue = proto::KeyValue().New();
+            *keyValue = singleMetadata.properties(i);
+            impl_->metadata.mutable_properties()->AddAllocated(keyValue);
+        }
+    }
+
     if (singleMetadata.has_partition_key()) {
         impl_->metadata.set_partition_key(singleMetadata.partition_key());
+    } else {
+        impl_->metadata.clear_partition_key();
+    }
+
+    if (singleMetadata.has_ordering_key()) {
+        impl_->metadata.set_ordering_key(singleMetadata.ordering_key());
+    } else {
+        impl_->metadata.clear_ordering_key();
     }
 
     if (singleMetadata.has_event_time()) {
         impl_->metadata.set_event_time(singleMetadata.event_time());
+    } else {
+        impl_->metadata.clear_event_time();
+    }
+
+    if (singleMetadata.has_sequence_id()) {
+        impl_->metadata.set_sequence_id(singleMetadata.sequence_id());
+    } else {
+        impl_->metadata.clear_sequence_id();
     }
 }
 
