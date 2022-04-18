@@ -290,13 +290,11 @@ public abstract class PulsarWebResource {
             PulsarService pulsar, String clientAppId,
             String originalPrincipal, String tenant,
             AuthenticationDataSource authenticationData) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
-
-        pulsar.getPulsarResources().getTenantResources().getTenantAsync(tenant)
+        return pulsar.getPulsarResources().getTenantResources().getTenantAsync(tenant)
                 .thenCompose(tenantInfoOptional -> {
                     if (!tenantInfoOptional.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
@@ -317,36 +315,30 @@ public abstract class PulsarWebResource {
                                 .thenCompose(isTenantAdmin -> {
                                     String debugMsg = "Successfully authorized {} (proxied by {}) on tenant {}";
                                     if (!isTenantAdmin) {
-                                        return authorizationService.isSuperUser(clientAppId, authenticationData)
-                                            .thenCombine(authorizationService.isSuperUser(originalPrincipal,
-                                                            authenticationData),
-                                                new BiFunction<Boolean, Boolean, Boolean>() {
-                                                    @Override
-                                                        public Boolean apply(Boolean proxyAuthorized,
-                                                                             Boolean originalPrincipalAuthorized) {
-                                                            if (!proxyAuthorized || !originalPrincipalAuthorized) {
-                                                                throw new RestException(Status.UNAUTHORIZED,
-                                                                    String.format("Proxy not authorized to access "
-                                                                        + "resource (proxy:%s,original:%s)",
-                                                                            clientAppId, originalPrincipal));
-                                                            } else {
-                                                                if (log.isDebugEnabled()) {
-                                                                    log.debug(debugMsg, originalPrincipal, clientAppId,
-                                                                            tenant);
-                                                                }
-                                                                future.complete(null);
-                                                                return true;
-                                                            }
-                                                        }
-                                                    });
-                                        } else {
+                                            return authorizationService.isSuperUser(clientAppId, authenticationData)
+                                                .thenCombine(authorizationService.isSuperUser(originalPrincipal,
+                                                             authenticationData),
+                                                     (proxyAuthorized, originalPrincipalAuthorized) -> {
+                                                         if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                                                             throw new RestException(Status.UNAUTHORIZED,
+                                                                     String.format("Proxy not authorized to access "
+                                                                                     + "resource (proxy:%s,original:%s)"
+                                                                             , clientAppId, originalPrincipal));
+                                                         } else {
+                                                             if (log.isDebugEnabled()) {
+                                                                 log.debug(debugMsg, originalPrincipal, clientAppId,
+                                                                         tenant);
+                                                             }
+                                                             return true;
+                                                         }
+                                                     });
+                                    } else {
                                         if (log.isDebugEnabled()) {
                                             log.debug(debugMsg, originalPrincipal, clientAppId, tenant);
                                         }
-                                        future.complete(null);
                                         return CompletableFuture.completedFuture(null);
                                     }
-                            });
+                                });
                         } else {
                             return pulsar.getBrokerService()
                                     .getAuthorizationService()
@@ -364,21 +356,18 @@ public abstract class PulsarWebResource {
                                                     "Don't have permission to administrate resources on this tenant");
                                         } else {
                                             log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
-                                            future.complete(null);
                                             return CompletableFuture.completedFuture(null);
                                         }
                                     });
                         }
                     } else {
-                        future.complete(null);
                         return CompletableFuture.completedFuture(null);
                     }
-                })
-                .exceptionally(ex -> {
-                    future.completeExceptionally(new RestException(Status.INTERNAL_SERVER_ERROR, ex.getMessage()));
-                    return null;
+                }).exceptionally(ex -> {
+                    throw new RestException(Status.INTERNAL_SERVER_ERROR, ex.getMessage());
+                }).thenCompose(__ -> {
+                    return CompletableFuture.completedFuture(null);
                 });
-        return future;
     }
 
     /**

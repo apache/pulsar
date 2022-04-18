@@ -321,7 +321,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> revokePermissions(String topicUri, String role) {
+    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role) {
         return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
                 policiesOptional -> {
                     Policies policies = policiesOptional.orElseThrow(() ->
@@ -356,11 +356,11 @@ public class PersistentTopicsBase extends AdminResource {
                     if (numPartitions > 0) {
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
-                            future = future.thenComposeAsync(unused -> revokePermissions(topicNamePartition.toString(),
-                                    role));
+                            future = future.thenComposeAsync(unused ->
+                                    revokePermissionsAsync(topicNamePartition.toString(), role));
                         }
                     }
-                    return future.thenComposeAsync(unused -> revokePermissions(topicName.toString(), role))
+                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role))
                             .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                 }))
             ).exceptionally(ex -> {
