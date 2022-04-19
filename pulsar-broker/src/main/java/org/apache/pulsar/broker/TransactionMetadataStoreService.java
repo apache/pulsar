@@ -243,7 +243,11 @@ public class TransactionMetadataStoreService {
                             LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId.toString());
                         }
                     }
-                }));
+                })).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    completableFuture.completeExceptionally(realCause);
+                    return null;
+                });
             }
         });
         return completableFuture;
