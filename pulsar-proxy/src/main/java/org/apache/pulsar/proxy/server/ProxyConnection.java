@@ -25,6 +25,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.resolver.dns.DnsNameResolver;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
@@ -71,6 +72,7 @@ public class ProxyConnection extends PulsarHandler {
     private final AtomicLong requestIdGenerator =
             new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE / 2));
     private final ProxyService service;
+    private final DnsNameResolver dnsNameResolver;
     AuthenticationDataSource authenticationData;
     private State state;
     private final Supplier<SslHandler> sslHandlerSupplier;
@@ -119,9 +121,11 @@ public class ProxyConnection extends PulsarHandler {
         return connectionPool;
     }
 
-    public ProxyConnection(ProxyService proxyService, Supplier<SslHandler> sslHandlerSupplier) {
+    public ProxyConnection(ProxyService proxyService, Supplier<SslHandler> sslHandlerSupplier,
+                           DnsNameResolver dnsNameResolver) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
+        this.dnsNameResolver = dnsNameResolver;
         this.state = State.Init;
         this.sslHandlerSupplier = sslHandlerSupplier;
         this.brokerProxyValidator = service.getBrokerProxyValidator();
@@ -237,7 +241,7 @@ public class ProxyConnection extends PulsarHandler {
             if (this.connectionPool == null) {
                 this.connectionPool = new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
                         () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), clientAuthRole, clientAuthData,
-                                clientAuthMethod, protocolVersionToAdvertise));
+                                clientAuthMethod, protocolVersionToAdvertise), dnsNameResolver);
             } else {
                 LOG.error("BUG! Connection Pool has already been created for proxy connection to {} state {} role {}",
                         remoteAddress, state, clientAuthRole);
@@ -245,7 +249,8 @@ public class ProxyConnection extends PulsarHandler {
         } else {
             if (this.connectionPool == null) {
                 this.connectionPool = new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
-                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise));
+                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise),
+                        dnsNameResolver);
             } else {
                 LOG.error("BUG! Connection Pool has already been created for proxy connection to {} state {}",
                         remoteAddress, state);

@@ -19,7 +19,9 @@
 package org.apache.pulsar.proxy.server;
 
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.dns.DnsNameResolver;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -31,8 +33,9 @@ import org.slf4j.LoggerFactory;
 
 public class ProxyConnectionPool extends ConnectionPool {
     public ProxyConnectionPool(ClientConfigurationData clientConfig, EventLoopGroup eventLoopGroup,
-            Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
-        super(clientConfig, eventLoopGroup, clientCnxSupplier);
+                               Supplier<ClientCnx> clientCnxSupplier, DnsNameResolver dnsNameResolver)
+            throws PulsarClientException {
+        super(clientConfig, eventLoopGroup, clientCnxSupplier, Optional.of(dnsNameResolver));
     }
 
     @Override
