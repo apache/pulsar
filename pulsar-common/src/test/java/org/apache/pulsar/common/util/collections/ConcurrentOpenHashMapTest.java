@@ -431,54 +431,6 @@ public class ConcurrentOpenHashMapTest {
     }
 
     @Test
-    public void testComputeIfAbsentRecursiveUpdate() throws Throwable {
-        ConcurrentOpenHashMap<Integer, Integer> map = ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
-            .expectedItems(16)
-            .concurrencyLevel(1)
-            .build();
-
-        @Cleanup("shutdownNow")
-        ExecutorService executor = Executors.newCachedThreadPool();
-
-        // throw IllegalStateException if recursive update
-        assertThrows(IllegalStateException.class, () -> map.computeIfAbsent(1, key -> {
-            map.remove(1);
-            return 2;
-        }));
-
-        assertThrows(IllegalStateException.class, () -> map.computeIfAbsent(1, key -> {
-            map.put(1, 2);
-            return 2;
-        }));
-
-        assertThrows(IllegalStateException.class, () -> map.computeIfAbsent(1, key -> {
-            map.clear();
-            return 2;
-        }));
-
-        assertThrows(IllegalStateException.class, () -> map.computeIfAbsent(1, key -> {
-            map.computeIfAbsent(1, k -> 2);
-            return 2;
-        }));
-
-        // should not throw IllegalStateException if update in different thread
-        List<Future<Integer>> futures = new ArrayList<>();
-        futures.add(executor.submit(() -> map.computeIfAbsent(10, key -> {
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            return 10;
-        })));
-        futures.add(executor.submit(() -> map.put(10, 2)));
-
-        for (int i = 0; i < futures.size(); i++) {
-            assertEquals(10, futures.get(i).get().intValue());
-        }
-    }
-
-    @Test
     public void testEqualsKeys() {
         class T {
             int value;
