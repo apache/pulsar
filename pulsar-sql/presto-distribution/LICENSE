@@ -426,8 +426,8 @@ The Apache Software License, Version 2.0
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client
     - async-http-client-1.6.5.jar
-    - async-http-client-2.12.1.jar
-    - async-http-client-netty-utils-2.12.1.jar
+    - async-http-client-2.12.3.jar
+    - async-http-client-netty-utils-2.12.3.jar
   * Apache Bookkeeper
     - bookkeeper-common-4.14.4.jar
     - bookkeeper-common-allocator-4.14.4.jar

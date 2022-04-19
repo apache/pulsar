@@ -174,7 +174,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka.confluent.schemaregistryclient.version>5.3.0</kafka.confluent.schemaregistryclient.version>
     <kafka.confluent.avroserializer.version>5.3.0</kafka.confluent.avroserializer.version>
     <aircompressor.version>0.20</aircompressor.version>
-    <asynchttpclient.version>2.12.1</asynchttpclient.version>
+    <asynchttpclient.version>2.12.3</asynchttpclient.version>
     <jcommander.version>1.78</jcommander.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>

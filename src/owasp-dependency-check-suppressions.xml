@@ -480,4 +480,11 @@
         <cve>CVE-2021-46667</cve>
     </suppress>
 
+    <suppress>
+        <notes><![CDATA[
+   file name: async-http-client-netty-utils-2.12.3.jar
+   ]]></notes>
+        <sha1>ad99d8622931ed31367d0fef7fa17eb62e033fb3</sha1>
+        <cve>CVE-2021-43138</cve>
+    </suppress>
 </suppressions>
