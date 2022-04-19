@@ -196,7 +196,7 @@ This example shows how to configure OAuth2 authentication in Node.js client.
 > Note: The support for OAuth2 authentication is only available in Node.js client 1.6.2 and later versions.
 
 ## Broker configuration
-To configure brokers to authenticate clients, add the following parameters to broker.conf or standalone.conf:
+To enable OAuth2 brokers authentication in brokers, add the following parameters to the `broker.conf` or `standalone.conf` file.
 ```properties
 # Configuration to enable authentication
 authenticationEnabled=true
