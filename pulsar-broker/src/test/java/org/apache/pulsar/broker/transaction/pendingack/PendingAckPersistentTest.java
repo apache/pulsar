@@ -21,19 +21,24 @@ package org.apache.pulsar.broker.transaction.pendingack;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import com.google.common.collect.Multimap;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -42,6 +47,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -187,6 +193,67 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await()
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+    }
+
+    @Test
+    public void testPendingAckMetrics() throws Exception {
+        final int messageCount = 100;
+        String subName = "testMetric" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int a = 0; a < messageCount; a++) {
+            producer.send(UUID.randomUUID().toString());
+        }
+
+        for (int a = 0; a < messageCount; a++) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (null == message) {
+                break;
+            }
+
+            Transaction txn = pulsarClient.newTransaction()
+                    .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            consumer.acknowledgeCumulativeAsync(message.getMessageId(), txn).get();
+            if (a % 2 == 0) {
+                txn.abort().get();
+            } else {
+                txn.commit().get();
+            }
+        }
+
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsarServiceList.get(0), true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> abortedCount = metricsMap.get("pulsar_txn_tp_aborted_count");
+        Collection<PrometheusMetricsTest.Metric> committedCount = metricsMap.get("pulsar_txn_tp_committed_count");
+
+        for (PrometheusMetricsTest.Metric metric : abortedCount) {
+            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
+                assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
+                assertTrue(metric.value > 0);
+            }
+        }
+        for (PrometheusMetricsTest.Metric metric : committedCount) {
+            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
+                assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
+                assertTrue(metric.value > 0);
+            }
+        }
     }
 
     @Test
