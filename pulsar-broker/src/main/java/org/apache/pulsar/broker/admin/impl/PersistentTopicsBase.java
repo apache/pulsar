@@ -4052,7 +4052,26 @@ public class PersistentTopicsBase extends AdminResource {
             return future;
         }).thenAccept(__ -> result.complete(null)).exceptionally(ex -> {
             if (force && ex.getCause() instanceof PulsarAdminException.ConflictException) {
-                result.complete(null);
+                CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
+                        .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions));
+                future.thenAccept(__ -> result.complete(null)).exceptionally(ex2 -> {
+                    // If the update operation fails, clean up the partitions that were created
+                    getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                        int oldPartition = metadata.partitions;
+                        for (int i = oldPartition; i < numPartitions; i++) {
+                            topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
+                                log.warn("[{}] Failed to clean up managedLedger {}", clientAppId(), topicName,
+                                        ex1.getCause());
+                                return null;
+                            });
+                        }
+                    }).exceptionally(e -> {
+                        log.warn("[{}] Failed to clean up managedLedger", topicName, e);
+                        return null;
+                    });
+                    result.completeExceptionally(ex2);
+                    return null;
+                });
                 return null;
             }
             result.completeExceptionally(ex);
