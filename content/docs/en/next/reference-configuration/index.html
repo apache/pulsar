@@ -375,6 +375,11 @@
 <tr><td>managedLedgerCursorMaxEntriesPerLedger</td><td>Max number of entries to append to a cursor ledger</td><td>50000</td></tr>
 <tr><td>managedLedgerCursorRolloverTimeInSeconds</td><td>Max time before triggering a rollover on a cursor ledger</td><td>14400</td></tr>
 <tr><td>managedLedgerMaxUnackedRangesToPersist</td><td>Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.</td><td>1000</td></tr>
+<tr><td>managedLedgerMaxUnackedRangesToPersistInMetadataStore</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store.</td><td>1000</td></tr>
+<tr><td>managedLedgerMetadataOperationsTimeoutSeconds</td><td>Operation timeout while updating managed-ledger metadata.</td><td>60</td></tr>
+<tr><td>managedLedgerReadEntryTimeoutSeconds</td><td>Read entries timeout when the broker tries to read messages from BookKeeper.</td><td>0</td></tr>
+<tr><td>managedLedgerAddEntryTimeoutSeconds</td><td>Add entry timeout when the broker tries to publish messages to BookKeeper.</td><td>0</td></tr>
+<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. A smaller value may degrade consumption throughput.</td><td>10</td></tr>
 <tr><td>autoSkipNonRecoverableData</td><td>Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger.</td><td>false</td></tr>
 <tr><td>loadBalancerEnabled</td><td>Enable load balancer</td><td>true</td></tr>
 <tr><td>loadBalancerPlacementStrategy</td><td>Strategy to assign a new bundle weightedRandomSelection</td><td></td></tr>
@@ -467,6 +472,7 @@
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list). Use <code>configurationMetadataStoreUrl</code> instead.</td><td>N/A</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>Zookeeper session timeout in milliseconds. Use <code>metadataStoreSessionTimeoutMillis</code> instead.</td><td>30000</td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds. Use <code>metadataStoreCacheExpirySeconds</code> instead.</td><td>300</td></tr>
+<tr><td>managedLedgerMaxUnackedRangesToPersistInZooKeeper</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in ZooKeeper. Use <code>managedLedgerMaxUnackedRangesToPersistInMetadataStore</code> instead.</td><td>1000</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
@@ -733,15 +739,14 @@
 <tr><td>managedLedgerCursorRolloverTimeInSeconds</td><td></td><td>14400</td></tr>
 <tr><td>managedLedgerMaxSizePerLedgerMbytes</td><td>Maximum ledger size before triggering a rollover for a topic.</td><td>2048</td></tr>
 <tr><td>managedLedgerMaxUnackedRangesToPersist</td><td>Maximum number of &quot;acknowledgment holes&quot; that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in &quot;ranges&quot; of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes.</td><td>10000</td></tr>
-<tr><td>managedLedgerMaxUnackedRangesToPersistInZooKeeper</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper.</td><td>1000</td></tr>
+<tr><td>managedLedgerMaxUnackedRangesToPersistInMetadataStore</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store.</td><td>1000</td></tr>
 <tr><td>autoSkipNonRecoverableData</td><td></td><td>false</td></tr>
 <tr><td>managedLedgerMetadataOperationsTimeoutSeconds</td><td>Operation timeout while updating managed-ledger metadata.</td><td>60</td></tr>
 <tr><td>managedLedgerReadEntryTimeoutSeconds</td><td>Read entries timeout when the broker tries to read messages from BookKeeper.</td><td>0</td></tr>
-<tr><td>managedLedgerAddEntryTimeoutSeconds</td><td>Add entry timeout when the broker tries to publish message to BookKeeper.</td><td>0</td></tr>
-<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.</td><td>10 ms</td></tr>
+<tr><td>managedLedgerAddEntryTimeoutSeconds</td><td>Add entry timeout when the broker tries to publish messages to BookKeeper.</td><td>0</td></tr>
+<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.</td><td>10</td></tr>
 <tr><td>managedLedgerPrometheusStatsLatencyRolloverSeconds</td><td>Managed ledger prometheus stats latency rollover seconds.</td><td>60</td></tr>
 <tr><td>managedLedgerTraceTaskExecution</td><td>Whether to trace managed ledger task execution time.</td><td>true</td></tr>
-<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.</td><td>10</td></tr>
 <tr><td>loadBalancerEnabled</td><td></td><td>false</td></tr>
 <tr><td>loadBalancerPlacementStrategy</td><td></td><td>weightedRandomSelection</td></tr>
 <tr><td>loadBalancerReportUpdateThresholdPercentage</td><td></td><td>10</td></tr>
@@ -802,6 +807,7 @@
 <tr><td>zooKeeperOperationTimeoutSeconds</td><td>ZooKeeper operation timeout in seconds. Use <code>metadataStoreOperationTimeoutSeconds</code> instead.</td><td>30</td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds. Use <code>metadataStoreCacheExpirySeconds</code> instead.</td><td>300</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>The ZooKeeper session timeout, in milliseconds. Use <code>metadataStoreSessionTimeoutMillis</code> instead.</td><td>30000</td></tr>
+<tr><td>managedLedgerMaxUnackedRangesToPersistInZooKeeper</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in ZooKeeper. Use <code>managedLedgerMaxUnackedRangesToPersistInMetadataStore</code> instead.</td><td>1000</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h2>
