@@ -36,6 +36,7 @@ import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.block.Block;
 import io.prestosql.spi.block.BlockBuilder;
+import io.prestosql.spi.block.Int128ArrayBlock;
 import io.prestosql.spi.type.ArrayType;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.BooleanType;
@@ -241,6 +242,14 @@ public class PulsarAvroColumnDecoder {
             } else if (value instanceof GenericFixed) {
                 return Slices.wrappedBuffer(((GenericFixed) value).bytes());
             }
+        }
+
+        // The returned Slice size must be equal to 18 Byte
+        if (type instanceof DecimalType) {
+            ByteBuffer buffer = (ByteBuffer) value;
+            Slice slice = Slices.allocate(Int128ArrayBlock.INT128_BYTES);
+            slice.setBytes(0, buffer.array());
+            return slice;
         }
 
         throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,

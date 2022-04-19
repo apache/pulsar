@@ -129,6 +129,10 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                                 + "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
+                //  When the precision <= 0, throw Exception.
+                //  When the precision > 0 and <= 18, use ShortDecimalType. and mapping Long
+                //  When the precision > 18 and <= 36, use LongDecimalType. and mapping Slice
+                //  When the precision > 36, throw Exception.
                 if (logicalType instanceof LogicalTypes.Decimal) {
                     LogicalTypes.Decimal decimal = (LogicalTypes.Decimal) logicalType;
                     return DecimalType.createDecimalType(decimal.getPrecision(), decimal.getScale());
