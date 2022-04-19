@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,6 +99,8 @@ public class ConnectionPool implements AutoCloseable {
                     conf.getDnsLookupBindPort());
             dnsNameResolverBuilder.localAddress(addr);
         }
+        DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
+
         this.dnsResolver = dnsNameResolverBuilder.build();
     }
 
