@@ -23,10 +23,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -35,6 +37,7 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,6 +55,8 @@ import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -87,6 +92,43 @@ public class WebServiceTest {
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
     private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
+
+
+    @Test
+    public void testWebExecutorMetrics() throws Exception {
+        setupEnv(true, "1.0", true, false, false, false, -1, false);
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
+        Collection<PrometheusMetricsTest.Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
+        Collection<PrometheusMetricsTest.Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
+        Collection<PrometheusMetricsTest.Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
+        Collection<PrometheusMetricsTest.Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
+
+        for (PrometheusMetricsTest.Metric metric : maxThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : minThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : activeThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value >= 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : idleThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value >= 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : currentThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+    }
 
     /**
      * Test that the {@WebService} class properly passes the allowUnversionedClients value. We do this by setting
