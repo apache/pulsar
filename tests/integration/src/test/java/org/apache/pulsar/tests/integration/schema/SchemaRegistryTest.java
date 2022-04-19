@@ -1,5 +1,6 @@
 package org.apache.pulsar.tests.integration.schema;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Method;
@@ -21,12 +22,14 @@ import org.testng.annotations.Test;
 @Slf4j
 public class SchemaRegistryTest extends TopicMessagingBase {
     protected String methodName;
+    private String SCHEMA_REGISTRY="org.apache.pulsar.broker.service.schema.MockSchemaRegistry";
+    private String SCHEMA_STORAGE="org.apache.pulsar.broker.service.schema.MockSchemaStorage";
 
     @Override
     public void beforeStartCluster() throws Exception {
         super.beforeStartCluster();
-        pulsarCluster.getSpec().schemaRegistryStorageClassName("org.apache.pulsar.broker.service.schema.MockSchemaStorage");
-        pulsarCluster.getSpec().schemaRegistryClassName("org.apache.pulsar.broker.service.schema.MockSchemaRegistry");
+        pulsarCluster.getSpec().schemaRegistryStorageClassName(SCHEMA_STORAGE);
+        pulsarCluster.getSpec().schemaRegistryClassName(SCHEMA_REGISTRY);
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -34,8 +37,17 @@ public class SchemaRegistryTest extends TopicMessagingBase {
         methodName = m.getName();
     }
 
+    @Test
+    protected void verifySchemaRegistryClass() throws Exception {
+        String schemaRegistryClass = pulsarCluster.getSpec().schemaRegistryClassName();
+        String schemaStorageClass = pulsarCluster.getSpec().schemaRegistryStorageClassName();
+
+        assertEquals(schemaRegistryClass, SCHEMA_REGISTRY);
+        assertEquals(schemaStorageClass, SCHEMA_STORAGE);
+    }
+
     @Test(dataProvider = "ServiceUrls")
-    protected void mockSchemaRegistry(Supplier<String> serviceUrl) throws Exception {
+    protected void useMockSchemaRegistry(Supplier<String> serviceUrl) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getPartitionedTopic("test-custom-schema-registry", true, 3);
         @Cleanup
