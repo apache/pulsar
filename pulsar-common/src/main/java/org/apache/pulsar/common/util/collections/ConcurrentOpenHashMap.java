@@ -307,7 +307,7 @@ public class ConcurrentOpenHashMap<K, V> {
         private final float expandFactor;
         private final float shrinkFactor;
         private final boolean autoShrink;
-        private final ThreadLocal<Boolean> computingThreadLocal = ThreadLocal.withInitial(() -> false);
+        private final transient ThreadLocal<Boolean> computingThreadLocal = ThreadLocal.withInitial(() -> false);
 
         Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
                 float expandFactor, float shrinkFactor) {
