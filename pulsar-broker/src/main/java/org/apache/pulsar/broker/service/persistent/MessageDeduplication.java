@@ -468,6 +468,7 @@ public class MessageDeduplication {
                 mapIterator.remove();
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
+                hasInactive = true;
             }
         }
         if (hasInactive) {
