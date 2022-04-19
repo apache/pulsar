@@ -107,7 +107,8 @@ public class MLTransactionLogImpl implements TransactionLog {
     @Override
     public CompletableFuture<Void> initialize() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(),
+        // System namespace is not divided into buckets
+        managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(1),
                 managedLedgerConfig,
                 new AsyncCallbacks.OpenLedgerCallback() {
                     @Override

@@ -1301,9 +1301,10 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetManagedLedgerInfoForNonPartitionedTopic(AsyncResponse asyncResponse) {
-        validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
+        pulsar().getPulsarResources().getNamespaceResources().getBucketCountAsync(namespaceName)
+                .thenCompose(buckets -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
                 .thenAccept(__ -> {
-                    String managedLedger = topicName.getPersistenceNamingEncoding();
+                    String managedLedger = topicName.getPersistenceNamingEncoding(buckets);
                     pulsar().getManagedLedgerFactory()
                             .asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
                         @Override
@@ -1317,7 +1318,7 @@ public class PersistentTopicsBase extends AdminResource {
                             asyncResponse.resume(exception);
                         }
                     }, null);
-                }).exceptionally(ex -> {
+                })).exceptionally(ex -> {
                     log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -3124,23 +3125,25 @@ public class PersistentTopicsBase extends AdminResource {
                         }
                     }
 
-                    return pulsar().getBrokerService().getManagedLedgerConfig(topicName)
-                            .thenCompose(config -> {
-                                ManagedLedgerOfflineBacklog offlineTopicBacklog =
-                                        new ManagedLedgerOfflineBacklog(config.getDigestType(), config.getPassword(),
-                                                pulsar().getAdvertisedAddress(), false);
-                                try {
-                                    PersistentOfflineTopicStats estimateOfflineTopicStats =
-                                            offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory(),
-                                                    topicName);
-                                    pulsar().getBrokerService()
-                                            .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
-                                    return CompletableFuture.completedFuture(estimateOfflineTopicStats);
-                                } catch (Exception e) {
-                                    throw new RestException(e);
-                                }
-                            });
+                    return pulsar().getPulsarResources().getNamespaceResources()
+                            .getBucketCountAsync(topicName.getNamespaceObject()).thenCompose(buckets ->
+                                pulsar().getBrokerService().getManagedLedgerConfig(topicName)
+                                .thenCompose(config -> {
+                                    ManagedLedgerOfflineBacklog offlineTopicBacklog =
+                                            new ManagedLedgerOfflineBacklog(config.getDigestType(),
+                                                    config.getPassword(), pulsar().getAdvertisedAddress(), false);
+                                    try {
+                                        PersistentOfflineTopicStats estimateOfflineTopicStats =
+                                                offlineTopicBacklog.estimateUnloadedTopicBacklog(
+                                                        (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory(),
+                                                        topicName, topicName.getPersistenceNamingEncoding(buckets));
+                                        pulsar().getBrokerService()
+                                                .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
+                                        return CompletableFuture.completedFuture(estimateOfflineTopicStats);
+                                    } catch (Exception e) {
+                                        throw new RestException(e);
+                                    }
+                                }));
 
                 });
     }

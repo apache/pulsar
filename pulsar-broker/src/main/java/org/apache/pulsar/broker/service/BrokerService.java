@@ -1052,24 +1052,25 @@ public class BrokerService implements Closeable {
 
         CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
         deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
-        deleteTopicAuthenticationFuture.whenComplete((v, ex) -> {
-            if (ex != null) {
-                future.completeExceptionally(ex);
-                return;
-            }
-            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
-                @Override
-                public void deleteLedgerComplete(Object ctx) {
-                    future.complete(null);
-                }
+        deleteTopicAuthenticationFuture.thenCompose(__ -> pulsar.getPulsarResources().getNamespaceResources()
+                        .getBucketCountAsync(tn.getNamespaceObject()))
+                .thenAccept(buckets ->
+                        managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(buckets),
+                                new DeleteLedgerCallback() {
+                            @Override
+                            public void deleteLedgerComplete(Object ctx) {
+                                future.complete(null);
+                            }
 
-                @Override
-                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, null);
-        });
-
+                            @Override
+                            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                                future.completeExceptionally(exception);
+                            }
+                        }, null))
+                .exceptionally(ex -> {
+                    future.completeExceptionally(ex);
+                    return null;
+                });
 
         return future;
     }
@@ -1414,9 +1415,11 @@ public class BrokerService implements Closeable {
             }
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
             managedLedgerConfig.setProperties(properties);
-
+            pulsar.getPulsarResources().getNamespaceResources()
+                    .getBucketCountAsync(topicName.getNamespaceObject())
+                    .thenAccept(buckets ->
             // Once we have the configuration, we can proceed with the async open operation
-            managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
+            managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(buckets), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
@@ -1477,7 +1480,13 @@ public class BrokerService implements Closeable {
                                 topicFuture.completeExceptionally(new PersistenceException(exception));
                             }
                         }
-                    }, () -> isTopicNsOwnedByBroker(topicName), null);
+                    }, () -> isTopicNsOwnedByBroker(topicName), null))
+                    .exceptionally(exception -> {
+                        log.warn("Failed to create topic {}", topic, exception);
+                        pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                        topicFuture.completeExceptionally(new PersistenceException(exception));
+                        return null;
+                    });
 
         }).exceptionally((exception) -> {
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
@@ -1710,7 +1719,7 @@ public class BrokerService implements Closeable {
     public void invalidateOfflineTopicStatCache(TopicName topicName) {
         PersistentOfflineTopicStats removed = offlineTopicStatCache.remove(topicName);
         if (removed != null) {
-            log.info("Removed cached offline topic stat for {} ", topicName.getPersistenceNamingEncoding());
+            log.info("Removed cached offline topic stat for {} ", topicName);
         }
     }
 

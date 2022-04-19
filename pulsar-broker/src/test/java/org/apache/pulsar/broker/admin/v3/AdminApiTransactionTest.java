@@ -493,7 +493,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 .getCoordinatorInternalStatsAsync(0, true).get();
         verifyManagedLegerInternalStats(stats.transactionLogStats.managedLedgerInternalStats, 26);
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), NamespaceName.SYSTEM_NAMESPACE,
-                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
+                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(1),
                 stats.transactionLogStats.managedLedgerName);
 
         transaction.commit().get();
@@ -502,7 +502,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 .getCoordinatorInternalStatsAsync(0, false).get();
         assertNull(stats.transactionLogStats.managedLedgerInternalStats.ledgers.get(0).metadata);
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), NamespaceName.SYSTEM_NAMESPACE,
-                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(),
+                MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + "0").getPersistenceNamingEncoding(1),
                 stats.transactionLogStats.managedLedgerName);
     }
 
@@ -543,7 +543,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerInternalStats managedLedgerInternalStats = stats.pendingAckLogStats.managedLedgerInternalStats;
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
                 "testGetPendingAckInternalStats" + "-"
-                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(1),
                 stats.pendingAckLogStats.managedLedgerName);
 
         verifyManagedLegerInternalStats(managedLedgerInternalStats, 16);
@@ -560,7 +560,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
                 "testGetPendingAckInternalStats" + "-"
-                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(1),
                 stats.pendingAckLogStats.managedLedgerName);
         assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
     }

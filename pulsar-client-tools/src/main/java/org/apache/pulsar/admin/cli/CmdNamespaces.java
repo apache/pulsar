@@ -165,7 +165,12 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--bundles", "-b" }, description = "number of bundles to activate", required = false)
         private int numBundles = 0;
 
+        @Parameter(names = "--buckets", description = "number of buckets for topic metadata storage")
+        private int numBuckets = 1;
+
         private static final long MAX_BUNDLES = ((long) 1) << 32;
+
+        private static final int MAX_BUCKETS = 10_000;
 
         @Override
         void run() throws PulsarAdminException {
@@ -175,11 +180,20 @@ public class CmdNamespaces extends CmdBase {
                         "Invalid number of bundles. Number of bundles has to be in the range of (0, 2^32].");
             }
 
+            if (numBuckets < 0 || numBuckets > MAX_BUCKETS) {
+                throw new ParameterException(
+                        "Invalid number of buckets. Number of buckets has to be in the range of (0, 10000].");
+            }
+
             NamespaceName namespaceName = NamespaceName.get(namespace);
             if (namespaceName.isV2()) {
                 Policies policies = new Policies();
                 policies.bundles = numBundles > 0 ? BundlesData.builder()
                         .numBundles(numBundles).build() : null;
+
+                if (numBuckets > 1) {
+                    policies.number_of_buckets = numBuckets;
+                }
 
                 if (clusters != null) {
                     policies.replication_clusters = new HashSet<>(clusters);

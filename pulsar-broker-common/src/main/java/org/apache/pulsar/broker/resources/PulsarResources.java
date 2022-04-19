@@ -75,7 +75,7 @@ public class PulsarResources {
             localPolicies = new LocalPoliciesResources(localMetadataStore, operationTimeoutSec);
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
-            topicResources = new TopicResources(localMetadataStore);
+            topicResources = new TopicResources(localMetadataStore, namespaceResources);
         } else {
             dynamicConfigResources = null;
             localPolicies = null;

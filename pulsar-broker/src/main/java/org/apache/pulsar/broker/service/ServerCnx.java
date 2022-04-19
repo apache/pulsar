@@ -2337,7 +2337,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] handleEndTxnOnPartition txnId: [{}], txnAction: [{}]", topic,
                     txnID, txnAction);
         }
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
+        TopicName topicName = TopicName.get(topic);
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(topicName.toString());
         topicFuture.thenAccept(optionalTopic -> {
             if (optionalTopic.isPresent()) {
                 optionalTopic.get().endTxn(txnID, txnAction, lowWaterMark)
@@ -2356,8 +2357,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         });
 
             } else {
-                getBrokerService().getManagedLedgerFactory()
-                        .asyncExists(TopicName.get(topic).getPersistenceNamingEncoding())
+                service.pulsar().getPulsarResources().getNamespaceResources()
+                        .getBucketCountAsync(topicName.getNamespaceObject())
+                        .thenCompose(buckets ->
+                                getBrokerService().getManagedLedgerFactory()
+                        .asyncExists(topicName.getPersistenceNamingEncoding(buckets))
                         .thenAccept((b) -> {
                             if (b) {
                                 log.error("handleEndTxnOnPartition fail ! The topic {} does not exist in broker, "
@@ -2374,7 +2378,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                             }
-                        }).exceptionally(e -> {
+                        })).exceptionally(e -> {
                     log.error("handleEndTxnOnPartition fail ! topic {}, "
                                     + "txnId: [{}], txnAction: [{}]", topic, txnID,
                             TxnAction.valueOf(txnAction), e.getCause());
@@ -2411,7 +2415,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     new TxnID(txnidMostBits, txnidLeastBits), txnAction);
         }
 
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
+        TopicName topicName = TopicName.get(topic);
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(topicName.toString());
         topicFuture.thenAccept(optionalTopic -> {
             if (optionalTopic.isPresent()) {
                 Subscription subscription = optionalTopic.get().getSubscription(subName);
@@ -2441,8 +2446,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                 });
             } else {
+                service.getPulsar().getPulsarResources().getNamespaceResources()
+                        .getBucketCountAsync(topicName.getNamespaceObject())
+                        .thenCompose(buckets ->
                 getBrokerService().getManagedLedgerFactory()
-                        .asyncExists(TopicName.get(topic).getPersistenceNamingEncoding())
+                        .asyncExists(topicName.getPersistenceNamingEncoding(buckets)))
                         .thenAccept((b) -> {
                             if (b) {
                                 log.error("handleEndTxnOnSubscription fail! The topic {} does not exist in broker, "

@@ -1013,11 +1013,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
-            getBrokerService().getManagedLedgerFactory().asyncDelete(TopicName.get(MLPendingAckStore
-                            .getTransactionPendingAckStoreSuffix(topic,
-                                    Codec.encode(subscriptionName))).getPersistenceNamingEncoding(),
+        TopicName topicName = TopicName.get(MLPendingAckStore.getTransactionPendingAckStoreSuffix(
+                topic, Codec.encode(subscriptionName)));
+            brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                    .getBucketCountAsync(topicName.getNamespaceObject())
+                    .thenAccept(buckets ->
+            getBrokerService().getManagedLedgerFactory().asyncDelete(topicName.getPersistenceNamingEncoding(buckets),
                     new AsyncCallbacks.DeleteLedgerCallback() {
                         @Override
                         public void deleteLedgerComplete(Object ctx) {
@@ -1035,7 +1037,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             log.error("[{}][{}] Error deleting subscription pending ack store",
                                     topic, subscriptionName, exception);
                         }
-                    }, null);
+                    }, null));
         } else {
             asyncDeleteCursor(subscriptionName, unsubscribeFuture);
         }

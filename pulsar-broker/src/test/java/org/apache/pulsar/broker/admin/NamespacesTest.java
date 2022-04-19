@@ -723,7 +723,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         NamespaceName testNs = this.testLocalNamespaces.get(1);
         TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
-        ZkUtils.createFullPathOptimistic(mockZooKeeper, "/managed-ledgers/" + topicName.getPersistenceNamingEncoding(),
+        ZkUtils.createFullPathOptimistic(mockZooKeeper, "/managed-ledgers/" + topicName.getPersistenceNamingEncoding(1),
                 new byte[0], null, null);
 
         // setup ownership to localhost
@@ -740,10 +740,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
         // delete the topic from ZK
-        mockZooKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
+        mockZooKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(1), -1);
 
         ZkUtils.createFullPathOptimistic(mockZooKeeperGlobal,
-                "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
+                "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(1),
                 new byte[0], null, null);
 
         response = mock(AsyncResponse.class);
@@ -753,7 +753,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
-        mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
+        mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(1), -1);
 
         testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost

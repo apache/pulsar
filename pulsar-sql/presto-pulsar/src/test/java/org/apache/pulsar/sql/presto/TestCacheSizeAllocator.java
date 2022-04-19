@@ -91,7 +91,7 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
         MessageIdImpl firstMessageId = prepareData(topicName, totalMsgCnt);
 
         ReadOnlyCursor readOnlyCursor = pulsar.getManagedLedgerFactory().openReadOnlyCursor(
-                topicName.getPersistenceNamingEncoding(),
+                topicName.getPersistenceNamingEncoding(1),
                 PositionImpl.get(firstMessageId.getLedgerId(), firstMessageId.getEntryId()),
                 new ManagedLedgerConfig());
         readOnlyCursor.skipEntries(totalMsgCnt);
@@ -105,6 +105,7 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
                 topicName.getNamespace(),
                 topicName.getLocalName(),
                 topicName.getLocalName(),
+                topicName.getPersistenceNamingEncoding(1),
                 totalMsgCnt,
                 new String(Schema.BYTES.getSchemaInfo().getSchema()),
                 Schema.BYTES.getSchemaInfo().getType(),

@@ -39,6 +39,7 @@ public class TopicName implements ServiceUnitId {
     public static final String DEFAULT_NAMESPACE = "default";
 
     public static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
+    public static final String BUCKET_ID_PERFIX = "$";
 
     private final String completeTopicName;
 
@@ -316,17 +317,29 @@ public class TopicName implements ServiceUnitId {
      *
      * @return the relative path to be used in persistence
      */
-    public String getPersistenceNamingEncoding() {
+    public String getPersistenceNamingEncoding(int numberOfBuckets) {
         // The convention is: domain://tenant/namespace/topic
         // We want to persist in the order: tenant/namespace/domain/topic
 
         // For legacy naming scheme, the convention is: domain://tenant/cluster/namespace/topic
         // We want to persist in the order: tenant/cluster/namespace/domain/topic
         if (isV2()) {
+            if (numberOfBuckets > 1) {
+                String bucket = getBucket(getEncodedLocalName(), numberOfBuckets);
+                return String.format("%s/%s/%s/%s/%s", tenant, namespacePortion, domain, bucket, getEncodedLocalName());
+            }
             return String.format("%s/%s/%s/%s", tenant, namespacePortion, domain, getEncodedLocalName());
         } else {
             return String.format("%s/%s/%s/%s/%s", tenant, cluster, namespacePortion, domain, getEncodedLocalName());
         }
+    }
+
+    public String getPersistenceNamingEncoding(String bucket) {
+        return String.format("%s/%s/%s/%s/%s", tenant, namespacePortion, domain, bucket, getEncodedLocalName());
+    }
+
+    String getBucket(String name, int buckets) {
+        return BUCKET_ID_PERFIX + (name.hashCode() % buckets);
     }
 
     /**

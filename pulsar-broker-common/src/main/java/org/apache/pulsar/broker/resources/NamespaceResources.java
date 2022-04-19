@@ -309,4 +309,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         return getStore().deleteRecursive(tenantBundlePath);
     }
 
+    public CompletableFuture<Integer> getBucketCountAsync(NamespaceName namespaceName) {
+        return getPoliciesAsync(namespaceName)
+                .thenApply(optPolicies -> optPolicies.map(policies -> policies.number_of_buckets).orElse(1));
+
+    }
+
 }

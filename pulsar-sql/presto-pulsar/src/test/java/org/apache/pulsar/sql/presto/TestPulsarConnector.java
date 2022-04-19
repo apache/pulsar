@@ -52,6 +52,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -291,6 +292,7 @@ public abstract class TestPulsarConnector {
                 if (topicsToSchemas.containsKey(topicName.getSchemaName())) {
                     splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
                         topicName.getNamespace(), topicName.getLocalName(), topicName.getLocalName(),
+                        topicName.getPersistenceNamingEncoding(1),
                         topicsToNumEntries.get(topicName.getSchemaName()),
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()),
                         topicsToSchemas.get(topicName.getSchemaName()).getType(),
@@ -542,6 +544,7 @@ public abstract class TestPulsarConnector {
         doReturn(topics).when(pulsarAdmin).topics();
         doReturn(schemas).when(pulsarAdmin).schemas();
         doReturn(pulsarAdmin).when(this.pulsarConnectorConfig).getPulsarAdmin();
+        doReturn(new Policies()).when(namespaces).getPolicies(any());
 
         this.pulsarAuth = mock(PulsarAuth.class);
 

@@ -99,6 +99,9 @@ public class Policies {
     public Integer max_topics_per_namespace = null;
 
     @SuppressWarnings("checkstyle:MemberName")
+    public int number_of_buckets = 1;
+
+    @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
     public SchemaAutoUpdateCompatibilityStrategy schema_auto_update_compatibility_strategy = null;
 
@@ -151,7 +154,8 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name);
+                resource_group_name,
+                number_of_buckets);
     }
 
     @Override
@@ -196,7 +200,8 @@ public class Policies {
                     && Objects.equals(offload_policies, other.offload_policies)
                     && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
                     && Objects.equals(properties, other.properties)
-                    && Objects.equals(resource_group_name, other.resource_group_name);
+                    && Objects.equals(resource_group_name, other.resource_group_name)
+                    && Objects.equals(number_of_buckets, other.number_of_buckets);
         }
 
         return false;

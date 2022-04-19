@@ -48,6 +48,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final String schemaName;
     private final String originSchemaName;
     private final String tableName;
+    private final String persistenceNameEncoding;
     private final long splitSize;
     private final String schema;
     private final SchemaType schemaType;
@@ -71,6 +72,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("originSchemaName") String originSchemaName,
             @JsonProperty("tableName") String tableName,
+            @JsonProperty("persistenceNameEncoding") String persistenceNameEncoding,
             @JsonProperty("splitSize") long splitSize,
             @JsonProperty("schema") String schema,
             @JsonProperty("schemaType") SchemaType schemaType,
@@ -87,6 +89,7 @@ public class PulsarSplit implements ConnectorSplit {
         this.schemaName = requireNonNull(schemaName, "schema name is null");
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.tableName = requireNonNull(tableName, "table name is null");
+        this.persistenceNameEncoding = persistenceNameEncoding;
         this.splitSize = splitSize;
         this.schema = schema;
         this.schemaType = schemaType;
@@ -132,6 +135,11 @@ public class PulsarSplit implements ConnectorSplit {
     @JsonProperty
     public String getTableName() {
         return tableName;
+    }
+
+    @JsonProperty
+    public String getPersistenceNameEncoding() {
+        return persistenceNameEncoding;
     }
 
     @JsonProperty
@@ -215,6 +223,7 @@ public class PulsarSplit implements ConnectorSplit {
             + ", originSchemaName='" + originSchemaName + '\''
             + ", schemaName='" + schemaName + '\''
             + ", tableName='" + tableName + '\''
+            + ", persistenceName='" + persistenceNameEncoding + '\''
             + ", splitSize=" + splitSize
             + ", schema='" + schema + '\''
             + ", schemaType=" + schemaType

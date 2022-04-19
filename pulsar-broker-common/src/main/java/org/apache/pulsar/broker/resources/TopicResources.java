@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -41,11 +42,13 @@ public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
     private final MetadataStore store;
+    private final NamespaceResources namespaceResources;
 
     private final Map<BiConsumer<String, NotificationType>, Pattern> topicListeners;
 
-    public TopicResources(MetadataStore store) {
+    public TopicResources(MetadataStore store, NamespaceResources namespaceResources) {
         this.store = store;
+        this.namespaceResources = namespaceResources;
         topicListeners = new ConcurrentHashMap<>();
         store.registerListener(this::handleNotification);
     }
@@ -53,10 +56,15 @@ public class TopicResources {
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
 
-        return store.getChildren(path).thenApply(children ->
-                children.stream().map(c -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(c)).toString())
-                        .collect(Collectors.toList())
-        );
+        CompletableFuture<List<String>> childrenOfNamespace = store.getChildren(path);
+        CompletableFuture<List<String>> topics = childrenOfNamespace.thenCompose(children ->
+                !children.isEmpty() && children.get(0).startsWith(TopicName.BUCKET_ID_PERFIX)
+                        ? children.stream().map(bucket -> store.getChildren(path + "/" + bucket))
+                            .collect(FutureUtil.toList())
+                        : CompletableFuture.completedFuture(children));
+        return topics.thenApply(children -> children.stream()
+                        .map(name -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(name)).toString())
+                        .collect(Collectors.toList()));
     }
 
     public CompletableFuture<List<String>> getExistingPartitions(TopicName topic) {
@@ -65,27 +73,39 @@ public class TopicResources {
 
     public CompletableFuture<List<String>> getExistingPartitions(NamespaceName ns, TopicDomain domain) {
         String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + ns + "/" + domain;
-        return store.getChildren(topicPartitionPath).thenApply(topics ->
-                topics.stream()
+        CompletableFuture<List<String>> childrenOfNamespace = store.getChildren(topicPartitionPath);
+        CompletableFuture<List<String>> topics = childrenOfNamespace.thenCompose(children ->
+                !children.isEmpty() && children.get(0).startsWith(TopicName.BUCKET_ID_PERFIX)
+                        ? children.stream().map(bucket -> store.getChildren(topicPartitionPath + "/" + bucket))
+                            .collect(FutureUtil.toList())
+                        : CompletableFuture.completedFuture(children));
+        return topics.thenApply(localNames ->
+                localNames.stream()
                         .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
                         .collect(Collectors.toList())
         );
     }
 
     public CompletableFuture<Void> deletePersistentTopicAsync(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
-        return store.delete(path, Optional.of(-1L));
+        return namespaceResources.getBucketCountAsync(topic.getNamespaceObject()).thenCompose(buckets -> {
+            String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding(buckets);
+            return store.delete(path, Optional.of(-1L));
+        });
     }
 
     public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
-        return store.put(path, new byte[0], Optional.of(-1L))
-                .thenApply(__ -> null);
+        return namespaceResources.getBucketCountAsync(topic.getNamespaceObject()).thenCompose(buckets -> {
+            String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding(buckets);
+            return store.put(path, new byte[0], Optional.of(-1L))
+                    .thenApply(__ -> null);
+        });
     }
 
     public CompletableFuture<Boolean> persistentTopicExists(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
-        return store.exists(path);
+        return namespaceResources.getBucketCountAsync(topic.getNamespaceObject()).thenCompose(buckets -> {
+            String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding(buckets);
+            return store.exists(path);
+        });
     }
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
@@ -141,7 +161,8 @@ public class TopicResources {
 
     Pattern namespaceNameToTopicNamePattern(NamespaceName namespaceName) {
         return Pattern.compile(
-                MANAGED_LEDGER_PATH + "/(" + namespaceName + ")/(" + TopicDomain.persistent + ")/(" + "[^/]+)");
+                MANAGED_LEDGER_PATH + "/(" + namespaceName + ")/(" + TopicDomain.persistent
+                        + ")/(?:\\$[0-9]+/)?([^/]+)");
     }
 
     public void registerPersistentTopicListener(

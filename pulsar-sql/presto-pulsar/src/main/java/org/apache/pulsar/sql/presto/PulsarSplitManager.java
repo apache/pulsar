@@ -132,13 +132,14 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 offloadPolicies.setManagedLedgerOffloadMaxThreads(
                         pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
             }
+            int numberOfBuckets = this.pulsarAdmin.namespaces().getPolicies(topicName.getNamespace()).number_of_buckets;
             if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
                 splits = getSplitsNonPartitionedTopic(
-                        numSplits, topicName, tableHandle, schemaInfo, tupleDomain, offloadPolicies);
+                        numSplits, topicName, numberOfBuckets, tableHandle, schemaInfo, tupleDomain, offloadPolicies);
                 log.debug("Splits for non-partitioned topic %s: %s", topicName, splits);
             } else {
                 splits = getSplitsPartitionedTopic(
-                        numSplits, topicName, tableHandle, schemaInfo, tupleDomain, offloadPolicies);
+                        numSplits, topicName, numberOfBuckets, tableHandle, schemaInfo, tupleDomain, offloadPolicies);
                 log.debug("Splits for partitioned topic %s: %s", topicName, splits);
             }
         } catch (Exception e) {
@@ -149,8 +150,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     }
 
     @VisibleForTesting
-    Collection<PulsarSplit> getSplitsPartitionedTopic(int numSplits, TopicName topicName, PulsarTableHandle
-            tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain,
+    Collection<PulsarSplit> getSplitsPartitionedTopic(int numSplits, TopicName topicName, int numberOfBuckets,
+              PulsarTableHandle tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain,
               OffloadPoliciesImpl offloadPolicies) throws Exception {
 
         List<Integer> predicatedPartitions = getPredicatedPartitions(topicName, tupleDomain);
@@ -174,7 +175,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             int splitsForThisPartition = (splitRemainder > i) ? splitsPerPartition + 1 : splitsPerPartition;
             splits.addAll(
                 getSplitsForTopic(
-                    topicName.getPartition(predicatedPartitions.get(i)).getPersistenceNamingEncoding(),
+                    topicName.getPartition(predicatedPartitions.get(i)).getPersistenceNamingEncoding(numberOfBuckets),
                     managedLedgerFactory,
                     managedLedgerConfig,
                     splitsForThisPartition,
@@ -235,7 +236,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     }
 
     @VisibleForTesting
-    Collection<PulsarSplit> getSplitsNonPartitionedTopic(int numSplits, TopicName topicName,
+    Collection<PulsarSplit> getSplitsNonPartitionedTopic(int numSplits, TopicName topicName, int numberOfBuckets,
             PulsarTableHandle tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain,
              OffloadPoliciesImpl offloadPolicies) throws Exception {
         PulsarConnectorCache pulsarConnectorCache = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
@@ -244,7 +245,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 topicName.getNamespaceObject(), offloadPolicies, pulsarConnectorConfig);
 
         return getSplitsForTopic(
-                topicName.getPersistenceNamingEncoding(),
+                topicName.getPersistenceNamingEncoding(numberOfBuckets),
                 managedLedgerFactory,
                 managedLedgerConfig,
                 numSplits,
@@ -314,6 +315,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                         restoreNamespaceDelimiterIfNeeded(tableHandle.getSchemaName(), pulsarConnectorConfig),
                         schemaInfo.getName(),
                         tableName,
+                        topicNamePersistenceEncoding,
                         entriesForSplit,
                         new String(schemaInfo.getSchema(),  "ISO8859-1"),
                         schemaInfo.getType(),

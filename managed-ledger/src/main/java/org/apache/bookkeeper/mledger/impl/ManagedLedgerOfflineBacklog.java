@@ -102,12 +102,12 @@ public class ManagedLedgerOfflineBacklog {
 
     public PersistentOfflineTopicStats getEstimatedUnloadedTopicBacklog(ManagedLedgerFactoryImpl factory,
             String managedLedgerName) throws Exception {
-        return estimateUnloadedTopicBacklog(factory, TopicName.get("persistent://" + managedLedgerName));
+        return estimateUnloadedTopicBacklog(factory, TopicName.get("persistent://" + managedLedgerName),
+                managedLedgerName);
     }
 
     public PersistentOfflineTopicStats estimateUnloadedTopicBacklog(ManagedLedgerFactoryImpl factory,
-            TopicName topicName) throws Exception {
-        String managedLedgerName = topicName.getPersistenceNamingEncoding();
+            TopicName topicName, String managedLedgerName) throws Exception {
         long numberOfEntries = 0;
         long totalSize = 0;
         final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
@@ -115,7 +115,7 @@ public class ManagedLedgerOfflineBacklog {
                 brokerName);
 
         // calculate total managed ledger size and number of entries without loading the topic
-        readLedgerMeta(factory, topicName, ledgers);
+        readLedgerMeta(factory, topicName, ledgers, managedLedgerName);
         for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : ledgers.values()) {
             numberOfEntries += ls.getEntries();
             totalSize += ls.getSize();
@@ -130,15 +130,15 @@ public class ManagedLedgerOfflineBacklog {
         }
 
         // calculate per cursor message backlog
-        calculateCursorBacklogs(factory, topicName, ledgers, offlineTopicStats);
+        calculateCursorBacklogs(factory, managedLedgerName, ledgers, offlineTopicStats);
         offlineTopicStats.statGeneratedAt.setTime(System.currentTimeMillis());
 
         return offlineTopicStats;
     }
 
     private void readLedgerMeta(final ManagedLedgerFactoryImpl factory, final TopicName topicName,
-            final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers) throws Exception {
-        String managedLedgerName = topicName.getPersistenceNamingEncoding();
+            final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers,
+                                final String managedLedgerName) throws Exception {
         MetaStore store = factory.getMetaStore();
         BookKeeper bk = factory.getBookKeeper();
         final CountDownLatch mlMetaCounter = new CountDownLatch(1);
@@ -208,14 +208,13 @@ public class ManagedLedgerOfflineBacklog {
         }
     }
 
-    private void calculateCursorBacklogs(final ManagedLedgerFactoryImpl factory, final TopicName topicName,
+    private void calculateCursorBacklogs(final ManagedLedgerFactoryImpl factory, final String managedLedgerName,
             final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers,
             final PersistentOfflineTopicStats offlineTopicStats) throws Exception {
 
         if (ledgers.isEmpty()) {
             return;
         }
-        String managedLedgerName = topicName.getPersistenceNamingEncoding();
         MetaStore store = factory.getMetaStore();
         BookKeeper bk = factory.getBookKeeper();
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);

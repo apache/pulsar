@@ -96,7 +96,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             PulsarTableLayoutHandle pulsarTableLayoutHandle = new PulsarTableLayoutHandle(pulsarTableHandle, TupleDomain.all());
 
             final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
-            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsNonPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
 
             ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
@@ -104,7 +104,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                     pulsarTableLayoutHandle, null);
 
             verify(this.pulsarSplitManager, times(1))
-                    .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+                    .getSplitsNonPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
             int totalSize = 0;
             for (PulsarSplit pulsarSplit : resultCaptor.getResult()) {
@@ -143,13 +143,13 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             PulsarTableLayoutHandle pulsarTableLayoutHandle = new PulsarTableLayoutHandle(pulsarTableHandle, TupleDomain.all());
 
             final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
-            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
             this.pulsarSplitManager.getSplits(mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
                     pulsarTableLayoutHandle, null);
 
             verify(this.pulsarSplitManager, times(1))
-                    .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+                    .getSplitsPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
             int partitions = partitionedTopicsToPartitions.get(topicName.toString());
 
@@ -210,7 +210,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
         final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
         doAnswer(resultCaptor).when(this.pulsarSplitManager)
-                .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+                .getSplitsNonPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
         ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
                 mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
@@ -218,7 +218,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
 
         verify(this.pulsarSplitManager, times(1))
-                .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+                .getSplitsNonPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
         int totalSize = 0;
         int initalStart = 1;
@@ -267,7 +267,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
         final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
         doAnswer(resultCaptor).when(this.pulsarSplitManager)
-                .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+                .getSplitsPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
         ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
                 mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
@@ -275,7 +275,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
 
         verify(this.pulsarSplitManager, times(1))
-                .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
+                .getSplitsPartitionedTopic(anyInt(), any(), anyInt(), any(), any(), any(), any());
 
 
         int partitions = partitionedTopicsToPartitions.get(topicName.toString());
@@ -323,8 +323,8 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 0L, true)), false);
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(domainMap);
-            Collection<PulsarSplit> splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, pulsarTableHandle,
-                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
+            Collection<PulsarSplit> splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, 1,
+                    pulsarTableHandle, schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 2);
             }
@@ -340,7 +340,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 false);
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             tupleDomain = TupleDomain.withColumnDomains(domainMap);
-            splits = this.pulsarSplitManager.getSplitsPartitionedTopic(1, topicName, pulsarTableHandle,
+            splits = this.pulsarSplitManager.getSplitsPartitionedTopic(1, topicName, 1, pulsarTableHandle,
                 schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 2);
@@ -356,7 +356,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 false);
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             tupleDomain = TupleDomain.withColumnDomains(domainMap);
-            splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, pulsarTableHandle,
+            splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, 1, pulsarTableHandle,
                 schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 3);
@@ -375,7 +375,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                 false);
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             tupleDomain = TupleDomain.withColumnDomains(domainMap);
-            splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, pulsarTableHandle,
+            splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, 1, pulsarTableHandle,
                 schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 4);
@@ -440,6 +440,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         final long splitId = 1;
         final String connectorId = "connectorId";
         final String tableName = "tableName";
+        final String persistenceNameEncoding = "namespace/tenant/tableName";
         final long splitSize = 5;
         final long startPositionEntryId = 22;
         final long endPositionEntryId = 33;
@@ -451,8 +452,8 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         JsonCodec<PulsarSplit> jsonCodec = JsonCodec.jsonCodec(PulsarSplit.class);
         try {
             PulsarSplit pulsarSplit = new PulsarSplit(
-                    splitId, connectorId, schemaName, originSchemaName, tableName, splitSize, schema,
-                    schemaType, startPositionEntryId, endPositionEntryId, startPositionLedgerId,
+                    splitId, connectorId, schemaName, originSchemaName, tableName, persistenceNameEncoding, splitSize,
+                    schema, schemaType, startPositionEntryId, endPositionEntryId, startPositionLedgerId,
                     endPositionLedgerId, tupleDomain, schemaInfoProperties, offloadPolicies);
             pulsarSplitData = jsonCodec.toJsonBytes(pulsarSplit);
         } catch (Exception e) {
@@ -472,6 +473,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             Assert.assertEquals(pulsarSplit.getSplitId(), splitId);
             Assert.assertEquals(pulsarSplit.getConnectorId(), connectorId);
             Assert.assertEquals(pulsarSplit.getTableName(), tableName);
+            Assert.assertEquals(pulsarSplit.getPersistenceNameEncoding(), persistenceNameEncoding);
             Assert.assertEquals(pulsarSplit.getSplitSize(), splitSize);
             Assert.assertEquals(pulsarSplit.getStartPositionEntryId(), startPositionEntryId);
             Assert.assertEquals(pulsarSplit.getEndPositionEntryId(), endPositionEntryId);

@@ -414,6 +414,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
         PulsarSplit split = new PulsarSplit(0, pulsarConnectorId.toString(),
                 topicName.getNamespace(), topicName.getLocalName(), topicName.getLocalName(),
+                topicName.getPersistenceNamingEncoding(1),
                 entriesNum,
                 new String(schema.getSchemaInfo().getSchema(),  "ISO8859-1"),
                 schema.getSchemaInfo().getType(),

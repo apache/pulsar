@@ -74,12 +74,14 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
         String pendingAckTopicName = MLPendingAckStore
                 .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
-        originPersistentTopic.getBrokerService().getManagedLedgerFactory()
-                .asyncExists(TopicName.get(pendingAckTopicName)
-                        .getPersistenceNamingEncoding()).thenAccept(exist -> {
+        TopicName pendingAckTopicNameObject = TopicName.get(pendingAckTopicName);
+        originPersistentTopic.getBrokerService().pulsar().getPulsarResources().getNamespaceResources()
+                .getBucketCountAsync(pendingAckTopicNameObject.getNamespaceObject())
+                .thenCompose(buckets -> originPersistentTopic.getBrokerService().getManagedLedgerFactory()
+                .asyncExists(pendingAckTopicNameObject.getPersistenceNamingEncoding(buckets)).thenAccept(exist -> {
             TopicName topicName;
             if (exist) {
-                topicName = TopicName.get(pendingAckTopicName);
+                topicName = pendingAckTopicNameObject;
             } else {
                 topicName = TopicName.get(originPersistentTopic.getName());
             }
@@ -87,7 +89,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                     .getManagedLedgerConfig(topicName).thenAccept(config -> {
                 config.setCreateIfMissing(true);
                 originPersistentTopic.getBrokerService().getManagedLedgerFactory()
-                        .asyncOpen(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding(),
+                        .asyncOpen(pendingAckTopicNameObject.getPersistenceNamingEncoding(buckets),
                                 config, new AsyncCallbacks.OpenLedgerCallback() {
                                     @Override
                                     public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
@@ -132,7 +134,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                     }
                                 }, () -> true, null);
             });
-        }).exceptionally(e -> {
+        })).exceptionally(e -> {
             log.error("Failed to obtain the existence of ManagerLedger with topic and subscription : "
                     + originPersistentTopic.getSubscriptions() + "  "
                     + subscription.getName());
@@ -146,9 +148,12 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
     @Override
     public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
-        String pendingAckTopicName = MLPendingAckStore
-                .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
-        return originPersistentTopic.getBrokerService().getManagedLedgerFactory()
-                .asyncExists(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding());
+        TopicName pendingAckTopicName = TopicName.get(MLPendingAckStore
+                .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName()));
+        return originPersistentTopic.getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
+                .getBucketCountAsync(pendingAckTopicName.getNamespaceObject())
+                .thenCompose(buckets ->
+                        originPersistentTopic.getBrokerService().getManagedLedgerFactory()
+                                .asyncExists(pendingAckTopicName.getPersistenceNamingEncoding(buckets)));
     }
 }

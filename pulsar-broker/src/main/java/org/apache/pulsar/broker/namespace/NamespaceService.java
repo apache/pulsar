@@ -1109,6 +1109,7 @@ public class NamespaceService implements AutoCloseable {
         return getListOfPersistentTopics(namespaceName)
                 .thenCombine(getListOfNonPersistentTopics(namespaceName),
                         (persistentTopics, nonPersistentTopics) -> {
+                    LOG.info("Topics " + persistentTopics);
                             return ListUtils.union(persistentTopics, nonPersistentTopics);
                         });
     }
@@ -1219,7 +1220,11 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
-        return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName);
+        return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName)
+                .thenApply(x -> {
+                    LOG.info("getListOfPersistentTopics: " + x);
+                    return x;
+                });
     }
 
     public CompletableFuture<List<String>> getListOfNonPersistentTopics(NamespaceName namespaceName) {

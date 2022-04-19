@@ -217,9 +217,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // Mock pulsarResources.
         PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
         NamespaceResources nsr = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
-        TopicResources tsr = spyWithClassAndConstructorArgs(TopicResources.class, store);
+        TopicResources tsr = spyWithClassAndConstructorArgs(TopicResources.class, store, nsr);
         doReturn(nsr).when(pulsarResources).getNamespaceResources();
         doReturn(tsr).when(pulsarResources).getTopicResources();
+        doReturn(CompletableFuture.completedFuture(1)).when(nsr).getBucketCountAsync(any());
         PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
             doReturn(pulsarResources).when(pulsar).getPulsarResources();
         });

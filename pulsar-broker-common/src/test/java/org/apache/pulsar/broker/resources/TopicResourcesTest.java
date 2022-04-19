@@ -35,11 +35,13 @@ public class TopicResourcesTest {
 
     private MetadataStore metadataStore;
     private TopicResources topicResources;
+    private NamespaceResources namespaceResources;
 
     @BeforeMethod
     public void setup() {
         metadataStore = mock(MetadataStore.class);
-        topicResources = new TopicResources(metadataStore);
+        namespaceResources = mock(NamespaceResources.class);
+        topicResources = new TopicResources(metadataStore, namespaceResources);
     }
 
     @Test

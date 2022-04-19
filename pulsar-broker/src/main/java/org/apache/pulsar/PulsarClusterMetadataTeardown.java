@@ -162,17 +162,33 @@ public class PulsarClusterMetadataTeardown {
             final String tenantRoot = managedLedgersRoot + "/" + tenant;
             metadataStore.getChildren(tenantRoot).join().forEach(namespace -> {
                 final String namespaceRoot = String.join("/", tenantRoot, namespace, "persistent");
-                metadataStore.getChildren(namespaceRoot).join().forEach(topic -> {
-                    final TopicName topicName = TopicName.get(String.join("/", tenant, namespace, topic));
-                    try {
-                        managedLedgerFactory.delete(topicName.getPersistenceNamingEncoding());
-                    } catch (InterruptedException | ManagedLedgerException e) {
-                        log.error("Failed to delete ledgers of {}: {}", topicName, e);
-                        throw new RuntimeException(e);
+                metadataStore.getChildren(namespaceRoot).join().forEach(namespaceChild -> {
+                    if (namespaceChild.startsWith("$")) {
+                        // "$" means this is a bucket and topics are children of the bucket
+                        final String bucketRoot = String.join("/", namespaceRoot, namespaceChild);
+                        metadataStore.getChildren(bucketRoot).join().stream().map(topic ->
+                                TopicName.get(String.join("/", tenant, namespace, topic))).forEach(topicName ->{
+                                    deleteManagedLedger(managedLedgerFactory,
+                                            topicName.getPersistenceNamingEncoding(namespaceChild), topicName);
+                                }
+                        );
+                    } else {
+                        TopicName topicName = TopicName.get(String.join("/", tenant, namespace, namespaceChild));
+                        deleteManagedLedger(managedLedgerFactory, topicName.getPersistenceNamingEncoding(1), topicName);
                     }
                 });
             });
         });
+    }
+
+    private static void deleteManagedLedger(ManagedLedgerFactory managedLedgerFactory, String name,
+                                            TopicName topicName) {
+        try {
+            managedLedgerFactory.delete(name);
+        } catch (InterruptedException | ManagedLedgerException e) {
+            log.error("Failed to delete ledgers of {}: {}", topicName, e);
+            throw new RuntimeException(e);
+        }
     }
 
     private static void deleteSchemaLedgers(MetadataStore metadataStore, BookKeeper bookKeeper) {

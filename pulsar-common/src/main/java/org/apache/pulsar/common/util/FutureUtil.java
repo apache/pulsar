@@ -21,8 +21,12 @@ package org.apache.pulsar.common.util;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -30,8 +34,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -257,5 +265,50 @@ public class FutureUtil {
         } else {
             return new CompletionException(throwable);
         }
+    }
+
+    public static <T>
+    Collector<CompletableFuture<List<T>>, List<CompletableFuture<List<T>>>, CompletableFuture<List<T>>> toList() {
+        return new Collector<CompletableFuture<List<T>>,
+                List<CompletableFuture<List<T>>>, CompletableFuture<List<T>>>() {
+
+            @Override
+            public Supplier<List<CompletableFuture<List<T>>>> supplier() {
+                return LinkedList::new;
+            }
+
+            @Override
+            public BiConsumer<List<CompletableFuture<List<T>>>, CompletableFuture<List<T>>> accumulator() {
+                return List::add;
+            }
+
+            @Override
+            public BinaryOperator<List<CompletableFuture<List<T>>>> combiner() {
+                return FutureUtil::concat;
+            }
+
+            @Override
+            public Function<List<CompletableFuture<List<T>>>, CompletableFuture<List<T>>> finisher() {
+                return l -> {
+                    CompletableFuture<List<T>> f =
+                            CompletableFuture.completedFuture(Collections.emptyList());
+                    for (CompletableFuture<List<T>> e : l) {
+                        f = f.thenCombine(e, FutureUtil::concat);
+                    }
+                    return f;
+                };
+            }
+
+            @Override
+            public Set<Characteristics> characteristics() {
+                return EnumSet.noneOf(Characteristics.class);
+            }
+        };
+    }
+
+    private static <R> List<R> concat(List<R> l1, List<R> l2) {
+        List<R> result = new LinkedList<>(l1);
+        result.addAll(l2);
+        return result;
     }
 }

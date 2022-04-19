@@ -198,8 +198,12 @@ public class PulsarRecordCursor implements RecordCursor {
         log.info("Initializing split with parameters: %s", pulsarSplit);
 
         try {
-            this.cursor = getCursor(TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
-                pulsarSplit.getTableName()), pulsarSplit.getStartPosition(), managedLedgerFactory, managedLedgerConfig);
+            String managedLedgerName = pulsarSplit.getPersistenceNameEncoding() == null
+                    ? TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
+                    pulsarSplit.getTableName()).getPersistenceNamingEncoding(1)
+                    : pulsarSplit.getPersistenceNameEncoding();
+            this.cursor = getCursor(managedLedgerName,
+                    pulsarSplit.getStartPosition(), managedLedgerFactory, managedLedgerConfig);
         } catch (ManagedLedgerException | InterruptedException e) {
             log.error(e, "Failed to get read only cursor");
             close();
@@ -207,11 +211,11 @@ public class PulsarRecordCursor implements RecordCursor {
         }
     }
 
-    private ReadOnlyCursor getCursor(TopicName topicName, Position startPosition, ManagedLedgerFactory
+    private ReadOnlyCursor getCursor(String  managedLedgerName, Position startPosition, ManagedLedgerFactory
             managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig)
             throws ManagedLedgerException, InterruptedException {
 
-        ReadOnlyCursor cursor = managedLedgerFactory.openReadOnlyCursor(topicName.getPersistenceNamingEncoding(),
+        ReadOnlyCursor cursor = managedLedgerFactory.openReadOnlyCursor(managedLedgerName,
                 startPosition, managedLedgerConfig);
 
         return cursor;

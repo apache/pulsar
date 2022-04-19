@@ -307,7 +307,7 @@ public class TransactionTest extends TransactionTestBase {
         field.setAccessible(true);
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
                 (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field.get(managedLedgerFactory);
-        ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
+        ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding(1));
         try {
             admin.topics().createNonPartitionedTopic(topic);
             Assert.fail();

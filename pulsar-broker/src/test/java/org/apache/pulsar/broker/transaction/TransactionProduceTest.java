@@ -237,7 +237,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 topic = TopicName.get(topic).toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
             }
             return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
-                    TopicName.get(topic).getPersistenceNamingEncoding(),
+                    TopicName.get(topic).getPersistenceNamingEncoding(1),
                     PositionImpl.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {
             log.error("Failed to get origin topic readonly cursor.", e);
