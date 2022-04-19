@@ -290,7 +290,6 @@ public class ConcurrentOpenHashMap<K, V> {
 
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
-    @SuppressFBWarnings("SE_NO_SERIALVERSIONID")
     private static final class Section<K, V> extends StampedLock {
         // Keys and values are stored interleaved in the table array
         private volatile Object[] table;
