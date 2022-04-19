@@ -21,7 +21,7 @@ name: CI - Python - Build 3.9 client
 on:
   pull_request:
     branches:
-      - master
+      - branch-*
     paths:
       - '.github/workflows/**'
       - 'pulsar-client-cpp/**'

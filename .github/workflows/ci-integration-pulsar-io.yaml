@@ -21,7 +21,7 @@ name: CI - Integration - Pulsar-IO Sinks and Sources
 on:
   pull_request:
     branches:
-      - master
+      - branch-*
   push:
     branches:
       - branch-*

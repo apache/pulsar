@@ -21,7 +21,7 @@ name: CI - Go Functions Tests
 on:
   pull_request:
     branches:
-      - master
+      - branch-*
     paths:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
