@@ -415,7 +415,7 @@ Parameters:
  * `properties` -> *(optional)* Reserved configuration items
  * `txnid_most_bits` -> *(optional)* Same as TC ID, `txnid_most_bits` and `txnid_least_bits`
    uniquely identify a transaction.
- * `txnid_least_bits` -> *(optional)* The id of the transaction opened in a TC,
+ * `txnid_least_bits` -> *(optional)* The ID of the transaction opened in a TC,
    `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
  * `request_id` -> *(optional)* ID for handling response and timeout.
    
