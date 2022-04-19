@@ -111,8 +111,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.74.Final</netty.version>
-    <netty-tc-native.version>2.0.48.Final</netty-tc-native.version>
+    <netty.version>4.1.76.Final</netty.version>
+    <netty-tc-native.version>2.0.51.Final</netty-tc-native.version>
     <jetty.version>9.4.44.v20210927</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -132,9 +132,10 @@ flexible messaging model and an intuitive client API.</description>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf3.version>3.16.1</protobuf3.version>
+    <protobuf3.version>3.19.2</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.42.1</grpc.version>
+    <grpc.version>1.45.1</grpc.version>
+    <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.9</gson.version>
@@ -165,7 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.postgresql.version>42.3.3</debezium.postgresql.version>
     <debezium.mysql.version>8.0.28</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
-    <opencensus.version>0.18.0</opencensus.version>
+    <opencensus.version>0.28.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>
     <guava.version>31.0.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
@@ -1010,6 +1011,24 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client</artifactId>
+        <version>${google-http-client.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-jackson2</artifactId>
+        <version>${google-http-client.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-gson</artifactId>
+        <version>${google-http-client.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-netty-shaded</artifactId>
         <version>${grpc.version}</version>
@@ -1162,6 +1181,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.opencensus</groupId>
         <artifactId>opencensus-api</artifactId>
+        <version>${opencensus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.opencensus</groupId>
+        <artifactId>opencensus-contrib-http-util</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
 
