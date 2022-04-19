@@ -81,7 +81,7 @@
 <li><p>For the latest and complete information about <code>Pulsar admin</code>, including commands, flags, descriptions, and more information, see <a href="https://pulsar.apache.org/tools/pulsar-admin/">Pulsar admin doc</a>.</p></li>
 <li><p>For the latest and complete information about <code>REST API</code>, including parameters, responses, samples, and more, see <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
  API doc.</p></li>
-<li><p>For the latest and complete information about <code>Java admin API</code>, including classes, methods, descriptions, and more, see <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/">Java admin API doc</a>.</p></li>
+<li><p>For the latest and complete information about <code>Java admin API</code>, including classes, methods, descriptions, and more, see <a href="https://pulsar.apache.org/api/admin/2.10.0-SNAPSHOT/">Java admin API doc</a>.</p></li>
 </ul>
 </blockquote>
 <p>Tenants, like namespaces, can be managed using the <a href="/docs/ja/2.8.2/admin-api-overview">admin API</a>. There are currently two configurable aspects of tenants:</p>
@@ -94,7 +94,7 @@
 <p>You can list all of the tenants associated with an <a href="/docs/ja/2.8.2/reference-terminology#instance">instance</a>.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-16131-tab-16132" class="nav-link active" data-group="group_16131" data-tab="tab-group-16131-content-16132">pulsar-admin</div><div id="tab-group-16131-tab-16133" class="nav-link" data-group="group_16131" data-tab="tab-group-16131-content-16133">REST API</div><div id="tab-group-16131-tab-16134" class="nav-link" data-group="group_16131" data-tab="tab-group-16131-content-16134">JAVA</div></div><div class="tab-content"><div id="tab-group-16131-content-16132" class="tab-pane active" data-group="group_16131" tabindex="-1"><div><span><p>Use the <a href="/docs/ja/2.8.2/reference-pulsar-admin#tenants-list"><code>list</code></a> subcommand.</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants list</span><br />my-tenant-1<br />my-tenant-2<br /></code></pre>
-</span></div></div><div id="tab-group-16131-content-16133" class="tab-pane" data-group="group_16131" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenants?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants</i></a>
+</span></div></div><div id="tab-group-16131-content-16133" class="tab-pane" data-group="group_16131" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenants?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants</i></a>
 </p>
 </span></div></div><div id="tab-group-16131-content-16134" class="tab-pane" data-group="group_16131" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.tenants().getTenants();<br /></code></pre>
 </span></div></div></div></div>
@@ -104,7 +104,7 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants create my-tenant</span><br /></code></pre>
 <p>When creating a tenant, you can assign admin roles using the <code>-r</code>/<code>--admin-roles</code> flag. You can specify multiple roles as a comma-separated list. Here are some examples:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants create my-tenant \</span><br />  --admin-roles role1,role2,role3<br /><span class="hljs-meta"><br />$</span><span class="bash"> pulsar-admin tenants create my-tenant \</span><br />  -r role1<br /></code></pre>
-</span></div></div><div id="tab-group-16135-content-16137" class="tab-pane" data-group="group_16135" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createTenant?version=2.9.2&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/tenants/:tenant</i></a>
+</span></div></div><div id="tab-group-16135-content-16137" class="tab-pane" data-group="group_16135" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createTenant?version=2.10.0&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/tenants/:tenant</i></a>
 </p>
 </span></div></div><div id="tab-group-16135-content-16138" class="tab-pane" data-group="group_16135" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.tenants().createTenant(tenantName, tenantInfo);<br /></code></pre>
 </span></div></div></div></div>
@@ -112,7 +112,7 @@
 <p>You can fetch the <a href="/docs/ja/2.8.2/reference-configuration">configuration</a> for an existing tenant at any time.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-16139-tab-16140" class="nav-link active" data-group="group_16139" data-tab="tab-group-16139-content-16140">pulsar-admin</div><div id="tab-group-16139-tab-16141" class="nav-link" data-group="group_16139" data-tab="tab-group-16139-content-16141">REST API</div><div id="tab-group-16139-tab-16142" class="nav-link" data-group="group_16139" data-tab="tab-group-16139-content-16142">JAVA</div></div><div class="tab-content"><div id="tab-group-16139-content-16140" class="tab-pane active" data-group="group_16139" tabindex="-1"><div><span><p>Use the <a href="/docs/ja/2.8.2/reference-pulsar-admin#tenants-get"><code>get</code></a> subcommand and specify the name of the tenant. Here's an example:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants get my-tenant</span><br />{<br />  "adminRoles": [<br />    "admin1",<br />    "admin2"<br />  ],<br />  "allowedClusters": [<br />    "cl1",<br />    "cl2"<br />  ]<br />}<br /></code></pre>
-</span></div></div><div id="tab-group-16139-content-16141" class="tab-pane" data-group="group_16139" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenant?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants/:cluster</i></a>
+</span></div></div><div id="tab-group-16139-content-16141" class="tab-pane" data-group="group_16139" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenant?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants/:cluster</i></a>
 </p>
 </span></div></div><div id="tab-group-16139-content-16142" class="tab-pane" data-group="group_16139" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.tenants().getTenantInfo(tenantName);<br /></code></pre>
 </span></div></div></div></div>
@@ -120,7 +120,7 @@
 <p>Tenants can be deleted from a Pulsar <a href="/docs/ja/2.8.2/reference-terminology#instance">instance</a>.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-16143-tab-16144" class="nav-link active" data-group="group_16143" data-tab="tab-group-16143-content-16144">pulsar-admin</div><div id="tab-group-16143-tab-16145" class="nav-link" data-group="group_16143" data-tab="tab-group-16143-content-16145">REST API</div><div id="tab-group-16143-tab-16146" class="nav-link" data-group="group_16143" data-tab="tab-group-16143-content-16146">JAVA</div></div><div class="tab-content"><div id="tab-group-16143-content-16144" class="tab-pane active" data-group="group_16143" tabindex="-1"><div><span><p>Use the <a href="/docs/ja/2.8.2/reference-pulsar-admin#tenants-delete"><code>delete</code></a> subcommand and specify the name of the tenant.</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants delete my-tenant</span><br /></code></pre>
-</span></div></div><div id="tab-group-16143-content-16145" class="tab-pane" data-group="group_16143" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTenant?version=2.9.2&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
+</span></div></div><div id="tab-group-16143-content-16145" class="tab-pane" data-group="group_16143" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTenant?version=2.10.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
 </p>
 </span></div></div><div id="tab-group-16143-content-16146" class="tab-pane" data-group="group_16143" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.Tenants().deleteTenant(tenantName);<br /></code></pre>
 </span></div></div></div></div>
@@ -128,7 +128,7 @@
 <p>You can update a tenant's configuration.</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-16147-tab-16148" class="nav-link active" data-group="group_16147" data-tab="tab-group-16147-content-16148">pulsar-admin</div><div id="tab-group-16147-tab-16149" class="nav-link" data-group="group_16147" data-tab="tab-group-16147-content-16149">REST API</div><div id="tab-group-16147-tab-16150" class="nav-link" data-group="group_16147" data-tab="tab-group-16147-content-16150">JAVA</div></div><div class="tab-content"><div id="tab-group-16147-content-16148" class="tab-pane active" data-group="group_16147" tabindex="-1"><div><span><p>Use the <a href="/docs/ja/2.8.2/reference-pulsar-admin#tenants-update"><code>update</code></a> subcommand.</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants update my-tenant</span><br /></code></pre>
-</span></div></div><div id="tab-group-16147-content-16149" class="tab-pane" data-group="group_16147" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/updateTenant?version=2.9.2&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
+</span></div></div><div id="tab-group-16147-content-16149" class="tab-pane" data-group="group_16147" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/updateTenant?version=2.10.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
 </p>
 </span></div></div><div id="tab-group-16147-content-16150" class="tab-pane" data-group="group_16147" tabindex="-1"><div><span><pre><code class="hljs css language-java"><br />admin.tenants().updateTenant(tenantName, tenantInfo);<br /></code></pre>
 </span></div></div></div></div>

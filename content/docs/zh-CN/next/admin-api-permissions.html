@@ -82,7 +82,7 @@
 <li><p>有关 <code>Pulsar admin</code> 的最新完整信息，包括命令、标志、描述等，请参阅 <a href="https://pulsar.apache.org/tools/pulsar-admin/">Pulsar admin 文档</a></p></li>
 <li><p>关于<code>REST API</code>最新最完整的信息，包括参数、响应、示例等等，可参阅 <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
  API 文档。</p></li>
-<li><p>有关 <code>Java admin API</code> 的最新完整信息，包括类、方法、描述等，请参阅 <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/"> Java admin API 文档</a>。</p></li>
+<li><p>有关 <code>Java admin API</code> 的最新完整信息，包括类、方法、描述等，请参阅 <a href="https://pulsar.apache.org/api/admin/2.10.0-SNAPSHOT/"> Java admin API 文档</a>。</p></li>
 </ul>
 </blockquote>
 <p>Pulsar 允许您授予用户命名空间级别或主题级别权限。</p>
@@ -105,7 +105,7 @@
 <p>例如：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces grant-permission <span class="hljs-built_in">test</span>-tenant/ns1 \</span><br />                        --actions produce,consume \<br />                        --role 'my.*.role'<br /></code></pre>
 <p>这种情况下，只有 <code>my.*.role</code> 有权限， <code>my.1.role</code>、<code>my.2.role</code>、<code>my.foo.role</code>、<code>my.bar.role</code>等 <strong>不可以</strong>生产或消费消息。</p>
-</span></div></div><div id="tab-group-1411-content-1413" class="tab-pane" data-group="group_1411" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/grantPermissionOnNamespace?version=2.9.2&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/namespaces/:tenant/:namespace/permissions/:role</i></a>
+</span></div></div><div id="tab-group-1411-content-1413" class="tab-pane" data-group="group_1411" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/grantPermissionOnNamespace?version=2.10.0&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/namespaces/:tenant/:namespace/permissions/:role</i></a>
 </p>
 </span></div></div><div id="tab-group-1411-content-1414" class="tab-pane" data-group="group_1411" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.namespaces().grantPermissionOnNamespace(namespace, role, getAuthActions(actions));<br /></code></pre>
 </span></div></div></div></div>
@@ -113,7 +113,7 @@
 <p>查看在单个命名空间中，不同角色的权限。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-1415-tab-1416" class="nav-link active" data-group="group_1415" data-tab="tab-group-1415-content-1416">pulsar-admin</div><div id="tab-group-1415-tab-1417" class="nav-link" data-group="group_1415" data-tab="tab-group-1415-content-1417">REST API</div><div id="tab-group-1415-tab-1418" class="nav-link" data-group="group_1415" data-tab="tab-group-1415-content-1418">Java</div></div><div class="tab-content"><div id="tab-group-1415-content-1416" class="tab-pane active" data-group="group_1415" tabindex="-1"><div><span><p>使用 <a href="reference-pulsar-admin#permissions"><code>permissions</code></a> 子命令，指定命名空间：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces permissions <span class="hljs-built_in">test</span>-tenant/ns1</span><br />{<br />  "admin10": [<br />    "produce",<br />    "consume"<br />  ]<br />}   <br /></code></pre>
-</span></div></div><div id="tab-group-1415-content-1417" class="tab-pane" data-group="group_1415" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPermissions?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/namespaces/:tenant/:namespace/permissions</i></a>
+</span></div></div><div id="tab-group-1415-content-1417" class="tab-pane" data-group="group_1415" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPermissions?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/namespaces/:tenant/:namespace/permissions</i></a>
 </p>
 </span></div></div><div id="tab-group-1415-content-1418" class="tab-pane" data-group="group_1415" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.namespaces().getPermissions(namespace);<br /></code></pre>
 </span></div></div></div></div>
@@ -121,7 +121,7 @@
 <p>取消某些角色的权限后，这些角色将不再可以访问指定的命名空间。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-1419-tab-1420" class="nav-link active" data-group="group_1419" data-tab="tab-group-1419-content-1420">pulsar-admin</div><div id="tab-group-1419-tab-1421" class="nav-link" data-group="group_1419" data-tab="tab-group-1419-content-1421">REST API</div><div id="tab-group-1419-tab-1422" class="nav-link" data-group="group_1419" data-tab="tab-group-1419-content-1422">Java</div></div><div class="tab-content"><div id="tab-group-1419-content-1420" class="tab-pane active" data-group="group_1419" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/next/reference-pulsar-admin#revoke-permission"><code>revoke-permission</code></a> 子命令，使用<code>--role</code> flag 指定命名空间和角色：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces revoke-permission <span class="hljs-built_in">test</span>-tenant/ns1 \</span><br />  --role admin10<br /></code></pre>
-</span></div></div><div id="tab-group-1419-content-1421" class="tab-pane" data-group="group_1419" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/revokePermissionsOnNamespace?version=2.9.2&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace/permissions/:role</i></a>
+</span></div></div><div id="tab-group-1419-content-1421" class="tab-pane" data-group="group_1419" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/revokePermissionsOnNamespace?version=2.10.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace/permissions/:role</i></a>
 </p>
 </span></div></div><div id="tab-group-1419-content-1422" class="tab-pane" data-group="group_1419" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.namespaces().revokePermissionsOnNamespace(namespace, role);<br /></code></pre>
 </span></div></div></div></div></span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/admin-api-namespaces"><span class="arrow-prev">← </span><span>命名空间</span></a><a class="docs-next button" href="/docs/zh-CN/next/admin-api-topics"><span>Topic</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#授权">授权</a></li><li><a href="#获取权限">获取权限</a></li><li><a href="#取消权限">取消权限</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

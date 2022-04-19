@@ -81,7 +81,7 @@
 <li><p>有关 <code>Pulsar admin</code> 的最新完整信息，包括命令、标志、描述和更多信息，详见 <a href="https://pulsar.apache.org/tools/pulsar-admin/">Pulsar admin doc</a>。</p></li>
 <li><p>关于 <code>REST API</code> 最新最完整的信息，包括参数、响应、示例等等，可参阅 <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
  API 文档。</p></li>
-<li><p>有关 <code>Java admin API</code> 的最新完整信息，包括类、方法、描述等，请参阅 <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/"> Java admin API 文档</a>。</p></li>
+<li><p>有关 <code>Java admin API</code> 的最新完整信息，包括类、方法、描述等，请参阅 <a href="https://pulsar.apache.org/api/admin/2.10.0-SNAPSHOT/"> Java admin API 文档</a>。</p></li>
 </ul>
 </blockquote>
 <p>Pulsar 的<a href="/docs/zh-CN/2.8.3/reference-terminology#namespace">命名空间</a>是 <a href="/docs/zh-CN/2.8.3/reference-terminology#topic">topic</a> 的逻辑分组。</p>
@@ -90,7 +90,7 @@
 <li><a href="/docs/zh-CN/2.8.3/reference-pulsar-admin#clusters"><code>pulsar-admin</code></a> 的 <a href="/docs/zh-CN/2.8.3/reference-pulsar-admin#clusters"><code>namespace</code></a> 命令</li>
 <li><a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
  API 调用 <code>/admin/v2/namespaces</code></li>
-<li><a href="/docs/zh-CN/2.8.3/client-libraries-java">Java API</a> 中 <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
+<li><a href="/docs/zh-CN/2.8.3/client-libraries-java">Java API</a> 中 <a href="https://pulsar.apache.org/api/admin/2.10.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
  对象的 <code>namespaces</code> 方法</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="命名空间资源"></a><a href="#命名空间资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命名空间资源</h2>
@@ -98,7 +98,7 @@
 <p>可以在给定的<a href="/docs/zh-CN/2.8.3/reference-terminology#tenant">租户</a>下创建命名空间。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-39977-tab-39978" class="nav-link active" data-group="group_39977" data-tab="tab-group-39977-content-39978">pulsar-admin</div><div id="tab-group-39977-tab-39979" class="nav-link" data-group="group_39977" data-tab="tab-group-39977-content-39979">REST API</div><div id="tab-group-39977-tab-39980" class="nav-link" data-group="group_39977" data-tab="tab-group-39977-content-39980">Java</div></div><div class="tab-content"><div id="tab-group-39977-content-39978" class="tab-pane active" data-group="group_39977" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.8.3/reference-pulsar-admin#namespaces-create"><code>create</code></a> 命令，指定命名空间的名称：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces create <span class="hljs-built_in">test</span>-tenant/<span class="hljs-built_in">test</span>-namespace</span><br /></code></pre>
-</span></div></div><div id="tab-group-39977-content-39979" class="tab-pane" data-group="group_39977" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createNamespace?version=2.9.2&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/namespaces/:tenant/:namespace</i></a>
+</span></div></div><div id="tab-group-39977-content-39979" class="tab-pane" data-group="group_39977" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createNamespace?version=2.10.0&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/namespaces/:tenant/:namespace</i></a>
 </p>
 </span></div></div><div id="tab-group-39977-content-39980" class="tab-pane" data-group="group_39977" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.namespaces().createNamespace(namespace);<br /></code></pre>
 </span></div></div></div></div>
@@ -106,7 +106,7 @@
 <p>用户可以随时获取与命名空间相关的现有策略。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-39981-tab-39982" class="nav-link active" data-group="group_39981" data-tab="tab-group-39981-content-39982">pulsar-admin</div><div id="tab-group-39981-tab-39983" class="nav-link" data-group="group_39981" data-tab="tab-group-39981-content-39983">REST API</div><div id="tab-group-39981-tab-39984" class="nav-link" data-group="group_39981" data-tab="tab-group-39981-content-39984">Java</div></div><div class="tab-content"><div id="tab-group-39981-content-39982" class="tab-pane active" data-group="group_39981" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.8.3/reference-pulsar-admin#namespaces-policies"><code>policies</code></a> 子命令，指定命名空间：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces policies <span class="hljs-built_in">test</span>-tenant/<span class="hljs-built_in">test</span>-namespace</span><br />{<br />  "auth_policies": {<br />    "namespace_auth": {},<br />    "destination_auth": {}<br />  },<br />  "replication_clusters": [],<br />  "bundles_activated": true,<br />  "bundles": {<br />    "boundaries": [<br />      "0x00000000",<br />      "0xffffffff"<br />    ],<br />    "numBundles": 1<br />  },<br />  "backlog_quota_map": {},<br />  "persistence": null,<br />  "latency_stats_sample_rate": {},<br />  "message_ttl_in_seconds": 0,<br />  "retention_policies": null,<br />  "deleted": false<br />}<br /></code></pre>
-</span></div></div><div id="tab-group-39981-content-39983" class="tab-pane" data-group="group_39981" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPolicies?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/namespaces/:tenant/:namespace</i></a>
+</span></div></div><div id="tab-group-39981-content-39983" class="tab-pane" data-group="group_39981" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getPolicies?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/namespaces/:tenant/:namespace</i></a>
 </p>
 </span></div></div><div id="tab-group-39981-content-39984" class="tab-pane" data-group="group_39981" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.namespaces().getPolicies(namespace);<br /></code></pre>
 </span></div></div></div></div>
@@ -114,7 +114,7 @@
 <p>给定 Pulsar <a href="/docs/zh-CN/2.8.3/reference-terminology#tenant">租户</a>，可以列出其中所有的命名空间。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-39985-tab-39986" class="nav-link active" data-group="group_39985" data-tab="tab-group-39985-content-39986">pulsar-admin</div><div id="tab-group-39985-tab-39987" class="nav-link" data-group="group_39985" data-tab="tab-group-39985-content-39987">REST API</div><div id="tab-group-39985-tab-39988" class="nav-link" data-group="group_39985" data-tab="tab-group-39985-content-39988">Java</div></div><div class="tab-content"><div id="tab-group-39985-content-39986" class="tab-pane active" data-group="group_39985" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.8.3/reference-pulsar-admin#namespaces-list"><code>list</code></a> 子命令，指定租户：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces list <span class="hljs-built_in">test</span>-tenant</span><br />test-tenant/ns1<br />test-tenant/ns2<br /></code></pre>
-</span></div></div><div id="tab-group-39985-content-39987" class="tab-pane" data-group="group_39985" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenantNamespaces?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/namespaces/:tenant</i></a>
+</span></div></div><div id="tab-group-39985-content-39987" class="tab-pane" data-group="group_39985" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenantNamespaces?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/namespaces/:tenant</i></a>
 </p>
 </span></div></div><div id="tab-group-39985-content-39988" class="tab-pane" data-group="group_39985" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.namespaces().getNamespaces(tenant);<br /></code></pre>
 </span></div></div></div></div>
@@ -122,7 +122,7 @@
 <p>可以删除租户下已经存在的命名空间。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-39989-tab-39990" class="nav-link active" data-group="group_39989" data-tab="tab-group-39989-content-39990">pulsar-admin</div><div id="tab-group-39989-tab-39991" class="nav-link" data-group="group_39989" data-tab="tab-group-39989-content-39991">REST API</div><div id="tab-group-39989-tab-39992" class="nav-link" data-group="group_39989" data-tab="tab-group-39989-content-39992">Java</div></div><div class="tab-content"><div id="tab-group-39989-content-39990" class="tab-pane active" data-group="group_39989" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.8.3/reference-pulsar-admin#namespaces-delete"><code>delete</code></a> 子命令，指定命名空间：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces delete <span class="hljs-built_in">test</span>-tenant/ns1</span><br /></code></pre>
-</span></div></div><div id="tab-group-39989-content-39991" class="tab-pane" data-group="group_39989" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteNamespace?version=2.9.2&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace</i></a>
+</span></div></div><div id="tab-group-39989-content-39991" class="tab-pane" data-group="group_39989" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteNamespace?version=2.10.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/namespaces/:tenant/:namespace</i></a>
 </p>
 </span></div></div><div id="tab-group-39989-content-39992" class="tab-pane" data-group="group_39989" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.namespaces().deleteNamespace(namespace);<br /></code></pre>
 </span></div></div></div></div>

@@ -451,7 +451,7 @@ name VARCHAR(255) NOT NULL
 <p>你可以使用<a href="/docs/zh-CN/next/io-cli">连接器管理 CLI</a> 来创建 sink 连接器并执行其他操作。</p>
 <p>此示例展示创建 sink 连接器和指定想要的信息。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-postgres-2.9.2.nar \
+--archive ./connectors/pulsar-io-jdbc-postgres-2.10.0.nar \
 --inputs pulsar-postgres-jdbc-sink-topic \
 --name pulsar-postgres-jdbc-sink \
 --sink-config-file ./connectors/pulsar-postgres-jdbc-sink.yaml \
@@ -465,7 +465,7 @@ name VARCHAR(255) NOT NULL
 <tr><th>参数</th><th>说明</th><th>示例</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--archive</code></td><td>Sink 归档文件的路径。</td><td><em>pulsar-io-jdbc-postgres-2.9.2.nar</em></td></tr>
+<tr><td><code>--archive</code></td><td>Sink 归档文件的路径。</td><td><em>pulsar-io-jdbc-postgres-2.10.0.nar</em></td></tr>
 <tr><td><code>--inputs</code></td><td>Sink 的输入主题。</td></tr>
 </tbody>
 </table>

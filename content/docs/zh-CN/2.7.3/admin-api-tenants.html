@@ -84,7 +84,7 @@
 <p>获取与<a href="/docs/zh-CN/2.7.3/reference-terminology#instance">实例</a>相关的所有租户的列表。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-43352-tab-43353" class="nav-link active" data-group="group_43352" data-tab="tab-group-43352-content-43353">pulsar-admin</div><div id="tab-group-43352-tab-43354" class="nav-link" data-group="group_43352" data-tab="tab-group-43352-content-43354">REST API</div><div id="tab-group-43352-tab-43355" class="nav-link" data-group="group_43352" data-tab="tab-group-43352-content-43355">JAVA</div></div><div class="tab-content"><div id="tab-group-43352-content-43353" class="tab-pane active" data-group="group_43352" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.7.3/reference-pulsar-admin#tenants-list"><code>list</code></a> 子命令。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants list</span><br />my-tenant-1<br />my-tenant-2<br /></code></pre>
-</span></div></div><div id="tab-group-43352-content-43354" class="tab-pane" data-group="group_43352" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenants?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants</i></a>
+</span></div></div><div id="tab-group-43352-content-43354" class="tab-pane" data-group="group_43352" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenants?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants</i></a>
 </p>
 </span></div></div><div id="tab-group-43352-content-43355" class="tab-pane" data-group="group_43352" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.tenants().getTenants();<br /></code></pre>
 </span></div></div></div></div>
@@ -94,7 +94,7 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants create my-tenant</span><br /></code></pre>
 <p>When creating a tenant, you can assign admin roles using the <code>-r</code>/<code>--admin-roles</code> flag. You can specify multiple roles as a comma-separated list. 下面是一些示例:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants create my-tenant \</span><br />  --admin-roles role1,role2,role3<br /><span class="hljs-meta"><br />$</span><span class="bash"> pulsar-admin tenants create my-tenant \</span><br />  -r role1<br /></code></pre>
-</span></div></div><div id="tab-group-43356-content-43358" class="tab-pane" data-group="group_43356" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createTenant?version=2.9.2&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/tenants/:tenant</i></a>
+</span></div></div><div id="tab-group-43356-content-43358" class="tab-pane" data-group="group_43356" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/createTenant?version=2.10.0&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/tenants/:tenant</i></a>
 </p>
 </span></div></div><div id="tab-group-43356-content-43359" class="tab-pane" data-group="group_43356" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.tenants().createTenant(tenantName, tenantInfo);<br /></code></pre>
 </span></div></div></div></div>
@@ -102,7 +102,7 @@
 <p>你可以随时获取现有租户的<a href="/docs/zh-CN/2.7.3/reference-configuration">配置</a>。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-43360-tab-43361" class="nav-link active" data-group="group_43360" data-tab="tab-group-43360-content-43361">pulsar-admin</div><div id="tab-group-43360-tab-43362" class="nav-link" data-group="group_43360" data-tab="tab-group-43360-content-43362">REST API</div><div id="tab-group-43360-tab-43363" class="nav-link" data-group="group_43360" data-tab="tab-group-43360-content-43363">JAVA</div></div><div class="tab-content"><div id="tab-group-43360-content-43361" class="tab-pane active" data-group="group_43360" tabindex="-1"><div><span><p>Use the <a href="/docs/zh-CN/2.7.3/reference-pulsar-admin#tenants-get"><code>get</code></a> subcommand and specify the name of the tenant. 下面是一个示例：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants get my-tenant</span><br />{<br />  "adminRoles": [<br />    "admin1",<br />    "admin2"<br />  ],<br />  "allowedClusters": [<br />    "cl1",<br />    "cl2"<br />  ]<br />}<br /></code></pre>
-</span></div></div><div id="tab-group-43360-content-43362" class="tab-pane" data-group="group_43360" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenant?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants/:cluster</i></a>
+</span></div></div><div id="tab-group-43360-content-43362" class="tab-pane" data-group="group_43360" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/getTenant?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/tenants/:cluster</i></a>
 </p>
 </span></div></div><div id="tab-group-43360-content-43363" class="tab-pane" data-group="group_43360" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.tenants().getTenantInfo(tenantName);<br /></code></pre>
 </span></div></div></div></div>
@@ -110,7 +110,7 @@
 <p>可以从 Pulsar <a href="/docs/zh-CN/2.7.3/reference-terminology#instance">实例</a>中删除租户。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-43364-tab-43365" class="nav-link active" data-group="group_43364" data-tab="tab-group-43364-content-43365">pulsar-admin</div><div id="tab-group-43364-tab-43366" class="nav-link" data-group="group_43364" data-tab="tab-group-43364-content-43366">REST API</div><div id="tab-group-43364-tab-43367" class="nav-link" data-group="group_43364" data-tab="tab-group-43364-content-43367">JAVA</div></div><div class="tab-content"><div id="tab-group-43364-content-43365" class="tab-pane active" data-group="group_43364" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.7.3/reference-pulsar-admin#tenants-delete"><code>delete</code></a> 子命令并指定租户名称。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants delete my-tenant</span><br /></code></pre>
-</span></div></div><div id="tab-group-43364-content-43366" class="tab-pane" data-group="group_43364" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTenant?version=2.9.2&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
+</span></div></div><div id="tab-group-43364-content-43366" class="tab-pane" data-group="group_43364" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteTenant?version=2.10.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
 </p>
 </span></div></div><div id="tab-group-43364-content-43367" class="tab-pane" data-group="group_43364" tabindex="-1"><div><span><pre><code class="hljs css language-java">admin.Tenants().deleteTenant(tenantName);<br /></code></pre>
 </span></div></div></div></div>
@@ -118,7 +118,7 @@
 <p>你可以更新租户的配置。</p>
 <div class="tabs"><div class="nav-tabs"><div id="tab-group-43368-tab-43369" class="nav-link active" data-group="group_43368" data-tab="tab-group-43368-content-43369">pulsar-admin</div><div id="tab-group-43368-tab-43370" class="nav-link" data-group="group_43368" data-tab="tab-group-43368-content-43370">REST API</div><div id="tab-group-43368-tab-43371" class="nav-link" data-group="group_43368" data-tab="tab-group-43368-content-43371">JAVA</div></div><div class="tab-content"><div id="tab-group-43368-content-43369" class="tab-pane active" data-group="group_43368" tabindex="-1"><div><span><p>使用 <a href="/docs/zh-CN/2.7.3/reference-pulsar-admin#tenants-update"><code>update</code></a> 子命令。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin tenants update my-tenant</span><br /></code></pre>
-</span></div></div><div id="tab-group-43368-content-43370" class="tab-pane" data-group="group_43368" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/updateTenant?version=2.9.2&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
+</span></div></div><div id="tab-group-43368-content-43370" class="tab-pane" data-group="group_43368" tabindex="-1"><div><span><p><a href="https://pulsar.apache.org/admin-rest-api#operation/updateTenant?version=2.10.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/tenants/:cluster</i></a>
 </p>
 </span></div></div><div id="tab-group-43368-content-43371" class="tab-pane" data-group="group_43368" tabindex="-1"><div><span><pre><code class="hljs css language-java"><br />admin.tenants().updateTenant(tenantName, tenantInfo);<br /></code></pre>
 </span></div></div></div></div>

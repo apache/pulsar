@@ -86,7 +86,7 @@
     namespace: "default"
     name: "debezium-mysql-source"
     topicName: "debezium-mysql-topic"
-    archive: "connectors/pulsar-io-debezium-mysql-2.9.2.nar"
+    archive: "connectors/pulsar-io-debezium-mysql-2.10.0.nar"
     parallelism: 1
 
     configs:
@@ -139,11 +139,11 @@
 
      * 使用上面显示的 **JSON** 配置文件。 
 
-        确保 nar 文件在`connectors/pulsar-io-debezium-mysql-2.9.2.nar` 中可用。
+        确保 nar 文件在`connectors/pulsar-io-debezium-mysql-2.10.0.nar` 中可用。
 
         ```bash
         $ bin/pulsar-admin source localrun \
-        --archive connectors/pulsar-io-debezium-mysql-2.9.2.nar \
+        --archive connectors/pulsar-io-debezium-mysql-2.10.0.nar \
         --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
         --tenant public \
         --namespace default \
@@ -221,7 +221,7 @@
     namespace: "default"
     name: "debezium-postgres-source"
     topicName: "debezium-postgres-topic"
-    archive: "connectors/pulsar-io-debezium-postgres-2.9.2.nar"
+    archive: "connectors/pulsar-io-debezium-postgres-2.10.0.nar"
     parallelism: 1
 
     configs:
@@ -261,11 +261,11 @@
 
    * 使用上面显示的 **JSON** 配置文件。 
 
-     确保 nar 文件在`connectors/pulsar-io-debezium-postgres-2.9.2.nar` 中可用
+     确保 nar 文件在`connectors/pulsar-io-debezium-postgres-2.10.0.nar` 中可用
 
         ```bash
         $ bin/pulsar-admin source localrun \
-        --archive connectors/pulsar-io-debezium-postgres-2.9.2.nar \
+        --archive connectors/pulsar-io-debezium-postgres-2.10.0.nar \
         --name debezium-postgres-source \
         --destination-topic-name debezium-postgres-topic \
         --tenant public \
@@ -355,7 +355,7 @@
     namespace: "default"
     name: "debezium-mongodb-source"
     topicName: "debezium-mongodb-topic"
-    archive: "connectors/pulsar-io-debezium-mongodb-2.9.2.nar"
+    archive: "connectors/pulsar-io-debezium-mongodb-2.10.0.nar"
     parallelism: 1
 
     configs:
@@ -401,11 +401,11 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
    * 使用上面显示的 **JSON** 配置文件。 
 
-     确保 nar 文件在`connectors/pulsar-io-mongodb-2.9.2.nar`中可用。
+     确保 nar 文件在`connectors/pulsar-io-mongodb-2.10.0.nar`中可用。
 
         ```bash
         $ bin/pulsar-admin source localrun \
-        --archive connectors/pulsar-io-debezium-mongodb-2.9.2.nar \
+        --archive connectors/pulsar-io-debezium-mongodb-2.10.0.nar \
         --name debezium-mongodb-source \
         --destination-topic-name debezium-mongodb-topic \
         --tenant public \

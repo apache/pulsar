@@ -80,7 +80,7 @@
 <li>The <a href="/docs/zh-TW/2.6.2/reference-pulsar-admin#clusters"><code>clusters</code></a> command of the <a href="/docs/zh-TW/2.6.2/reference-pulsar-admin"><code>pulsar-admin</code></a> tool</li>
 <li>The <code>/admin/v2/clusters</code> endpoint of the admin <a href="https://pulsar.apache.org/admin-rest-api#/">REST</a>
  API</li>
-<li>The <code>clusters</code> method of the <a href="https://pulsar.apache.org/api/admin/2.9.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
+<li>The <code>clusters</code> method of the <a href="https://pulsar.apache.org/api/admin/2.10.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
  object in the <a href="/docs/zh-TW/2.6.2/client-libraries-java">Java API</a></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="clusters-resources"></a><a href="#clusters-resources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Clusters resources</h2>
@@ -96,7 +96,7 @@
   --broker-url pulsar://my-cluster.org.com:6650
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
-<p><a href="https://pulsar.apache.org/admin-rest-api#operation/createCluster?version=2.9.2&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/clusters/:cluster</i></a>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/createCluster?version=2.10.0&amp;apiVersion=v2"><b>PUT</b> <i>/admin/v2/clusters/:cluster</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
 <pre><code class="hljs css language-java">ClusterData clusterData = <span class="hljs-keyword">new</span> ClusterData(
@@ -146,7 +146,7 @@ admin.clusters().createCluster(clusterName, clusterData);
 }
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-1"></a><a href="#rest-api-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
-<p><a href="https://pulsar.apache.org/admin-rest-api#operation/getCluster?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/clusters/:cluster</i></a>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/getCluster?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/clusters/:cluster</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-1"></a><a href="#java-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
 <pre><code class="hljs css language-java">admin.clusters().getCluster(clusterName);
@@ -160,7 +160,7 @@ admin.clusters().createCluster(clusterName, clusterData);
   --broker-url pulsar://my-cluster.org.com:3350
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest"></a><a href="#rest" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST</h4>
-<p><a href="https://pulsar.apache.org/admin-rest-api#operation/updateCluster?version=2.9.2&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/clusters/:cluster</i></a>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/updateCluster?version=2.10.0&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/clusters/:cluster</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-2"></a><a href="#java-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
 <pre><code class="hljs css language-java">ClusterData clusterData = <span class="hljs-keyword">new</span> ClusterData(
@@ -178,7 +178,7 @@ admin.clusters().updateCluster(clusterName, clusterData);
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> clusters <span class="hljs-keyword">delete</span> <span class="hljs-keyword">cluster</span><span class="hljs-number">-1</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-2"></a><a href="#rest-api-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
-<p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteCluster?version=2.9.2&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/clusters/:cluster</i></a>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/deleteCluster?version=2.10.0&amp;apiVersion=v2"><b>DELETE</b> <i>/admin/v2/clusters/:cluster</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-3"></a><a href="#java-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
 <pre><code class="hljs css language-java">admin.clusters().deleteCluster(clusterName);
@@ -192,7 +192,7 @@ cluster-1
 cluster-2
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-3"></a><a href="#rest-api-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
-<p><a href="https://pulsar.apache.org/admin-rest-api#operation/getClusters?version=2.9.2&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/clusters</i></a>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/getClusters?version=2.10.0&amp;apiVersion=v2"><b>GET</b> <i>/admin/v2/clusters</i></a>
 </p>
 <h6><a class="anchor" aria-hidden="true" id="java-4"></a><a href="#java-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h6>
 <pre><code class="hljs css language-java">admin.clusters().getClusters();
@@ -204,7 +204,7 @@ cluster-2
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> <span class="hljs-keyword">update</span>-peer-clusters <span class="hljs-keyword">cluster</span><span class="hljs-number">-1</span> <span class="hljs-comment">--peer-clusters cluster-2</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-4"></a><a href="#rest-api-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
-<p><a href="https://pulsar.apache.org/admin-rest-api#operation/setPeerClusterNames?version=2.9.2&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/clusters/:cluster/peers</i></a>
+<p><a href="https://pulsar.apache.org/admin-rest-api#operation/setPeerClusterNames?version=2.10.0&amp;apiVersion=v2"><b>POST</b> <i>/admin/v2/clusters/:cluster/peers</i></a>
 </p>
 <h4><a class="anchor" aria-hidden="true" id="java-5"></a><a href="#java-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
 <pre><code class="hljs css language-java">admin.clusters().updatePeerClusterNames(clusterName, peerClusterList);

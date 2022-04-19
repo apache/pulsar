@@ -1,21 +1,4 @@
 {
-    "2.11.0-SNAPSHOT": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggerfunctions",
-                "swaggerpackages",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
     "2.10.0": [
         {
             "version": "v2",
@@ -33,7 +16,24 @@
             ]
         }
     ],
-    "2.3.1": [
+    "2.11.0-SNAPSHOT": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggerpackages",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.3.0": [
         {
             "version": "v2",
             "fileName": [
@@ -49,7 +49,7 @@
             ]
         }
     ],
-    "2.3.0": [
+    "2.3.1": [
         {
             "version": "v2",
             "fileName": [
@@ -407,7 +407,7 @@
             ]
         }
     ],
-    "master": [
+    "2.9.2": [
         {
             "version": "v2",
             "fileName": [
@@ -424,7 +424,7 @@
             ]
         }
     ],
-    "2.9.2": [
+    "master": [
         {
             "version": "v2",
             "fileName": [
