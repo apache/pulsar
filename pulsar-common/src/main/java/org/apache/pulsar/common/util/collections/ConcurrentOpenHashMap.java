@@ -307,6 +307,7 @@ public class ConcurrentOpenHashMap<K, V> {
         private final float expandFactor;
         private final float shrinkFactor;
         private final boolean autoShrink;
+        private final ThreadLocal<Boolean> computingThreadLocal = ThreadLocal.withInitial(() -> false);
 
         Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
                 float expandFactor, float shrinkFactor) {
@@ -322,6 +323,14 @@ public class ConcurrentOpenHashMap<K, V> {
             this.shrinkFactor = shrinkFactor;
             this.resizeThresholdUp = (int) (this.capacity * mapFillFactor);
             this.resizeThresholdBelow = (int) (this.capacity * mapIdleFactor);
+        }
+
+        @Override
+        public long writeLock() {
+            if (computingThreadLocal.get()) {
+                throw new IllegalStateException("Recursive update");
+            }
+            return super.writeLock();
         }
 
         V get(K key, int keyHash) {
@@ -401,6 +410,7 @@ public class ConcurrentOpenHashMap<K, V> {
                         }
 
                         if (value == null) {
+                            computingThreadLocal.set(true);
                             value = valueProvider.apply(key);
                         }
 
@@ -424,9 +434,11 @@ public class ConcurrentOpenHashMap<K, V> {
                         int newCapacity = alignToPowerOfTwo((int) (capacity * expandFactor));
                         rehash(newCapacity);
                     } finally {
+                        computingThreadLocal.set(false);
                         unlockWrite(stamp);
                     }
                 } else {
+                    computingThreadLocal.set(false);
                     unlockWrite(stamp);
                 }
             }
