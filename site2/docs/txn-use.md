@@ -29,7 +29,7 @@ This section provides an example of how to use the transaction API to send and r
     //mandtory configuration, used to create systemTopic used for transaction buffer snapshot
     systemTopicEnabled=true
    
-    //It is a mandatory configuration, if need to guanrantee exactly-once semantics.
+    //It is a mandatory configuration if you want to guarantee exactly-once semantics.
     brokerDeduplicationEnabled=true
     ```
 
