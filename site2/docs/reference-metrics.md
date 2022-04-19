@@ -217,6 +217,9 @@ All the topic metrics are labelled with the following labels:
 | pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
 | pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
 | pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
+| pulsar_txn_tb_active_count | Gauge | Number of active transactions of the topic. |
+| pulsar_txn_tb_aborted_count | Counter | Number of aborted transactions of the topic. |
+| pulsar_txn_tb_committed_count | Counter | Number of committed transaction of the topic. |
 
 #### Replication metrics
 
@@ -638,9 +641,6 @@ All the transaction metrics are labelled with the following labels:
 | pulsar_txn_timeout_count | Counter | Number of timeout transactions. |
 | pulsar_txn_append_log_count | Counter | Number of append transaction logs. |
 | pulsar_txn_execution_latency_le_* | Histogram | Transaction execution latency. <br> Available latencies are as below: <br><ul><li> latency="10" is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency="20" is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency="50" is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency="100" is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency="500" is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency="1000" is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency="5000" is TransactionExecutionLatency between (1s, 5s]</li><li>latency="15000" is TransactionExecutionLatency between (5s, 15s]</li><li>latency="30000" is TransactionExecutionLatency between (15s, 30s]</li></li><li>latency="60000" is TransactionExecutionLatency between (30s, 60s]</li><li>latency="300000" is TransactionExecutionLatency between (1m,5m]</li><li>latency="1500000" is TransactionExecutionLatency between (5m,15m]</li><li>latency="3000000" is TransactionExecutionLatency between (15m,30m]</li><li>latency="overflow" is TransactionExecutionLatency between (30m,∞]</li></ul>|
-| pulsar_txn_tb_active_count | Gauge | Number of active transactions of a persistent topic. |
-| pulsar_txn_tb_aborted_count | Counter | Number of aborted transactions of a persistent topic. |
-| pulsar_txn_tb_committed_count | Counter | Number of committed transaction of a persistent topic. |
 | pulsar_txn_tb_client_abort_failed | Counter | Number of `transaction buffer client`'s failed operations to abort transaction. |
 | pulsar_txn_tb_client_commit_failed | Counter | Number of `transaction buffer client`'s failed operations to commit transaction. |
 | pulsar_txn_tb_client_abort_latency | Summary | Latency of `transaction buffer client`'s operations to abort transaction. |
