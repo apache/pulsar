@@ -198,11 +198,10 @@ This example shows how to configure OAuth2 authentication in Node.js client.
 ## Broker configuration
 To configure brokers to authenticate clients, add the following parameters to broker.conf or standalone.conf:
 ```properties
-# Configuration to enable authentication and authorization
+# Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 tokenPublicKey=/path/to/publicKey
-superUserRoles=[my-super-user-1,my-super-user-2]
 # Authentication settings of the broker itself. Used when the broker connects to other brokers,
 # either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
