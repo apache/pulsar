@@ -31,15 +31,13 @@ This section provides an example of how to use the transaction API to send and r
    
     ```
 
-    * If you want to enable batch messages in transactions, follow the steps below.
-
-    Set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
+    * If you want to acknowledge batch messages in transactions, set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
       ```
       acknowledgmentAtBatchIndexLevelEnabled=true
       ```
 
-    * [message deduplication](cookbooks-deduplication.md) is a mandatory configuration, if need to guarantee exactly-once semantics.
+    * If you want to guarantee exactly-once semantics, you need to enable [message deduplication](cookbooks-deduplication.md).
     You can enable message deduplication at the broker level, the namespace level, or the topic level according to your needs.
     
 
