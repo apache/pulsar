@@ -19,26 +19,24 @@
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import io.prometheus.client.Counter;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.common.naming.TopicName;
 
 public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
-    private static final Counter COMMIT_TXN_COUNTER = Counter
-            .build("pulsar_txn_tp_committed_count", "-")
-            .labelNames("namespace", "topic", "subscription", "status")
-            .register();
-    private static final Counter ABORT_TXN_COUNTER = Counter
-            .build("pulsar_txn_tp_aborted_count", "-")
-            .labelNames("namespace", "topic", "subscription", "status")
-            .register();
+    private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
+    private static Counter commitTxnCounter;
+    private static Counter abortTxnCounter;
+    private static boolean _exposeTopicLevelMetrics;
 
     private final String[] labelSucceed;
     private final String[] labelFailed;
 
-    public PendingAckHandleStatsImpl(String topic, String subscription) {
-        String namespace;
+    public PendingAckHandleStatsImpl(String topic, String subscription, boolean exposeTopicLevelMetrics) {
+        initialize(exposeTopicLevelMetrics);
 
+        String namespace;
         if (StringUtils.isBlank(topic)) {
             namespace = topic = "unknown";
         } else {
@@ -49,25 +47,48 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
             }
         }
 
-        labelSucceed = new String[]{namespace, topic, subscription, "succeed"};
-        labelFailed = new String[]{namespace, topic, subscription, "failed"};
+        labelSucceed = _exposeTopicLevelMetrics ?
+                new String[]{namespace, topic, subscription, "succeed"} : new String[]{"namespace", "succeed"};
+        labelFailed = _exposeTopicLevelMetrics ?
+                new String[]{namespace, topic, subscription, "failed"} : new String[]{"namespace", "failed"};
     }
 
     @Override
     public void recordCommitTxn(boolean success) {
-        COMMIT_TXN_COUNTER.labels(success ? labelSucceed : labelFailed).inc();
+        commitTxnCounter.labels(success ? labelSucceed : labelFailed).inc();
     }
 
     @Override
     public void recordAbortTxn(boolean success) {
-        ABORT_TXN_COUNTER.labels(success ? labelSucceed : labelFailed).inc();
+        abortTxnCounter.labels(success ? labelSucceed : labelFailed).inc();
     }
 
     @Override
     public void close() {
-        COMMIT_TXN_COUNTER.remove(this.labelSucceed);
-        COMMIT_TXN_COUNTER.remove(this.labelFailed);
-        ABORT_TXN_COUNTER.remove(this.labelFailed);
-        ABORT_TXN_COUNTER.remove(this.labelFailed);
+        if (_exposeTopicLevelMetrics) {
+            commitTxnCounter.remove(this.labelSucceed);
+            commitTxnCounter.remove(this.labelFailed);
+            abortTxnCounter.remove(this.labelFailed);
+            abortTxnCounter.remove(this.labelFailed);
+        }
+    }
+
+    static void initialize(boolean exposeTopicLevelMetrics) {
+        if (INITIALIZED.compareAndSet(false, true)) {
+            _exposeTopicLevelMetrics = exposeTopicLevelMetrics;
+
+            String[] labelNames = exposeTopicLevelMetrics ?
+                    new String[]{"namespace", "topic", "subscription", "status"} : new String[]{"namespace", "status"};
+
+            commitTxnCounter = Counter
+                    .build("pulsar_txn_tp_committed_count", "-")
+                    .labelNames(labelNames)
+                    .register();
+
+            abortTxnCounter = Counter
+                    .build("pulsar_txn_tp_aborted_count", "-")
+                    .labelNames(labelNames)
+                    .register();
+        }
     }
 }

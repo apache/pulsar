@@ -28,7 +28,7 @@ public interface PendingAckHandleStats {
 
     void close();
 
-    static PendingAckHandleStats create(String topic, String subName) {
-        return new PendingAckHandleStatsImpl(topic, subName);
+    static PendingAckHandleStats create(String topic, String subName, boolean exposeTopicLevelMetrics) {
+        return new PendingAckHandleStatsImpl(topic, subName, exposeTopicLevelMetrics);
     }
 }

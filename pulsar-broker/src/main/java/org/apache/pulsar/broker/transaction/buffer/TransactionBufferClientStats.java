@@ -34,7 +34,37 @@ public interface TransactionBufferClientStats {
     void close();
 
 
-    static TransactionBufferClientStats create(boolean exposeTopicMetrics, TransactionBufferHandler handler) {
-        return TransactionBufferClientStatsImpl.getInstance(exposeTopicMetrics, handler);
+    static TransactionBufferClientStats create(boolean exposeTopicMetrics, TransactionBufferHandler handler,
+                                               boolean enableTxnCoordinator) {
+        return enableTxnCoordinator
+                ? TransactionBufferClientStatsImpl.getInstance(exposeTopicMetrics, handler) : NOOP;
     }
+
+
+    TransactionBufferClientStats NOOP = new TransactionBufferClientStats() {
+        @Override
+        public void recordAbortFailed(String topic) {
+
+        }
+
+        @Override
+        public void recordCommitFailed(String topic) {
+
+        }
+
+        @Override
+        public void recordAbortLatency(String topic, long cost) {
+
+        }
+
+        @Override
+        public void recordCommitLatency(String topic, long cost) {
+
+        }
+
+        @Override
+        public void close() {
+
+        }
+    };
 }

@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferClientStats;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -38,17 +39,21 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
     private final TransactionBufferHandler tbHandler;
     private final TransactionBufferClientStats stats;
 
-    private TransactionBufferClientImpl(TransactionBufferHandler tbHandler, boolean exposeTopicLevelMetrics) {
+    private TransactionBufferClientImpl(TransactionBufferHandler tbHandler, boolean exposeTopicLevelMetrics,
+                                        boolean enableTxnCoordinator) {
         this.tbHandler = tbHandler;
-        this.stats = TransactionBufferClientStats.create(exposeTopicLevelMetrics, tbHandler);
+        this.stats = TransactionBufferClientStats.create(exposeTopicLevelMetrics, tbHandler, enableTxnCoordinator);
     }
 
     public static TransactionBufferClient create(PulsarService pulsarService, HashedWheelTimer timer,
-        int maxConcurrentRequests, long operationTimeoutInMills, boolean exposeTopicLevelMetrics)
-            throws PulsarServerException {
+        int maxConcurrentRequests, long operationTimeoutInMills) throws PulsarServerException {
         TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarService, timer,
                 maxConcurrentRequests, operationTimeoutInMills);
-        return new TransactionBufferClientImpl(handler, exposeTopicLevelMetrics);
+
+        ServiceConfiguration config = pulsarService.getConfig();
+        boolean exposeTopicLevelMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+        boolean enableTxnCoordinator = config.isTransactionCoordinatorEnabled();
+        return new TransactionBufferClientImpl(handler, exposeTopicLevelMetrics, enableTxnCoordinator);
     }
 
     @Override

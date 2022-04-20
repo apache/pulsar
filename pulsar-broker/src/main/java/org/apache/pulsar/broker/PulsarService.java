@@ -753,8 +753,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
                 transactionBufferClient = TransactionBufferClientImpl.create(this, transactionTimer,
                         config.getTransactionBufferClientMaxConcurrentRequests(),
-                        config.getTransactionBufferClientOperationTimeoutInMills(),
-                        config.isExposeTopicLevelMetricsInPrometheus());
+                        config.getTransactionBufferClientOperationTimeoutInMills());
 
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,

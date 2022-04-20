@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -132,7 +133,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 .getPulsar()
                 .getTransactionExecutorProvider()
                 .getExecutor(this);
-        this.handleStats = PendingAckHandleStats.create(topicName, subName);
+
+        ServiceConfiguration config = persistentSubscription.getTopic().getBrokerService().pulsar().getConfig();
+        boolean exposeTopicLevelMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+        this.handleStats = PendingAckHandleStats.create(topicName, subName, exposeTopicLevelMetrics);
 
         this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
