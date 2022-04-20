@@ -284,7 +284,7 @@ public class PersistentTopicsBase extends AdminResource {
                     });
         } else {
             String msg = "Authorization is not enabled";
-            log.error("[{}] Failed to get permissions for topic {}, because  {}", clientAppId(), topicUri, msg);
+            log.error("[{}] Failed to get permissions for topic {}, because {}", clientAppId(), topicUri, msg);
             return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
         }
     }
@@ -292,8 +292,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalGrantPermissionsOnTopic(final AsyncResponse asyncResponse, String role,
                                                    Set<AuthAction> actions) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccessAsync().thenCompose(__ ->
+        validateAdminAccessForTenantAsync(namespaceName.getTenant())
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync().thenCompose(unused1 ->
              getPartitionedTopicMetadataAsync(topicName, true, false)
                   .thenCompose(metadata -> {
                       int numPartitions = metadata.partitions;
@@ -306,18 +306,13 @@ public class PersistentTopicsBase extends AdminResource {
                           }
                       }
                       return future.thenComposeAsync(unused -> grantPermissions(topicName, role, actions))
-                              .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))
-                              .exceptionally(ex -> {
-                                  Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                                  resumeAsyncResponseExceptionally(asyncResponse, realCause);
-                                  return null;
-                              });
-                  })).exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, realCause);
-                        resumeAsyncResponseExceptionally(asyncResponse, realCause);
-                        return null;
-                     });
+                              .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
+                  }))).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, realCause);
+                    resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                    return null;
+                });
     }
 
     protected void internalDeleteTopicForcefully(boolean authoritative, boolean deleteSchema) {

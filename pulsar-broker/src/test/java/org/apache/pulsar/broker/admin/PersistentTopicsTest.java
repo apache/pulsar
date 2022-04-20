@@ -689,7 +689,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         String role = "role";
         Set<AuthAction> expectActions = new HashSet<>();
         expectActions.add(AuthAction.produce);
-            AsyncResponse response = mock(AsyncResponse.class);
+        AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, topicName, role, expectActions);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
