@@ -78,7 +78,7 @@ public class PrometheusMetricsGenerator {
         Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
             @Override
             public double get() {
-                return io.netty.util.internal.PlatformDependent.maxDirectMemory();
+                return io.netty.util.internal.PlatformDependent.estimateMaxDirectMemory();
             }
         }).register(CollectorRegistry.defaultRegistry);
 

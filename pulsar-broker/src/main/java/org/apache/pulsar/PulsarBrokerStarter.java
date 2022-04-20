@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar;
 
+// CHECKSTYLE.OFF: IllegalImport
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -63,6 +64,7 @@ import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
+// CHECKSTYLE.ON: IllegalImport
 
 public class PulsarBrokerStarter {
 
