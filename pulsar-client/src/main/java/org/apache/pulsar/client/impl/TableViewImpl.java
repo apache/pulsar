@@ -224,7 +224,21 @@ public class TableViewImpl<T> implements TableView<T> {
                 .readCompacted(true)
                 .poolMessages(true)
                 .createAsync()
+                .thenCompose(this::cacheNewReader)
                 .thenCompose(this::readAllExistingMessages);
+    }
+
+    private CompletableFuture<Reader<T>> cacheNewReader(Reader<T> reader) {
+        CompletableFuture<Reader<T>> future = new CompletableFuture<>();
+        if (this.readers.containsKey(reader.getTopic())) {
+            future.completeExceptionally(
+                    new IllegalArgumentException("reader on partition " + reader.getTopic() + " already existed"));
+        } else {
+            this.readers.put(reader.getTopic(), reader);
+            future.complete(reader);
+        }
+
+        return future;
     }
 
     private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
