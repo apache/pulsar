@@ -28,7 +28,7 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
     private static Counter commitTxnCounter;
     private static Counter abortTxnCounter;
-    private static boolean _exposeTopicLevelMetrics;
+    private static boolean exposeTopicLevelMetrics0;
 
     private final String[] labelSucceed;
     private final String[] labelFailed;
@@ -47,10 +47,10 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
             }
         }
 
-        labelSucceed = _exposeTopicLevelMetrics ?
-                new String[]{namespace, topic, subscription, "succeed"} : new String[]{"namespace", "succeed"};
-        labelFailed = _exposeTopicLevelMetrics ?
-                new String[]{namespace, topic, subscription, "failed"} : new String[]{"namespace", "failed"};
+        labelSucceed = exposeTopicLevelMetrics0
+                ? new String[]{namespace, topic, subscription, "succeed"} : new String[]{"namespace", "succeed"};
+        labelFailed = exposeTopicLevelMetrics0
+                ? new String[]{namespace, topic, subscription, "failed"} : new String[]{"namespace", "failed"};
     }
 
     @Override
@@ -65,7 +65,7 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
 
     @Override
     public void close() {
-        if (_exposeTopicLevelMetrics) {
+        if (exposeTopicLevelMetrics0) {
             commitTxnCounter.remove(this.labelSucceed);
             commitTxnCounter.remove(this.labelFailed);
             abortTxnCounter.remove(this.labelFailed);
@@ -75,10 +75,10 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
 
     static void initialize(boolean exposeTopicLevelMetrics) {
         if (INITIALIZED.compareAndSet(false, true)) {
-            _exposeTopicLevelMetrics = exposeTopicLevelMetrics;
+            exposeTopicLevelMetrics0 = exposeTopicLevelMetrics;
 
-            String[] labelNames = exposeTopicLevelMetrics ?
-                    new String[]{"namespace", "topic", "subscription", "status"} : new String[]{"namespace", "status"};
+            String[] labelNames = exposeTopicLevelMetrics
+                    ? new String[]{"namespace", "topic", "subscription", "status"} : new String[]{"namespace", "status"};
 
             commitTxnCounter = Counter
                     .build("pulsar_txn_tp_committed_count", "-")
