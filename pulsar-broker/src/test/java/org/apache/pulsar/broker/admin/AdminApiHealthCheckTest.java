@@ -19,6 +19,13 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -32,8 +39,6 @@ import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Test(groups = "broker-admin")
 @Slf4j
@@ -91,6 +96,49 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
                         .collect(Collectors.toList())
                 ))
         );
+    }
+
+    @Test(expectedExceptions= PulsarAdminException.class, expectedExceptionsMessageRegExp = ".*Deadlocked threads detected.*")
+    public void testHealthCheckupDetectsDeadlock() throws Exception {
+        // simulate a deadlock in the Test JVM
+        // the broker used in unit tests runs in the test JVM and the
+        // healthcheck implementation should detect this deadlock
+        Lock lock1 = new ReentrantReadWriteLock().writeLock();
+        Lock lock2 = new ReentrantReadWriteLock().writeLock();
+        final Phaser phaser = new Phaser(3);
+        Thread thread1=new Thread(() -> {
+            phaser.arriveAndAwaitAdvance();
+            deadlock(lock1, lock2, 1000L);
+        }, "deadlockthread-1");
+        Thread thread2=new Thread(() -> {
+            phaser.arriveAndAwaitAdvance();
+            deadlock(lock2, lock1, 2000L);
+        }, "deadlockthread-2");
+        thread1.start();
+        thread2.start();
+        phaser.arriveAndAwaitAdvance();
+        Thread.sleep(5000L);
+
+        try {
+            admin.brokers().healthcheck(TopicVersion.V2);
+        } finally {
+            // unlock the deadlock
+            thread1.interrupt();
+            thread2.interrupt();
+        }
+    }
+
+    private void deadlock(Lock lock1, Lock lock2, long millis) {
+        lock1.lock();
+        try {
+            Thread.sleep(millis);
+            lock2.lock();
+            lock2.unlock();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            lock1.unlock();
+        }
     }
 
     @Test
