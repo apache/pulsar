@@ -139,7 +139,6 @@ import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -976,13 +975,14 @@ public class BrokerService implements Closeable {
                     }
                 }
             }
-            final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
+            final boolean isPersistentTopic = TopicName.get(topic).isPersistent();
+            CompletableFuture<Optional<Topic>> loadTopicFuture;
             if (isPersistentTopic) {
-                return topics.computeIfAbsent(topic, (topicName) -> {
+                loadTopicFuture = topics.computeIfAbsent(topic, (topicName) -> {
                     return this.loadOrCreatePersistentTopic(topicName, createIfMissing, properties);
                 });
             } else {
-                return topics.computeIfAbsent(topic, (name) -> {
+                loadTopicFuture = topics.computeIfAbsent(topic, (name) -> {
                     final TopicName topicName = TopicName.get(name);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
@@ -999,6 +999,11 @@ public class BrokerService implements Closeable {
                     }
                 });
             }
+            loadTopicFuture.exceptionally(ignore -> {
+                topics.remove(topic, loadTopicFuture);
+                return null;
+            });
+            return loadTopicFuture;
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topic, e);
             return FutureUtil.failedFuture(e);
@@ -1166,7 +1171,6 @@ public class BrokerService implements Closeable {
                     }).exceptionally(ex -> {
                 log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
                 nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                     topicFuture.completeExceptionally(ex);
                 });
                 return null;
@@ -1371,7 +1375,6 @@ public class BrokerService implements Closeable {
             // namespace is being unloaded
             String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
             log.warn(msg);
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
             return;
         }
@@ -1379,7 +1382,6 @@ public class BrokerService implements Closeable {
         if (isTransactionSystemTopic(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
             log.warn(msg);
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new NotAllowedException(msg));
             return;
         }
@@ -1432,9 +1434,7 @@ public class BrokerService implements Closeable {
                                             if (topicFuture.isCompletedExceptionally()) {
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
-                                                persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                                    topics.remove(topic, topicFuture);
-                                                });
+                                                persistentTopic.stopReplProducers();
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
                                                 topicFuture.complete(Optional.of(persistentTopic));
@@ -1444,14 +1444,12 @@ public class BrokerService implements Closeable {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
                                             persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                                topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
                                             });
                                             return null;
                                         });
                             } catch (PulsarServerException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
-                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
                             }
                         }
@@ -1463,7 +1461,6 @@ public class BrokerService implements Closeable {
                                 topicFuture.complete(Optional.empty());
                             } else {
                                 log.warn("Failed to create topic {}", topic, exception);
-                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(new PersistenceException(exception));
                             }
                         }
@@ -1471,9 +1468,6 @@ public class BrokerService implements Closeable {
 
         }).exceptionally((exception) -> {
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
-            // remove topic from topics-map in different thread to avoid possible deadlock if
-            // createPersistentTopic-thread only tries to handle this future-result
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(exception);
             return null;
         });
