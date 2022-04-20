@@ -1126,11 +1126,22 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected static void</code></td>
-<th class="colSecond" scope="row"><span class="typeNameLabel">PulsarWebResource.</span><code><span class="memberNameLink"><a href="../web/PulsarWebResource.html#validateAdminAccessForTenant(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource)">validateAdminAccessForTenant</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
+<th class="colSecond" scope="row"><span class="typeNameLabel">PulsarWebResource.</span><code><span class="memberNameLink"><a href="../web/PulsarWebResource.html#validateAdminAccessForTenant(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long,java.util.concurrent.TimeUnit)">validateAdminAccessForTenant</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
                             java.lang.String&nbsp;clientAppId,
                             java.lang.String&nbsp;originalPrincipal,
                             java.lang.String&nbsp;tenant,
-                            org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData)</code></th>
+                            org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData,
+                            long&nbsp;timeout,
+                            java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected static java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><span class="typeNameLabel">PulsarWebResource.</span><code><span class="memberNameLink"><a href="../web/PulsarWebResource.html#validateAdminAccessForTenantAsync(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource)">validateAdminAccessForTenantAsync</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
+                                 java.lang.String&nbsp;clientAppId,
+                                 java.lang.String&nbsp;originalPrincipal,
+                                 java.lang.String&nbsp;tenant,
+                                 org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>

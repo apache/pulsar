@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":9,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":9,"i16":10,"i17":9,"i18":10,"i19":9,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":9,"i27":10,"i28":10,"i29":10,"i30":10,"i31":9,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10};
+var data = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":9,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":9,"i16":10,"i17":9,"i18":10,"i19":9,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":9,"i27":10,"i28":10,"i29":10,"i30":10,"i31":9,"i32":10,"i33":9,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10,"i61":10,"i62":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -386,21 +386,39 @@ extends java.lang.Object</pre>
 </tr>
 <tr id="i31" class="rowColor">
 <td class="colFirst"><code>protected static void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateAdminAccessForTenant(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource)">validateAdminAccessForTenant</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateAdminAccessForTenant(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long,java.util.concurrent.TimeUnit)">validateAdminAccessForTenant</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
                             java.lang.String&nbsp;clientAppId,
                             java.lang.String&nbsp;originalPrincipal,
                             java.lang.String&nbsp;tenant,
-                            org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData)</code></th>
+                            org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData,
+                            long&nbsp;timeout,
+                            java.util.concurrent.TimeUnit&nbsp;unit)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i32" class="altColor">
+<td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateAdminAccessForTenantAsync(java.lang.String)">validateAdminAccessForTenantAsync</a></span>&#8203;(java.lang.String&nbsp;tenant)</code></th>
+<td class="colLast">
+<div class="block">Checks that the http client role has admin access to the specified tenant async.</div>
+</td>
+</tr>
+<tr id="i33" class="rowColor">
+<td class="colFirst"><code>protected static java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateAdminAccessForTenantAsync(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource)">validateAdminAccessForTenantAsync</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
+                                 java.lang.String&nbsp;clientAppId,
+                                 java.lang.String&nbsp;originalPrincipal,
+                                 java.lang.String&nbsp;tenant,
+                                 org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateBrokerName(java.lang.String)">validateBrokerName</a></span>&#8203;(java.lang.String&nbsp;broker)</code></th>
 <td class="colLast">
 <div class="block">Redirect the call to the specified broker.</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateBundleOwnership(java.lang.String,java.lang.String,java.lang.String,boolean,boolean,org.apache.pulsar.common.naming.NamespaceBundle)">validateBundleOwnership</a></span>&#8203;(java.lang.String&nbsp;tenant,
                        java.lang.String&nbsp;cluster,
@@ -410,49 +428,49 @@ extends java.lang.Object</pre>
                        <a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateBundleOwnership(org.apache.pulsar.common.naming.NamespaceBundle,boolean,boolean)">validateBundleOwnership</a></span>&#8203;(<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle,
                        boolean&nbsp;authoritative,
                        boolean&nbsp;readOnly)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateClusterExists(java.lang.String)">validateClusterExists</a></span>&#8203;(java.lang.String&nbsp;cluster)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateClusterForTenant(java.lang.String,java.lang.String)">validateClusterForTenant</a></span>&#8203;(java.lang.String&nbsp;tenant,
                         java.lang.String&nbsp;cluster)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateClusterOwnership(java.lang.String)">validateClusterOwnership</a></span>&#8203;(java.lang.String&nbsp;cluster)</code></th>
 <td class="colLast">
 <div class="block">Check if the cluster exists and redirect the call to the owning cluster.</div>
 </td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateClusterOwnershipAsync(java.lang.String)">validateClusterOwnershipAsync</a></span>&#8203;(java.lang.String&nbsp;cluster)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateGlobalNamespaceOwnership(org.apache.pulsar.common.naming.NamespaceName)">validateGlobalNamespaceOwnership</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespace)</code></th>
 <td class="colLast">
 <div class="block">If the namespace is global, validate the following - 1.</div>
 </td>
 </tr>
-<tr id="i40" class="altColor">
+<tr id="i42" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateGlobalNamespaceOwnershipAsync(org.apache.pulsar.common.naming.NamespaceName)">validateGlobalNamespaceOwnershipAsync</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespace)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i41" class="rowColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>protected <a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespaceBundleOwnership(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.BundlesData,java.lang.String,boolean,boolean)">validateNamespaceBundleOwnership</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;fqnn,
                                 org.apache.pulsar.common.policies.data.BundlesData&nbsp;bundles,
@@ -461,40 +479,40 @@ extends java.lang.Object</pre>
                                 boolean&nbsp;readOnly)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i42" class="altColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>protected <a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a></code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespaceBundleRange(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.BundlesData,java.lang.String)">validateNamespaceBundleRange</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;fqnn,
                             org.apache.pulsar.common.policies.data.BundlesData&nbsp;bundles,
                             java.lang.String&nbsp;bundleRange)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespaceOperation(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.NamespaceOperation)">validateNamespaceOperation</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespaceName,
                           org.apache.pulsar.common.policies.data.NamespaceOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespaceOperationAsync(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.NamespaceOperation)">validateNamespaceOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespaceName,
                                org.apache.pulsar.common.policies.data.NamespaceOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespacePolicyOperation(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.PolicyName,org.apache.pulsar.common.policies.data.PolicyOperation)">validateNamespacePolicyOperation</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespaceName,
                                 org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
                                 org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateNamespacePolicyOperationAsync(org.apache.pulsar.common.naming.NamespaceName,org.apache.pulsar.common.policies.data.PolicyName,org.apache.pulsar.common.policies.data.PolicyOperation)">validateNamespacePolicyOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.NamespaceName&nbsp;namespaceName,
                                      org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
                                      org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePeerClusterConflict(java.lang.String,java.util.Set)">validatePeerClusterConflict</a></span>&#8203;(java.lang.String&nbsp;clusterName,
                            java.util.Set&lt;java.lang.String&gt;&nbsp;replicationClusters)</code></th>
@@ -502,62 +520,62 @@ extends java.lang.Object</pre>
 <div class="block">It validates that peer-clusters can't coexist in replication-clusters.</div>
 </td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validatePoliciesReadOnlyAccess()">validatePoliciesReadOnlyAccess</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateSuperUserAccess()">validateSuperUserAccess</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Checks whether the user has Pulsar Super-User access to the system.</div>
 </td>
 </tr>
-<tr id="i50" class="altColor">
+<tr id="i52" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateSuperUserAccessAsync()">validateSuperUserAccessAsync</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i51" class="rowColor">
+<tr id="i53" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTenantOperation(java.lang.String,org.apache.pulsar.common.policies.data.TenantOperation)">validateTenantOperation</a></span>&#8203;(java.lang.String&nbsp;tenant,
                        org.apache.pulsar.common.policies.data.TenantOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i52" class="altColor">
+<tr id="i54" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTenantOperationAsync(java.lang.String,org.apache.pulsar.common.policies.data.TenantOperation)">validateTenantOperationAsync</a></span>&#8203;(java.lang.String&nbsp;tenant,
                             org.apache.pulsar.common.policies.data.TenantOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i53" class="rowColor">
+<tr id="i55" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperation(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation)">validateTopicOperation</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i54" class="altColor">
+<tr id="i56" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperation(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation,java.lang.String)">validateTopicOperation</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation,
                       java.lang.String&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i55" class="rowColor">
+<tr id="i57" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperationAsync(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation)">validateTopicOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                            org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i56" class="altColor">
+<tr id="i58" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOperationAsync(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.TopicOperation,java.lang.String)">validateTopicOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                            org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation,
                            java.lang.String&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i57" class="rowColor">
+<tr id="i59" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOwnership(org.apache.pulsar.common.naming.TopicName,boolean)">validateTopicOwnership</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       boolean&nbsp;authoritative)</code></th>
@@ -565,20 +583,20 @@ extends java.lang.Object</pre>
 <div class="block">Checks whether the broker is the owner of the namespace.</div>
 </td>
 </tr>
-<tr id="i58" class="altColor">
+<tr id="i60" class="altColor">
 <td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicOwnershipAsync(org.apache.pulsar.common.naming.TopicName,boolean)">validateTopicOwnershipAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                            boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i59" class="rowColor">
+<tr id="i61" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicPolicyOperation(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.PolicyName,org.apache.pulsar.common.policies.data.PolicyOperation)">validateTopicPolicyOperation</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                             org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
                             org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i60" class="altColor">
+<tr id="i62" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicPolicyOperationAsync(org.apache.pulsar.common.naming.TopicName,org.apache.pulsar.common.policies.data.PolicyName,org.apache.pulsar.common.policies.data.PolicyOperation)">validateTopicPolicyOperationAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                                  org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
@@ -794,7 +812,7 @@ protected&nbsp;javax.ws.rs.core.UriInfo uri</pre>
 </dl>
 </li>
 </ul>
-<a id="validateAdminAccessForTenant(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource)">
+<a id="validateAdminAccessForTenant(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long,java.util.concurrent.TimeUnit)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -804,12 +822,36 @@ protected&nbsp;javax.ws.rs.core.UriInfo uri</pre>
                                                    java.lang.String&nbsp;clientAppId,
                                                    java.lang.String&nbsp;originalPrincipal,
                                                    java.lang.String&nbsp;tenant,
-                                                   org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData)
-                                            throws java.lang.Exception</pre>
+                                                   org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData,
+                                                   long&nbsp;timeout,
+                                                   java.util.concurrent.TimeUnit&nbsp;unit)</pre>
+</li>
+</ul>
+<a id="validateAdminAccessForTenantAsync(java.lang.String)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>validateAdminAccessForTenantAsync</h4>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;validateAdminAccessForTenantAsync&#8203;(java.lang.String&nbsp;tenant)</pre>
+<div class="block">Checks that the http client role has admin access to the specified tenant async.</div>
 <dl>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code>java.lang.Exception</code></dd>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>tenant</code> - the tenant id</dd>
 </dl>
+</li>
+</ul>
+<a id="validateAdminAccessForTenantAsync(org.apache.pulsar.broker.PulsarService,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>validateAdminAccessForTenantAsync</h4>
+<pre class="methodSignature">protected static&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;validateAdminAccessForTenantAsync&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
+                                                                                                          java.lang.String&nbsp;clientAppId,
+                                                                                                          java.lang.String&nbsp;originalPrincipal,
+                                                                                                          java.lang.String&nbsp;tenant,
+                                                                                                          org.apache.pulsar.broker.authentication.AuthenticationDataSource&nbsp;authenticationData)</pre>
 </li>
 </ul>
 <a id="validatePeerClusterConflict(java.lang.String,java.util.Set)">

@@ -83,14 +83,23 @@
 <ol>
 <li><p>Start Pulsar 2.8.0 or later.</p></li>
 <li><p>Enable transaction.</p>
-<p>Change the configuration in the <code>broker.conf</code> file.</p>
-<pre><code class="hljs"><span class="hljs-attr">transactionCoordinatorEnabled</span>=<span class="hljs-literal">true</span>
-<span class="hljs-attr">systemTopicEnabled</span>=<span class="hljs-literal">true</span>
+<p>Change the configuration in the <code>broker.conf</code> or <code>standalone.conf</code> file.</p>
+<pre><code class="hljs">//mandatory <span class="hljs-keyword">configuration</span>, used <span class="hljs-keyword">to</span> <span class="hljs-keyword">enable</span> <span class="hljs-keyword">transaction</span> coordinator
+transactionCoordinatorEnabled=<span class="hljs-keyword">true</span>
+
+//mandtory <span class="hljs-keyword">configuration</span>, used <span class="hljs-keyword">to</span> <span class="hljs-keyword">create</span> systemTopic used <span class="hljs-keyword">for</span> <span class="hljs-keyword">transaction</span> buffer <span class="hljs-keyword">snapshot</span>
+systemTopicEnabled=<span class="hljs-keyword">true</span>
+
 </code></pre>
-<p>If you want to enable batch messages in transactions, follow the steps below.</p>
-<p>Set <code>acknowledgmentAtBatchIndexLevelEnabled</code> to <code>true</code> in the <code>broker.conf</code> or <code>standalone.conf</code> file.</p>
+<ul>
+<li><p>If you want to acknowledge batch messages in transactions, set <code>acknowledgmentAtBatchIndexLevelEnabled</code> to <code>true</code> in the <code>broker.conf</code> or <code>standalone.conf</code> file.</p>
 <pre><code class="hljs"><span class="hljs-attr">acknowledgmentAtBatchIndexLevelEnabled</span>=<span class="hljs-literal">true</span>
 </code></pre></li>
+<li><p>If you want to guarantee exactly-once semantics, you need to enable <a href="/docs/en/next/cookbooks-deduplication">message deduplication</a>.
+You can enable message deduplication at the broker level, the namespace level, or the topic level according to your needs.</p></li>
+</ul></li>
+</ol>
+<ol start="3">
 <li><p>Initialize transaction coordinator metadata.</p>
 <p>The transaction coordinator can leverage the advantages of partitioned topics (such as load balance).</p>
 <p><strong>Input</strong></p>
