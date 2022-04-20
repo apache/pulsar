@@ -42,6 +42,7 @@ import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.BooleanType;
 import io.prestosql.spi.type.DateType;
 import io.prestosql.spi.type.DecimalType;
+import io.prestosql.spi.type.Decimals;
 import io.prestosql.spi.type.DoubleType;
 import io.prestosql.spi.type.IntegerType;
 import io.prestosql.spi.type.MapType;
@@ -244,12 +245,11 @@ public class PulsarAvroColumnDecoder {
             }
         }
 
-        // The returned Slice size must be equal to 18 Byte
+        // The returned Slice size must be equals to 18 Byte
         if (type instanceof DecimalType) {
             ByteBuffer buffer = (ByteBuffer) value;
-            Slice slice = Slices.allocate(Int128ArrayBlock.INT128_BYTES);
-            slice.setBytes(0, buffer.array());
-            return slice;
+            BigInteger bigInteger = new BigInteger(buffer.array());
+            return Decimals.encodeUnscaledValue(bigInteger);
         }
 
         throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,

@@ -48,6 +48,8 @@ public class DecoderTestMessage {
     public TestEnum enumField;
     @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
     public BigDecimal decimalField;
+    @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 30, \"scale\": 2 }")
+    public BigDecimal longDecimalField;
 
     public List<String> arrayField;
     public Map<String, Long> mapField;

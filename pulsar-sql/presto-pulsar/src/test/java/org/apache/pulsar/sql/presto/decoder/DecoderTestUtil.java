@@ -24,12 +24,15 @@ import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.block.Block;
 import io.prestosql.spi.type.ArrayType;
 import io.prestosql.spi.type.DecimalType;
+import io.prestosql.spi.type.Decimals;
 import io.prestosql.spi.type.MapType;
 import io.prestosql.spi.type.RowType;
 import io.prestosql.spi.type.Type;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Map;
 
+import static io.prestosql.spi.type.UnscaledDecimal128Arithmetic.UNSCALED_DECIMAL_128_SLICE_LENGTH;
 import static io.prestosql.testing.TestingConnectorSession.SESSION;
 import static org.testng.Assert.*;
 
@@ -117,9 +120,15 @@ public abstract class DecoderTestUtil {
 
     public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
         FieldValueProvider provider = decodedRow.get(handle);
-        Type type = handle.getType();
-        DecimalType decimalType = (DecimalType) type;
-        BigDecimal actualDecimal = BigDecimal.valueOf(provider.getLong(), decimalType.getScale());
+        DecimalType decimalType = (DecimalType) handle.getType();
+        BigDecimal actualDecimal;
+        if (decimalType.getFixedSize() == UNSCALED_DECIMAL_128_SLICE_LENGTH) {
+            Slice slice = provider.getSlice();
+            BigInteger bigInteger = Decimals.decodeUnscaledValue(slice);
+            actualDecimal = new BigDecimal(bigInteger, decimalType.getScale());
+        } else {
+            actualDecimal = BigDecimal.valueOf(provider.getLong(), decimalType.getScale());
+        }
         assertNotNull(provider);
         assertEquals(actualDecimal, value);
     }
