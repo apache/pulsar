@@ -145,7 +145,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     }
 
     private long getBytesPercentDirectMem(double percent) {
-        return (long) (io.netty.util.internal.PlatformDependent.maxDirectMemory() * (percent / 100));
+        return (long) (io.netty.util.internal.PlatformDependent.estimateMaxDirectMemory() * (percent / 100));
     }
 
 

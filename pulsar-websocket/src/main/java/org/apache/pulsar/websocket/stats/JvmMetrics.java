@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket.stats;
 
 // CHECKSTYLE.OFF: IllegalImport
-import static io.netty.util.internal.PlatformDependent.maxDirectMemory;
 import static org.apache.pulsar.common.stats.Metrics.create;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import java.lang.management.ManagementFactory;
@@ -29,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
+
+import io.netty.util.internal.PlatformDependent;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.slf4j.Logger;
@@ -65,7 +66,7 @@ public class JvmMetrics {
         m.put("jvm_max_memory", r.maxMemory());
         m.put("jvm_total_memory", r.totalMemory());
 
-        m.put("jvm_max_direct_memory", maxDirectMemory());
+        m.put("jvm_max_direct_memory", PlatformDependent.estimateMaxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         m.put("jvm_gc_young_pause", currentYoungGcTime);

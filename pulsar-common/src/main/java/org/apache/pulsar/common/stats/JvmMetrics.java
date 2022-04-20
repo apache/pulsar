@@ -103,7 +103,7 @@ public class JvmMetrics {
         m.put("jvm_total_memory", r.totalMemory());
 
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
-        m.put("jvm_max_direct_memory", io.netty.util.internal.PlatformDependent.maxDirectMemory());
+        m.put("jvm_max_direct_memory", io.netty.util.internal.PlatformDependent.estimateMaxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         this.gcLogger.logMetrics(m);
