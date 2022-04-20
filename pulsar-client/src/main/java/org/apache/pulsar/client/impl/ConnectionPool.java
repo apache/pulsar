@@ -75,7 +75,7 @@ public class ConnectionPool implements AutoCloseable {
         this(conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
     }
 
-    protected ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
                              Supplier<ClientCnx> clientCnxSupplier, Optional<DnsNameResolver> dnsNameResolver)
             throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
@@ -102,17 +102,19 @@ public class ConnectionPool implements AutoCloseable {
         }
 
         this.shouldCloseDnsResolver = !dnsNameResolver.isPresent();
-        this.dnsResolver = dnsNameResolver.orElseGet(() -> {
-            DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(eventLoopGroup.next())
-                    .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
-            if (conf.getDnsLookupBindAddress() != null) {
-                InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
-                        conf.getDnsLookupBindPort());
-                dnsNameResolverBuilder.localAddress(addr);
-            }
-            DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
-            return dnsNameResolverBuilder.build();
-        });
+        this.dnsResolver = dnsNameResolver.orElseGet(() -> createDnsNameResolver(conf, eventLoopGroup));
+    }
+
+    private static DnsNameResolver createDnsNameResolver(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(eventLoopGroup.next())
+                .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
+        if (conf.getDnsLookupBindAddress() != null) {
+            InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
+                    conf.getDnsLookupBindPort());
+            dnsNameResolverBuilder.localAddress(addr);
+        }
+        DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
+        return dnsNameResolverBuilder.build();
     }
 
     private static final Random random = new Random();
