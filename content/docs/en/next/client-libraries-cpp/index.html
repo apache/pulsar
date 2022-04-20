@@ -345,6 +345,8 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/<span class="hljs-class"><span class="hlj
 
 <span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
     <span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
+    
+    Producer producer;
 
     Result result = client.createProducer(<span class="hljs-string">"persistent://public/default/my-topic"</span>, producer);
     <span class="hljs-keyword">if</span> (result != ResultOk) {
@@ -380,6 +382,7 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/<span class="hljs-class"><span class="hlj
 <p>Without this configuration, the result code <code>ResultProducerQueueIsFull</code> is passed to the callback. You must decide how to deal with that (retry, discard etc).</p>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
 <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;thread&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;atomic&gt;</span></span>
 
 <span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> pulsar;
 
