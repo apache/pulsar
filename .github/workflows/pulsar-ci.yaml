@@ -359,6 +359,9 @@ jobs:
           - name: Transaction
             group: TRANSACTION
 
+          - name: SQL
+            group: SQL
+
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -604,7 +607,6 @@ jobs:
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
 
-          # disable Sql integration tests until https://github.com/apache/pulsar/issues/14951 has been resolved
           - name: Sql
             group: SQL
 
