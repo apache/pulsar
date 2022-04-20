@@ -213,11 +213,11 @@ flexible messaging model and an intuitive client API.</description>
     <snakeyaml.version>1.30</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+    <disruptor.version>3.4.3</disruptor.version>
 
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
-    <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.15.3</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
 
