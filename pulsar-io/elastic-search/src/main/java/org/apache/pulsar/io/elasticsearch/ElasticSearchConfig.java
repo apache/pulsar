@@ -281,6 +281,13 @@ public class ElasticSearchConfig implements Serializable {
     )
     private boolean canonicalKeyFields = false;
 
+    @FieldDoc(
+            defaultValue = "NONE",
+            help = "Hashing algorithm to use for the document id. This is useful in order to be compliant with "
+                    + "the ElasticSearch _id hard limit of 512 bytes."
+    )
+    private IdHashingAlgorithm idHashingAlgorithm = IdHashingAlgorithm.NONE;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,
@@ -298,6 +305,12 @@ public class ElasticSearchConfig implements Serializable {
         ELASTICSEARCH_7,
         ELASTICSEARCH,
         OPENSEARCH
+    }
+
+    public enum IdHashingAlgorithm {
+        NONE,
+        SHA256,
+        SHA512
     }
 
     public static ElasticSearchConfig load(String yamlFile) throws IOException {
