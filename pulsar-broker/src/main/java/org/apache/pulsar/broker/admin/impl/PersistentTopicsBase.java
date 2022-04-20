@@ -284,7 +284,6 @@ public class PersistentTopicsBase extends AdminResource {
                     });
         } else {
             String msg = "Authorization is not enabled";
-            log.error("[{}] Failed to get permissions for topic {}, because {}", clientAppId(), topicUri, msg);
             return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
         }
     }
@@ -301,11 +300,11 @@ public class PersistentTopicsBase extends AdminResource {
                       if (numPartitions > 0) {
                           for (int i = 0; i < numPartitions; i++) {
                               TopicName topicNamePartition = topicName.getPartition(i);
-                              future = future.thenComposeAsync(unused -> grantPermissionsAsync(topicNamePartition, role,
+                              future = future.thenCompose(unused -> grantPermissionsAsync(topicNamePartition, role,
                                       actions));
                           }
                       }
-                      return future.thenComposeAsync(unused -> grantPermissionsAsync(topicName, role, actions))
+                      return future.thenCompose(unused -> grantPermissionsAsync(topicName, role, actions))
                               .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                   }))).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
