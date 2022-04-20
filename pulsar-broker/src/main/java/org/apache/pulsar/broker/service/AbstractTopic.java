@@ -789,7 +789,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public void updateMaxPublishRate(Policies policies) {
-        updatePublishDispatcher(Optional.of(policies));
+        updatePublishDispatcher(Optional.ofNullable(policies));
     }
 
     private void updatePublishDispatcher(Optional<Policies> optPolicies) {
