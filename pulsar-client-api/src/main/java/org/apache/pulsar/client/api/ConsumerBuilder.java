@@ -658,7 +658,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If enabled, the consumer will auto retry message.
-     * default unabled.
+     * default disabled.
      *
      * @param retryEnable
      *            whether to auto retry message
