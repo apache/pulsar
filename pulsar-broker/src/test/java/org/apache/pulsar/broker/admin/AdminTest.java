@@ -844,10 +844,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
-        NamespaceService ns = spy(pulsar.getNamespaceService());
-        Field namespaceField = pulsar.getClass().getDeclaredField("nsService");
-        namespaceField.setAccessible(true);
-        namespaceField.set(pulsar, ns);
+        NamespaceService ns = pulsar.getNamespaceService();
         CompletableFuture<List<String>> future = new CompletableFuture();
         future.completeExceptionally(new RuntimeException("500 error contains error message"));
         doReturn(future).when(ns).getListOfTopics(namespaceName, CommandGetTopicsOfNamespace.Mode.ALL);

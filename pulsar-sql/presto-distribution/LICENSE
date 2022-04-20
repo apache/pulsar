@@ -394,7 +394,7 @@ The Apache Software License, Version 2.0
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
-    - snakeyaml-1.27.jar
+    - snakeyaml-1.30.jar
   * Bean Validation API
     - validation-api-2.0.1.Final.jar
   * Objectsize
