@@ -269,6 +269,7 @@ TEST(ProducerTest, testBacklogQuotasExceeded) {
     ASSERT_EQ(ResultOk, client.createProducer(partition, producer));
     ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(std::string(1024L, 'a')).build()));
     ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_EQ(ResultOk, consumer.close());
 
     setBacklogPolicy("producer_request_hold", 1024);
     ASSERT_EQ(ResultProducerBlockedQuotaExceededError, client.createProducer(topic, producer));
