@@ -55,20 +55,6 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
     }
 
     @Override
-    protected void beforeStartCluster() throws Exception {
-        Map<String, String> envMap = new HashMap<>();
-        envMap.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
-        envMap.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-        envMap.put("managedLedgerOffloadDriver", OFFLOAD_DRIVER);
-        envMap.put("s3ManagedLedgerOffloadBucket", BUCKET);
-        envMap.put("s3ManagedLedgerOffloadServiceEndpoint", ENDPOINT);
-
-        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-            brokerContainer.withEnv(envMap);
-        }
-    }
-
-    @Override
     public void setupCluster() throws Exception {
         super.setupCluster();
         pulsarClient = PulsarClient.builder()

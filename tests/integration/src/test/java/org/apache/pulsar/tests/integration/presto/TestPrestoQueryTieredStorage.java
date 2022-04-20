@@ -36,10 +36,14 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.testcontainers.shaded.org.apache.commons.lang.StringUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -52,6 +56,27 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
     private final String NAMESPACE = "ts";
 
     private S3Container s3Container;
+
+    @Override
+    protected void beforeStartCluster() throws Exception {
+        Map<String, String> envMap = new HashMap<>();
+        envMap.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
+        envMap.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
+        envMap.put("managedLedgerOffloadDriver", OFFLOAD_DRIVER);
+        envMap.put("s3ManagedLedgerOffloadBucket", BUCKET);
+        envMap.put("s3ManagedLedgerOffloadServiceEndpoint", ENDPOINT);
+
+        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+            brokerContainer.withEnv(envMap);
+        }
+
+        s3Container = new S3Container(
+                pulsarCluster.getClusterName(),
+                S3Container.NAME)
+                .withNetwork(pulsarCluster.getNetwork())
+                .withNetworkAliases(S3Container.NAME);
+        s3Container.start();
+    }
 
     @Override
     public void setupCluster() throws Exception {
@@ -75,13 +100,6 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
                 "namespaces",
                 "create", "--clusters", pulsarCluster.getClusterName(),
                 NamespaceName.get(TENANT, NAMESPACE).toString());
-
-        s3Container = new S3Container(
-                pulsarCluster.getClusterName(),
-                S3Container.NAME)
-                .withNetwork(pulsarCluster.getNetwork())
-                .withNetworkAliases(S3Container.NAME);
-        s3Container.start();
 
         String offloadProperties = getOffloadProperties(BUCKET, null, ENDPOINT);
         pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, offloadProperties);

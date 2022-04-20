@@ -50,7 +50,6 @@
                 <version>3.1.0</version>
                 <configuration>
                     <archive>
-                        <!--自动添加META-INF/MANIFEST.MF -->
                         <manifest>
                             <addClasspath>true</addClasspath>
                         </manifest>
