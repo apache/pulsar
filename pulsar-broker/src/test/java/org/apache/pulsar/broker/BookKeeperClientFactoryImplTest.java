@@ -152,7 +152,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
         assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                 .getDiskWeightBasedPlacementEnabled());
         conf.setBookkeeperDiskWeightBasedPlacementEnabled(true);
@@ -164,7 +164,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetExplicitLacInterval() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
         assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
                 0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
@@ -177,7 +177,7 @@ public class BookKeeperClientFactoryImplTest {
     public void testSetMetadataServiceUriZookkeeperServers() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setZookeeperServers("localhost:2181");
+        conf.setMetadataStoreUrl("zk:localhost:2181");
         try {
             {
                 final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
@@ -205,8 +205,8 @@ public class BookKeeperClientFactoryImplTest {
                         .getMetadataServiceUri(), expectedUri);
             }
             {
-                conf.setMetadataStoreUrl("localhost:2181/chroot");
-                final String expectedUri = "metadata-store:localhost:2181/chroot/ledgers";
+                conf.setMetadataStoreUrl("zk:localhost:2181/chroot");
+                final String expectedUri = "metadata-store:zk:localhost:2181/chroot/ledgers";
                 assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                         .getMetadataServiceUri(), expectedUri);
             }
@@ -219,8 +219,8 @@ public class BookKeeperClientFactoryImplTest {
             }
 
             {
-                conf.setMetadataStoreUrl("localhost:2181");
-                final String expectedUri = "metadata-store:localhost:2181/ledgers";
+                conf.setMetadataStoreUrl("zk:localhost:2181");
+                final String expectedUri = "metadata-store:zk:localhost:2181/ledgers";
                 assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                         .getMetadataServiceUri(), expectedUri);
             }

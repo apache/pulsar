@@ -51,6 +51,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
 
     private ProxyServiceStarter serviceStarter;
+    private String serviceUrl;
 
     @Override
     @BeforeClass
@@ -62,7 +63,9 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter.getConfig().setWebServicePort(Optional.of(0));
         serviceStarter.getConfig().setServicePort(Optional.of(0));
         serviceStarter.getConfig().setWebSocketServiceEnabled(true);
+        serviceStarter.getConfig().setBrokerProxyAllowedTargetPorts("*");
         serviceStarter.start();
+        serviceUrl = serviceStarter.getProxyService().getServiceUrl();
     }
 
     @Override
@@ -92,7 +95,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducer() throws Exception {
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + this.pulsar.getBrokerService().getListenPort().get())
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl)
                 .build();
 
         @Cleanup

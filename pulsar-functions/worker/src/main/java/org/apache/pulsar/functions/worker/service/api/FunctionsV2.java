@@ -32,15 +32,15 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface FunctionsV2<W extends WorkerService> {
 
-    Response getFunctionInfo(final String tenant,
-                             final String namespace,
-                             final String functionName,
+    Response getFunctionInfo(String tenant,
+                             String namespace,
+                             String functionName,
                              String clientRole) throws IOException;
 
-    Response getFunctionInstanceStatus(final String tenant,
-                                       final String namespace,
-                                       final String functionName,
-                                       final String instanceId,
+    Response getFunctionInstanceStatus(String tenant,
+                                       String namespace,
+                                       String functionName,
+                                       String instanceId,
                                        URI uri,
                                        String clientRole) throws IOException;
 

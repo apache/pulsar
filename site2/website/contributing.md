@@ -196,6 +196,10 @@ You'll then push to your branch on GitHub. Note: when updating your commit after
 
 Navigate to the [Pulsar GitHub Repo](https://github.com/apache/pulsar) to create a pull request.
 
+> **Note**
+> 
+> Vague, boring, and unclear PR titles decrease team efficiency and productivity. Good titles speed up the review process and increase search efficiency. PR titles should be engaging, easy to understand, and readable. For how to **write self​-explanatory PR titles** and **quality PR title examples**, see [[Guideline] Pulsar PR Naming Convention](https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#).
+
 In the pull request description, please include:
 
  * Motivation : Why is this change needed? What problem is addressing?

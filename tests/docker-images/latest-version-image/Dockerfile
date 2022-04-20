@@ -21,12 +21,13 @@
 
 FROM apachepulsar/pulsar:latest as pulsar-function-go
 
+# Use root for builder
 USER root
 
 RUN rm -rf /var/lib/apt/lists/* && apt-get update
 RUN apt-get install -y procps curl git build-essential
 
-ENV GOLANG_VERSION 1.13.3
+ENV GOLANG_VERSION 1.15.8
 
 RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz \
 		| tar -C /usr/local -xz
@@ -41,6 +42,7 @@ RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 ENV PATH /go/bin:$PATH
+ENV GO111MODULE=on
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
@@ -54,6 +56,16 @@ FROM apachepulsar/pulsar-all:latest as pulsar-all
 ###### Main image build
 ########################################
 FROM apachepulsar/pulsar:latest
+
+# Switch to run as the root user to simplify building container and then running
+# supervisord. Each of the pulsar components are spawned by supervisord and their
+# process configuration files specify that the process will be run with UID 10000.
+# However, any processes exec'ing into the containers will run as root, by default.
+USER root
+
+# We need to define the user in order for supervisord to work correctly
+# We don't need a user defined in the public docker image, though.
+RUN adduser -u 10000 --gid 0 --disabled-login --disabled-password --gecos '' pulsar
 
 RUN rm -rf /var/lib/apt/lists/* && apt update
 
@@ -106,6 +118,7 @@ COPY --from=pulsar-all /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
 COPY --from=pulsar-all /pulsar/connectors/pulsar-io-batch-data-generator-*.nar /pulsar/connectors/
+COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kinesis-*.nar /pulsar/connectors/
 
 # download Oracle JDBC driver for Oracle Debezium Connector tests
 RUN mkdir -p META-INF/bundled-dependencies

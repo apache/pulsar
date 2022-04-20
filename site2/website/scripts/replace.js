@@ -89,7 +89,7 @@ function clientVersionUrl(version, type) {
   var versions = version.split('.')
   var majorVersion = parseInt(versions[0])
   var minorVersion = parseInt(versions[1])
-  if (majorVersion === 2 && minorVersion < 5) {
+  if ((majorVersion === 2 && minorVersion < 5) || (type === "python" && minorVersion >= 7)) {
     return `/api/` + type + `/` + version;
   } else if (majorVersion >= 2 && minorVersion >= 5) {
     return `/api/` + type + `/` + majorVersion + `.` + minorVersion + `.0` + `-SNAPSHOT`

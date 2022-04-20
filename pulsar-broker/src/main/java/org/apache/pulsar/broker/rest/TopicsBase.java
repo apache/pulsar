@@ -431,7 +431,8 @@ public class TopicsBase extends PersistentTopicsBase {
                             partitionedTopicName, result.getLookupData());
                 }
                 pulsar().getBrokerService().getOwningTopics().computeIfAbsent(partitionedTopicName
-                                .getPartitionedTopicName(), (key) -> new ConcurrentOpenHashSet<Integer>())
+                                .getPartitionedTopicName(),
+                        (key) -> ConcurrentOpenHashSet.<Integer>newBuilder().build())
                         .add(partitionedTopicName.getPartitionIndex());
                 completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
             } else {

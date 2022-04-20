@@ -77,7 +77,7 @@ public abstract class AbstractHdfsSinkTest<K, V> {
         when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
             long sequenceCounter = 0;
             public String answer(InvocationOnMock invocation) throws Throwable {
-                 return new String( "value-" + sequenceCounter++ + "-" + UUID.randomUUID().toString());
+                 return new String( "value-" + sequenceCounter++ + "-" + UUID.randomUUID());
             }});
         
         createSink();

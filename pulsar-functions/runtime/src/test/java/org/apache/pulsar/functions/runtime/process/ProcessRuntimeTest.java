@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -64,11 +62,6 @@ public class ProcessRuntimeTest {
     private String defaultWebServiceUrl = "http://localhost:8080";
 
     class TestSecretsProviderConfigurator implements SecretsProviderConfigurator {
-
-        @Override
-        public void init(Map<String, String> config) {
-
-        }
 
         @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
@@ -99,10 +92,6 @@ public class ProcessRuntimeTest {
             return TypeToken.get(String.class).getType();
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private static final String TEST_TENANT = "test-function-tenant";
@@ -304,7 +293,7 @@ public class ProcessRuntimeTest {
         }
         if (null != depsDir) {
             assertEquals(args.size(), totalArgCount);
-            extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir.toString();
+            extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
             portArg = 25;
             metricsPortArg = 27;

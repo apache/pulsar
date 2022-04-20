@@ -32,6 +32,7 @@ import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -218,7 +219,7 @@ public class NamespaceBundleFactory {
                 int maxCount = 0;
                 for (String topic : topics) {
                     NamespaceBundle bundle = bundles.findBundle(TopicName.get(topic));
-                    String bundleRange = bundles.findBundle(TopicName.get(topic)).getBundleRange();
+                    String bundleRange = bundle.getBundleRange();
                     int count = countMap.getOrDefault(bundleRange, 0) + 1;
                     countMap.put(bundleRange, count);
                     if (count > maxCount) {
@@ -231,21 +232,27 @@ public class NamespaceBundleFactory {
         });
     }
 
+    public NamespaceBundle getBundle(TopicName topic) {
+        NamespaceBundles bundles = bundlesCache.synchronous().get(topic.getNamespaceObject());
+        return bundles != null ? bundles.findBundle(topic) : null;
+    }
+
     public NamespaceBundle getBundleWithHighestThroughput(NamespaceName nsName) {
         LoadManager loadManager = pulsar.getLoadManager().get();
         if (loadManager instanceof ModularLoadManagerWrapper) {
             NamespaceBundles bundles = getBundles(nsName);
             double maxMsgThroughput = -1;
-            NamespaceBundle bundleWithHighestThroughpit = null;
+            NamespaceBundle bundleWithHighestThroughput = null;
             for (NamespaceBundle bundle : bundles.getBundles()) {
-                BundleData budnleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
-                        .getBundleDataOrDefault(bundle.getBundleRange());
-                if (budnleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
-                    maxMsgThroughput = budnleData.getLongTermData().totalMsgThroughput();
-                    bundleWithHighestThroughpit = bundle;
+                BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                        .getBundleDataOrDefault(bundle.toString());
+                if (bundleData.getTopics() > 0
+                        && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
+                    maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
+                    bundleWithHighestThroughput = bundle;
                 }
             }
-            return bundleWithHighestThroughpit;
+            return bundleWithHighestThroughput;
         }
         return getBundleWithHighestTopics(nsName);
     }
@@ -300,20 +307,22 @@ public class NamespaceBundleFactory {
      *            {@link NamespaceBundle} needs to be split
      * @param argNumBundles
      *            split into numBundles
-     * @param splitBoundary
-     *            split into 2 numBundles by the given split key. The given split key must between the key range of the
-     *            given split bundle.
+     * @param splitBoundaries
+     *            split into multi numBundles by the given split boundaries. All these given split boundaries must
+     *            between the key range of the given split bundle.
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */
     public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> splitBundles(
-            NamespaceBundle targetBundle, int argNumBundles, Long splitBoundary) {
-        checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
-        if (splitBoundary != null) {
-            checkArgument(splitBoundary > targetBundle.getLowerEndpoint()
-                            && splitBoundary < targetBundle.getUpperEndpoint(),
-                    "The given fixed key must between the key range of the %s bundle", targetBundle);
-            argNumBundles = 2;
+            NamespaceBundle targetBundle, int argNumBundles, List<Long> splitBoundaries) {
+        checkArgument(canSplitBundle(targetBundle),
+                "%s bundle can't be split further since range not larger than 1", targetBundle);
+        if (splitBoundaries != null && splitBoundaries.size() > 0) {
+            Collections.sort(splitBoundaries);
+            checkArgument(splitBoundaries.get(0) > targetBundle.getLowerEndpoint()
+                            && splitBoundaries.get(splitBoundaries.size() - 1) < targetBundle.getUpperEndpoint(),
+                    "The given fixed keys must between the key range of the %s bundle", targetBundle);
+            argNumBundles = splitBoundaries.size() + 1;
         }
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
@@ -332,15 +341,22 @@ public class NamespaceBundleFactory {
                 if (sourceBundle.partitions[i] == range.lowerEndpoint()
                         && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
                     splitPartition = i;
-                    long maxVal = sourceBundle.partitions[i + 1];
                     long minVal = sourceBundle.partitions[i];
-                    long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
                     partitions[pos++] = minVal;
-                    long curPartition = minVal + segSize;
-                    for (int j = 0; j < numBundles - 1; j++) {
-                        partitions[pos++] = curPartition;
-                        curPartition += segSize;
+                    if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                        long maxVal = sourceBundle.partitions[i + 1];
+                        long segSize = (maxVal - minVal) / numBundles;
+                        long curPartition = minVal + segSize;
+                        for (int j = 0; j < numBundles - 1; j++) {
+                            partitions[pos++] = curPartition;
+                            curPartition += segSize;
+                        }
+                    } else {
+                        for (long splitBoundary : splitBoundaries) {
+                            partitions[pos++] = splitBoundary;
+                        }
                     }
+
                 } else {
                     partitions[pos++] = sourceBundle.partitions[i];
                 }

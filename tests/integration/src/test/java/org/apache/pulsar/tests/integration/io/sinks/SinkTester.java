@@ -41,6 +41,7 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
         UNDEFINED("undefined"),
         CASSANDRA("cassandra"),
         KAFKA("kafka"),
+        KINESIS("kinesis"),
         JDBC_POSTGRES("jdbc-postgres"),
         HDFS("hdfs"),
         ELASTIC_SEARCH("elastic_search"),

@@ -50,7 +50,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Chunked message dispatch rate. */
     public int chunkedMessageRate;
 
-    /** Number of messages in the subscription backlog. */
+    /** Number of entries in the subscription backlog. */
     public long msgBacklog;
 
     /** Size of backlog in byte. **/
@@ -59,7 +59,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Get the publish time of the earliest message in the backlog. */
     public long earliestMsgPublishTimeInBacklog;
 
-    /** Number of messages in the subscription backlog that do not contain the delay messages. */
+    /** Number of entries in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */

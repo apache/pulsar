@@ -48,7 +48,9 @@ public class ProxyStats {
         super();
         this.service = service;
         this.jvmMetrics = new JvmMetrics(service);
-        this.topicStats = new ConcurrentOpenHashMap<>();
+        this.topicStats =
+                ConcurrentOpenHashMap.<String, ProxyNamespaceStats>newBuilder()
+                        .build();
         this.metricsCollection = new ArrayList<>();
         this.tempMetricsCollection = new ArrayList<>();
         // schedule stat generation task every 1 minute

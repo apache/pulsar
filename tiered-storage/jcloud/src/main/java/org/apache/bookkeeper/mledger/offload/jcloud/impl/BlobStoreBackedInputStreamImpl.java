@@ -21,6 +21,8 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -40,6 +42,8 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     private final ByteBuf buffer;
     private final long objectLen;
     private final int bufferSize;
+    private LedgerOffloaderStats offloaderStats;
+    private String managedLedgerName;
 
     private long cursor;
     private long bufferOffsetStart;
@@ -59,6 +63,16 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         this.bufferOffsetStart = this.bufferOffsetEnd = -1;
     }
 
+
+    public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
+                                          VersionCheck versionCheck,
+                                          long objectLen, int bufferSize,
+                                          LedgerOffloaderStats offloaderStats, String managedLedgerName) {
+        this(blobStore, bucket, key, versionCheck, objectLen, bufferSize);
+        this.offloaderStats = offloaderStats;
+        this.managedLedgerName = managedLedgerName;
+    }
+
     /**
      * Refill the buffered input if it is empty.
      * @return true if there are bytes to read, false otherwise
@@ -73,7 +87,13 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                                      objectLen - 1);
 
             try {
+                long startReadTime = System.nanoTime();
                 Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
+                if (this.offloaderStats != null) {
+                    this.offloaderStats.recordReadOffloadDataLatency(managedLedgerName,
+                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
+                    this.offloaderStats.recordReadOffloadBytes(managedLedgerName, endRange - startRange + 1);
+                }
                 versionCheck.check(key, blob);
 
                 try (InputStream stream = blob.getPayload().openStream()) {
@@ -88,6 +108,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                     cursor += buffer.readableBytes();
                 }
             } catch (Throwable e) {
+                if (null != this.offloaderStats) {
+                    this.offloaderStats.recordReadOffloadError(this.managedLedgerName);
+                }
                 throw new IOException("Error reading from BlobStore", e);
             }
         }

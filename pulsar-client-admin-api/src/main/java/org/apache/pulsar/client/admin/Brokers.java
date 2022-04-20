@@ -291,6 +291,15 @@ public interface Brokers {
     CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion);
 
     /**
+     * Shutdown current broker gracefully.
+     * @param maxConcurrentUnloadPerSec
+     * @param forcedTerminateTopic
+     * @return
+     */
+    CompletableFuture<Void> shutDownBrokerGracefully(int maxConcurrentUnloadPerSec,
+                                                     boolean forcedTerminateTopic);
+
+    /**
      * Get version of broker.
      * @return version of broker.
      */

@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.functions.windowing.triggers;
 
+import java.util.List;
 import org.apache.pulsar.functions.windowing.DefaultEvictionContext;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
 import org.apache.pulsar.functions.windowing.TriggerHandler;
 import org.apache.pulsar.functions.windowing.TriggerPolicy;
 import org.apache.pulsar.functions.windowing.WindowManager;
-
-import java.util.List;
 
 /**
  * A trigger policy that tracks event counts and sets the context for

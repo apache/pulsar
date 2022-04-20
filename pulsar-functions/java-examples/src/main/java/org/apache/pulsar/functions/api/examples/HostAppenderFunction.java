@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
 
 /**
  * Function that appends the host name to the payload message.

@@ -80,7 +80,7 @@ public final class MultipleListenerValidator {
                 throw new IllegalArgumentException("there are redundant configure for listener `" + entry.getKey()
                         + "`");
             }
-            URI pulsarAddress = null, pulsarSslAddress = null;
+            URI pulsarAddress = null, pulsarSslAddress = null, pulsarHttpAddress = null, pulsarHttpsAddress = null;
             for (final String strUri : entry.getValue()) {
                 try {
                     URI uri = URI.create(strUri);
@@ -98,7 +98,22 @@ public final class MultipleListenerValidator {
                             throw new IllegalArgumentException("there are redundant configure for listener `"
                                     + entry.getKey() + "`");
                         }
+                    } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "http")) {
+                        if (pulsarHttpAddress == null) {
+                            pulsarHttpAddress = uri;
+                        } else {
+                            throw new IllegalArgumentException("there are redundant configure for listener `"
+                                    + entry.getKey() + "`");
+                        }
+                    } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "https")) {
+                        if (pulsarHttpsAddress == null) {
+                            pulsarHttpsAddress = uri;
+                        } else {
+                            throw new IllegalArgumentException("there are redundant configure for listener `"
+                                    + entry.getKey() + "`");
+                        }
                     }
+
                     String hostPort = String.format("%s:%d", uri.getHost(), uri.getPort());
                     Set<String> sets = reverseMappings.computeIfAbsent(hostPort, k -> new TreeSet<>());
                     sets.add(entry.getKey());
@@ -108,11 +123,15 @@ public final class MultipleListenerValidator {
                     }
                 } catch (Throwable cause) {
                     throw new IllegalArgumentException("the value " + strUri + " in the `advertisedListeners` "
-                            + "configure is invalid");
+                            + "configure is invalid", cause);
                 }
             }
-            result.put(entry.getKey(), AdvertisedListener.builder().brokerServiceUrl(pulsarAddress)
-                    .brokerServiceUrlTls(pulsarSslAddress).build());
+            result.put(entry.getKey(), AdvertisedListener.builder()
+                    .brokerServiceUrl(pulsarAddress)
+                    .brokerServiceUrlTls(pulsarSslAddress)
+                    .brokerHttpUrl(pulsarHttpAddress)
+                    .brokerHttpsUrl(pulsarHttpsAddress)
+                    .build());
         }
         return result;
     }
