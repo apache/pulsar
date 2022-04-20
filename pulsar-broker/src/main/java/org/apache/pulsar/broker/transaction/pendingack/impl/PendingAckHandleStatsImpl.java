@@ -78,7 +78,8 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
             exposeTopicLevelMetrics0 = exposeTopicLevelMetrics;
 
             String[] labelNames = exposeTopicLevelMetrics
-                    ? new String[]{"namespace", "topic", "subscription", "status"} : new String[]{"namespace", "status"};
+                    ? new String[]{"namespace", "topic", "subscription", "status"}
+                    : new String[]{"namespace", "status"};
 
             commitTxnCounter = Counter
                     .build("pulsar_txn_tp_committed_count", "-")
