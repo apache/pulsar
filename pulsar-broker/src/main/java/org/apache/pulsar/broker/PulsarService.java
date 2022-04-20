@@ -707,7 +707,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.startNamespaceService();
 
             schemaStorage = createAndStartSchemaStorage();
-            ensureSchemaRegistryName(schemaStorage);
             schemaRegistryService = SchemaRegistryService.create(config.getSchemaRegistryClassName());
             schemaRegistryService.initialize(config, schemaStorage);
 
@@ -1305,12 +1304,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
         schemaStorage.start();
         return schemaStorage;
-    }
-
-    private void ensureSchemaRegistryName(SchemaStorage schemaStorage) {
-        if (schemaStorage == null) {
-            this.config.setSchemaRegistryClassName(SCHEMA_REGISTRY_CLASS_NAME);
-        }
     }
 
     public ScheduledExecutorService getExecutor() {
