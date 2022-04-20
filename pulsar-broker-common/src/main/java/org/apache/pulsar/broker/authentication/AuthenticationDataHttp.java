@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import io.netty.util.NetUtil;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
@@ -36,9 +35,7 @@ public class AuthenticationDataHttp implements AuthenticationDataSource {
             throw new IllegalArgumentException();
         }
         this.request = request;
-        this.remoteAddress =
-                new InetSocketAddress(NetUtil.createInetAddressFromIpAddressString(request.getRemoteAddr()),
-                        request.getRemotePort());
+        this.remoteAddress = InetSocketAddress.createUnresolved(request.getRemoteAddr(), request.getRemotePort());
     }
 
     /*
