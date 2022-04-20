@@ -30,6 +30,9 @@ function binaryReleaseUrl(version) {
 }
 
 function connectorReleaseUrl(version) {
+  var versions = version.split(".");
+  var majorVersion = parseInt(versions[0]);
+  var minorVersion = parseInt(versions[1]);
   if (version.includes('incubating')) {
     return `https://archive.apache.org/dist/incubator/pulsar/pulsar-${version}/apache-pulsar-io-connectors-${version}-bin.tar.gz`
   } else if (majorVersion > 2 || (majorVersion == 2 && minorVersion >= 3)) {
