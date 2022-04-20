@@ -300,32 +300,27 @@ The Apache Software License, Version 2.0
     - aircompressor-0.20.jar
     - airline-0.8.jar
     - bootstrap-0.199.jar
-    - bootstrap-0.195.jar
-    - concurrent-0.195.jar
+    - concurrent-0.199.jar
     - configuration-0.199.jar
-    - configuration-0.195.jar
-    - discovery-0.195.jar
+    - discovery-0.199.jar
     - discovery-server-1.29.jar
-    - event-0.197.jar
-    - http-client-0.197.jar
-    - http-server-0.197.jar
-    - jmx-0.197.jar
-    - jmx-http-0.197.jar
-    - jmx-http-rpc-0.159.jar
+    - event-0.199.jar
+    - http-client-0.199.jar
+    - http-server-0.199.jar
+    - jmx-0.199.jar
+    - jmx-http-0.199.jar
+    - jmx-http-rpc-0.199.jar
     - joni-2.1.5.3.jar
     - json-0.199.jar
-    - json-0.195.jar
     - log-0.199.jar
-    - log-0.195.jar
     - log-manager-0.199.jar
-    - log-manager-0.195.jar
-    - node-0.195.jar
+    - node-0.199.jar
     - parameternames-1.4.jar
     - resolver-1.5.jar
-    - security-0.197.jar
+    - security-0.199.jar
     - slice-0.38.jar
-    - stats-0.197.jar
-    - trace-token-0.197.jar
+    - stats-0.199.jar
+    - trace-token-0.199.jar
     - units-1.6.jar
    * Apache HTTP Client
     - httpclient-4.5.13.jar
@@ -534,7 +529,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - hk2-utils-2.6.1.jar
    - aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - jaxrs-0.195.jar
+    - jaxrs-0.199.jar
     - jersey-client-2.34.jar
     - jersey-container-servlet-2.34.jar
     - jersey-container-servlet-core-2.34.jar
