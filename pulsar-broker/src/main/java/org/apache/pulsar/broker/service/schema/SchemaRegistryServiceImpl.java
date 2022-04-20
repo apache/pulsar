@@ -312,7 +312,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
             throws PulsarServerException {
         try {
-            Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
+            Map<SchemaType, SchemaCompatibilityCheck> checkers;
+            checkers = getCheckers(configuration.getSchemaRegistryCompatibilityCheckers());
             this.schemaStorage = schemaStorage;
             this.compatibilityChecks = checkers;
             this.clock = Clock.systemUTC();
