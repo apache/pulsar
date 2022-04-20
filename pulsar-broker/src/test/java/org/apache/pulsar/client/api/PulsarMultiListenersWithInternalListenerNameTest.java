@@ -58,8 +58,8 @@ import static org.mockito.Mockito.doReturn;
 public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPulsarServiceBaseTest {
     private final boolean withInternalListener;
     private ExecutorService executorService;
-    private String hostAndBrokerPort;
-    private String hostAndBrokerPortSsl;
+    private InetSocketAddress brokerAddress;
+    private InetSocketAddress brokerSslAddress;
     private EventLoopGroup eventExecutors;
 
     public PulsarMultiListenersWithInternalListenerNameTest() {
@@ -80,9 +80,9 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         this.isTcpLookup = true;
         String host = InetAddress.getLocalHost().getHostAddress();
         int brokerPort = getFreePort();
-        hostAndBrokerPort = host + ":" + brokerPort;
+        brokerAddress = InetSocketAddress.createUnresolved(host, brokerPort);
         int brokerPortSsl = getFreePort();
-        hostAndBrokerPortSsl = host + ":" + brokerPortSsl;
+        brokerSslAddress = InetSocketAddress.createUnresolved(host, brokerPortSsl);
         super.internalSetup();
     }
 
@@ -97,8 +97,9 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     protected void doInitConf() throws Exception {
         super.doInitConf();
         this.conf.setClusterName("localhost");
-        this.conf.setAdvertisedListeners(String.format("internal:pulsar://%s,internal:pulsar+ssl://%s",
-                hostAndBrokerPort, hostAndBrokerPortSsl));
+        this.conf.setAdvertisedListeners(String.format("internal:pulsar://%s:%s,internal:pulsar+ssl://%s:%s",
+                brokerAddress.getHostString(), brokerAddress.getPort(),
+                brokerSslAddress.getHostString(), brokerSslAddress.getPort()));
         if (withInternalListener) {
             this.conf.setInternalListenerName("internal");
         }
@@ -136,16 +137,16 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
             CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future =
                     lookupService.getBroker(TopicName.get("persistent://public/default/test"));
             Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
-            Assert.assertEquals(result.getKey().toString(), hostAndBrokerPort);
-            Assert.assertEquals(result.getValue().toString(), hostAndBrokerPort);
+            Assert.assertEquals(result.getKey(), brokerAddress);
+            Assert.assertEquals(result.getValue(), brokerAddress);
         }
         // test request 2
         {
             CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> future =
                     lookupService.getBroker(TopicName.get("persistent://public/default/test"));
             Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
-            Assert.assertEquals(result.getKey().toString(), hostAndBrokerPort);
-            Assert.assertEquals(result.getValue().toString(), hostAndBrokerPort);
+            Assert.assertEquals(result.getKey(), brokerAddress);
+            Assert.assertEquals(result.getValue(), brokerAddress);
         }
     }
 
@@ -169,10 +170,10 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         LookupResult lookupResult = new LookupResult(pulsar.getWebServiceAddress(), null,
                 pulsar.getBrokerServiceUrl(), null, true);
         Optional<LookupResult> optional = Optional.of(lookupResult);
-        String address = "192.168.0.1:8080";
-        String httpAddress = "192.168.0.1:8081";
-        NamespaceEphemeralData namespaceEphemeralData = new NamespaceEphemeralData("pulsar://" + address,
-                null, "http://" + httpAddress, null, false);
+        InetSocketAddress address = InetSocketAddress.createUnresolved("192.168.0.1", 8080);
+        NamespaceEphemeralData namespaceEphemeralData =
+                new NamespaceEphemeralData("pulsar://" + address.getHostName() + ":" + address.getPort(),
+                null, "http://192.168.0.1:8081", null, false);
         LookupResult lookupResult2 = new LookupResult(namespaceEphemeralData);
         Optional<LookupResult> optional2 = Optional.of(lookupResult2);
         doReturn(CompletableFuture.completedFuture(optional), CompletableFuture.completedFuture(optional2))
@@ -182,8 +183,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
                 lookupService.getBroker(TopicName.get("persistent://public/default/test"));
 
         Pair<InetSocketAddress, InetSocketAddress> result = future.get(10, TimeUnit.SECONDS);
-        Assert.assertEquals(result.getKey().toString(), address);
-        Assert.assertEquals(result.getValue().toString(), address);
+        Assert.assertEquals(result.getKey(), address);
+        Assert.assertEquals(result.getValue(), address);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -197,5 +198,4 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         }
         super.internalCleanup();
     }
-
 }

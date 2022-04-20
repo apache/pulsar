@@ -388,6 +388,9 @@ message CommandSubscribe {
     optional KeySharedMeta keySharedMeta = 17;
 
     repeated KeyValue subscription_properties = 18;
+
+    // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
+    optional uint64 consumer_epoch = 19;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -491,6 +494,12 @@ message CommandProducer {
     optional uint64 topic_epoch = 11;
 
     optional bool txn_enabled = 12 [default = false];
+
+    // Name of the initial subscription of the topic.
+    // If this field is not set, the initial subscription will not be created.
+    // If this field is set but the broker's `allowAutoSubscriptionCreation`
+    // is disabled, the producer will fail to be created.
+    optional string initial_subscription_name = 13;
 }
 
 message CommandSend {
@@ -527,6 +536,7 @@ message CommandMessage {
     required MessageIdData message_id = 2;
     optional uint32 redelivery_count  = 3 [default = 0];
     repeated int64 ack_set = 4;
+    optional uint64 consumer_epoch = 5;
 }
 
 message CommandAck {
@@ -617,6 +627,7 @@ message CommandCloseConsumer {
 message CommandRedeliverUnacknowledgedMessages {
     required uint64 consumer_id = 1;
     repeated MessageIdData message_ids = 2;
+    optional uint64 consumer_epoch = 3;
 }
 
 message CommandSuccess {
@@ -727,11 +738,19 @@ message CommandGetTopicsOfNamespace {
     required uint64 request_id    = 1;
     required string namespace    = 2;
     optional Mode mode = 3 [default = PERSISTENT];
+    optional string topics_pattern = 4;
+    optional string topics_hash    = 5;
 }
 
 message CommandGetTopicsOfNamespaceResponse {
     required uint64 request_id    = 1;
     repeated string topics         = 2;
+    // true iff the topic list was filtered by the pattern supplied by the client
+    optional bool   filtered       = 3 [default = false];
+    // hash computed from the names of matching topics
+    optional string topics_hash    = 4;
+    // if false, topics is empty and the list of matching topics has not changed
+    optional bool   changed        = 5 [default = true];
 }
 
 message CommandGetSchema {

@@ -160,6 +160,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
+                    // because consumer can receive message is smaller than maxReadPosition,
+                    // so this marker is useless for this subscription
+                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
+                            Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -216,6 +220,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
             subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
                     Collections.emptyMap());
+
+            int filtered = entriesToFiltered.size();
+            Topic topic = subscription.getTopic();
+            if (topic instanceof AbstractTopic) {
+                ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
+            }
         }
 
         sendMessageInfo.setTotalMessages(totalMessages);

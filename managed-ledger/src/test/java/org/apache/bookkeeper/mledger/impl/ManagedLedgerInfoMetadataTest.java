@@ -19,6 +19,12 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -27,13 +33,6 @@ import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * ManagedLedgerInfo metadata test.
@@ -91,7 +90,7 @@ public class ManagedLedgerInfoMetadataTest {
 
         MetaStoreImpl metaStore;
         try {
-            metaStore = new MetaStoreImpl(null, null, compressionType);
+            metaStore = new MetaStoreImpl(null, null, compressionType, null);
             if ("INVALID_TYPE".equals(compressionType)) {
                 Assert.fail("The managedLedgerInfo compression type is invalid, should fail.");
             }

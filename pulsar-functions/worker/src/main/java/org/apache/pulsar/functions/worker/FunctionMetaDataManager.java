@@ -138,7 +138,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
-     * Get the function metadata for a function
+     * Get the function metadata for a function.
      * @param tenant the tenant the function belongs to
      * @param namespace the namespace the function belongs to
      * @param functionName the function name
@@ -149,7 +149,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
-     * Get a list of all the meta for every function
+     * Get a list of all the meta for every function.
      * @return list of function metadata
      */
     public synchronized List<FunctionMetaData> getAllFunctionMetaData() {
@@ -163,7 +163,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
-     * List all the functions in a namespace
+     * List all the functions in a namespace.
      * @param tenant the tenant the namespace belongs to
      * @param namespace the namespace
      * @return a list of function names
@@ -185,7 +185,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
-     * Check if the function exists
+     * Check if the function exists.
      * @param tenant tenant that the function belongs to
      * @param namespace namespace that the function belongs to
      * @param functionName name of function
@@ -428,7 +428,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
                     log.debug("{}/{}/{} Ignoring outdated request version: {}", tenant, namespace, functionName,
                             version);
                 }
-                throw new IllegalArgumentException("Delete request ignored because it is out of date. Please try again.");
+                throw new IllegalArgumentException("Delete request ignored because "
+                        + "it is out of date. Please try again.");
             }
         }
 
@@ -455,7 +456,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 setFunctionMetaData(updateRequestFs);
                 needsScheduling = true;
             } else {
-                throw new IllegalArgumentException("Update request ignored because it is out of date. Please try again.");
+                throw new IllegalArgumentException("Update request "
+                        + "ignored because it is out of date. Please try again.");
             }
         }
 
@@ -470,7 +472,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private boolean isRequestOutdated(String tenant, String namespace, String functionName, long version) {
         // avoid NPE
-        if(!containsFunctionMetaData(tenant, namespace, functionName)){
+        if (!containsFunctionMetaData(tenant, namespace, functionName)) {
             return false;
         }
         FunctionMetaData currentFunctionMetaData = this.functionMetaDataMap.get(tenant)

@@ -6,7 +6,7 @@ sidebar_label: Authentication using OAuth 2.0 access tokens
 
 Pulsar supports authenticating clients using OAuth 2.0 access tokens. You can use OAuth 2.0 access tokens to identify a Pulsar client and associate the Pulsar client with some "principal" (or "role"), which is permitted to do some actions, such as publishing messages to a topic or consume messages from a topic.
 
-This module is used to support the Pulsar client authentication plugin for OAuth 2.0. After communicating with the Oauth 2.0 server, the Pulsar client gets an `access token` from the Oauth 2.0 server, and passes this `access token` to the Pulsar broker to do the authentication. The broker can use the `org.apache.pulsar.broker.authentication.AuthenticationProviderToken`. Or, you can add your own `AuthenticationProvider` to make it with this module.
+This module is used to support the [Pulsar client authentication plugin](security-extending.md/#client-authentication-plugin) for OAuth 2.0. After communicating with the OAuth 2.0 server, the Pulsar client gets an `access token` from the OAuth 2.0 server, and passes this `access token` to the Pulsar broker to do the authentication. The broker can use the `org.apache.pulsar.broker.authentication.AuthenticationProviderToken`. Or, you can add your own `AuthenticationProvider` to make it with this module.
 
 ## Authentication provider configuration
 
@@ -16,7 +16,7 @@ This library allows you to authenticate the Pulsar client by using an access tok
 
 The authentication type determines how to obtain an access token through an OAuth 2.0 authorization flow.
 
-#### Note
+> Note
 > Currently, the Pulsar Java client only supports the `client_credentials` authentication type .
 
 #### Client credentials
@@ -25,7 +25,7 @@ The following table lists parameters supported for the `client credentials` auth
 
 | Parameter | Description | Example | Required or not |
 | --- | --- | --- | --- |
-| `type` | Oauth 2.0 authentication type. |  `client_credentials` (default) | Optional |
+| `type` | OAuth 2.0 authentication type. |  `client_credentials` (default) | Optional |
 | `issuerUrl` | URL of the authentication provider which allows the Pulsar client to obtain an access token | `https://accounts.google.com` | Required |
 | `privateKey` | URL to a JSON credentials file  | Support the following pattern formats: <br> <li> `file:///path/to/file` <li>`file:/path/to/file` <li> `data:application/json;base64,<base64-encoded value>` | Required |
 | `audience`  | An OAuth 2.0 "resource server" identifier for the Pulsar cluster | `https://broker.example.com` | Optional |
@@ -70,7 +70,7 @@ In the above example, the mapping relationship is shown as below.
 
 You can use the OAuth2 authentication provider with the following Pulsar clients.
 
-### Java
+### Java client
 
 You can use the factory method to configure authentication for Pulsar Java client.
 
@@ -99,7 +99,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### C++ client
 
-The C++ client is similar to the Java client. You need to provide parameters of `issuerUrl`, `private_key` (the credentials file path), and `audience`.
+The C++ client is similar to the Java client. You need to provide the parameters of `issuerUrl`, `private_key` (the credentials file path), and `audience`.
 
 ```c++
 #include <pulsar/Client.h>
@@ -152,6 +152,48 @@ params = '''
 
 client = Client("pulsar://my-cluster:6650", authentication=AuthenticationOauth2(params))
 ```
+
+### Node.js client
+
+To enable OAuth2 authentication in Node.js client, you need to configure OAuth2 authentication.
+This example shows how to configure OAuth2 authentication in Node.js client.
+
+```JavaScript
+    const Pulsar = require('pulsar-client');
+    const issuer_url = process.env.ISSUER_URL;
+    const private_key = process.env.PRIVATE_KEY;
+    const audience = process.env.AUDIENCE;
+    const scope = process.env.SCOPE;
+    const service_url = process.env.SERVICE_URL;
+    const client_id = process.env.CLIENT_ID;
+    const client_secret = process.env.CLIENT_SECRET;
+    (async () => {
+      const params = {
+        issuer_url: issuer_url
+      }
+      if (private_key.length > 0) {
+        params['private_key'] = private_key
+      } else {
+        params['client_id'] = client_id
+        params['client_secret'] = client_secret
+      }
+      if (audience.length > 0) {
+        params['audience'] = audience
+      }
+      if (scope.length > 0) {
+        params['scope'] = scope
+      }
+      const auth = new Pulsar.AuthenticationOauth2(params);
+      // Create a client
+      const client = new Pulsar.Client({
+        serviceUrl: service_url,
+        tlsAllowInsecureConnection: true,
+        authentication: auth,
+      });
+      await client.close();
+    })();
+```
+> Note: The support for OAuth2 authentication is only available in Node.js client 1.6.2 and later versions.
 
 ## CLI configuration
 

@@ -1,8 +1,8 @@
 ---
-id: version-2.8.0-kubernetes-helm
+id: version-2.8.0-getting-started-helm
 title: Get started in Kubernetes
 sidebar_label: Run Pulsar in Kubernetes
-original_id: kubernetes-helm
+original_id: getting-started-helm
 ---
 
 This section guides you through every step of installing and running Apache Pulsar with Helm on Kubernetes quickly, including the following sections:

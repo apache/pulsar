@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -29,6 +29,7 @@ import java.time.ZoneId;
 
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 /**
@@ -51,7 +52,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
     @Test
     public void testChoosePartitionWithoutKeyWithBatching() {
         Message<?> msg = mock(Message.class);
-        when(msg.getKey()).thenReturn(null);
+        Mockito.when(msg.getKey()).thenReturn(null);
 
         // Fake clock, simulate 1 millisecond passes for each invocation
         Clock clock = new Clock() {

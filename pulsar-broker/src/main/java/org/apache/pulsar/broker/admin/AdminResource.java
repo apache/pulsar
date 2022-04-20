@@ -38,12 +38,13 @@ import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
@@ -57,6 +58,8 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -203,10 +206,7 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
         } catch (RestException re) {
-            if (re.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode()) {
-                throw new RestException(Status.NOT_FOUND, "Namespace not found");
-            }
-            throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
+            throw re;
         } catch (Exception e) {
             log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespaceName, e.getMessage());
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
@@ -294,6 +294,10 @@ public abstract class AdminResource extends PulsarWebResource {
             BundlesData bundleData = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName).getBundlesData();
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
+            if (policies.is_allow_auto_update_schema == null) {
+                // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
+                policies.is_allow_auto_update_schema = pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+            }
 
             return policies;
         } catch (RestException re) {
@@ -501,6 +505,9 @@ public abstract class AdminResource extends PulsarWebResource {
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e.getCause();
             }
+            if (e.getCause() instanceof PulsarServerException.InvalidTopicNameException) {
+                throw new RestException(Status.PRECONDITION_FAILED, e.getCause().getMessage());
+            }
             throw new RestException(e);
         }
     }
@@ -518,20 +525,7 @@ public abstract class AdminResource extends PulsarWebResource {
     protected Policies getNamespacePolicies(String tenant, String cluster, String namespace) {
         NamespaceName ns = NamespaceName.get(tenant, cluster, namespace);
 
-        try {
-            Policies policies = namespaceResources().getPolicies(ns)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-            // fetch bundles from LocalZK-policies
-            BundlesData bundleData  = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(ns).getBundlesData();
-            policies.bundles = bundleData != null ? bundleData : policies.bundles;
-            return policies;
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespace policies {}", clientAppId(), ns, e);
-            throw new RestException(e);
-        }
+        return getNamespacePolicies(ns);
     }
 
     protected boolean isNamespaceReplicated(NamespaceName namespaceName) {
@@ -566,7 +560,7 @@ public abstract class AdminResource extends PulsarWebResource {
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
         try {
             return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
-                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
                     namespaceName.toString(), e);
@@ -600,12 +594,12 @@ public abstract class AdminResource extends PulsarWebResource {
             }
 
             // new create check
-            if (maxTopicsPerNamespace > 0 && !SystemTopicClient.isSystemTopic(topicName)) {
+            if (maxTopicsPerNamespace > 0 && !pulsar().getBrokerService().isSystemTopic(topicName)) {
                 List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
                 // exclude created system topic
                 long topicsCount =
-                        partitionedTopics.stream().filter(t -> !SystemTopicClient.isSystemTopic(TopicName.get(t)))
-                                .count();
+                        partitionedTopics.stream().filter(t ->
+                                        !pulsar().getBrokerService().isSystemTopic(TopicName.get(t))).count();
                 if (topicsCount + numPartitions > maxTopicsPerNamespace) {
                     log.error("[{}] Failed to create partitioned topic {}, "
                             + "exceed maximum number of topics in namespace", clientAppId(), topicName);
@@ -760,18 +754,23 @@ public abstract class AdminResource extends PulsarWebResource {
         return future;
     }
 
-    protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
-        if (throwable instanceof WebApplicationException) {
-            asyncResponse.resume(throwable);
-        } else if (throwable instanceof BrokerServiceException.NotAllowedException) {
-            asyncResponse.resume(new RestException(Status.CONFLICT, throwable));
+    protected static void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable exception) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(exception);
+        if (realCause instanceof WebApplicationException) {
+            asyncResponse.resume(realCause);
+        } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
+            asyncResponse.resume(new RestException(Status.CONFLICT, realCause));
+        } else if (realCause instanceof PulsarAdminException) {
+            asyncResponse.resume(new RestException(((PulsarAdminException) realCause)));
         } else {
-            asyncResponse.resume(new RestException(throwable));
+            asyncResponse.resume(new RestException(realCause));
         }
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
-        return validateTopicOperationAsync(topicName, TopicOperation.GET_SCHEMA_COMPATIBILITY_STRATEGY)
+        return validateTopicPolicyOperationAsync(topicName,
+                PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ)
                 .thenCompose((__) -> {
                     CompletableFuture<SchemaCompatibilityStrategy> future;
                     if (config().isTopicLevelPoliciesEnabled()) {
@@ -845,5 +844,18 @@ public abstract class AdminResource extends PulsarWebResource {
                         persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
                         persistence.getBookkeeperAckQuorum()));
 
+    }
+
+    /**
+     * Check current exception whether is redirect exception.
+     *
+     * @param ex The throwable.
+     * @return Whether is redirect exception
+     */
+    protected static boolean isRedirectException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
 }

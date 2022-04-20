@@ -151,10 +151,11 @@ public class SchemasResource extends SchemasResourceBase {
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+        @QueryParam("force") @DefaultValue("false") boolean force,
         @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, namespace, topic);
-        deleteSchema(authoritative, response);
+        deleteSchema(authoritative, response, force);
     }
 
     @POST

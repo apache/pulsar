@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import java.util.Map;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -25,7 +26,6 @@ import static org.testng.Assert.assertTrue;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 public class AuthenticationTokenTest {
 
@@ -51,8 +52,10 @@ public class AuthenticationTokenTest {
         assertNull(authData.getTlsPrivateKey());
 
         assertTrue(authData.hasDataForHttp());
-        assertEquals(authData.getHttpHeaders(),
-                Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
+        Map<String, String> headers = Maps.newHashMap();
+        headers.put("Authorization", "Bearer token-xyz");
+        headers.put("X-Pulsar-Auth-Method-Name", "token");
+        assertEquals(authData.getHttpHeaders(), headers.entrySet());
 
         authToken.close();
     }
@@ -78,8 +81,10 @@ public class AuthenticationTokenTest {
         assertNull(authData.getTlsPrivateKey());
 
         assertTrue(authData.hasDataForHttp());
-        assertEquals(authData.getHttpHeaders(),
-                Collections.singletonMap("Authorization", "Bearer token-xyz").entrySet());
+        Map<String, String> headers = Maps.newHashMap();
+        headers.put("Authorization", "Bearer token-xyz");
+        headers.put("X-Pulsar-Auth-Method-Name", "token");
+        assertEquals(authData.getHttpHeaders(), headers.entrySet());
 
         authToken.close();
     }

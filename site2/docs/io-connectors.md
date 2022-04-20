@@ -194,6 +194,14 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/mariadb/src/main/java/org/apache/pulsar/io/jdbc/MariadbJdbcAutoSchemaSink.java)
 
+### JDBC OpenMLDB
+
+* [Configuration](io-jdbc-sink.md#configuration)
+
+* [Example](io-jdbc-sink.md#example-for-openmldb)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/jdbc/openmldb/src/main/java/org/apache/pulsar/io/jdbc/OpenMLDBJdbcAutoSchemaSink.java)
+
 ### JDBC PostgreSQL
 
 * [Configuration](io-jdbc-sink.md#configuration)

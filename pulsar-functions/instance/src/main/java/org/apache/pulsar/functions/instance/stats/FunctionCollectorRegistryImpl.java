@@ -16,11 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.instance.stats;
 
 import io.prometheus.client.Collector;
-
 import java.util.HashMap;
 import java.util.Map;
 

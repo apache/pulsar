@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -35,6 +36,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -72,7 +74,8 @@ public class MessageImpl<T> implements Message<T> {
     private BrokerEntryMetadata brokerEntryMetadata;
 
     private boolean poolMessage;
-
+    @Getter
+    private long consumerEpoch;
     // Constructor for out-going message
     public static <T> MessageImpl<T> create(MessageMetadata msgMetadata, ByteBuffer payload, Schema<T> schema,
             String topic) {
@@ -98,75 +101,77 @@ public class MessageImpl<T> implements Message<T> {
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
-        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false);
+        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false, DEFAULT_CONSUMER_EPOCH);
     }
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-                boolean pooledMessage) {
+                boolean pooledMessage, long consumerEpoch) {
         this.msgMetadata = new MessageMetadata();
-        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount, pooledMessage);
+        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx,
+                schema, redeliveryCount, pooledMessage, consumerEpoch);
     }
 
     public static <T> MessageImpl<T> create(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
             ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
-            int redeliveryCount, boolean pooledMessage) {
+            int redeliveryCount, boolean pooledMessage, long consumerEpoch) {
         if (pooledMessage) {
             @SuppressWarnings("unchecked")
             MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
             init(msg, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount,
-                    pooledMessage);
+                    pooledMessage, consumerEpoch);
             return msg;
         } else {
             return new MessageImpl<>(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema,
-                    redeliveryCount, pooledMessage);
+                    redeliveryCount, pooledMessage, consumerEpoch);
         }
     }
 
     MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
             SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
-            ClientCnx cnx, Schema<T> schema) {
+            ClientCnx cnx, Schema<T> schema, long consumerEpoch) {
         this(topic, batchMessageIdImpl, msgMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema, 0,
-                false);
+                false, consumerEpoch);
     }
 
     MessageImpl(String topic, BatchMessageIdImpl batchMessageIdImpl, MessageMetadata batchMetadata,
             SingleMessageMetadata singleMessageMetadata, ByteBuf payload, Optional<EncryptionContext> encryptionCtx,
-            ClientCnx cnx, Schema<T> schema, int redeliveryCount, boolean keepMessageInDirectMemory) {
+            ClientCnx cnx, Schema<T> schema, int redeliveryCount,
+                boolean keepMessageInDirectMemory, long consumerEpoch) {
         this.msgMetadata = new MessageMetadata();
-        init(this, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx, cnx, schema,
-                redeliveryCount, keepMessageInDirectMemory);
+        init(this, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx,
+                cnx, schema, redeliveryCount, keepMessageInDirectMemory, consumerEpoch);
 
     }
 
     public static <T> MessageImpl<T> create(String topic, BatchMessageIdImpl batchMessageIdImpl,
             MessageMetadata batchMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
             Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-            boolean pooledMessage) {
+            boolean pooledMessage, long consumerEpoch) {
         if (pooledMessage) {
             @SuppressWarnings("unchecked")
             MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
             init(msg, topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload, encryptionCtx, cnx,
-                    schema, redeliveryCount, pooledMessage);
+                    schema, redeliveryCount, pooledMessage, consumerEpoch);
             return msg;
         } else {
             return new MessageImpl<>(topic, batchMessageIdImpl, batchMetadata, singleMessageMetadata, payload,
-                    encryptionCtx, cnx, schema, redeliveryCount, pooledMessage);
+                    encryptionCtx, cnx, schema, redeliveryCount, pooledMessage, consumerEpoch);
         }
     }
 
     static <T> void init(MessageImpl<T> msg, String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
             ByteBuf payload, Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema,
-            int redeliveryCount, boolean poolMessage) {
+            int redeliveryCount, boolean poolMessage, long consumerEpoch) {
         init(msg, topic, null /* batchMessageIdImpl */, msgMetadata, null /* singleMessageMetadata */, payload,
-                encryptionCtx, cnx, schema, redeliveryCount, poolMessage);
+                encryptionCtx, cnx, schema, redeliveryCount, poolMessage, consumerEpoch);
         msg.messageId = messageId;
     }
 
     private static <T> void init(MessageImpl<T> msg, String topic, BatchMessageIdImpl batchMessageIdImpl,
             MessageMetadata msgMetadata, SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
             Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-            boolean poolMessage) {
+            boolean poolMessage, long consumerEpoch) {
         msg.msgMetadata.clear();
         msg.msgMetadata.copyFrom(msgMetadata);
         msg.messageId = batchMessageIdImpl;
@@ -175,6 +180,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.redeliveryCount = redeliveryCount;
         msg.encryptionCtx = encryptionCtx;
         msg.schema = schema;
+        msg.consumerEpoch = consumerEpoch;
 
         msg.poolMessage = poolMessage;
         // If it's not pool message then need to make a copy since the passed payload is
@@ -289,6 +295,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.topic = null;
         msg.cnx = null;
         msg.brokerEntryMetadata = brokerEntryMetadata;
+        msg.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
         return msg;
     }
 
@@ -636,6 +643,7 @@ public class MessageImpl<T> implements Message<T> {
         schema = null;
         schemaState = SchemaState.None;
         poolMessage = false;
+        consumerEpoch = DEFAULT_CONSUMER_EPOCH;
 
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);
@@ -686,6 +694,7 @@ public class MessageImpl<T> implements Message<T> {
         this.redeliveryCount = 0;
         this.msgMetadata = new MessageMetadata();
         this.brokerEntryMetadata = new BrokerEntryMetadata();
+        this.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
     }
 
     private Handle<MessageImpl<?>> recyclerHandle;

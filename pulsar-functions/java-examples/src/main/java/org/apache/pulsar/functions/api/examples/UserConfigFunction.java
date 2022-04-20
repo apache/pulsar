@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import java.util.Optional;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-
-import java.util.Optional;
 
 /**
  * An example demonstrate retrieving user config value from Context.
@@ -32,7 +31,7 @@ public class UserConfigFunction implements Function<String, String> {
     public String process(String input, Context context) {
         Optional<Object> whatToWrite = context.getUserConfigValue("WhatToWrite");
         if (whatToWrite.get() != null) {
-            return (String)whatToWrite.get();
+            return (String) whatToWrite.get();
         } else {
             return "Not a nice way";
         }

@@ -25,7 +25,7 @@ A Pulsar instance consists of multiple Pulsar clusters working in unison. You ca
 
 ## System requirement
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. You need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. You need to install 64-bit JRE/JDK 8 or later versions, JRE/JDK 11 is recommended.
 
 > **Note**
 >
@@ -212,7 +212,7 @@ $ bin/pulsar initialize-cluster-metadata \
 As you can see from the example above, you need to specify the following:
 
 * The name of the cluster
-* The local ZooKeeper connection string for the cluster
+* The local metadata store connection string for the cluster
 * The configuration store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
@@ -275,7 +275,7 @@ Once you set up ZooKeeper, initialize cluster metadata, and spin up BookKeeper b
 
 You can configure brokers using the [`conf/broker.conf`](reference-configuration.md#broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`zookeeperServers`](reference-configuration.md#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](reference-configuration.md#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`metadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the local quorum and the [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
 
 You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter. In addition, you need to match the broker and web service ports provided when you initialize the metadata (especially when you use a different port from default) of the cluster.
 
@@ -283,10 +283,10 @@ The following is an example configuration:
 
 ```properties
 # Local ZooKeeper servers
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
 # Configuration store quorum connection string.
-configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+configurationMetadataStoreUrl=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
 

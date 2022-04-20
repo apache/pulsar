@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.instance;
 
 import java.io.File;
@@ -44,7 +43,8 @@ import java.util.List;
  *          - log4j-core
  *          - log4j-api
  *
- *      2. The Function instance classloader, a child of the root classloader, that loads all pulsar broker/worker dependencies
+ *      2. The Function instance classloader, a child of the root classloader,
+ *      that loads all pulsar broker/worker dependencies
  *      3. The user code classloader, a child of the root classloader, that loads all user code dependencies
  *
  * This class should not use any other dependencies!
@@ -54,7 +54,8 @@ public class JavaInstanceMain {
 
     private static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
-    public JavaInstanceMain() { }
+    public JavaInstanceMain() {
+    }
 
     public static void main(String[] args) throws Exception {
 
@@ -68,7 +69,7 @@ public class JavaInstanceMain {
         }
 
         List<File> files = new LinkedList<>();
-        for (String entry: functionInstanceClasspath.split(":")) {
+        for (String entry : functionInstanceClasspath.split(":")) {
             if (isBlank(entry)) {
                 continue;
             }
@@ -81,7 +82,8 @@ public class JavaInstanceMain {
                     files.add(new File(entry));
                 }
             } else {
-                System.out.println(String.format("[WARN] %s on functions instance classpath does not exist", f.getAbsolutePath()));
+                System.out.println(
+                        String.format("[WARN] %s on functions instance classpath does not exist", f.getAbsolutePath()));
             }
         }
 
@@ -91,10 +93,12 @@ public class JavaInstanceMain {
         System.out.println("Using function instance classloader: " + functionInstanceClsLoader);
 
         // use the function instance classloader to create org.apache.pulsar.functions.runtime.JavaInstanceStarter
-        Object main = createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter", functionInstanceClsLoader);
+        Object main =
+                createInstance("org.apache.pulsar.functions.runtime.JavaInstanceStarter", functionInstanceClsLoader);
 
         // Invoke start method of JavaInstanceStarter to start the function instance code
-        Method method = main.getClass().getDeclaredMethod("start", String[].class, ClassLoader.class, ClassLoader.class);
+        Method method =
+                main.getClass().getDeclaredMethod("start", String[].class, ClassLoader.class, ClassLoader.class);
 
         System.out.println("Starting function instance...");
         method.invoke(main, args, functionInstanceClsLoader, root);
@@ -137,7 +141,7 @@ public class JavaInstanceMain {
     public static boolean isBlank(String str) {
         int strLen;
         if (str != null && (strLen = str.length()) != 0) {
-            for(int i = 0; i < strLen; ++i) {
+            for (int i = 0; i < strLen; ++i) {
                 if (!Character.isWhitespace(str.charAt(i))) {
                     return false;
                 }
