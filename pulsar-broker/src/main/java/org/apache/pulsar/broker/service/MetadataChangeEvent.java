@@ -31,6 +31,7 @@ public class MetadataChangeEvent {
     private EventType type;
     private ResourceType resource;
     private String resourceName;
+    @ToString.Exclude
     private byte[] data;
     private String sourceCluster;
     private long eventTime;

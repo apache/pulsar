@@ -125,7 +125,25 @@ public class MetadataStoreSynchronizerTest extends ProducerConsumerBase {
         long time = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(ns2))
                 .get().lastUpdatedTimestamp;
 
+        // modify-event for non-exist namespace which should create a new namespace
+        String newNs = ns2 + "-new";
+        event.setResourceName(newNs);
+        event.setType(EventType.Modified);
+        producer1.newMessage().value(event).send();
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS).until(() -> {
+            try {
+                admin.namespaces().getPolicies(newNs);
+                return true;
+            } catch (Exception e) {
+                // ok
+                return false;
+            }
+        });
+        Policies policies2 = admin.namespaces().getPolicies(newNs);
+        assertNotNull(policies2);
+
         // (3) update with old event time
+        event.setResourceName(ns2);
         event.setType(EventType.Modified);
         policies.lastUpdatedTimestamp -= 1;
         data = ObjectMapperFactory.getThreadLocal().writer().writeValueAsBytes(policies);

@@ -52,7 +52,7 @@ public abstract class AbstractMetadataStoreSynchronizer {
     protected PulsarService pulsar;
     protected BrokerService brokerService;
     protected String topicName;
-    protected final PulsarClientImpl client;
+    protected PulsarClientImpl client;
     protected volatile Producer<MetadataChangeEvent> producer;
     protected ProducerBuilder<MetadataChangeEvent> producerBuilder;
     private volatile ScheduledFuture<?> snapshotScheduler;
@@ -73,12 +73,11 @@ public abstract class AbstractMetadataStoreSynchronizer {
         this.pulsar = pulsar;
         this.brokerService = pulsar.getBrokerService();
         this.topicName = pulsar.getConfig().getMetadataSyncEventTopic();
-        this.client = (PulsarClientImpl) pulsar.getClient();
-
         if (!StringUtils.isNotBlank(topicName)) {
             log.info("Metadata synchronizer is disabled");
             return;
         }
+        this.client = (PulsarClientImpl) pulsar.getClient();
         @SuppressWarnings("serial")
         ConsumerEventListener listener = new ConsumerEventListener() {
             @Override
@@ -179,6 +178,7 @@ public abstract class AbstractMetadataStoreSynchronizer {
             log.warn("Producer is already closed. ignoring event publish for {}", metadataStorePath);
             return;
         }
+        log.info("publishing metadata change event {}-{}-{} from {}", resource, resourceType, type, metadataStorePath);
         pulsar.getConfigurationMetadataStore().get(metadataStorePath).thenAccept(result -> {
             if (result.isPresent()) {
                 byte[] data = result.get().getValue();

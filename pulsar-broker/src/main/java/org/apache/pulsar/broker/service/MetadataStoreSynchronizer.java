@@ -60,8 +60,11 @@ public class MetadataStoreSynchronizer extends AbstractMetadataStoreSynchronizer
         pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(old -> {
             Policies existingNamespace = old.isPresent() ? old.get() : null;
             CompletableFuture<Void> result = null;
+            // handle Synchronize-snapshot event with created/modified according to resource state
             EventType type = event.getType() != EventType.Synchronize ? event.getType()
                     : (old.isPresent() ? EventType.Modified : EventType.Created);
+            // if resource doesn't exist to local cluster then create the resource with modified content
+            type = !old.isPresent() && type == EventType.Modified ? EventType.Created : type;
             switch (type) {
             case Created:
                 if (existingNamespace == null) {
@@ -131,8 +134,11 @@ public class MetadataStoreSynchronizer extends AbstractMetadataStoreSynchronizer
         pulsar.getPulsarResources().getTenantResources().getTenantAsync(tenantName).thenAccept(old -> {
             TenantInfoImpl existingTenant = old.isPresent() ? (TenantInfoImpl) old.get() : null;
             CompletableFuture<Void> result = null;
+            // handle Synchronize-snapshot event with created/modified according to resource state
             EventType type = event.getType() != EventType.Synchronize ? event.getType()
                     : (old.isPresent() ? EventType.Modified : EventType.Created);
+            // if resource doesn't exist to local cluster then create the resource with modified content
+            type = !old.isPresent() && type == EventType.Modified ? EventType.Created : type;
             switch (type) {
             case Created:
                 if (existingTenant == null) {
@@ -204,6 +210,11 @@ public class MetadataStoreSynchronizer extends AbstractMetadataStoreSynchronizer
                 .getPartitionedTopicMetadataAsync(topicName).thenAccept(old -> {
                     PartitionedTopicMetadata existingPartitions = old.isPresent() ? old.get() : null;
                     CompletableFuture<Void> result = null;
+                    // handle Synchronize-snapshot event with created/modified according to resource state
+                    EventType type = event.getType() != EventType.Synchronize ? event.getType()
+                            : (old.isPresent() ? EventType.Modified : EventType.Created);
+                    // if resource doesn't exist to local cluster then create the resource with modified content
+                    type = !old.isPresent() && type == EventType.Modified ? EventType.Created : type;
                     try {
                         switch (event.getType()) {
                         case Created:
