@@ -857,7 +857,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
         assertEquals(goInstanceConfig.get("parallelism"), 0);
         assertEquals(goInstanceConfig.get("className"), "");
-        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "persistent://public/default/test_src");
+        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "test_src");
         assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
         assertEquals(goInstanceConfig.get("sinkSpecsTopic"), TEST_NAME + "-output");
         assertEquals(goInstanceConfig.get("clusterName"), "standalone");
