@@ -256,7 +256,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, authoritative);
     }
 
-    private CompletableFuture<Void> grantPermissions(TopicName topicUri, String role, Set<AuthAction> actions) {
+    private CompletableFuture<Void> grantPermissionsAsync(TopicName topicUri, String role, Set<AuthAction> actions) {
         AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
         if (null != authService) {
             return authService.grantPermissionAsync(topicUri, actions, role, null/*additional auth-data json*/)
@@ -301,11 +301,11 @@ public class PersistentTopicsBase extends AdminResource {
                       if (numPartitions > 0) {
                           for (int i = 0; i < numPartitions; i++) {
                               TopicName topicNamePartition = topicName.getPartition(i);
-                              future = future.thenComposeAsync(unused -> grantPermissions(topicNamePartition, role,
+                              future = future.thenComposeAsync(unused -> grantPermissionsAsync(topicNamePartition, role,
                                       actions));
                           }
                       }
-                      return future.thenComposeAsync(unused -> grantPermissions(topicName, role, actions))
+                      return future.thenComposeAsync(unused -> grantPermissionsAsync(topicName, role, actions))
                               .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                   }))).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
